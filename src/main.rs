@@ -9,6 +9,7 @@ extern crate error_chain;
 extern crate url;
 
 const BUFSIZ : usize = 8192;
+const QUEUESIZ : usize = 1;
 
 error_chain! {
     foreign_links {
@@ -62,7 +63,7 @@ fn try_main() -> Result<()> {
 
     let (mut sender, mut receiver) = response.begin().split();
 
-    let (tx, rx) = sync_channel(2);
+    let (tx, rx) = sync_channel(QUEUESIZ);
 
     let tx_1 = tx.clone();
 
@@ -117,8 +118,8 @@ fn try_main() -> Result<()> {
                         use std::io::Write;
                         let msgpayload : &[u8] = message.payload.borrow();
                         debug!("Received message of {} bytes", msgpayload.len());
-                        //info!("Receive Loop: {:?}", message);
                         stdout().write_all(msgpayload)?;
+                        stdout().flush()?;
                     }
                 }
             }
@@ -141,6 +142,8 @@ fn try_main() -> Result<()> {
                 debug!("Sending {} bytes of data", ret);
                 buffer[0..ret].to_vec()
             }
+            Err(ref e) if e.kind() == ::std::io::ErrorKind::Interrupted => continue,
+            Err(ref e) if e.kind() == ::std::io::ErrorKind::WouldBlock  => continue,
             Err(e) => {
                 error!("Read error: {}", e);
                 break;
