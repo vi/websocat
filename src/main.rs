@@ -14,12 +14,24 @@ error_chain! {
         Log(log::SetLoggerError);
         Url(::url::ParseError);
         Ws(::websocket::result::WebSocketError);
+        VarError(::std::env::VarError);
     }
 }
 
+// Initialize logger with default "info" log level:
+fn init_logger() -> Result<()> {
+    let mut builder = env_logger::LogBuilder::new();
+    builder.filter(None, log::LogLevelFilter::Info);
+    if ::std::env::var("RUST_LOG").is_ok() {
+       builder.parse(&::std::env::var("RUST_LOG")?);
+    }
+    builder.init()?;
+    Ok(())
+}
+
 fn try_main() -> Result<()> {
-    env_logger::init()?;
-    
+    //env_logger::init()?;
+    init_logger()?;
     
     use std::thread;
     use std::sync::mpsc::sync_channel;
@@ -32,17 +44,17 @@ fn try_main() -> Result<()> {
 
     let url = Url::parse("ws://127.0.0.1:2794")?;
 
-    println!("Connecting to {}", url);
+    info!("Connecting to {}", url);
 
     let request = Client::connect(url)?;
 
     let response = request.send()?; // Send the request and retrieve a response
 
-    println!("Validating response...");
+    info!("Validating response...");
 
     response.validate()?; // Validate the response
 
-    println!("Successfully connected");
+    info!("Successfully connected");
 
     let (mut sender, mut receiver) = response.begin().split();
 
@@ -56,7 +68,7 @@ fn try_main() -> Result<()> {
             let message: Message = match rx.recv() {
                 Ok(m) => m,
                 Err(e) => {
-                    println!("Send Loop: {:?}", e);
+                    error!("Send Loop: {:?}", e);
                     return;
                 }
             };
@@ -72,7 +84,7 @@ fn try_main() -> Result<()> {
             match sender.send_message(&message) {
                 Ok(()) => (),
                 Err(e) => {
-                    println!("Send Loop: {:?}", e);
+                    error!("Send Loop: {:?}", e);
                     let _ = sender.send_message(&Message::close());
                     return;
                 }
@@ -86,7 +98,7 @@ fn try_main() -> Result<()> {
             let message: Message = match message {
                 Ok(m) => m,
                 Err(e) => {
-                    println!("Receive Loop: {:?}", e);
+                    error!("Receive Loop: {:?}", e);
                     let _ = tx_1.send(Message::close());
                     return;
                 }
@@ -101,12 +113,12 @@ fn try_main() -> Result<()> {
                     // Send a pong in response
                     Ok(()) => (),
                     Err(e) => {
-                        println!("Receive Loop: {:?}", e);
+                        error!("Receive Loop: {:?}", e);
                         return;
                     }
                 },
                 // Say what we received
-                _ => println!("Receive Loop: {:?}", message),
+                _ => info!("Receive Loop: {:?}", message),
             }
         }
     });
@@ -133,7 +145,7 @@ fn try_main() -> Result<()> {
         match tx.send(message) {
             Ok(()) => (),
             Err(e) => {
-                println!("Main Loop: {:?}", e);
+                error!("Main Loop: {:?}", e);
                 break;
             }
         }
@@ -141,12 +153,12 @@ fn try_main() -> Result<()> {
 
     // We're exiting
 
-    println!("Waiting for child threads to exit");
+    info!("Waiting for child threads to exit");
 
     let _ = send_loop.join();
     let _ = receive_loop.join();
 
-    println!("Exited");
+    info!("Exited");
     Ok(())
 }
 
