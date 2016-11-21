@@ -13,6 +13,7 @@ error_chain! {
         Io(::std::io::Error);
         Log(log::SetLoggerError);
         Url(::url::ParseError);
+        Ws(::websocket::result::WebSocketError);
     }
 }
 
@@ -33,13 +34,13 @@ fn try_main() -> Result<()> {
 
     println!("Connecting to {}", url);
 
-    let request = Client::connect(url).unwrap();
+    let request = Client::connect(url)?;
 
-    let response = request.send().unwrap(); // Send the request and retrieve a response
+    let response = request.send()?; // Send the request and retrieve a response
 
     println!("Validating response...");
 
-    response.validate().unwrap(); // Validate the response
+    response.validate()?; // Validate the response
 
     println!("Successfully connected");
 
@@ -113,7 +114,7 @@ fn try_main() -> Result<()> {
     loop {
         let mut input = String::new();
 
-        stdin().read_line(&mut input).unwrap();
+        stdin().read_line(&mut input)?;
 
         let trimmed = input.trim();
 
