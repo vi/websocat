@@ -7,6 +7,7 @@ authors = ["Vitaly _Vi Shukela <vi0oss@gmail.com>"]
 websocket = { version = "^0.17.1" }
 env_logger = {version="^0.3.5", default-features = false }
 log = {version="^0.3.5", default-features = false}
-#error-chain = {version="^0.6.0"}
+#error-chain = {version="^0.6.1"}
 error-chain = { git = "https://github.com/brson/error-chain", branch = "master" }
 url = { version="^1.2.3" }
+clap = { version = "^2.18", default-features = false }

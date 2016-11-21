@@ -7,9 +7,10 @@ extern crate log;
 #[macro_use]
 extern crate error_chain;
 extern crate url;
+extern crate clap;
 
 const BUFSIZ : usize = 8192;
-const QUEUESIZ : usize = 1;
+const QSIZ : usize = 1;
 
 error_chain! {
     foreign_links {
@@ -47,7 +48,18 @@ fn try_main() -> Result<()> {
     
     use std::io::{Read};
 
-    let url = Url::parse("ws://127.0.0.1:2794")?;
+    // setup command line arguments
+    let matches = ::clap::App::new("WS Command Line Client")
+        .version("0.1")
+        .author("Vitaly \"_Vi\" Shukela <vi0oss@gmail.com>")
+        .about("Send binary data from stdin to a WebSocket and back to stdout.")
+        .arg(::clap::Arg::with_name("URL")
+             .help("The URL of the WebSocket server.")
+             .required(true)
+             .index(1)).get_matches();
+
+
+    let url = Url::parse(matches.value_of("URL").ok_or("no URL")?)?;
 
     info!("Connecting to {}", url);
 
@@ -63,7 +75,7 @@ fn try_main() -> Result<()> {
 
     let (mut sender, mut receiver) = response.begin().split();
 
-    let (tx, rx) = sync_channel(QUEUESIZ);
+    let (tx, rx) = sync_channel(QSIZ);
 
     let tx_1 = tx.clone();
 
