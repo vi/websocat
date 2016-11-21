@@ -8,6 +8,8 @@ extern crate log;
 extern crate error_chain;
 extern crate url;
 
+const BUFSIZ : usize = 8192;
+
 error_chain! {
     foreign_links {
         Io(::std::io::Error);
@@ -35,12 +37,14 @@ fn try_main() -> Result<()> {
     
     use std::thread;
     use std::sync::mpsc::sync_channel;
-    use std::io::stdin;
+    use std::io::{stdin,stdout};
 
     use websocket::{Message, Sender, Receiver};
     use websocket::message::Type;
     use websocket::client::request::Url;
     use websocket::Client;
+    
+    use std::io::{Read};
 
     let url = Url::parse("ws://127.0.0.1:2794")?;
 
@@ -93,54 +97,57 @@ fn try_main() -> Result<()> {
     });
 
     let receive_loop = thread::spawn(move || {
-        // Receive loop
-        for message in receiver.incoming_messages() {
-            let message: Message = match message {
-                Ok(m) => m,
-                Err(e) => {
-                    error!("Receive Loop: {:?}", e);
-                    let _ = tx_1.send(Message::close());
-                    return;
-                }
-            };
-            match message.opcode {
-                Type::Close => {
-                    // Got a close message, so send a close message and return
-                    let _ = tx_1.send(Message::close());
-                    return;
-                }
-                Type::Ping => match tx_1.send(Message::pong(message.payload)) {
-                    // Send a pong in response
-                    Ok(()) => (),
-                    Err(e) => {
-                        error!("Receive Loop: {:?}", e);
-                        return;
+        fn receive_loop<'a>(
+                tx_1: &std::sync::mpsc::SyncSender<websocket::Message<'a>>,
+                receiver: &mut websocket::client::Receiver<websocket::WebSocketStream>) 
+                    -> Result<()> {
+            
+            for m in receiver.incoming_messages() {
+                let message : websocket::Message<'a> = try!(m);
+                match message.opcode {
+                    Type::Close => {
+                        return Ok(());
                     }
-                },
-                // Say what we received
-                _ => info!("Receive Loop: {:?}", message),
+                    Type::Ping => {
+                        tx_1.send(Message::pong(message.payload)).map_err(|_|"Failed pong")?
+                    }
+                    // Say what we received
+                    _ => {
+                        use std::borrow::Borrow;
+                        use std::io::Write;
+                        let msgpayload : &[u8] = message.payload.borrow();
+                        debug!("Received message of {} bytes", msgpayload.len());
+                        //info!("Receive Loop: {:?}", message);
+                        stdout().write_all(msgpayload)?;
+                    }
+                }
             }
+            Ok(())
+        };
+        if let Err(x) = receive_loop(&tx_1, &mut receiver) {
+            error!("Error on receive loop: {}", x);
         }
+        let _ = tx_1.send(Message::close());
+    
+        // Receive loop
     });
 
+    let mut buffer : [u8; BUFSIZ] = [0; BUFSIZ];
+    
     loop {
-        let mut input = String::new();
-
-        stdin().read_line(&mut input)?;
-
-        let trimmed = input.trim();
-
-        let message = match trimmed {
-            "/close" => {
-                // Close the connection
-                let _ = tx.send(Message::close());
+        let data : Vec<u8> = match stdin().read(&mut buffer) {
+            Ok(0) => break,
+            Ok(ret) => {
+                debug!("Sending {} bytes of data", ret);
+                buffer[0..ret].to_vec()
+            }
+            Err(e) => {
+                error!("Read error: {}", e);
                 break;
             }
-            // Send a ping
-            "/ping" => Message::ping(b"PING".to_vec()),
-            // Otherwise, just send text
-            _ => Message::text(trimmed.to_string()),
         };
+
+        let message = Message::binary(data);
 
         match tx.send(message) {
             Ok(()) => (),
@@ -150,6 +157,7 @@ fn try_main() -> Result<()> {
             }
         }
     }
+    let _ = tx.send(Message::close());
 
     // We're exiting
 
