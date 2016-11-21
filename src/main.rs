@@ -1,6 +1,25 @@
+#![recursion_limit = "1024"] // error_chain
+ 
 extern crate websocket;
+extern crate env_logger;
+#[macro_use]
+extern crate log;
+#[macro_use]
+extern crate error_chain;
+extern crate url;
 
-fn main() {
+error_chain! {
+    foreign_links {
+        Io(::std::io::Error);
+        Log(log::SetLoggerError);
+        Url(::url::ParseError);
+    }
+}
+
+fn try_main() -> Result<()> {
+    env_logger::init()?;
+    
+    
     use std::thread;
     use std::sync::mpsc::sync_channel;
     use std::io::stdin;
@@ -10,7 +29,7 @@ fn main() {
     use websocket::client::request::Url;
     use websocket::Client;
 
-    let url = Url::parse("ws://127.0.0.1:2794").unwrap();
+    let url = Url::parse("ws://127.0.0.1:2794")?;
 
     println!("Connecting to {}", url);
 
@@ -127,5 +146,13 @@ fn main() {
     let _ = receive_loop.join();
 
     println!("Exited");
+    Ok(())
+}
+
+fn main() {
+    if let Err(x) = try_main() {
+        use std::io::Write;
+        let _ = write!(::std::io::stderr(), "Error: {:?}", x);
+    }
 }
 
