@@ -1,0 +1,7 @@
+[package]
+name = "websocat"
+version = "0.1.0"
+authors = ["Vitaly _Vi Shukela <vi0oss@gmail.com>"]
+
+[dependencies]
+websocket = { version = "^0.17.1" }
