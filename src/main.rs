@@ -188,7 +188,7 @@ fn try_main() -> Result<()> {
 fn main() {
     if let Err(x) = try_main() {
         use std::io::Write;
-        let _ = write!(::std::io::stderr(), "Error: {:?}", x);
+        let _ = writeln!(::std::io::stderr(), "{:?}", x);
     }
 }
 
