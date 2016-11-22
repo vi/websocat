@@ -79,6 +79,9 @@ impl<T:Receiver<DataFrame>> ::std::io::Read for ReceiverWrapper<T> {
                 Ok(0)
             }
             Type::Ping => {
+                // Sender used to be in a separate thread with a channel
+                // now there's no channel, so trickier to combine ping replies
+                // and usual data exchange
                 unimplemented!();
             }
             _ => {
@@ -96,29 +99,40 @@ impl<T:Receiver<DataFrame>> ::std::io::Read for ReceiverWrapper<T> {
     }
 }
 
-struct DataExchangeSession<R1,R2,W1,W2> 
-    where R1 : Read + Send, R2: Read + Send, W1: Write + Send, W2: Write + Send
+struct Peer<R, W>
+    where R : Read + Send + 'static, W: Write + Send + 'static
 {
-    reader1 : R1,
-    writer1 : W1,
-    reader2 : R2,
-    writer2 : W2,
+    reader: R,
+    writer: W,
+}
+
+struct DataExchangeSession<R1, R2, W1, W2> 
+    where R1 : Read  + Send + 'static, 
+          R2 : Read  + Send + 'static,
+          W1 : Write + Send + 'static,
+          W2 : Write + Send + 'static,
+{
+    peer1: Peer<R1, W1>,
+    peer2: Peer<R2, W2>,
 }
 
 impl<R1,R2,W1,W2> DataExchangeSession<R1,R2,W1,W2> 
-    where R1 : Read + Send + 'static, R2: Read + Send, W1: Write + Send, W2: Write + Send + 'static
+    where R1 : Read  + Send + 'static,
+          R2 : Read  + Send + 'static, 
+          W1 : Write + Send + 'static,
+          W2 : Write + Send + 'static,
 {
     fn data_exchange(self) -> Result<()> {
     
-        let mut reader1 = self.reader1;
-        let mut writer1 = self.writer1;
-        let mut reader2 = self.reader2;
-        let mut writer2 = self.writer2;
+        let mut reader1 = self.peer1.reader;
+        let mut writer1 = self.peer1.writer;
+        let mut reader2 = self.peer2.reader;
+        let mut writer2 = self.peer2.writer;
     
         let receive_loop = thread::spawn(move || -> Result<()> {
             // Actual data transfer happens here
             ::std::io::copy(&mut reader1, &mut writer2)?;
-            writer2.write(b"")?;
+            writer2.write(b"")?; // signal close
             Ok(())
         });
     
@@ -164,10 +178,14 @@ fn try_main() -> Result<()> {
     let (sender, receiver) = response.begin().split();
     
     let des = DataExchangeSession {
-        writer1 : SenderWrapper(sender),
-        reader1 : ReceiverWrapper(receiver),
-        writer2 : stdout(),
-        reader2 : stdin(),
+        peer1 : Peer {
+            reader : ReceiverWrapper(receiver),
+            writer : SenderWrapper(sender),
+        },
+        peer2 : Peer {
+            reader : stdin(),
+            writer : stdout(),
+        },
     };
     
     des.data_exchange()?;
