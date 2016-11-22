@@ -91,7 +91,7 @@ impl<T:Receiver<DataFrame>> ::std::io::Read for ReceiverWrapper<T> {
                 
                 assert!(buf.len() >= len);
                 
-                buf[0..len].clone_from_slice(msgpayload);
+                buf[0..len].copy_from_slice(msgpayload);
                 
                 Ok(len)
             }
