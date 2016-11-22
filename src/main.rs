@@ -19,6 +19,7 @@ error_chain! {
         Url(::url::ParseError);
         Ws(::websocket::result::WebSocketError);
         VarError(::std::env::VarError);
+        RE(std::sync::mpsc::RecvError);
     }
 }
 
@@ -80,49 +81,33 @@ fn try_main() -> Result<()> {
     let tx_1 = tx.clone();
 
     let send_loop = thread::spawn(move || {
-        loop {
-            // Send loop
-            let message: Message = match rx.recv() {
-                Ok(m) => m,
-                Err(e) => {
-                    error!("Send Loop: {:?}", e);
-                    return;
-                }
-            };
-            match message.opcode {
-                Type::Close => {
-                    let _ = sender.send_message(&message);
-                    // If it's a close message, just send it and then return.
-                    return;
-                },
-                _ => (),
+        if let Err(er) = (|| -> Result<()> {
+            loop {
+                // Send loop
+                let message: Message = rx.recv()?;
+                if message.opcode == Type::Close { break; }
+                sender.send_message(&message)?;
             }
-            // Send the message
-            match sender.send_message(&message) {
-                Ok(()) => (),
-                Err(e) => {
-                    error!("Send Loop: {:?}", e);
-                    let _ = sender.send_message(&Message::close());
-                    return;
-                }
-            }
+            Ok(())
+        })() {
+            error!("Receive loop: {}", er);
         }
+        let _ = sender.send_message(&Message::close());
     });
 
     let receive_loop = thread::spawn(move || {
-        fn receive_loop<'a>(
-                tx_1: &std::sync::mpsc::SyncSender<websocket::Message<'a>>,
-                receiver: &mut websocket::client::Receiver<websocket::WebSocketStream>) 
-                    -> Result<()> {
-            
+        if let Err(x) = (|| -> Result<()> {
             for m in receiver.incoming_messages() {
-                let message : websocket::Message<'a> = try!(m);
+                let message : websocket::Message = try!(m);
                 match message.opcode {
                     Type::Close => {
                         return Ok(());
                     }
                     Type::Ping => {
-                        tx_1.send(Message::pong(message.payload)).map_err(|_|"Failed pong")?
+                        tx_1.send(
+                            Message::pong(
+                                message.payload
+                            )).map_err(|_|"Failed pong")?
                     }
                     // Say what we received
                     _ => {
@@ -136,8 +121,7 @@ fn try_main() -> Result<()> {
                 }
             }
             Ok(())
-        };
-        if let Err(x) = receive_loop(&tx_1, &mut receiver) {
+        })() {
             error!("Error on receive loop: {}", x);
         }
         let _ = tx_1.send(Message::close());
