@@ -18,7 +18,7 @@ use websocket::client::request::Url;
 use websocket::Client;
 
 use std::borrow::Borrow;
-use std::io::{Error as IoError, ErrorKind as IoErrorKind, Write};
+use std::io::{Error as IoError, ErrorKind as IoErrorKind, Write, Read};
 
 error_chain! {
     foreign_links {
@@ -96,6 +96,42 @@ impl<T:Receiver<DataFrame>> ::std::io::Read for ReceiverWrapper<T> {
     }
 }
 
+struct DataExchangeSession<R1,R2,W1,W2> 
+    where R1 : Read + Send, R2: Read + Send, W1: Write + Send, W2: Write + Send
+{
+    reader1 : R1,
+    writer1 : W1,
+    reader2 : R2,
+    writer2 : W2,
+}
+
+impl<R1,R2,W1,W2> DataExchangeSession<R1,R2,W1,W2> 
+    where R1 : Read + Send + 'static, R2: Read + Send, W1: Write + Send, W2: Write + Send + 'static
+{
+    fn data_exchange(self) -> Result<()> {
+    
+        let mut reader1 = self.reader1;
+        let mut writer1 = self.writer1;
+        let mut reader2 = self.reader2;
+        let mut writer2 = self.writer2;
+    
+        let receive_loop = thread::spawn(move || -> Result<()> {
+            // Actual data transfer happens here
+            ::std::io::copy(&mut reader1, &mut writer2)?;
+            writer2.write(b"")?;
+            Ok(())
+        });
+    
+        // Actual data transfer happens here
+        ::std::io::copy(&mut reader2, &mut writer1)?;
+        writer1.write(b"")?; // Signal close
+    
+        info!("Waiting for child threads to exit");
+    
+        receive_loop.join().map_err(|x|format!("{:?}",x))?
+    }
+}
+
 fn try_main() -> Result<()> {
     //env_logger::init()?;
     init_logger()?;
@@ -126,28 +162,15 @@ fn try_main() -> Result<()> {
     info!("Successfully connected");
 
     let (sender, receiver) = response.begin().split();
-    let mut writer1 = SenderWrapper(sender);
-    let mut reader1 = ReceiverWrapper(receiver);
-    let mut writer2 = stdout();
-    let mut reader2 = stdin();
-
-    let receive_loop = thread::spawn(move || -> Result<()> {
-        // Actual data transfer happens here
-        ::std::io::copy(&mut reader1, &mut writer2)?;
-        writer2.write(b"")?;
-        Ok(())
-    });
-
     
-    // Actual data transfer happens here
-    ::std::io::copy(&mut reader2, &mut writer1)?;
-    writer1.write(b"")?; // Signal close
-
-    info!("Waiting for child threads to exit");
-
-    if let Err(x) = receive_loop.join() {
-        error!("Receiver loop delayed error: {:?}", x);
-    }
+    let des = DataExchangeSession {
+        writer1 : SenderWrapper(sender),
+        reader1 : ReceiverWrapper(receiver),
+        writer2 : stdout(),
+        reader2 : stdin(),
+    };
+    
+    des.data_exchange()?;
 
     info!("Exited");
     Ok(())
