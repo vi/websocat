@@ -12,6 +12,17 @@ extern crate clap;
 const BUFSIZ : usize = 8192;
 const QSIZ : usize = 1;
 
+use std::thread;
+use std::sync::mpsc::sync_channel;
+use std::io::{stdin,stdout};
+
+use websocket::{Message, Sender, Receiver};
+use websocket::message::Type;
+use websocket::client::request::Url;
+use websocket::Client;
+
+use std::io::{Read,Error as IoError,ErrorKind as IoErrorKind,Write};
+
 error_chain! {
     foreign_links {
         Io(::std::io::Error);
@@ -34,20 +45,30 @@ fn init_logger() -> Result<()> {
     Ok(())
 }
 
+struct SenderWrapper<T: Sender> (T);
+
+impl<T: Sender> ::std::io::Write for SenderWrapper<T> {
+    fn write(&mut self, buf: &[u8]) -> ::std::io::Result<usize> {
+        let message = Message::binary(buf);
+        let ret;
+        if buf.len() > 0 {
+            ret = self.0.send_message(&message);
+        } else {
+            // Interpret zero length buffer is request
+            // to close communication
+            ret = self.0.send_message(&Message::close());
+        }
+        ret.map_err(|e|IoError::new(IoErrorKind::BrokenPipe, e))?;
+        Ok(buf.len())
+    }
+    fn flush(&mut self) -> ::std::io::Result<()> {
+        Ok(())
+    }
+}
+
 fn try_main() -> Result<()> {
     //env_logger::init()?;
     init_logger()?;
-    
-    use std::thread;
-    use std::sync::mpsc::sync_channel;
-    use std::io::{stdin,stdout};
-
-    use websocket::{Message, Sender, Receiver};
-    use websocket::message::Type;
-    use websocket::client::request::Url;
-    use websocket::Client;
-    
-    use std::io::{Read};
 
     // setup command line arguments
     let matches = ::clap::App::new("WS Command Line Client")
@@ -76,16 +97,18 @@ fn try_main() -> Result<()> {
 
     let (mut sender, mut receiver) = response.begin().split();
 
-    let (tx, rx) = sync_channel(QSIZ);
+    //let (tx, rx) = sync_channel(QSIZ);
 
-    let tx_1 = tx.clone();
+    //let tx_1 = tx.clone();
 
-    let send_loop = thread::spawn(move || {
+    /*let send_loop = thread::spawn(move || {
         if let Err(er) = (|| -> Result<()> {
             loop {
                 // Send loop
                 let message: Message = rx.recv()?;
-                if message.opcode == Type::Close { break; }
+                if message.opcode == Type::Close { 
+                    break; 
+                }
                 sender.send_message(&message)?;
             }
             Ok(())
@@ -93,9 +116,9 @@ fn try_main() -> Result<()> {
             error!("Receive loop: {}", er);
         }
         let _ = sender.send_message(&Message::close());
-    });
+    });*/
 
-    let receive_loop = thread::spawn(move || {
+    let receive_loop = thread::spawn(move || -> Result<()> {
         if let Err(x) = (|| -> Result<()> {
             for m in receiver.incoming_messages() {
                 let message : websocket::Message = try!(m);
@@ -104,10 +127,10 @@ fn try_main() -> Result<()> {
                         return Ok(());
                     }
                     Type::Ping => {
-                        tx_1.send(
+                        /*tx_1.send(
                             Message::pong(
                                 message.payload
-                            )).map_err(|_|"Failed pong")?
+                            )).map_err(|_|"Failed pong")?*/
                     }
                     // Say what we received
                     _ => {
@@ -124,22 +147,21 @@ fn try_main() -> Result<()> {
         })() {
             error!("Error on receive loop: {}", x);
         }
-        let _ = tx_1.send(Message::close());
-    
-        // Receive loop
+        //let _ = tx_1.send(Message::close());
+        Ok(())
     });
 
-    let mut buffer : [u8; BUFSIZ] = [0; BUFSIZ];
+    //let mut buffer : [u8; BUFSIZ] = [0; BUFSIZ];
     
-    loop {
+    /*loop {
         let data : Vec<u8> = match stdin().read(&mut buffer) {
             Ok(0) => break,
             Ok(ret) => {
                 debug!("Sending {} bytes of data", ret);
                 buffer[0..ret].to_vec()
             }
-            Err(ref e) if e.kind() == ::std::io::ErrorKind::Interrupted => continue,
-            Err(ref e) if e.kind() == ::std::io::ErrorKind::WouldBlock  => continue,
+            Err(ref e) if e.kind() == IoErrorKind::Interrupted => continue,
+            Err(ref e) if e.kind() == IoErrorKind::WouldBlock  => continue,
             Err(e) => {
                 error!("Read error: {}", e);
                 break;
@@ -156,13 +178,20 @@ fn try_main() -> Result<()> {
             }
         }
     }
-    let _ = tx.send(Message::close());
+    let _ = tx.send(Message::close());*/
 
     // We're exiting
+    
+    let mut wr = SenderWrapper(sender);
+    
+    // Actual data transfer happens here
+    ::std::io::copy(&mut stdin(), &mut wr)?;
+    
+    wr.write(b"")?; // Signal close
 
     info!("Waiting for child threads to exit");
 
-    let _ = send_loop.join();
+    //let _ = send_loop.join();
     let _ = receive_loop.join();
 
     info!("Exited");
@@ -171,7 +200,6 @@ fn try_main() -> Result<()> {
 
 fn main() {
     if let Err(x) = try_main() {
-        use std::io::Write;
         let _ = writeln!(::std::io::stderr(), "{:?}", x);
     }
 }
