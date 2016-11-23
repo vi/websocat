@@ -12,7 +12,7 @@ extern crate clap;
 use std::thread;
 use std::io::{stdin,stdout};
 
-use websocket::{Message, Sender, Receiver, DataFrame};
+use websocket::{Message, Sender, Receiver, DataFrame, Server as WsServer};
 use websocket::message::Type;
 use websocket::client::request::Url;
 use websocket::Client;
@@ -231,6 +231,42 @@ impl Server for TcpServer {
 
 
 
+struct WebsockServer<'a>(WsServer<'a>);
+
+impl<'a> WebsockServer<'a> {
+    fn new(addr: &str) -> Result<Self> {
+        Ok(WebsockServer(WsServer::bind(addr)?))
+    }
+}
+
+impl<'a> Server for WebsockServer<'a> {    
+    fn accept_client(&mut self) -> Result<IPeer> {
+        let connection = self.0.accept()?;
+        info!("WebSocket client connection ...");
+        let request = connection.read_request()?;
+        request.validate()?;
+        let response = request.accept(); // Form a response
+        let mut client = response.send()?; // Send the response
+
+        let ip = client.get_mut_sender()
+            .get_mut()
+            .peer_addr()
+            .unwrap();
+
+        info!("... from IP {}", ip);
+
+        let (sender, receiver) = client.split();
+
+        let peer = Peer {
+            reader : ReceiverWrapper(receiver),
+            writer : SenderWrapper(sender),
+        };
+        Ok(peer.upcast())
+    }
+}
+
+
+
 
 
 
@@ -275,7 +311,14 @@ trait Server
         } else {
             let cl2 = ::std::sync::Arc::new(closure);
             loop {
-                let peer = self.accept_client()?;
+                let ret = self.accept_client();
+                let peer = match ret {
+                    Ok(x) => x,
+                    Err(er) => {
+                        warn!("Can't accept client: {}", er);
+                        continue;
+                    }
+                };
                 let cl3 = cl2.clone();
                 let spec2s2 = spec2s.clone();
                 if let Err(x) = thread::Builder::new().spawn(move|| {
@@ -338,6 +381,7 @@ fn get_peer_by_spec(specifier: &str) -> Result<Spec> {
         x if x.starts_with("wss:")  => Ok(Client(get_websocket_peer(x)?.upcast())),
         x if x.starts_with("tcp:")  => Ok(Client(get_tcp_peer(&x[4..])?.upcast())),
         x if x.starts_with("l-tcp:")  => Ok(Server(TcpServer::new(&x[6..])?.upcast())),
+        x if x.starts_with("l-ws:")  => Ok(Server(WebsockServer::new(&x[5..])?.upcast())),
         x => Err(ErrorKind::InvalidSpecifier(x.to_string()).into()),
     }
 }
