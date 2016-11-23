@@ -136,12 +136,12 @@ impl<R1,R2,W1,W2> DataExchangeSession<R1,R2,W1,W2>
         let mut reader2 = self.peer2.reader;
         let mut writer2 = self.peer2.writer;
     
-        let receive_loop = thread::spawn(move || -> Result<()> {
+        let receive_loop = thread::Builder::new().spawn(move || -> Result<()> {
             // Actual data transfer happens here
             ::std::io::copy(&mut reader1, &mut writer2)?;
             writer2.write(b"")?; // signal close
             Ok(())
-        });
+        })?;
     
         // Actual data transfer happens here
         ::std::io::copy(&mut reader2, &mut writer1)?;
@@ -249,11 +249,14 @@ trait Server
                 let peer = self.accept_client()?;
                 let cl3 = cl2.clone();
                 let spec2s2 = spec2s.clone();
-                thread::spawn(move|| {
+                if let Err(x) = thread::Builder::new().spawn(move|| {
                     if let Err(x) = cl3(peer, spec2s2) {
                         warn!("Error while serving: {}", x);
                     }
-                });
+                }) {
+                    warn!("Error creating thread: {}", x);
+                    thread::sleep(::std::time::Duration::from_millis(200));
+                }
             }
         }
     }
