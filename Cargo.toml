@@ -5,6 +5,7 @@ authors = ["Vitaly \"_Vi\" Shukela <vi0oss@gmail.com>"]
 license = "MIT"
 repository = "https://github.com/vi/websocat"
 description = "Connection forwarder from/to web sockets to/from usual sockets, in style of socat"
+keywords = ["WebSocket", "socat", "rfc6455", "netcat", "tunnel"]
 
 
 [dependencies]
