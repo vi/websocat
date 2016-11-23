@@ -9,6 +9,8 @@ extern crate error_chain;
 extern crate url;
 extern crate clap;
 
+const BUFSIZ : usize = 8192;
+
 use std::thread;
 use std::io::{stdin,stdout};
 
@@ -123,6 +125,26 @@ struct DataExchangeSession<R1, R2, W1, W2>
     peer2: Peer<R2, W2>,
 }
 
+// Derived from https://doc.rust-lang.org/src/std/up/src/libstd/io/util.rs.html#46-61
+pub fn copy_with_flushes<R: ?Sized, W: ?Sized>(reader: &mut R, writer: &mut W) -> ::std::io::Result<u64>
+    where R: Read, W: Write
+{
+    let mut buf = [0; BUFSIZ];
+    let mut written = 0;
+    loop {
+        let len = match reader.read(&mut buf) {
+            Ok(0) => return Ok(written),
+            Ok(len) => len,
+            Err(ref e) if e.kind() == IoErrorKind::Interrupted => continue,
+            Err(ref e) if e.kind() == IoErrorKind::WouldBlock => continue,
+            Err(e) => return Err(e),
+        };
+        writer.write_all(&buf[..len])?;
+        writer.flush()?;
+        written += len as u64;
+    }
+}
+
 impl<R1,R2,W1,W2> DataExchangeSession<R1,R2,W1,W2> 
     where R1 : Read  + Send + 'static,
           R2 : Read  + Send + 'static, 
@@ -138,13 +160,13 @@ impl<R1,R2,W1,W2> DataExchangeSession<R1,R2,W1,W2>
     
         let receive_loop = thread::Builder::new().spawn(move || -> Result<()> {
             // Actual data transfer happens here
-            ::std::io::copy(&mut reader1, &mut writer2)?;
+            copy_with_flushes(&mut reader1, &mut writer2)?;
             writer2.write(b"")?; // signal close
             Ok(())
         })?;
     
         // Actual data transfer happens here
-        ::std::io::copy(&mut reader2, &mut writer1)?;
+        copy_with_flushes(&mut reader2, &mut writer1)?;
         writer1.write(b"")?; // Signal close
     
         debug!("Waiting for receiver side to exit");
