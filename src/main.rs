@@ -205,8 +205,9 @@ impl<R,W> Peer<R,W>
 fn get_peer_by_spec(specifier: &str, server: bool) -> Result<IPeer> {
     let _ = server;
     match specifier {
-        x if x == "-"             => Ok(get_stdio_peer()?.upcast()),
-        x if x.starts_with("ws:") => Ok(get_websocket_peer(x)?.upcast()),
+        x if x == "-"               => Ok(get_stdio_peer()?.upcast()),
+        x if x.starts_with("ws:")   => Ok(get_websocket_peer(x)?.upcast()),
+        x if x.starts_with("wss:")  => Ok(get_websocket_peer(x)?.upcast()),
         x => Err(ErrorKind::InvalidSpecifier(x.to_string()).into()),
     }
 }
@@ -216,10 +217,10 @@ fn try_main() -> Result<()> {
     init_logger()?;
 
     // setup command line arguments
-    let matches = ::clap::App::new("WS Command Line Client")
+    let matches = ::clap::App::new("websocat")
         .version("0.1")
         .author("Vitaly \"_Vi\" Shukela <vi0oss@gmail.com>")
-        .about("Send binary data from stdin to a WebSocket and back to stdout.")
+        .about("Exchange binary data between websocket and something.\nSocat analogue with websockets.")
         .arg(::clap::Arg::with_name("listener_spec")
              .help("Listener specifier.")
              .required(true)
@@ -228,6 +229,17 @@ fn try_main() -> Result<()> {
              .help("Connector specifier.")
              .required(true)
              .index(2))
+        .after_help(r#"
+Specifiers are:
+  ws[s]://<rest of websocket URL>    websockets
+  -                                  stdin/stdout
+  (more to be implemented)
+  
+Examples:
+  websocat - wss://myserver/mysocket
+    Connect stdin/stdout to secure web socket once.
+    Currently it is the only working example.
+"#)
         .get_matches();
 
     let listener_spec  = matches.value_of("listener_spec") .ok_or("no listener_spec" )?;
