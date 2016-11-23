@@ -216,13 +216,26 @@ impl<R,W> Peer<R,W>
     }
 }
 
-fn get_peer_by_spec(specifier: &str, server: bool) -> Result<IPeer> {
-    let _ = server;
+
+trait Server
+{
+    fn start_serving(&self, spec: &str, once: bool) {
+        
+    }
+}
+
+enum Spec {
+    Server(Box<Server + Send>),
+    Client(IPeer)
+}
+
+fn get_peer_by_spec(specifier: &str) -> Result<Spec> {
+    use Spec::{Server,Client};
     match specifier {
-        x if x == "-"               => Ok(get_stdio_peer()?.upcast()),
-        x if x.starts_with("ws:")   => Ok(get_websocket_peer(x)?.upcast()),
-        x if x.starts_with("wss:")  => Ok(get_websocket_peer(x)?.upcast()),
-        x if x.starts_with("tcp:")  => Ok(get_tcp_peer(&x[4..])?.upcast()),
+        x if x == "-"               => Ok(Client(get_stdio_peer()?.upcast())),
+        x if x.starts_with("ws:")   => Ok(Client(get_websocket_peer(x)?.upcast())),
+        x if x.starts_with("wss:")  => Ok(Client(get_websocket_peer(x)?.upcast())),
+        x if x.starts_with("tcp:")  => Ok(Client(get_tcp_peer(&x[4..])?.upcast())),
         x => Err(ErrorKind::InvalidSpecifier(x.to_string()).into()),
     }
 }
@@ -248,6 +261,7 @@ fn try_main() -> Result<()> {
 Specifiers can be:
   ws[s]://<rest of websocket URL>    Connect to websocket
   tcp:<socket address>               Connect to TCP
+  tcp-l:<socer address>
   -                                  stdin/stdout
   (more to be implemented)
   
@@ -255,21 +269,43 @@ Examples:
   websocat - wss://myserver/mysocket
     Connect stdin/stdout to secure web socket once.
     Like netcat, but for websocket.
-    Currently it is the only working example.
   websocat ws://localhost:1234/ tcp:localhost:1235
     Connect both to websocket and to TCP and exchange data.
+  websocat tcp-l::::9559 ws://echo.websocket.org/
+    Listen TCPv6 port 9959 on address :: and forward 
+    all connections to a public loopback websocket
+    
+Specify listening part first, unless you want websocat to serve once.
 "#)
         .get_matches();
 
     let spec1  = matches.value_of("spec1") .ok_or("no listener_spec" )?;
     let spec2 = matches.value_of("spec2").ok_or("no connector_spec")?;
     
-    let des = DataExchangeSession {
-        peer1 : get_peer_by_spec(spec1,  true )?,
-        peer2 : get_peer_by_spec(spec2, false)?,
-    };
+    let spec1_ = get_peer_by_spec(spec1)?;
     
-    des.data_exchange()?;
+    match spec1_ {
+        Spec::Server(x) => {
+            unimplemented!();
+        }
+        Spec::Client(p1) => {
+            let spec2_ = get_peer_by_spec(spec2)?;
+            
+            match spec2_ {
+                Spec::Server(x) => {
+                    unimplemented!();
+                }
+                Spec::Client(p2) => {
+                    let des = DataExchangeSession {
+                        peer1 : p1,
+                        peer2 : p2,
+                    };
+                    
+                    des.data_exchange()?;
+                }
+            }
+        }
+    }
 
     debug!("Exited");
     Ok(())
