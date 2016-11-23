@@ -181,6 +181,21 @@ fn get_websocket_peer(urlstr: &str) -> Result<
     Ok(peer)
 }
 
+fn get_tcp_peer(addr: &str) -> Result<
+        Peer<
+            ::std::net::TcpStream,
+            ::std::net::TcpStream,
+        >> {
+    let sock = ::std::net::TcpStream::connect(addr)?;
+
+    let peer = Peer {
+        reader : sock.try_clone()?,
+        writer : sock.try_clone()?,
+    };
+    info!("Connected to TCP {}", addr);
+    Ok(peer)
+}
+
 fn get_stdio_peer() -> Result<Peer<std::io::Stdin, std::io::Stdout>> {
     Ok(
         Peer {
@@ -207,6 +222,7 @@ fn get_peer_by_spec(specifier: &str, server: bool) -> Result<IPeer> {
         x if x == "-"               => Ok(get_stdio_peer()?.upcast()),
         x if x.starts_with("ws:")   => Ok(get_websocket_peer(x)?.upcast()),
         x if x.starts_with("wss:")  => Ok(get_websocket_peer(x)?.upcast()),
+        x if x.starts_with("tcp:")  => Ok(get_tcp_peer(&x[4..])?.upcast()),
         x => Err(ErrorKind::InvalidSpecifier(x.to_string()).into()),
     }
 }
@@ -219,34 +235,38 @@ fn try_main() -> Result<()> {
     let matches = ::clap::App::new("websocat")
         .version("0.1")
         .author("Vitaly \"_Vi\" Shukela <vi0oss@gmail.com>")
-        .about("Exchange binary data between websocket and something.\nSocat analogue with websockets.")
-        .arg(::clap::Arg::with_name("listener_spec")
-             .help("Listener specifier.")
+        .about("Exchange binary data between binary websocket and something.\nSocat analogue with websockets.")
+        .arg(::clap::Arg::with_name("spec1")
+             .help("First specifier.")
              .required(true)
              .index(1))
-        .arg(::clap::Arg::with_name("connector_spec")
-             .help("Connector specifier.")
+        .arg(::clap::Arg::with_name("spec2")
+             .help("Second specifier.")
              .required(true)
              .index(2))
         .after_help(r#"
-Specifiers are:
-  ws[s]://<rest of websocket URL>    websockets
+Specifiers can be:
+  ws[s]://<rest of websocket URL>    Connect to websocket
+  tcp:<socket address>               Connect to TCP
   -                                  stdin/stdout
   (more to be implemented)
   
 Examples:
   websocat - wss://myserver/mysocket
     Connect stdin/stdout to secure web socket once.
+    Like netcat, but for websocket.
     Currently it is the only working example.
+  websocat ws://localhost:1234/ tcp:localhost:1235
+    Connect both to websocket and to TCP and exchange data.
 "#)
         .get_matches();
 
-    let listener_spec  = matches.value_of("listener_spec") .ok_or("no listener_spec" )?;
-    let connector_spec = matches.value_of("connector_spec").ok_or("no connector_spec")?;
+    let spec1  = matches.value_of("spec1") .ok_or("no listener_spec" )?;
+    let spec2 = matches.value_of("spec2").ok_or("no connector_spec")?;
     
     let des = DataExchangeSession {
-        peer1 : get_peer_by_spec(listener_spec,  true )?,
-        peer2 : get_peer_by_spec(connector_spec, false)?,
+        peer1 : get_peer_by_spec(spec1,  true )?,
+        peer2 : get_peer_by_spec(spec2, false)?,
     };
     
     des.data_exchange()?;
