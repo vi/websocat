@@ -219,15 +219,35 @@ impl<R,W> Peer<R,W>
 
 trait Server
 {
-    fn start_serving(&self, spec: &str, once: bool) {
-        
-    }
+    fn start_serving(&mut self, spec: &str, once: bool);
+    fn first_connected_client(&mut self) -> Result<IPeer>;
+    fn stop(&mut self);
+    
+    fn upcast(self) -> Box<Server+Send> 
+        where Self : Sized + Send + 'static
+        { Box::new(self) as Box<Server+Send> }
 }
 
 enum Spec {
     Server(Box<Server + Send>),
     Client(IPeer)
 }
+
+struct TcpServer {
+
+}
+impl TcpServer {
+    fn new(addr: &str) -> Result<Self> {
+        unimplemented!()
+    }
+}
+
+impl Server for TcpServer {
+    fn start_serving(&mut self, spec: &str, once: bool) { unimplemented!() }
+    fn first_connected_client(&mut self) -> Result<IPeer> { unimplemented!() }
+    fn stop(&mut self) { unimplemented!() }
+}
+
 
 fn get_peer_by_spec(specifier: &str) -> Result<Spec> {
     use Spec::{Server,Client};
@@ -236,6 +256,7 @@ fn get_peer_by_spec(specifier: &str) -> Result<Spec> {
         x if x.starts_with("ws:")   => Ok(Client(get_websocket_peer(x)?.upcast())),
         x if x.starts_with("wss:")  => Ok(Client(get_websocket_peer(x)?.upcast())),
         x if x.starts_with("tcp:")  => Ok(Client(get_tcp_peer(&x[4..])?.upcast())),
+        x if x.starts_with("l-tcp:")  => Ok(Server(TcpServer::new(&x[6..])?.upcast())),
         x => Err(ErrorKind::InvalidSpecifier(x.to_string()).into()),
     }
 }
@@ -261,7 +282,7 @@ fn try_main() -> Result<()> {
 Specifiers can be:
   ws[s]://<rest of websocket URL>    Connect to websocket
   tcp:<socket address>               Connect to TCP
-  tcp-l:<socer address>
+  l-tcp:<socket address>             Listen TCP connections
   -                                  stdin/stdout
   (more to be implemented)
   
@@ -271,7 +292,7 @@ Examples:
     Like netcat, but for websocket.
   websocat ws://localhost:1234/ tcp:localhost:1235
     Connect both to websocket and to TCP and exchange data.
-  websocat tcp-l::::9559 ws://echo.websocket.org/
+  websocat l-tcp::::9559 ws://echo.websocket.org/
     Listen TCPv6 port 9959 on address :: and forward 
     all connections to a public loopback websocket
     
@@ -285,25 +306,29 @@ Specify listening part first, unless you want websocat to serve once.
     let spec1_ = get_peer_by_spec(spec1)?;
     
     match spec1_ {
-        Spec::Server(x) => {
-            unimplemented!();
+        Spec::Server(mut x) => {
+            x.start_serving(spec2, false);
         }
         Spec::Client(p1) => {
             let spec2_ = get_peer_by_spec(spec2)?;
             
-            match spec2_ {
-                Spec::Server(x) => {
-                    unimplemented!();
+            let otherpeer = match spec2_ {
+                Spec::Server(mut x) => {
+                    let t = x.first_connected_client()?;
+                    x.stop();
+                    t
                 }
                 Spec::Client(p2) => {
-                    let des = DataExchangeSession {
-                        peer1 : p1,
-                        peer2 : p2,
-                    };
-                    
-                    des.data_exchange()?;
+                    p2
                 }
-            }
+            };
+            
+            let des = DataExchangeSession {
+                peer1 : p1,
+                peer2 : otherpeer,
+            };
+            
+            des.data_exchange()?;
         }
     }
 
