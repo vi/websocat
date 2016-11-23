@@ -219,13 +219,78 @@ impl<R,W> Peer<R,W>
 
 trait Server
 {
-    fn start_serving(&mut self, spec: &str, once: bool);
-    fn first_connected_client(&mut self) -> Result<IPeer>;
-    fn stop(&mut self);
+    fn accept_client(&mut self) -> Result<IPeer>;
+    
+    fn start_serving(&mut self, spec2: &str, once: bool) -> Result<()> {
+        let spec2s = spec2.to_string();
+        let closure = move |peer, spec2 : String|{
+            let spec2_ = get_peer_by_spec(spec2.as_str())?;
+            let peer2 = match spec2_ {
+                Spec::Server(mut x) => {
+                    x.accept_client()?
+                }
+                Spec::Client(p1) => {
+                    p1
+                }
+            };
+            let des = DataExchangeSession {
+                peer1 : peer,
+                peer2 : peer2,
+            };
+            
+            des.data_exchange()
+        };
+        if once {
+            let peer = self.accept_client()?;
+            closure(peer, spec2s)
+        } else {
+            let cl2 = ::std::sync::Arc::new(closure);
+            loop {
+                let peer = self.accept_client()?;
+                let cl3 = cl2.clone();
+                let spec2s2 = spec2s.clone();
+                thread::spawn(move|| {
+                    if let Err(x) = cl3(peer, spec2s2) {
+                        warn!("Error while serving: {}", x);
+                    }
+                });
+            }
+        }
+    }
     
     fn upcast(self) -> Box<Server+Send> 
         where Self : Sized + Send + 'static
         { Box::new(self) as Box<Server+Send> }
+}
+
+fn main2(spec1: &str, spec2: &str, once: bool) -> Result<()> {
+    let spec1_ = get_peer_by_spec(spec1)?;
+    
+    match spec1_ {
+        Spec::Server(mut x) => {
+            x.start_serving(spec2, once)
+        }
+        Spec::Client(p1) => {
+            let spec2_ = get_peer_by_spec(spec2)?;
+            
+            let otherpeer = match spec2_ {
+                Spec::Server(mut x) => {
+                    let t = x.accept_client()?;
+                    t
+                }
+                Spec::Client(p2) => {
+                    p2
+                }
+            };
+            
+            let des = DataExchangeSession {
+                peer1 : p1,
+                peer2 : otherpeer,
+            };
+            
+            des.data_exchange()
+        }
+    }
 }
 
 enum Spec {
@@ -233,19 +298,24 @@ enum Spec {
     Client(IPeer)
 }
 
-struct TcpServer {
+struct TcpServer(::std::net::TcpListener);
 
-}
 impl TcpServer {
     fn new(addr: &str) -> Result<Self> {
-        unimplemented!()
+        Ok(TcpServer(::std::net::TcpListener::bind(addr)?))
     }
 }
 
-impl Server for TcpServer {
-    fn start_serving(&mut self, spec: &str, once: bool) { unimplemented!() }
-    fn first_connected_client(&mut self) -> Result<IPeer> { unimplemented!() }
-    fn stop(&mut self) { unimplemented!() }
+impl Server for TcpServer {    
+    fn accept_client(&mut self) -> Result<IPeer> {
+        let (sock, addr) = self.0.accept()?;
+        info!("TCP client connection from {}", addr);
+        let peer = Peer {
+            reader : sock.try_clone()?,
+            writer : sock.try_clone()?,
+        };
+        Ok(peer.upcast())
+    }
 }
 
 
@@ -303,34 +373,7 @@ Specify listening part first, unless you want websocat to serve once.
     let spec1  = matches.value_of("spec1") .ok_or("no listener_spec" )?;
     let spec2 = matches.value_of("spec2").ok_or("no connector_spec")?;
     
-    let spec1_ = get_peer_by_spec(spec1)?;
-    
-    match spec1_ {
-        Spec::Server(mut x) => {
-            x.start_serving(spec2, false);
-        }
-        Spec::Client(p1) => {
-            let spec2_ = get_peer_by_spec(spec2)?;
-            
-            let otherpeer = match spec2_ {
-                Spec::Server(mut x) => {
-                    let t = x.first_connected_client()?;
-                    x.stop();
-                    t
-                }
-                Spec::Client(p2) => {
-                    p2
-                }
-            };
-            
-            let des = DataExchangeSession {
-                peer1 : p1,
-                peer2 : otherpeer,
-            };
-            
-            des.data_exchange()?;
-        }
-    }
+    main2(spec1, spec2, false)?;
 
     debug!("Exited");
     Ok(())
