@@ -444,6 +444,7 @@ Examples:
   websocat - wss://myserver/mysocket
     Connect stdin/stdout to a secure web socket.
     Like netcat, but for websocket.
+    `ssh user@host -o ProxyHommand "websocat - ws://..."`
   websocat ws://localhost:1234/ tcp:localhost:1235
     Connect both to websocket and to TCP and exchange data.
     
@@ -451,7 +452,7 @@ Specify listening part first, unless you want websocat to serve once.
 
 IPv6 supported, just use specs like `l-ws:::1:4567`
 
-Web socket usage is not obligatory, you any specs on both sides.
+Web socket usage is not obligatory, you can use any specs on both sides.
 "#)
         .get_matches();
 
