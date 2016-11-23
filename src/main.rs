@@ -22,12 +22,11 @@ use std::io::{Error as IoError, ErrorKind as IoErrorKind, Write, Read};
 
 error_chain! {
     foreign_links {
-        Io(::std::io::Error);
-        Log(log::SetLoggerError);
-        Url(::url::ParseError);
-        Ws(::websocket::result::WebSocketError);
-        VarError(::std::env::VarError);
-        RE(std::sync::mpsc::RecvError);
+        ::std::io::Error, Io;
+        log::SetLoggerError, Log;
+        ::url::ParseError, Url;
+        ::websocket::result::WebSocketError, Ws;
+        ::std::env::VarError, Ev;
     }
     errors {
         InvalidSpecifier(t : String) {
