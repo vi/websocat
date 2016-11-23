@@ -146,22 +146,12 @@ impl<R1,R2,W1,W2> DataExchangeSession<R1,R2,W1,W2>
     }
 }
 
-fn try_main() -> Result<()> {
-    //env_logger::init()?;
-    init_logger()?;
-
-    // setup command line arguments
-    let matches = ::clap::App::new("WS Command Line Client")
-        .version("0.1")
-        .author("Vitaly \"_Vi\" Shukela <vi0oss@gmail.com>")
-        .about("Send binary data from stdin to a WebSocket and back to stdout.")
-        .arg(::clap::Arg::with_name("URL")
-             .help("The URL of the WebSocket server.")
-             .required(true)
-             .index(1)).get_matches();
-
-
-    let url = Url::parse(matches.value_of("URL").ok_or("no URL")?)?;
+fn get_websocket_peer(urlstr: &str) -> Result<
+        Peer<
+            ReceiverWrapper<websocket::client::Receiver<websocket::WebSocketStream>>,
+            SenderWrapper<websocket::client::Sender<websocket::WebSocketStream>>>
+        > {
+    let url = Url::parse(urlstr)?;
 
     info!("Connecting to {}", url);
 
@@ -177,15 +167,43 @@ fn try_main() -> Result<()> {
 
     let (sender, receiver) = response.begin().split();
     
-    let des = DataExchangeSession {
-        peer1 : Peer {
-            reader : ReceiverWrapper(receiver),
-            writer : SenderWrapper(sender),
-        },
-        peer2 : Peer {
+    let peer = Peer {
+        reader : ReceiverWrapper(receiver),
+        writer : SenderWrapper(sender),
+    };
+    Ok(peer)
+}
+
+fn get_stdio_peer() -> Result<Peer<std::io::Stdin, std::io::Stdout>> {
+    Ok(
+        Peer {
             reader : stdin(),
             writer : stdout(),
-        },
+        }
+    )
+}
+
+fn try_main() -> Result<()> {
+    //env_logger::init()?;
+    init_logger()?;
+
+    // setup command line arguments
+    let matches = ::clap::App::new("WS Command Line Client")
+        .version("0.1")
+        .author("Vitaly \"_Vi\" Shukela <vi0oss@gmail.com>")
+        .about("Send binary data from stdin to a WebSocket and back to stdout.")
+        .arg(::clap::Arg::with_name("URL")
+             .help("The URL of the WebSocket server.")
+             .required(true)
+             .index(1)).get_matches();
+
+    let url = matches.value_of("URL").ok_or("no URL")?;
+    let wspeer = get_websocket_peer(url)?;
+    let stdiopeer = get_stdio_peer()?;
+    
+    let des = DataExchangeSession {
+        peer1 : wspeer,
+        peer2 : stdiopeer,
     };
     
     des.data_exchange()?;
