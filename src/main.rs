@@ -29,6 +29,12 @@ error_chain! {
         VarError(::std::env::VarError);
         RE(std::sync::mpsc::RecvError);
     }
+    errors {
+        InvalidSpecifier(t : String) {
+            description("invalid specifier")
+            display("Invalid client or server specifier `{}`", t)
+        }
+    }
 }
 
 // Initialize logger with default "info" log level:
@@ -106,6 +112,8 @@ struct Peer<R, W>
     writer: W,
 }
 
+type IPeer = Peer<Box<Read+Send>, Box<Write+Send>>;
+
 struct DataExchangeSession<R1, R2, W1, W2> 
     where R1 : Read  + Send + 'static, 
           R2 : Read  + Send + 'static,
@@ -140,7 +148,7 @@ impl<R1,R2,W1,W2> DataExchangeSession<R1,R2,W1,W2>
         ::std::io::copy(&mut reader2, &mut writer1)?;
         writer1.write(b"")?; // Signal close
     
-        info!("Waiting for child threads to exit");
+        debug!("Waiting for receiver side to exit");
     
         receive_loop.join().map_err(|x|format!("{:?}",x))?
     }
@@ -183,6 +191,26 @@ fn get_stdio_peer() -> Result<Peer<std::io::Stdin, std::io::Stdout>> {
     )
 }
 
+impl<R,W> Peer<R,W> 
+    where R : Read + Send + 'static, W: Write + Send + 'static
+{
+    fn upcast(self) -> IPeer  {
+        Peer {
+            reader: Box::new(self.reader) as Box<Read +Send>,
+            writer: Box::new(self.writer) as Box<Write+Send>,
+        }
+    }
+}
+
+fn get_peer_by_spec(specifier: &str, server: bool) -> Result<IPeer> {
+    let _ = server;
+    match specifier {
+        x if x == "-"             => Ok(get_stdio_peer()?.upcast()),
+        x if x.starts_with("ws:") => Ok(get_websocket_peer(x)?.upcast()),
+        x => Err(ErrorKind::InvalidSpecifier(x.to_string()).into()),
+    }
+}
+
 fn try_main() -> Result<()> {
     //env_logger::init()?;
     init_logger()?;
@@ -192,23 +220,27 @@ fn try_main() -> Result<()> {
         .version("0.1")
         .author("Vitaly \"_Vi\" Shukela <vi0oss@gmail.com>")
         .about("Send binary data from stdin to a WebSocket and back to stdout.")
-        .arg(::clap::Arg::with_name("URL")
-             .help("The URL of the WebSocket server.")
+        .arg(::clap::Arg::with_name("listener_spec")
+             .help("Listener specifier.")
              .required(true)
-             .index(1)).get_matches();
+             .index(1))
+        .arg(::clap::Arg::with_name("connector_spec")
+             .help("Connector specifier.")
+             .required(true)
+             .index(2))
+        .get_matches();
 
-    let url = matches.value_of("URL").ok_or("no URL")?;
-    let wspeer = get_websocket_peer(url)?;
-    let stdiopeer = get_stdio_peer()?;
+    let listener_spec  = matches.value_of("listener_spec") .ok_or("no listener_spec" )?;
+    let connector_spec = matches.value_of("connector_spec").ok_or("no connector_spec")?;
     
     let des = DataExchangeSession {
-        peer1 : wspeer,
-        peer2 : stdiopeer,
+        peer1 : get_peer_by_spec(listener_spec,  true )?,
+        peer2 : get_peer_by_spec(connector_spec, false)?,
     };
     
     des.data_exchange()?;
 
-    info!("Exited");
+    debug!("Exited");
     Ok(())
 }
 
