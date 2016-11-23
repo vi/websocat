@@ -205,6 +205,35 @@ fn get_stdio_peer() -> Result<Peer<std::io::Stdin, std::io::Stdout>> {
     )
 }
 
+
+
+
+struct TcpServer(::std::net::TcpListener);
+
+impl TcpServer {
+    fn new(addr: &str) -> Result<Self> {
+        Ok(TcpServer(::std::net::TcpListener::bind(addr)?))
+    }
+}
+
+impl Server for TcpServer {    
+    fn accept_client(&mut self) -> Result<IPeer> {
+        let (sock, addr) = self.0.accept()?;
+        info!("TCP client connection from {}", addr);
+        let peer = Peer {
+            reader : sock.try_clone()?,
+            writer : sock.try_clone()?,
+        };
+        Ok(peer.upcast())
+    }
+}
+
+
+
+
+
+
+
 impl<R,W> Peer<R,W> 
     where R : Read + Send + 'static, W: Write + Send + 'static
 {
@@ -300,27 +329,6 @@ enum Spec {
     Server(Box<Server + Send>),
     Client(IPeer)
 }
-
-struct TcpServer(::std::net::TcpListener);
-
-impl TcpServer {
-    fn new(addr: &str) -> Result<Self> {
-        Ok(TcpServer(::std::net::TcpListener::bind(addr)?))
-    }
-}
-
-impl Server for TcpServer {    
-    fn accept_client(&mut self) -> Result<IPeer> {
-        let (sock, addr) = self.0.accept()?;
-        info!("TCP client connection from {}", addr);
-        let peer = Peer {
-            reader : sock.try_clone()?,
-            writer : sock.try_clone()?,
-        };
-        Ok(peer.upcast())
-    }
-}
-
 
 fn get_peer_by_spec(specifier: &str) -> Result<Spec> {
     use Spec::{Server,Client};
