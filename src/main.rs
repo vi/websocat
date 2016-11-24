@@ -414,7 +414,7 @@ fn try_main() -> Result<()> {
 
     // setup command line arguments
     let matches = ::clap::App::new("websocat")
-        .version("0.1")
+        .version("0.2")
         .author("Vitaly \"_Vi\" Shukela <vi0oss@gmail.com>")
         .about("Exchange binary data between binary websocket and something.\nSocat analogue with websockets.")
         .arg(::clap::Arg::with_name("spec1")
