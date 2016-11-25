@@ -43,6 +43,14 @@ IPv6 supported, just use specs like `l-ws:::1:4567`
 Web socket usage is not obligatory, you can use any specs on both sides.
 ```
 
+Pre-built binaries are available on releases page.
+
+Limitations
+---
+
+* Slow
+* Can't reply to WebSocket pings
+
 See also
 ---
 
