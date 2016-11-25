@@ -184,7 +184,13 @@ fn get_websocket_peer(urlstr: &str) -> Result<
 
     info!("Connecting to {}", url);
 
-    let request = Client::connect(url)?;
+    let mut request = Client::connect(url)?;
+    
+    request.headers.set(
+        ::websocket::header::WebSocketProtocol(
+            vec!["binary".to_string()]
+        )
+    );
 
     let response = request.send()?; // Send the request and retrieve a response
 
