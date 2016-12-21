@@ -7,6 +7,7 @@ extern crate log;
 #[macro_use]
 extern crate error_chain;
 extern crate url;
+#[macro_use] // crate_version
 extern crate clap;
 
 const BUFSIZ : usize = 8192;
@@ -420,7 +421,7 @@ fn try_main() -> Result<()> {
 
     // setup command line arguments
     let matches = ::clap::App::new("websocat")
-        .version("0.3")
+        .version(crate_version!())
         .author("Vitaly \"_Vi\" Shukela <vi0oss@gmail.com>")
         .about("Exchange binary data between binary websocket and something.\nSocat analogue with websockets.")
         .arg(::clap::Arg::with_name("spec1")
