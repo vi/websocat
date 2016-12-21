@@ -107,14 +107,14 @@ impl<T:Receiver<DataFrame>> ::std::io::Read for ReceiverWrapper<T> {
     }
 }
 
-struct Peer<R, W>
+struct Endpoint<R, W>
     where R : Read + Send + 'static, W: Write + Send + 'static
 {
     reader: R,
     writer: W,
 }
 
-type IPeer = Peer<Box<Read+Send>, Box<Write+Send>>;
+type IEndpoint = Endpoint<Box<Read+Send>, Box<Write+Send>>;
 
 struct DataExchangeSession<R1, R2, W1, W2> 
     where R1 : Read  + Send + 'static, 
@@ -122,8 +122,8 @@ struct DataExchangeSession<R1, R2, W1, W2>
           W1 : Write + Send + 'static,
           W2 : Write + Send + 'static,
 {
-    peer1: Peer<R1, W1>,
-    peer2: Peer<R2, W2>,
+    endpoint1: Endpoint<R1, W1>,
+    endpoint2: Endpoint<R2, W2>,
 }
 
 // Derived from https://doc.rust-lang.org/src/std/up/src/libstd/io/util.rs.html#46-61
@@ -154,10 +154,10 @@ impl<R1,R2,W1,W2> DataExchangeSession<R1,R2,W1,W2>
 {
     fn data_exchange(self) -> Result<()> {
     
-        let mut reader1 = self.peer1.reader;
-        let mut writer1 = self.peer1.writer;
-        let mut reader2 = self.peer2.reader;
-        let mut writer2 = self.peer2.writer;
+        let mut reader1 = self.endpoint1.reader;
+        let mut writer1 = self.endpoint1.writer;
+        let mut reader2 = self.endpoint2.reader;
+        let mut writer2 = self.endpoint2.writer;
     
         let receive_loop = thread::Builder::new().spawn(move || -> Result<()> {
             // Actual data transfer happens here
@@ -176,8 +176,8 @@ impl<R1,R2,W1,W2> DataExchangeSession<R1,R2,W1,W2>
     }
 }
 
-fn get_websocket_peer(urlstr: &str) -> Result<
-        Peer<
+fn get_websocket_endpoint(urlstr: &str) -> Result<
+        Endpoint<
             ReceiverWrapper<websocket::client::Receiver<websocket::WebSocketStream>>,
             SenderWrapper<websocket::client::Sender<websocket::WebSocketStream>>>
         > {
@@ -203,31 +203,31 @@ fn get_websocket_peer(urlstr: &str) -> Result<
 
     let (sender, receiver) = response.begin().split();
     
-    let peer = Peer {
+    let endpoint = Endpoint {
         reader : ReceiverWrapper(receiver),
         writer : SenderWrapper(sender),
     };
-    Ok(peer)
+    Ok(endpoint)
 }
 
-fn get_tcp_peer(addr: &str) -> Result<
-        Peer<
+fn get_tcp_endpoint(addr: &str) -> Result<
+        Endpoint<
             ::std::net::TcpStream,
             ::std::net::TcpStream,
         >> {
     let sock = ::std::net::TcpStream::connect(addr)?;
 
-    let peer = Peer {
+    let endpoint = Endpoint {
         reader : sock.try_clone()?,
         writer : sock.try_clone()?,
     };
     info!("Connected to TCP {}", addr);
-    Ok(peer)
+    Ok(endpoint)
 }
 
-fn get_stdio_peer() -> Result<Peer<std::io::Stdin, std::io::Stdout>> {
+fn get_stdio_endpoint() -> Result<Endpoint<std::io::Stdin, std::io::Stdout>> {
     Ok(
-        Peer {
+        Endpoint {
             reader : stdin(),
             writer : stdout(),
         }
@@ -246,14 +246,14 @@ impl TcpServer {
 }
 
 impl Server for TcpServer {    
-    fn accept_client(&mut self) -> Result<IPeer> {
+    fn accept_client(&mut self) -> Result<IEndpoint> {
         let (sock, addr) = self.0.accept()?;
         info!("TCP client connection from {}", addr);
-        let peer = Peer {
+        let endpoint = Endpoint {
             reader : sock.try_clone()?,
             writer : sock.try_clone()?,
         };
-        Ok(peer.upcast())
+        Ok(endpoint.upcast())
     }
 }
 
@@ -269,7 +269,7 @@ impl<'a> WebsockServer<'a> {
 }
 
 impl<'a> Server for WebsockServer<'a> {    
-    fn accept_client(&mut self) -> Result<IPeer> {
+    fn accept_client(&mut self) -> Result<IEndpoint> {
         let connection = self.0.accept()?;
         info!("WebSocket client connection ...");
         let request = connection.read_request()?;
@@ -286,11 +286,11 @@ impl<'a> Server for WebsockServer<'a> {
 
         let (sender, receiver) = client.split();
 
-        let peer = Peer {
+        let endpoint = Endpoint {
             reader : ReceiverWrapper(receiver),
             writer : SenderWrapper(sender),
         };
-        Ok(peer.upcast())
+        Ok(endpoint.upcast())
     }
 }
 
@@ -299,11 +299,11 @@ impl<'a> Server for WebsockServer<'a> {
 
 
 
-impl<R,W> Peer<R,W> 
+impl<R,W> Endpoint<R,W> 
     where R : Read + Send + 'static, W: Write + Send + 'static
 {
-    fn upcast(self) -> IPeer  {
-        Peer {
+    fn upcast(self) -> IEndpoint  {
+        Endpoint {
             reader: Box::new(self.reader) as Box<Read +Send>,
             writer: Box::new(self.writer) as Box<Write+Send>,
         }
@@ -313,13 +313,13 @@ impl<R,W> Peer<R,W>
 
 trait Server
 {
-    fn accept_client(&mut self) -> Result<IPeer>;
+    fn accept_client(&mut self) -> Result<IEndpoint>;
     
     fn start_serving(&mut self, spec2: &str, once: bool) -> Result<()> {
         let spec2s = spec2.to_string();
-        let closure = move |peer, spec2 : String|{
-            let spec2_ = get_peer_by_spec(spec2.as_str())?;
-            let peer2 = match spec2_ {
+        let closure = move |endpoint, spec2 : String|{
+            let spec2_ = get_endpoint_by_spec(spec2.as_str())?;
+            let endpoint2 = match spec2_ {
                 Spec::Server(mut x) => {
                     x.accept_client()?
                 }
@@ -328,20 +328,20 @@ trait Server
                 }
             };
             let des = DataExchangeSession {
-                peer1 : peer,
-                peer2 : peer2,
+                endpoint1 : endpoint,
+                endpoint2 : endpoint2,
             };
             
             des.data_exchange()
         };
         if once {
-            let peer = self.accept_client()?;
-            closure(peer, spec2s)
+            let endpoint = self.accept_client()?;
+            closure(endpoint, spec2s)
         } else {
             let cl2 = ::std::sync::Arc::new(closure);
             loop {
                 let ret = self.accept_client();
-                let peer = match ret {
+                let endpoint = match ret {
                     Ok(x) => x,
                     Err(er) => {
                         warn!("Can't accept client: {}", er);
@@ -351,7 +351,7 @@ trait Server
                 let cl3 = cl2.clone();
                 let spec2s2 = spec2s.clone();
                 if let Err(x) = thread::Builder::new().spawn(move|| {
-                    if let Err(x) = cl3(peer, spec2s2) {
+                    if let Err(x) = cl3(endpoint, spec2s2) {
                         warn!("Error while serving: {}", x);
                     }
                 }) {
@@ -368,16 +368,16 @@ trait Server
 }
 
 fn main2(spec1: &str, spec2: &str, once: bool) -> Result<()> {
-    let spec1_ = get_peer_by_spec(spec1)?;
+    let spec1_ = get_endpoint_by_spec(spec1)?;
     
     match spec1_ {
         Spec::Server(mut x) => {
             x.start_serving(spec2, once)
         }
         Spec::Client(p1) => {
-            let spec2_ = get_peer_by_spec(spec2)?;
+            let spec2_ = get_endpoint_by_spec(spec2)?;
             
-            let otherpeer = match spec2_ {
+            let otherendpoint = match spec2_ {
                 Spec::Server(mut x) => {
                     let t = x.accept_client()?;
                     t
@@ -388,8 +388,8 @@ fn main2(spec1: &str, spec2: &str, once: bool) -> Result<()> {
             };
             
             let des = DataExchangeSession {
-                peer1 : p1,
-                peer2 : otherpeer,
+                endpoint1 : p1,
+                endpoint2 : otherendpoint,
             };
             
             des.data_exchange()
@@ -399,16 +399,16 @@ fn main2(spec1: &str, spec2: &str, once: bool) -> Result<()> {
 
 enum Spec {
     Server(Box<Server + Send>),
-    Client(IPeer)
+    Client(IEndpoint)
 }
 
-fn get_peer_by_spec(specifier: &str) -> Result<Spec> {
+fn get_endpoint_by_spec(specifier: &str) -> Result<Spec> {
     use Spec::{Server,Client};
     match specifier {
-        x if x == "-"               => Ok(Client(get_stdio_peer()?.upcast())),
-        x if x.starts_with("ws:")   => Ok(Client(get_websocket_peer(x)?.upcast())),
-        x if x.starts_with("wss:")  => Ok(Client(get_websocket_peer(x)?.upcast())),
-        x if x.starts_with("tcp:")  => Ok(Client(get_tcp_peer(&x[4..])?.upcast())),
+        x if x == "-"               => Ok(Client(get_stdio_endpoint()?.upcast())),
+        x if x.starts_with("ws:")   => Ok(Client(get_websocket_endpoint(x)?.upcast())),
+        x if x.starts_with("wss:")  => Ok(Client(get_websocket_endpoint(x)?.upcast())),
+        x if x.starts_with("tcp:")  => Ok(Client(get_tcp_endpoint(&x[4..])?.upcast())),
         x if x.starts_with("l-tcp:")  => Ok(Server(TcpServer::new(&x[6..])?.upcast())),
         x if x.starts_with("l-ws:")  => Ok(Server(WebsockServer::new(&x[5..])?.upcast())),
         x => Err(ErrorKind::InvalidSpecifier(x.to_string()).into()),
