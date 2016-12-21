@@ -50,16 +50,39 @@ fn init_logger() -> Result<()> {
     Ok(())
 }
 
-struct SenderWrapper<T: Sender> (T);
+#[derive(Copy,Clone)]
+enum WebSocketMessageMode {
+    Binary,
+    Text,
+}
+
+struct SenderWrapper<T: Sender> (T, WebSocketMessageMode);
 
 impl<T: Sender> ::std::io::Write for SenderWrapper<T> {
     fn write(&mut self, buf: &[u8]) -> ::std::io::Result<usize> {
-        let message = Message::binary(buf);
         let ret;
         let len = buf.len();
         if len > 0 {
             debug!("Sending message of {} bytes", len);
-            ret = self.0.send_message(&message);
+            match self.1 {
+                WebSocketMessageMode::Binary => {
+                    let message = Message::binary(buf);
+                    ret = self.0.send_message(&message)
+                }
+                WebSocketMessageMode::Text => {
+                    let text_tmp;
+                    let text = match ::std::str::from_utf8(buf) {
+                        Ok(x) => x,
+                        Err(_) => {
+                            error!("Invalid UTF-8 in --text mode. Sending lossy data. May be caused by unlucky buffer splits.");
+                            text_tmp = String::from_utf8_lossy(buf);
+                            text_tmp.as_ref()
+                        }
+                    };
+                    let message = Message::text(text);
+                    ret = self.0.send_message(&message);
+                }
+            }
         } else {
             // Interpret zero length buffer is request
             // to close communication
@@ -176,7 +199,7 @@ impl<R1,R2,W1,W2> DataExchangeSession<R1,R2,W1,W2>
     }
 }
 
-fn get_websocket_endpoint(urlstr: &str) -> Result<
+fn get_websocket_endpoint(urlstr: &str, wsm : WebSocketMessageMode) -> Result<
         Endpoint<
             ReceiverWrapper<websocket::client::Receiver<websocket::WebSocketStream>>,
             SenderWrapper<websocket::client::Sender<websocket::WebSocketStream>>>
@@ -205,7 +228,7 @@ fn get_websocket_endpoint(urlstr: &str) -> Result<
     
     let endpoint = Endpoint {
         reader : ReceiverWrapper(receiver),
-        writer : SenderWrapper(sender),
+        writer : SenderWrapper(sender, wsm),
     };
     Ok(endpoint)
 }
@@ -260,11 +283,11 @@ impl Server for TcpServer {
 
 
 
-struct WebsockServer<'a>(WsServer<'a>);
+struct WebsockServer<'a>(WsServer<'a>, WebSocketMessageMode);
 
 impl<'a> WebsockServer<'a> {
-    fn new(addr: &str) -> Result<Self> {
-        Ok(WebsockServer(WsServer::bind(addr)?))
+    fn new(addr: &str, wsm:WebSocketMessageMode) -> Result<Self> {
+        Ok(WebsockServer(WsServer::bind(addr)?, wsm))
     }
 }
 
@@ -288,7 +311,7 @@ impl<'a> Server for WebsockServer<'a> {
 
         let endpoint = Endpoint {
             reader : ReceiverWrapper(receiver),
-            writer : SenderWrapper(sender),
+            writer : SenderWrapper(sender, self.1),
         };
         Ok(endpoint.upcast())
     }
@@ -315,10 +338,10 @@ trait Server
 {
     fn accept_client(&mut self) -> Result<IEndpoint>;
     
-    fn start_serving(&mut self, spec2: &str, once: bool) -> Result<()> {
+    fn start_serving(&mut self, spec2: &str, once: bool, wsm:WebSocketMessageMode) -> Result<()> {
         let spec2s = spec2.to_string();
         let closure = move |endpoint, spec2 : String|{
-            let spec2_ = get_endpoint_by_spec(spec2.as_str())?;
+            let spec2_ = get_endpoint_by_spec(spec2.as_str(), wsm)?;
             let endpoint2 = match spec2_ {
                 Spec::Server(mut x) => {
                     x.accept_client()?
@@ -367,15 +390,15 @@ trait Server
         { Box::new(self) as Box<Server+Send> }
 }
 
-fn main2(spec1: &str, spec2: &str, once: bool) -> Result<()> {
-    let spec1_ = get_endpoint_by_spec(spec1)?;
+fn main2(spec1: &str, spec2: &str, once: bool, wsm: WebSocketMessageMode) -> Result<()> {
+    let spec1_ = get_endpoint_by_spec(spec1, wsm)?;
     
     match spec1_ {
         Spec::Server(mut x) => {
-            x.start_serving(spec2, once)
+            x.start_serving(spec2, once, wsm)
         }
         Spec::Client(p1) => {
-            let spec2_ = get_endpoint_by_spec(spec2)?;
+            let spec2_ = get_endpoint_by_spec(spec2, wsm)?;
             
             let otherendpoint = match spec2_ {
                 Spec::Server(mut x) => {
@@ -402,15 +425,15 @@ enum Spec {
     Client(IEndpoint)
 }
 
-fn get_endpoint_by_spec(specifier: &str) -> Result<Spec> {
+fn get_endpoint_by_spec(specifier: &str, wsm: WebSocketMessageMode) -> Result<Spec> {
     use Spec::{Server,Client};
     match specifier {
         x if x == "-"               => Ok(Client(get_stdio_endpoint()?.upcast())),
-        x if x.starts_with("ws:")   => Ok(Client(get_websocket_endpoint(x)?.upcast())),
-        x if x.starts_with("wss:")  => Ok(Client(get_websocket_endpoint(x)?.upcast())),
+        x if x.starts_with("ws:")   => Ok(Client(get_websocket_endpoint(x,wsm)?.upcast())),
+        x if x.starts_with("wss:")  => Ok(Client(get_websocket_endpoint(x,wsm)?.upcast())),
         x if x.starts_with("tcp:")  => Ok(Client(get_tcp_endpoint(&x[4..])?.upcast())),
         x if x.starts_with("l-tcp:")  => Ok(Server(TcpServer::new(&x[6..])?.upcast())),
-        x if x.starts_with("l-ws:")  => Ok(Server(WebsockServer::new(&x[5..])?.upcast())),
+        x if x.starts_with("l-ws:")  => Ok(Server(WebsockServer::new(&x[5..], wsm)?.upcast())),
         x => Err(ErrorKind::InvalidSpecifier(x.to_string()).into()),
     }
 }
@@ -432,6 +455,11 @@ fn try_main() -> Result<()> {
              .help("Second specifier.")
              .required(true)
              .index(2))
+        .arg(::clap::Arg::with_name("text")
+             .help("Send WebSocket text messages instead of binary (unstable)")
+             .required(false)
+             .short("-t")
+             .long("--text"))
         .after_help(r#"
 Specifiers can be:
   ws[s]://<rest of websocket URL>   Connect to websocket
@@ -460,13 +488,20 @@ Specify listening part first, unless you want websocat to serve once.
 IPv6 supported, just use specs like `l-ws:::1:4567`
 
 Web socket usage is not obligatory, you can use any specs on both sides.
+If you want wss:// server, use socat or nginx in addition.
 "#)
         .get_matches();
 
     let spec1  = matches.value_of("spec1") .ok_or("no listener_spec" )?;
     let spec2 = matches.value_of("spec2").ok_or("no connector_spec")?;
+    //
+    let wsm = if matches.is_present("text") { 
+        WebSocketMessageMode::Text 
+    } else {
+        WebSocketMessageMode::Binary
+    };
     
-    main2(spec1, spec2, false)?;
+    main2(spec1, spec2, false, wsm)?;
 
     debug!("Exited");
     Ok(())
