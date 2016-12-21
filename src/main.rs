@@ -259,6 +259,33 @@ fn get_stdio_endpoint() -> Result<Endpoint<std::io::Stdin, std::io::Stdout>> {
     )
 }
 
+fn get_forkexec_endpoint(cmdline: &str, shell: bool) 
+        -> Result<Endpoint<std::process::ChildStdout, std::process::ChildStdin>> {
+    
+    let mut cmdbuf;
+    let cmd = if shell {
+        cmdbuf = std::process::Command::new("sh");
+        cmdbuf.args(&["-c", cmdline])
+    } else {
+        cmdbuf = std::process::Command::new(cmdline);
+        &mut cmdbuf
+    };
+    
+    let mut child = cmd
+        .stdin(std::process::Stdio::piped())
+        .stdout(std::process::Stdio::piped())
+        .stderr(std::process::Stdio::inherit())
+        .spawn()?;
+        
+    Ok(
+        Endpoint {
+            reader : child.stdout.take().unwrap(),
+            writer : child.stdin.take().unwrap(),
+        }
+    )
+}
+
+
 
 
 
@@ -436,6 +463,8 @@ fn get_endpoint_by_spec(specifier: &str, wsm: WebSocketMessageMode) -> Result<Sp
         x if x.starts_with("tcp:")  => Ok(Client(get_tcp_endpoint(&x[4..])?.upcast())),
         x if x.starts_with("l-tcp:")  => Ok(Server(TcpServer::new(&x[6..])?.upcast())),
         x if x.starts_with("l-ws:")  => Ok(Server(WebsockServer::new(&x[5..], wsm)?.upcast())),
+        x if x.starts_with("exec:")  => Ok(Client(get_forkexec_endpoint(&x[5..], false)?.upcast())),
+        x if x.starts_with("sh-c:")  => Ok(Client(get_forkexec_endpoint(&x[5..], true)?.upcast())),
         x => Err(ErrorKind::InvalidSpecifier(x.to_string()).into()),
     }
 }
@@ -469,6 +498,8 @@ Specifiers can be:
   tcp:host:port                     Connect to TCP
   l-tcp:host:port                   Listen TCP connections
   -                                 stdin/stdout
+  exec:program                      spawn a program (no arguments)
+  sh-c:program                      execute a command line with 'sh -c'
   (more to be implemented)
   
 Examples:
