@@ -113,7 +113,9 @@ impl<T:Receiver<DataFrame>> ::std::io::Read for ReceiverWrapper<T> {
                 // Sender used to be in a separate thread with a channel
                 // now there's no channel, so trickier to combine ping replies
                 // and usual data exchange
-                unimplemented!();
+                error!("Received ping, but replying to pings is not implemented");
+                error!("Open an issue if you want ping replies in websocat");
+                Ok(0)
             }
             _ => {
                 let msgpayload : &[u8] = msg.payload.borrow();
