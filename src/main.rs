@@ -645,6 +645,21 @@ Examples:
     Connect both to websocket and to TCP and exchange data.
   websocat -U l-ws:127.0.0.1:8088 sh-c:"ping 8.8.8.8 -c 1"
     Execute a command line on each connection (not for Windows)
+  ssh -c ProxyCommand="websocat - ws://myserver/mywebsocket" user@myserver
+    Use SSH connection wrapped in a web socket
+  websocat l-ws:0.0.0.0:80 tcp:127.0.0.1:22
+    Server part of the command above
+    If you want to share this with usual web server, use reverse proxying.
+    Nginx example:
+    location /mywebsocket {
+        proxy_read_timeout 1h;
+        proxy_send_timeout 1h;
+        proxy_pass http://localhost:3012;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+    }
+
     
 Specify listening part first, unless you want websocat to serve once.
 
