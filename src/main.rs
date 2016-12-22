@@ -562,7 +562,7 @@ fn try_main() -> Result<()> {
     let matches = ::clap::App::new("websocat")
         .version(crate_version!())
         .author("Vitaly \"_Vi\" Shukela <vi0oss@gmail.com>")
-        .about("Exchange binary data between binary websocket and something.\nSocat analogue with websockets.")
+        .about("Exchange binary data between binary or text websocket and something.\nSocat analogue with websockets.")
         .arg(::clap::Arg::with_name("spec1")
              .help("First specifier.")
              .required(true)
@@ -572,7 +572,7 @@ fn try_main() -> Result<()> {
              .required(true)
              .index(2))
         .arg(::clap::Arg::with_name("text")
-             .help("Send WebSocket text messages instead of binary (unstable)")
+             .help("Send WebSocket text messages instead of binary (unstable). Affect only ws[s]:/l-ws:.")
              .required(false)
              .short("-t")
              .long("--text"))
@@ -604,6 +604,8 @@ Examples:
     `ssh user@host -o ProxyHommand "websocat - ws://..."`
   websocat ws://localhost:1234/ tcp:localhost:1235
     Connect both to websocket and to TCP and exchange data.
+  websocat l-ws:127.0.0.1:8088 sh-c:"ping 8.8.8.8 -c 1"
+    Execute a command line on each connection (not for Windows)
     
 Specify listening part first, unless you want websocat to serve once.
 
