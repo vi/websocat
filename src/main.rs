@@ -631,7 +631,7 @@ If you want wss:// server, use socat or nginx in addition.
 
 fn main() {
     if let Err(x) = try_main() {
-        let _ = writeln!(::std::io::stderr(), "{:?}", x);
+        let _ = writeln!(::std::io::stderr(), "{}", x);
     }
 }
 
