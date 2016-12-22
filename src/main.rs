@@ -422,6 +422,38 @@ impl<'a> Server for WebsockServer<'a> {
     }
 }
 
+#[cfg(feature = "unix_websockets")]
+struct UnixWebsockServer(::unix_socket::UnixListener, WebSocketMessageMode);
+
+#[cfg(feature = "unix_websockets")]
+impl UnixWebsockServer {
+    fn new(addr: &str, wsm:WebSocketMessageMode) -> Result<Self> {
+        Ok(UnixWebsockServer(::unix_socket::UnixListener::bind(addr)?, wsm))
+    }
+}
+
+#[cfg(feature = "unix_websockets")]
+impl Server for UnixWebsockServer {    
+    fn accept_client(&mut self) -> Result<IEndpoint> {
+        let (sock, addr) = self.0.accept()?;
+        info!("UNIX client connection from {:?}", addr);
+        let connection = websocket::server::Connection(sock.try_clone()?, sock.try_clone()?);
+        let request = connection.read_request()?;
+        request.validate()?;
+        let response = request.accept(); // Form a response
+        let client = response.send()?; // Send the response
+
+        let (sender, receiver) = client.split();
+
+        let endpoint = Endpoint {
+            reader : ReceiverWrapper(receiver),
+            writer : SenderWrapper(sender, self.1),
+        };
+        Ok(endpoint.upcast())
+    }
+}
+
+
 
 
 
@@ -569,6 +601,21 @@ fn get_endpoint_by_spec(specifier: &str, wsm: WebSocketMessageMode) -> Result<Sp
         #[cfg(not(feature = "unix_socket"))]
         x if x.starts_with("l-abstract:")  => 
                 Err("UNIX socket support not compiled in".into()),
+                
+        
+        #[cfg(feature = "unix_websockets")]
+        x if x.starts_with("l-ws-unix:")  => 
+                Ok(Server(UnixWebsockServer::new(&get_unix_socket_address(&x[10..], false), wsm)?.upcast())),
+        #[cfg(feature = "unix_websockets")]
+        x if x.starts_with("l-ws-abstract:")  => 
+                Ok(Server(UnixWebsockServer::new(&get_unix_socket_address(&x[14..], true), wsm)?.upcast())),
+        
+        #[cfg(not(feature = "unix_websockets"))]
+        x if x.starts_with("l-ws-unix:")  => 
+                Err("UNIX websocket support not compiled in".into()),
+        #[cfg(not(feature = "unix_websockets"))]
+        x if x.starts_with("l-ws-abstract:")  => 
+                Err("UNIX websocket support not compiled in".into()),
         
         x if x.starts_with("l-tcp:")  => 
                 Ok(Server(TcpServer::new(&x[6..])?.upcast())),
@@ -622,6 +669,8 @@ Specifiers can be:
   unix:path                         Connect to UNIX socket
   abstract:addr                     Connect to abstract UNIX socket (Linux-only)
   l-ws:host:port                    Listen unencrypted websocket
+  l-ws-unix:path                    Listen unecrypted UNIX-backed websocket on addr
+  l-ws-abstract:addr                Listen unecrypted abstract-UNIX-backed websocket on addr
   l-tcp:host:port                   Listen TCP connections
   l-unix:path                       Listen for UNIX socket connections on path
   l-abstract:addr                   Listen for UNIX socket connections on abstract address
@@ -649,16 +698,19 @@ Examples:
     Use SSH connection wrapped in a web socket
   websocat l-ws:0.0.0.0:80 tcp:127.0.0.1:22
     Server part of the command above
-    If you want to share this with usual web server, use reverse proxying.
-    Nginx example:
+  websocat l-ws-unix:/tmp/sshws.sock tcp:127.0.0.1:22
+    Like previous example, but for integration with NginX using UNIX sockets
+    Nginx config snippet example:
     location /mywebsocket {
         proxy_read_timeout 1h;
         proxy_send_timeout 1h;
-        proxy_pass http://localhost:3012;
+        #proxy_pass http://localhost:3012;
+        proxy_pass http://unix:/tmp/sshws.sock;
         proxy_http_version 1.1;
         proxy_set_header Upgrade $http_upgrade;
         proxy_set_header Connection "upgrade";
     }
+    Don't forget about socket file permission bits
 
     
 Specify listening part first, unless you want websocat to serve once.

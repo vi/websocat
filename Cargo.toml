@@ -17,3 +17,6 @@ error-chain = {version="^0.6.1"}
 url = { version="^1.2.3" }
 clap = { version = "^2.18", default-features = false }
 unix_socket = { version = "~0.5", optional = true }
+
+[features]
+unix_websockets = ["unix_socket"]
