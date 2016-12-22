@@ -13,7 +13,9 @@ USAGE:
 
 FLAGS:
     -h, --help       Prints help information
-    -t, --text       Send WebSocket text messages instead of binary (unstable). Affect only ws[s]:/l-ws:.
+    -t, --text       Send WebSocket text messages instead of binary (unstable). Affect only ws[s]:/l-ws:
+    -u, --unidirectional            Only copy from spec1 to spec2.
+    -U, --unidirectional-reverse    Only copy from spec2 to spec1.
     -V, --version    Prints version information
 
 ARGS:

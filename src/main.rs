@@ -144,6 +144,13 @@ struct Endpoint<R, W>
 
 type IEndpoint = Endpoint<Box<Read+Send>, Box<Write+Send>>;
 
+#[derive(Copy,Clone)]
+enum DataExchangeDirection {
+    Bidirectional,
+    Unidirectional,
+    UnidirectionalReverse,
+}
+
 struct DataExchangeSession<R1, R2, W1, W2> 
     where R1 : Read  + Send + 'static, 
           R2 : Read  + Send + 'static,
@@ -152,6 +159,7 @@ struct DataExchangeSession<R1, R2, W1, W2>
 {
     endpoint1: Endpoint<R1, W1>,
     endpoint2: Endpoint<R2, W2>,
+    direction : DataExchangeDirection,
 }
 
 // Derived from https://doc.rust-lang.org/src/std/up/src/libstd/io/util.rs.html#46-61
@@ -187,20 +195,38 @@ impl<R1,R2,W1,W2> DataExchangeSession<R1,R2,W1,W2>
         let mut reader2 = self.endpoint2.reader;
         let mut writer2 = self.endpoint2.writer;
     
-        let receive_loop = thread::Builder::new().spawn(move || -> Result<()> {
-            // Actual data transfer happens here
-            copy_with_flushes(&mut reader1, &mut writer2)?;
-            writer2.write(b"")?; // signal close
-            Ok(())
-        })?;
-    
-        // Actual data transfer happens here
-        copy_with_flushes(&mut reader2, &mut writer1)?;
-        writer1.write(b"")?; // Signal close
-    
-        debug!("Waiting for receiver side to exit");
-    
-        receive_loop.join().map_err(|x|format!("{:?}",x))?
+        match self.direction {
+            DataExchangeDirection::Bidirectional => {
+                let receive_loop = thread::Builder::new().spawn(move || -> Result<()> {
+                    // Actual data transfer happens here
+                    copy_with_flushes(&mut reader1, &mut writer2)?;
+                    writer2.write(b"")?; // signal close
+                    Ok(())
+                })?;
+            
+                // Actual data transfer happens here
+                copy_with_flushes(&mut reader2, &mut writer1)?;
+                writer1.write(b"")?; // Signal close
+            
+                debug!("Waiting for receiver side to exit");
+            
+                receive_loop.join().map_err(|x|format!("{:?}",x))?
+            }
+            DataExchangeDirection::Unidirectional => {
+                ::std::mem::drop(reader2);
+                ::std::mem::drop(writer1);
+                copy_with_flushes(&mut reader1, &mut writer2)?;
+                writer2.write(b"")?; // Signal close
+                Ok(())
+            }
+            DataExchangeDirection::UnidirectionalReverse => {
+                ::std::mem::drop(reader1);
+                ::std::mem::drop(writer2);
+                copy_with_flushes(&mut reader2, &mut writer1)?;
+                writer1.write(b"")?; // Signal close
+                Ok(())
+            }
+        }
     }
 }
 
@@ -417,7 +443,7 @@ trait Server
 {
     fn accept_client(&mut self) -> Result<IEndpoint>;
     
-    fn start_serving(&mut self, spec2: &str, once: bool, wsm:WebSocketMessageMode) -> Result<()> {
+    fn start_serving(&mut self, spec2: &str, once: bool, wsm : WebSocketMessageMode, ded :DataExchangeDirection ) -> Result<()> {
         let spec2s = spec2.to_string();
         let closure = move |endpoint, spec2 : String|{
             let spec2_ = get_endpoint_by_spec(spec2.as_str(), wsm)?;
@@ -432,6 +458,7 @@ trait Server
             let des = DataExchangeSession {
                 endpoint1 : endpoint,
                 endpoint2 : endpoint2,
+                direction: ded,
             };
             
             des.data_exchange()
@@ -469,12 +496,12 @@ trait Server
         { Box::new(self) as Box<Server+Send> }
 }
 
-fn main2(spec1: &str, spec2: &str, once: bool, wsm: WebSocketMessageMode) -> Result<()> {
+fn main2(spec1: &str, spec2: &str, once: bool, wsm: WebSocketMessageMode, ded: DataExchangeDirection) -> Result<()> {
     let spec1_ = get_endpoint_by_spec(spec1, wsm)?;
     
     match spec1_ {
         Spec::Server(mut x) => {
-            x.start_serving(spec2, once, wsm)
+            x.start_serving(spec2, once, wsm, ded)
         }
         Spec::Client(p1) => {
             let spec2_ = get_endpoint_by_spec(spec2, wsm)?;
@@ -492,6 +519,7 @@ fn main2(spec1: &str, spec2: &str, once: bool, wsm: WebSocketMessageMode) -> Res
             let des = DataExchangeSession {
                 endpoint1 : p1,
                 endpoint2 : otherendpoint,
+                direction: ded,
             };
             
             des.data_exchange()
@@ -572,10 +600,21 @@ fn try_main() -> Result<()> {
              .required(true)
              .index(2))
         .arg(::clap::Arg::with_name("text")
-             .help("Send WebSocket text messages instead of binary (unstable). Affect only ws[s]:/l-ws:.")
+             .help("Send WebSocket text messages instead of binary (unstable). Affect only ws[s]:/l-ws:")
              .required(false)
              .short("-t")
              .long("--text"))
+        .arg(::clap::Arg::with_name("unidirectional")
+             .help("Only copy from spec1 to spec2.")
+             .required(false)
+             .short("-u")
+             .long("--unidirectional"))
+        .arg(::clap::Arg::with_name("unidirectional_reverse")
+             .help("Only copy from spec2 to spec1.")
+             .required(false)
+             .short("-U")
+             .conflicts_with("unidirectional")
+             .long("--unidirectional-reverse"))
         .after_help(r#"
 Specifiers can be:
   ws[s]://<rest of websocket URL>   Connect to websocket
@@ -625,7 +664,15 @@ If you want wss:// server, use socat or nginx in addition.
         WebSocketMessageMode::Binary
     };
     
-    main2(spec1, spec2, false, wsm)?;
+    let ded = if matches.is_present("unidirectional") {
+        DataExchangeDirection::Unidirectional
+    } else if matches.is_present("unidirectional_reverse") {
+        DataExchangeDirection::UnidirectionalReverse
+    } else {
+        DataExchangeDirection::Bidirectional
+    };
+    
+    main2(spec1, spec2, false, wsm, ded)?;
 
     debug!("Exited");
     Ok(())
