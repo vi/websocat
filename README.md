@@ -73,3 +73,5 @@ See also
 ---
 
 * [wstunnel](https://github.com/erebe/wstunnel)
+* [wscat](https://github.com/websockets/wscat)
+* [websocketd](https://github.com/joewalnes/websocketd)
