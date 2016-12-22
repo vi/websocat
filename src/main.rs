@@ -254,30 +254,27 @@ fn get_tcp_endpoint(addr: &str) -> Result<
 }
 
 #[cfg(feature = "unix_socket")]
-fn get_unix_socket_endpoint(addr: &str, abstract_: bool) -> Result<
+fn get_unix_socket_address(addr: &str, abstract_: bool) -> String {
+    if abstract_ {
+        "\x00".to_string() + addr
+    } else {
+        addr.to_string()
+    }
+}
+
+#[cfg(feature = "unix_socket")]
+fn get_unix_socket_endpoint(addr: &str) -> Result<
         Endpoint<
             ::unix_socket::UnixStream,
             ::unix_socket::UnixStream,
         >> {
-    let addrbuf;
-    let a = if abstract_ {
-        addrbuf = "\x00".to_string() + addr;
-        &addrbuf
-    } else {
-        addr
-    };
-    
-    let sock = ::unix_socket::UnixStream::connect(a)?;
+    let sock = ::unix_socket::UnixStream::connect(addr)?;
 
     let endpoint = Endpoint {
         reader : sock.try_clone()?,
         writer : sock.try_clone()?,
     };
-    if abstract_ {
-        info!("Connected to UNIX socket {}", addr);
-    } else {
-        info!("Connected to abstract UNIX socket {}", addr);
-    }
+    info!("Connected to UNIX socket {}", addr);
     Ok(endpoint)
 }
 
@@ -340,6 +337,28 @@ impl Server for TcpServer {
     }
 }
 
+#[cfg(feature = "unix_socket")]
+struct UnixSocketServer(::unix_socket::UnixListener);
+
+#[cfg(feature = "unix_socket")]
+impl UnixSocketServer {
+    fn new(addr: &str) -> Result<Self> {
+        Ok(UnixSocketServer(::unix_socket::UnixListener::bind(addr)?))
+    }
+}
+
+#[cfg(feature = "unix_socket")]
+impl Server for UnixSocketServer {    
+    fn accept_client(&mut self) -> Result<IEndpoint> {
+        let (sock, addr) = self.0.accept()?;
+        info!("UNIX client connection from {:?}", addr);
+        let endpoint = Endpoint {
+            reader : sock.try_clone()?,
+            writer : sock.try_clone()?,
+        };
+        Ok(endpoint.upcast())
+    }
+}
 
 
 
@@ -496,18 +515,33 @@ fn get_endpoint_by_spec(specifier: &str, wsm: WebSocketMessageMode) -> Result<Sp
                 Ok(Client(get_websocket_endpoint(x,wsm)?.upcast())),
         x if x.starts_with("tcp:")  => 
                 Ok(Client(get_tcp_endpoint(&x[4..])?.upcast())),
+        
         #[cfg(feature = "unix_socket")]
         x if x.starts_with("unix:")  => 
-                Ok(Client(get_unix_socket_endpoint(&x[5..], false)?.upcast())),
+                Ok(Client(get_unix_socket_endpoint(&get_unix_socket_address(&x[5..], false))?.upcast())),
         #[cfg(feature = "unix_socket")]
         x if x.starts_with("abstract:")  => 
-                Ok(Client(get_unix_socket_endpoint(&x[9..], true)?.upcast())),
+                Ok(Client(get_unix_socket_endpoint(&get_unix_socket_address(&x[9..], true))?.upcast())),
+        #[cfg(feature = "unix_socket")]
+        x if x.starts_with("l-unix:")  => 
+                Ok(Server(UnixSocketServer::new(&get_unix_socket_address(&x[7..], false))?.upcast())),
+        #[cfg(feature = "unix_socket")]
+        x if x.starts_with("l-abstract:")  => 
+                Ok(Server(UnixSocketServer::new(&get_unix_socket_address(&x[11..], true))?.upcast())),
+        
         #[cfg(not(feature = "unix_socket"))]
         x if x.starts_with("unix:")  => 
                 Err("UNIX socket support not compiled in".into()),
         #[cfg(not(feature = "unix_socket"))]
         x if x.starts_with("abstract:")  => 
                 Err("UNIX socket support not compiled in".into()),
+        #[cfg(not(feature = "unix_socket"))]
+        x if x.starts_with("l-unix:")  => 
+                Err("UNIX socket support not compiled in".into()),
+        #[cfg(not(feature = "unix_socket"))]
+        x if x.starts_with("l-abstract:")  => 
+                Err("UNIX socket support not compiled in".into()),
+        
         x if x.starts_with("l-tcp:")  => 
                 Ok(Server(TcpServer::new(&x[6..])?.upcast())),
         x if x.starts_with("l-ws:")  => 
@@ -545,11 +579,13 @@ fn try_main() -> Result<()> {
         .after_help(r#"
 Specifiers can be:
   ws[s]://<rest of websocket URL>   Connect to websocket
-  l-ws:host:port                    Listen unencrypted websocket
   tcp:host:port                     Connect to TCP
   unix:path                         Connect to UNIX socket
   abstract:addr                     Connect to abstract UNIX socket
+  l-ws:host:port                    Listen unencrypted websocket
   l-tcp:host:port                   Listen TCP connections
+  l-unix:path                       Listen for UNIX socket connections on path
+  l-abstract:addr                   Listen for UNIX socket connections on abstract address
   -                                 stdin/stdout
   exec:program                      spawn a program (no arguments)
   sh-c:program                      execute a command line with 'sh -c'
