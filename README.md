@@ -50,7 +50,7 @@ Examples:
     `ssh user@host -o ProxyHommand "websocat - ws://..."`
   websocat ws://localhost:1234/ tcp:localhost:1235
     Connect both to websocket and to TCP and exchange data.
-  websocat l-ws:127.0.0.1:8088 sh-c:"ping 8.8.8.8 -c 1"
+  websocat -U l-ws:127.0.0.1:8088 sh-c:"ping 8.8.8.8 -c 1"
     Execute a command line on each connection (not for Windows)
     
 Specify listening part first, unless you want websocat to serve once.
