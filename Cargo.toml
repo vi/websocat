@@ -10,7 +10,7 @@ exclude = ["autorelease.sh"]
 
 
 [dependencies]
-websocket = { version = "^0.17.1" }
+websocket = { git = "file:///mnt/src/git/rust-websocket/.git", rev="3d572357b9b62457478ca330fac244b6dc9d06c7", default-features = false }
 env_logger = {version="^0.3.5", default-features = false }
 log = {version="^0.3.5", default-features = false}
 error-chain = {version="^0.6.1"}
