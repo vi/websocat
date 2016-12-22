@@ -620,7 +620,7 @@ Specifiers can be:
   ws[s]://<rest of websocket URL>   Connect to websocket
   tcp:host:port                     Connect to TCP
   unix:path                         Connect to UNIX socket
-  abstract:addr                     Connect to abstract UNIX socket
+  abstract:addr                     Connect to abstract UNIX socket (Linux-only)
   l-ws:host:port                    Listen unencrypted websocket
   l-tcp:host:port                   Listen TCP connections
   l-unix:path                       Listen for UNIX socket connections on path
