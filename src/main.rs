@@ -10,6 +10,9 @@ extern crate url;
 #[macro_use] // crate_version
 extern crate clap;
 
+#[cfg(feature = "unix_socket")]
+extern crate unix_socket;
+
 const BUFSIZ : usize = 8192;
 
 use std::thread;
@@ -250,6 +253,34 @@ fn get_tcp_endpoint(addr: &str) -> Result<
     Ok(endpoint)
 }
 
+#[cfg(feature = "unix_socket")]
+fn get_unix_socket_endpoint(addr: &str, abstract_: bool) -> Result<
+        Endpoint<
+            ::unix_socket::UnixStream,
+            ::unix_socket::UnixStream,
+        >> {
+    let addrbuf;
+    let a = if abstract_ {
+        addrbuf = "\x00".to_string() + addr;
+        &addrbuf
+    } else {
+        addr
+    };
+    
+    let sock = ::unix_socket::UnixStream::connect(a)?;
+
+    let endpoint = Endpoint {
+        reader : sock.try_clone()?,
+        writer : sock.try_clone()?,
+    };
+    if abstract_ {
+        info!("Connected to UNIX socket {}", addr);
+    } else {
+        info!("Connected to abstract UNIX socket {}", addr);
+    }
+    Ok(endpoint)
+}
+
 fn get_stdio_endpoint() -> Result<Endpoint<std::io::Stdin, std::io::Stdout>> {
     Ok(
         Endpoint {
@@ -457,14 +488,34 @@ enum Spec {
 fn get_endpoint_by_spec(specifier: &str, wsm: WebSocketMessageMode) -> Result<Spec> {
     use Spec::{Server,Client};
     match specifier {
-        x if x == "-"               => Ok(Client(get_stdio_endpoint()?.upcast())),
-        x if x.starts_with("ws:")   => Ok(Client(get_websocket_endpoint(x,wsm)?.upcast())),
-        x if x.starts_with("wss:")  => Ok(Client(get_websocket_endpoint(x,wsm)?.upcast())),
-        x if x.starts_with("tcp:")  => Ok(Client(get_tcp_endpoint(&x[4..])?.upcast())),
-        x if x.starts_with("l-tcp:")  => Ok(Server(TcpServer::new(&x[6..])?.upcast())),
-        x if x.starts_with("l-ws:")  => Ok(Server(WebsockServer::new(&x[5..], wsm)?.upcast())),
-        x if x.starts_with("exec:")  => Ok(Client(get_forkexec_endpoint(&x[5..], false)?.upcast())),
-        x if x.starts_with("sh-c:")  => Ok(Client(get_forkexec_endpoint(&x[5..], true)?.upcast())),
+        x if x == "-"               =>
+                Ok(Client(get_stdio_endpoint()?.upcast())),
+        x if x.starts_with("ws:")   => 
+                Ok(Client(get_websocket_endpoint(x,wsm)?.upcast())),
+        x if x.starts_with("wss:")  => 
+                Ok(Client(get_websocket_endpoint(x,wsm)?.upcast())),
+        x if x.starts_with("tcp:")  => 
+                Ok(Client(get_tcp_endpoint(&x[4..])?.upcast())),
+        #[cfg(feature = "unix_socket")]
+        x if x.starts_with("unix:")  => 
+                Ok(Client(get_unix_socket_endpoint(&x[5..], false)?.upcast())),
+        #[cfg(feature = "unix_socket")]
+        x if x.starts_with("abstract:")  => 
+                Ok(Client(get_unix_socket_endpoint(&x[9..], true)?.upcast())),
+        #[cfg(not(feature = "unix_socket"))]
+        x if x.starts_with("unix:")  => 
+                Err("UNIX socket support not compiled in".into()),
+        #[cfg(not(feature = "unix_socket"))]
+        x if x.starts_with("abstract:")  => 
+                Err("UNIX socket support not compiled in".into()),
+        x if x.starts_with("l-tcp:")  => 
+                Ok(Server(TcpServer::new(&x[6..])?.upcast())),
+        x if x.starts_with("l-ws:")  => 
+                Ok(Server(WebsockServer::new(&x[5..], wsm)?.upcast())),
+        x if x.starts_with("exec:")  => 
+                Ok(Client(get_forkexec_endpoint(&x[5..], false)?.upcast())),
+        x if x.starts_with("sh-c:")  => 
+                Ok(Client(get_forkexec_endpoint(&x[5..], true)?.upcast())),
         x => Err(ErrorKind::InvalidSpecifier(x.to_string()).into()),
     }
 }
@@ -496,6 +547,8 @@ Specifiers can be:
   ws[s]://<rest of websocket URL>   Connect to websocket
   l-ws:host:port                    Listen unencrypted websocket
   tcp:host:port                     Connect to TCP
+  unix:path                         Connect to UNIX socket
+  abstract:addr                     Connect to abstract UNIX socket
   l-tcp:host:port                   Listen TCP connections
   -                                 stdin/stdout
   exec:program                      spawn a program (no arguments)
