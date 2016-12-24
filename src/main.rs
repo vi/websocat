@@ -364,6 +364,16 @@ impl Server for TcpServer {
     }
 }
 
+
+#[cfg(feature = "unix_socket")]
+fn maybe_unlink(path:&str,do_unlink:bool) -> Result<()> {
+    if do_unlink {
+        if let Err(_) = ::std::fs::remove_file(path) {
+            debug!("Failed to unlink socket path. Ignoring.");
+        }
+    }
+    Ok(())
+}
 #[cfg(feature = "unix_socket")]
 fn maybe_chmod(path:&str, chmod:Option<u32>) -> Result<()> {
     if let Some(mode) = chmod {
@@ -378,9 +388,10 @@ struct UnixSocketServer(::unix_socket::UnixListener);
 
 #[cfg(feature = "unix_socket")]
 impl UnixSocketServer {
-    fn new(addr: &str, chmod: Option<u32>) -> Result<Self> {
+    fn new(addr: &str, usc:UnixSocketConf) -> Result<Self> {
+        maybe_unlink(addr, usc.unlink)?;
         let ret = UnixSocketServer(::unix_socket::UnixListener::bind(addr)?);
-        maybe_chmod(addr, chmod)?;
+        maybe_chmod(addr, usc.chmod)?;
         Ok(ret)
     }
 }
@@ -439,9 +450,10 @@ struct UnixWebsockServer(::unix_socket::UnixListener, WebSocketMessageMode);
 
 #[cfg(feature = "unix_websockets")]
 impl UnixWebsockServer {
-    fn new(addr: &str, chmod:Option<u32>, wsm:WebSocketMessageMode) -> Result<Self> {
+    fn new(addr: &str, usc:UnixSocketConf, wsm:WebSocketMessageMode) -> Result<Self> {
+        maybe_unlink(addr, usc.unlink)?;
         let ret = UnixWebsockServer(::unix_socket::UnixListener::bind(addr)?, wsm);
-        maybe_chmod(addr, chmod)?;
+        maybe_chmod(addr, usc.chmod)?;
         Ok(ret)
     }
 }
@@ -579,11 +591,13 @@ enum Spec {
 }
 
 #[allow(dead_code)]
-fn warn_if_some(chmod : Option<u32>) -> Option<u32> {
-    if chmod.is_some() {
+fn warn_if_chmod(mut usc : UnixSocketConf) -> UnixSocketConf {
+    if usc.chmod.is_some() {
+        usc.chmod = None;
         warn!("--chmod does not work for abstract UNIX sockets");
     };
-    None
+    usc.unlink = false;
+    usc
 }
 
 fn get_endpoint_by_spec(specifier: &str, conf: Configuration) -> Result<Spec> {
@@ -609,11 +623,11 @@ fn get_endpoint_by_spec(specifier: &str, conf: Configuration) -> Result<Spec> {
         #[cfg(feature = "unix_socket")]
         x if x.starts_with("l-unix:")  => 
                 Ok(Server(UnixSocketServer::new(
-                    &get_unix_socket_address(&x[7..], false), conf.chmod)?.upcast())),
+                    &get_unix_socket_address(&x[7..], false), conf.usc)?.upcast())),
         #[cfg(feature = "unix_socket")]
         x if x.starts_with("l-abstract:")  => 
                 Ok(Server(UnixSocketServer::new(
-                    &get_unix_socket_address(&x[11..], true), warn_if_some(conf.chmod))?.upcast())),
+                    &get_unix_socket_address(&x[11..], true), warn_if_chmod(conf.usc))?.upcast())),
         
         #[cfg(not(feature = "unix_socket"))]
         x if x.starts_with("unix:")  => 
@@ -632,11 +646,11 @@ fn get_endpoint_by_spec(specifier: &str, conf: Configuration) -> Result<Spec> {
         #[cfg(feature = "unix_websockets")]
         x if x.starts_with("l-ws-unix:")  => 
                 Ok(Server(UnixWebsockServer::new(
-                    &get_unix_socket_address(&x[10..], false), conf.chmod, conf.wsm)?.upcast())),
+                    &get_unix_socket_address(&x[10..], false), conf.usc, conf.wsm)?.upcast())),
         #[cfg(feature = "unix_websockets")]
         x if x.starts_with("l-ws-abstract:")  =>
                 Ok(Server(UnixWebsockServer::new(
-                    &get_unix_socket_address(&x[14..], true), warn_if_some(conf.chmod), conf.wsm)?.upcast())),
+                    &get_unix_socket_address(&x[14..], true), warn_if_chmod(conf.usc), conf.wsm)?.upcast())),
         
         #[cfg(not(feature = "unix_websockets"))]
         x if x.starts_with("l-ws-unix:")  => 
@@ -658,9 +672,15 @@ fn get_endpoint_by_spec(specifier: &str, conf: Configuration) -> Result<Spec> {
 }
 
 #[derive(Copy,Clone)]
+struct UnixSocketConf {
+    chmod: Option<u32>,
+    unlink : bool,
+}
+
+#[derive(Copy,Clone)]
 struct Configuration {
     wsm: WebSocketMessageMode,
-    chmod: Option<u32>,
+    usc : UnixSocketConf,
 }
 
 fn try_main() -> Result<()> {
@@ -701,6 +721,10 @@ fn try_main() -> Result<()> {
              .required(false)
              .takes_value(true)
              .long("--chmod"))
+        .arg(::clap::Arg::with_name("unlink")
+             .help("Delete UNIX server socket file before binding it.")
+             .required(false)
+             .long("--unlink"))
         .after_help(r#"
 Specifiers can be:
   ws[s]://<rest of websocket URL>   Connect to websocket
@@ -784,7 +808,9 @@ If you want wss:// server, use socat or nginx in addition.
         None
     };
     
-    let conf = Configuration { wsm:wsm, chmod:chmod };
+    let unlink = matches.is_present("unlink");
+    
+    let conf = Configuration { wsm:wsm, usc: UnixSocketConf{chmod:chmod, unlink:unlink} };
     
     main2(spec1, spec2, false, conf, ded)?;
 
