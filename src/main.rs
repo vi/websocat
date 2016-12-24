@@ -446,6 +446,25 @@ impl<'a> Server for WebsockServer<'a> {
 }
 
 #[cfg(feature = "unix_websockets")]
+fn serve_custom_ws_client<R,W>(ep : Endpoint<R,W>, wsmm:WebSocketMessageMode) -> Result<IEndpoint>
+        where R : Read + Send + 'static, W: Write + Send + 'static 
+{
+    let connection = websocket::server::Connection(ep.reader, ep.writer);
+    let request = connection.read_request()?;
+    request.validate()?;
+    let response = request.accept(); // Form a response
+    let client = response.send()?; // Send the response
+
+    let (sender, receiver) = client.split();
+
+    let endpoint = Endpoint {
+        reader : ReceiverWrapper(receiver),
+        writer : SenderWrapper(sender, wsmm),
+    };
+    Ok(endpoint.upcast())
+}
+
+#[cfg(feature = "unix_websockets")]
 struct UnixWebsockServer(::unix_socket::UnixListener, WebSocketMessageMode);
 
 #[cfg(feature = "unix_websockets")]
@@ -463,19 +482,11 @@ impl Server for UnixWebsockServer {
     fn accept_client(&mut self) -> Result<IEndpoint> {
         let (sock, addr) = self.0.accept()?;
         info!("UNIX client connection from {:?}", addr);
-        let connection = websocket::server::Connection(sock.try_clone()?, sock.try_clone()?);
-        let request = connection.read_request()?;
-        request.validate()?;
-        let response = request.accept(); // Form a response
-        let client = response.send()?; // Send the response
-
-        let (sender, receiver) = client.split();
-
-        let endpoint = Endpoint {
-            reader : ReceiverWrapper(receiver),
-            writer : SenderWrapper(sender, self.1),
+        let ep = Endpoint{
+                reader : sock.try_clone()?,
+                writer : sock.try_clone()?,
         };
-        Ok(endpoint.upcast())
+        serve_custom_ws_client(ep, self.1)
     }
 }
 
