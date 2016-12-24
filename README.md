@@ -3,20 +3,24 @@ Websocket proxy, socat-style
 
 ```
 $ websocat --help
-websocat 0.3.0
+websocat 0.4.?
 Vitaly "_Vi" Shukela <vi0oss@gmail.com>
 Exchange binary data between binary or text websocket and something.
 Socat analogue with websockets.
 
 USAGE:
-    websocat_d [FLAGS] <spec1> <spec2>
+    websocat_d [FLAGS] [OPTIONS] <spec1> <spec2>
 
 FLAGS:
-    -h, --help       Prints help information
-    -t, --text       Send WebSocket text messages instead of binary (unstable). Affect only ws[s]:/l-ws:
+    -h, --help                      Prints help information
+    -t, --text                      Send WebSocket text messages instead of binary (unstable). Affects only ws[s]:/l-ws:
     -u, --unidirectional            Only copy from spec1 to spec2.
     -U, --unidirectional-reverse    Only copy from spec2 to spec1.
-    -V, --version    Prints version information
+        --unlink                    Delete UNIX server socket file before binding it.
+    -V, --version                   Prints version information
+
+OPTIONS:
+        --chmod <chmod>    Change UNIX server socket permission bits to this octal number.
 
 ARGS:
     <spec1>    First specifier.
@@ -29,6 +33,8 @@ Specifiers can be:
   unix:path                         Connect to UNIX socket
   abstract:addr                     Connect to abstract UNIX socket (Linux-only)
   l-ws:host:port                    Listen unencrypted websocket
+  l-ws-unix:path                    Listen unecrypted UNIX-backed websocket on addr
+  l-ws-abstract:addr                Listen unecrypted abstract-UNIX-backed websocket on addr
   l-tcp:host:port                   Listen TCP connections
   l-unix:path                       Listen for UNIX socket connections on path
   l-abstract:addr                   Listen for UNIX socket connections on abstract address
@@ -52,6 +58,24 @@ Examples:
     Connect both to websocket and to TCP and exchange data.
   websocat -U l-ws:127.0.0.1:8088 sh-c:"ping 8.8.8.8 -c 1"
     Execute a command line on each connection (not for Windows)
+  ssh -c ProxyCommand="websocat - ws://myserver/mywebsocket" user@myserver
+    Use SSH connection wrapped in a web socket
+  websocat l-ws:0.0.0.0:80 tcp:127.0.0.1:22
+    Server part of the command above
+  websocat l-ws-unix:/tmp/sshws.sock tcp:127.0.0.1:22
+    Like previous example, but for integration with NginX using UNIX sockets
+    Nginx config snippet example:
+    location /mywebsocket {
+        proxy_read_timeout 1h;
+        proxy_send_timeout 1h;
+        #proxy_pass http://localhost:3012;
+        proxy_pass http://unix:/tmp/sshws.sock;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+    }
+    Don't forget about --chmod and/or --unlink
+
     
 Specify listening part first, unless you want websocat to serve once.
 
