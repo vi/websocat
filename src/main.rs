@@ -465,6 +465,15 @@ fn serve_custom_ws_client<R,W>(ep : Endpoint<R,W>, wsmm:WebSocketMessageMode) ->
 }
 
 #[cfg(feature = "unix_websockets")]
+fn get_inetd_ws_endpoint(wsmm:WebSocketMessageMode) -> Result<IEndpoint> {
+    let ep = Endpoint {
+        reader : stdin(),
+        writer : stdout(),
+    };
+    serve_custom_ws_client(ep, wsmm)
+}
+
+#[cfg(feature = "unix_websockets")]
 struct UnixWebsockServer(::unix_socket::UnixListener, WebSocketMessageMode);
 
 #[cfg(feature = "unix_websockets")]
@@ -614,7 +623,7 @@ fn warn_if_chmod(mut usc : UnixSocketConf) -> UnixSocketConf {
 fn get_endpoint_by_spec(specifier: &str, conf: Configuration) -> Result<Spec> {
     use Spec::{Server,Client};
     match specifier {
-        x if x == "-"               =>
+        x if x == "-" || x == "inetd:" =>
                 Ok(Client(get_stdio_endpoint()?.upcast())),
         x if x.starts_with("ws:")   => 
                 Ok(Client(get_websocket_endpoint(x,conf.wsm)?.upcast())),
@@ -662,6 +671,9 @@ fn get_endpoint_by_spec(specifier: &str, conf: Configuration) -> Result<Spec> {
         x if x.starts_with("l-ws-abstract:")  =>
                 Ok(Server(UnixWebsockServer::new(
                     &get_unix_socket_address(&x[14..], true), warn_if_chmod(conf.usc), conf.wsm)?.upcast())),
+        #[cfg(feature = "unix_websockets")]
+        x if x.starts_with("inetd-ws:")  =>
+                Ok(Client(get_inetd_ws_endpoint(conf.wsm)?)),
         
         #[cfg(not(feature = "unix_websockets"))]
         x if x.starts_with("l-ws-unix:")  => 
@@ -750,6 +762,8 @@ Specifiers can be:
   l-unix:path                       Listen for UNIX socket connections on path
   l-abstract:addr                   Listen for UNIX socket connections on abstract address
   -                                 stdin/stdout
+  inetd:                            stdin/stdout
+  inetd-ws:                         stdin/stdout, serve one WebSocket client
   exec:program                      spawn a program (no arguments)
   sh-c:program                      execute a command line with 'sh -c'
   (more to be implemented)
