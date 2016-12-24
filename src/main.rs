@@ -33,6 +33,7 @@ error_chain! {
         ::url::ParseError, Url;
         ::websocket::result::WebSocketError, Ws;
         ::std::env::VarError, Ev;
+        std::num::ParseIntError, WrongChmod;
     }
     errors {
         InvalidSpecifier(t : String) {
@@ -364,12 +365,23 @@ impl Server for TcpServer {
 }
 
 #[cfg(feature = "unix_socket")]
+fn maybe_chmod(path:&str, chmod:Option<u32>) -> Result<()> {
+    if let Some(mode) = chmod {
+        ::std::fs::set_permissions(path,
+            ::std::os::unix::fs::PermissionsExt::from_mode(mode))?;
+    }
+    Ok(())
+}
+
+#[cfg(feature = "unix_socket")]
 struct UnixSocketServer(::unix_socket::UnixListener);
 
 #[cfg(feature = "unix_socket")]
 impl UnixSocketServer {
-    fn new(addr: &str) -> Result<Self> {
-        Ok(UnixSocketServer(::unix_socket::UnixListener::bind(addr)?))
+    fn new(addr: &str, chmod: Option<u32>) -> Result<Self> {
+        let ret = UnixSocketServer(::unix_socket::UnixListener::bind(addr)?);
+        maybe_chmod(addr, chmod)?;
+        Ok(ret)
     }
 }
 
@@ -427,8 +439,10 @@ struct UnixWebsockServer(::unix_socket::UnixListener, WebSocketMessageMode);
 
 #[cfg(feature = "unix_websockets")]
 impl UnixWebsockServer {
-    fn new(addr: &str, wsm:WebSocketMessageMode) -> Result<Self> {
-        Ok(UnixWebsockServer(::unix_socket::UnixListener::bind(addr)?, wsm))
+    fn new(addr: &str, chmod:Option<u32>, wsm:WebSocketMessageMode) -> Result<Self> {
+        let ret = UnixWebsockServer(::unix_socket::UnixListener::bind(addr)?, wsm);
+        maybe_chmod(addr, chmod)?;
+        Ok(ret)
     }
 }
 
@@ -564,6 +578,14 @@ enum Spec {
     Client(IEndpoint)
 }
 
+#[allow(dead_code)]
+fn warn_if_some(chmod : Option<u32>) -> Option<u32> {
+    if chmod.is_some() {
+        warn!("--chmod does not work for abstract UNIX sockets");
+    };
+    None
+}
+
 fn get_endpoint_by_spec(specifier: &str, conf: Configuration) -> Result<Spec> {
     use Spec::{Server,Client};
     match specifier {
@@ -578,16 +600,20 @@ fn get_endpoint_by_spec(specifier: &str, conf: Configuration) -> Result<Spec> {
         
         #[cfg(feature = "unix_socket")]
         x if x.starts_with("unix:")  => 
-                Ok(Client(get_unix_socket_endpoint(&get_unix_socket_address(&x[5..], false))?.upcast())),
+                Ok(Client(get_unix_socket_endpoint(
+                    &get_unix_socket_address(&x[5..], false))?.upcast())),
         #[cfg(feature = "unix_socket")]
         x if x.starts_with("abstract:")  => 
-                Ok(Client(get_unix_socket_endpoint(&get_unix_socket_address(&x[9..], true))?.upcast())),
+                Ok(Client(get_unix_socket_endpoint(
+                    &get_unix_socket_address(&x[9..], true))?.upcast())),
         #[cfg(feature = "unix_socket")]
         x if x.starts_with("l-unix:")  => 
-                Ok(Server(UnixSocketServer::new(&get_unix_socket_address(&x[7..], false))?.upcast())),
+                Ok(Server(UnixSocketServer::new(
+                    &get_unix_socket_address(&x[7..], false), conf.chmod)?.upcast())),
         #[cfg(feature = "unix_socket")]
         x if x.starts_with("l-abstract:")  => 
-                Ok(Server(UnixSocketServer::new(&get_unix_socket_address(&x[11..], true))?.upcast())),
+                Ok(Server(UnixSocketServer::new(
+                    &get_unix_socket_address(&x[11..], true), warn_if_some(conf.chmod))?.upcast())),
         
         #[cfg(not(feature = "unix_socket"))]
         x if x.starts_with("unix:")  => 
@@ -606,11 +632,11 @@ fn get_endpoint_by_spec(specifier: &str, conf: Configuration) -> Result<Spec> {
         #[cfg(feature = "unix_websockets")]
         x if x.starts_with("l-ws-unix:")  => 
                 Ok(Server(UnixWebsockServer::new(
-                    &get_unix_socket_address(&x[10..], false), conf.wsm)?.upcast())),
+                    &get_unix_socket_address(&x[10..], false), conf.chmod, conf.wsm)?.upcast())),
         #[cfg(feature = "unix_websockets")]
-        x if x.starts_with("l-ws-abstract:")  => 
+        x if x.starts_with("l-ws-abstract:")  =>
                 Ok(Server(UnixWebsockServer::new(
-                    &get_unix_socket_address(&x[14..], true), conf.wsm)?.upcast())),
+                    &get_unix_socket_address(&x[14..], true), warn_if_some(conf.chmod), conf.wsm)?.upcast())),
         
         #[cfg(not(feature = "unix_websockets"))]
         x if x.starts_with("l-ws-unix:")  => 
@@ -670,6 +696,11 @@ fn try_main() -> Result<()> {
              .short("-U")
              .conflicts_with("unidirectional")
              .long("--unidirectional-reverse"))
+        .arg(::clap::Arg::with_name("chmod")
+             .help("Change UNIX server socket permission bits to this octal number.")
+             .required(false)
+             .takes_value(true)
+             .long("--chmod"))
         .after_help(r#"
 Specifiers can be:
   ws[s]://<rest of websocket URL>   Connect to websocket
@@ -747,7 +778,13 @@ If you want wss:// server, use socat or nginx in addition.
         DataExchangeDirection::Bidirectional
     };
     
-    let conf = Configuration { wsm:wsm, chmod:None };
+    let chmod = if let Some(x) = matches.value_of("chmod") {
+        Some(u32::from_str_radix(x,8)?)
+    } else {
+        None
+    };
+    
+    let conf = Configuration { wsm:wsm, chmod:chmod };
     
     main2(spec1, spec2, false, conf, ded)?;
 
