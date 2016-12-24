@@ -680,6 +680,7 @@ struct UnixSocketConf {
 #[derive(Copy,Clone)]
 struct Configuration {
     wsm: WebSocketMessageMode,
+    #[cfg_attr(not(feature="unix_socket"), allow(dead_code))]
     usc : UnixSocketConf,
 }
 
