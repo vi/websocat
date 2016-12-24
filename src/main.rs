@@ -475,10 +475,10 @@ trait Server
 {
     fn accept_client(&mut self) -> Result<IEndpoint>;
     
-    fn start_serving(&mut self, spec2: &str, once: bool, wsm : WebSocketMessageMode, ded :DataExchangeDirection ) -> Result<()> {
+    fn start_serving(&mut self, spec2: &str, once: bool, conf : Configuration, ded :DataExchangeDirection ) -> Result<()> {
         let spec2s = spec2.to_string();
         let closure = move |endpoint, spec2 : String|{
-            let spec2_ = get_endpoint_by_spec(spec2.as_str(), wsm)?;
+            let spec2_ = get_endpoint_by_spec(spec2.as_str(), conf)?;
             let endpoint2 = match spec2_ {
                 Spec::Server(mut x) => {
                     x.accept_client()?
@@ -528,15 +528,15 @@ trait Server
         { Box::new(self) as Box<Server+Send> }
 }
 
-fn main2(spec1: &str, spec2: &str, once: bool, wsm: WebSocketMessageMode, ded: DataExchangeDirection) -> Result<()> {
-    let spec1_ = get_endpoint_by_spec(spec1, wsm)?;
+fn main2(spec1: &str, spec2: &str, once: bool, conf: Configuration, ded: DataExchangeDirection) -> Result<()> {
+    let spec1_ = get_endpoint_by_spec(spec1, conf)?;
     
     match spec1_ {
         Spec::Server(mut x) => {
-            x.start_serving(spec2, once, wsm, ded)
+            x.start_serving(spec2, once, conf, ded)
         }
         Spec::Client(p1) => {
-            let spec2_ = get_endpoint_by_spec(spec2, wsm)?;
+            let spec2_ = get_endpoint_by_spec(spec2, conf)?;
             
             let otherendpoint = match spec2_ {
                 Spec::Server(mut x) => {
@@ -564,15 +564,15 @@ enum Spec {
     Client(IEndpoint)
 }
 
-fn get_endpoint_by_spec(specifier: &str, wsm: WebSocketMessageMode) -> Result<Spec> {
+fn get_endpoint_by_spec(specifier: &str, conf: Configuration) -> Result<Spec> {
     use Spec::{Server,Client};
     match specifier {
         x if x == "-"               =>
                 Ok(Client(get_stdio_endpoint()?.upcast())),
         x if x.starts_with("ws:")   => 
-                Ok(Client(get_websocket_endpoint(x,wsm)?.upcast())),
+                Ok(Client(get_websocket_endpoint(x,conf.wsm)?.upcast())),
         x if x.starts_with("wss:")  => 
-                Ok(Client(get_websocket_endpoint(x,wsm)?.upcast())),
+                Ok(Client(get_websocket_endpoint(x,conf.wsm)?.upcast())),
         x if x.starts_with("tcp:")  => 
                 Ok(Client(get_tcp_endpoint(&x[4..])?.upcast())),
         
@@ -605,10 +605,12 @@ fn get_endpoint_by_spec(specifier: &str, wsm: WebSocketMessageMode) -> Result<Sp
         
         #[cfg(feature = "unix_websockets")]
         x if x.starts_with("l-ws-unix:")  => 
-                Ok(Server(UnixWebsockServer::new(&get_unix_socket_address(&x[10..], false), wsm)?.upcast())),
+                Ok(Server(UnixWebsockServer::new(
+                    &get_unix_socket_address(&x[10..], false), conf.wsm)?.upcast())),
         #[cfg(feature = "unix_websockets")]
         x if x.starts_with("l-ws-abstract:")  => 
-                Ok(Server(UnixWebsockServer::new(&get_unix_socket_address(&x[14..], true), wsm)?.upcast())),
+                Ok(Server(UnixWebsockServer::new(
+                    &get_unix_socket_address(&x[14..], true), conf.wsm)?.upcast())),
         
         #[cfg(not(feature = "unix_websockets"))]
         x if x.starts_with("l-ws-unix:")  => 
@@ -620,13 +622,19 @@ fn get_endpoint_by_spec(specifier: &str, wsm: WebSocketMessageMode) -> Result<Sp
         x if x.starts_with("l-tcp:")  => 
                 Ok(Server(TcpServer::new(&x[6..])?.upcast())),
         x if x.starts_with("l-ws:")  => 
-                Ok(Server(WebsockServer::new(&x[5..], wsm)?.upcast())),
+                Ok(Server(WebsockServer::new(&x[5..], conf.wsm)?.upcast())),
         x if x.starts_with("exec:")  => 
                 Ok(Client(get_forkexec_endpoint(&x[5..], false)?.upcast())),
         x if x.starts_with("sh-c:")  => 
                 Ok(Client(get_forkexec_endpoint(&x[5..], true)?.upcast())),
         x => Err(ErrorKind::InvalidSpecifier(x.to_string()).into()),
     }
+}
+
+#[derive(Copy,Clone)]
+struct Configuration {
+    wsm: WebSocketMessageMode,
+    chmod: Option<u32>,
 }
 
 fn try_main() -> Result<()> {
@@ -739,7 +747,9 @@ If you want wss:// server, use socat or nginx in addition.
         DataExchangeDirection::Bidirectional
     };
     
-    main2(spec1, spec2, false, wsm, ded)?;
+    let conf = Configuration { wsm:wsm, chmod:None };
+    
+    main2(spec1, spec2, false, conf, ded)?;
 
     debug!("Exited");
     Ok(())
