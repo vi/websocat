@@ -681,7 +681,7 @@ fn try_main() -> Result<()> {
              .required(true)
              .index(2))
         .arg(::clap::Arg::with_name("text")
-             .help("Send WebSocket text messages instead of binary (unstable). Affect only ws[s]:/l-ws:")
+             .help("Send WebSocket text messages instead of binary (unstable). Affects only ws[s]:/l-ws:")
              .required(false)
              .short("-t")
              .long("--text"))
@@ -749,7 +749,7 @@ Examples:
         proxy_set_header Upgrade $http_upgrade;
         proxy_set_header Connection "upgrade";
     }
-    Don't forget about socket file permission bits
+    Don't forget about --chmod and/or --unlink
 
     
 Specify listening part first, unless you want websocat to serve once.
