@@ -708,9 +708,6 @@ struct Configuration {
 }
 
 fn try_main() -> Result<()> {
-    //env_logger::init()?;
-    init_logger()?;
-
     // setup command line arguments
     let matches = ::clap::App::new("websocat")
         .version(crate_version!())
@@ -749,6 +746,11 @@ fn try_main() -> Result<()> {
              .help("Delete UNIX server socket file before binding it.")
              .required(false)
              .long("--unlink"))
+        .arg(::clap::Arg::with_name("quiet")
+             .help("No logging to stderr. Overrides RUST_LOG. Use in inetd mode.")
+             .required(false)
+             .short("-q")
+             .long("--quiet"))
         .after_help(r#"
 Specifiers can be:
   ws[s]://<rest of websocket URL>   Connect to websocket
@@ -810,6 +812,11 @@ Web socket usage is not obligatory, you can use any specs on both sides.
 If you want wss:// server, use socat or nginx in addition.
 "#)
         .get_matches();
+
+    if ! matches.is_present("quiet") {
+        //env_logger::init()?;
+        init_logger()?;
+    }
 
     let spec1  = matches.value_of("spec1") .ok_or("no listener_spec" )?;
     let spec2 = matches.value_of("spec2").ok_or("no connector_spec")?;
