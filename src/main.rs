@@ -681,6 +681,9 @@ fn get_endpoint_by_spec(specifier: &str, conf: Configuration) -> Result<Spec> {
         #[cfg(not(feature = "unix_websockets"))]
         x if x.starts_with("l-ws-abstract:")  => 
                 Err("UNIX websocket support not compiled in".into()),
+        #[cfg(not(feature = "unix_websockets"))]
+        x if x.starts_with("inetd-ws:")  =>
+                Err("UNIX websocket support not compiled in".into()),
         
         x if x.starts_with("l-tcp:")  => 
                 Ok(Server(TcpServer::new(&x[6..])?.upcast())),
@@ -802,6 +805,8 @@ Examples:
         proxy_set_header Connection "upgrade";
     }
     Don't forget about --chmod and/or --unlink
+  inetd config line:
+    1234 stream tcp nowait myuser  /path/to/websocat websocat --quiet inetd-ws: tcp:127.0.0.1:22
 
     
 Specify listening part first, unless you want websocat to serve once.
