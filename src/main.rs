@@ -445,7 +445,7 @@ impl<'a> Server for WebsockServer<'a> {
     }
 }
 
-#[cfg(feature = "unix_websockets")]
+#[cfg(feature = "custom_websocket_servers")]
 fn serve_custom_ws_client<R,W>(ep : Endpoint<R,W>, wsmm:WebSocketMessageMode) -> Result<IEndpoint>
         where R : Read + Send + 'static, W: Write + Send + 'static 
 {
@@ -464,7 +464,7 @@ fn serve_custom_ws_client<R,W>(ep : Endpoint<R,W>, wsmm:WebSocketMessageMode) ->
     Ok(endpoint.upcast())
 }
 
-#[cfg(feature = "unix_websockets")]
+#[cfg(feature = "custom_websocket_servers")]
 fn get_inetd_ws_endpoint(wsmm:WebSocketMessageMode) -> Result<IEndpoint> {
     let ep = Endpoint {
         reader : stdin(),
@@ -473,10 +473,10 @@ fn get_inetd_ws_endpoint(wsmm:WebSocketMessageMode) -> Result<IEndpoint> {
     serve_custom_ws_client(ep, wsmm)
 }
 
-#[cfg(feature = "unix_websockets")]
+#[cfg(all(feature = "unix_socket", feature="custom_websocket_servers"))]
 struct UnixWebsockServer(::unix_socket::UnixListener, WebSocketMessageMode);
 
-#[cfg(feature = "unix_websockets")]
+#[cfg(all(feature = "unix_socket", feature="custom_websocket_servers"))]
 impl UnixWebsockServer {
     fn new(addr: &str, usc:UnixSocketConf, wsm:WebSocketMessageMode) -> Result<Self> {
         maybe_unlink(addr, usc.unlink)?;
@@ -486,7 +486,7 @@ impl UnixWebsockServer {
     }
 }
 
-#[cfg(feature = "unix_websockets")]
+#[cfg(all(feature = "unix_socket", feature="custom_websocket_servers"))]
 impl Server for UnixWebsockServer {    
     fn accept_client(&mut self) -> Result<IEndpoint> {
         let (sock, addr) = self.0.accept()?;
@@ -663,27 +663,27 @@ fn get_endpoint_by_spec(specifier: &str, conf: Configuration) -> Result<Spec> {
                 Err("UNIX socket support not compiled in".into()),
                 
         
-        #[cfg(feature = "unix_websockets")]
+        #[cfg(all(feature = "unix_socket", feature="custom_websocket_servers"))]
         x if x.starts_with("l-ws-unix:")  => 
                 Ok(Server(UnixWebsockServer::new(
                     &get_unix_socket_address(&x[10..], false), conf.usc, conf.wsm)?.upcast())),
-        #[cfg(feature = "unix_websockets")]
+        #[cfg(all(feature = "unix_socket", feature="custom_websocket_servers"))]
         x if x.starts_with("l-ws-abstract:")  =>
                 Ok(Server(UnixWebsockServer::new(
                     &get_unix_socket_address(&x[14..], true), warn_if_chmod(conf.usc), conf.wsm)?.upcast())),
-        #[cfg(feature = "unix_websockets")]
+        #[cfg(feature="custom_websocket_servers")]
         x if x.starts_with("inetd-ws:")  =>
                 Ok(Client(get_inetd_ws_endpoint(conf.wsm)?)),
         
-        #[cfg(not(feature = "unix_websockets"))]
+        #[cfg(not(all(feature = "unix_socket", feature="custom_websocket_servers")))]
         x if x.starts_with("l-ws-unix:")  => 
-                Err("UNIX websocket support not compiled in".into()),
-        #[cfg(not(feature = "unix_websockets"))]
+                Err("UNIX socket and custom websocker server support not compiled in".into()),
+        #[cfg(not(all(feature = "unix_socket", feature="custom_websocket_servers")))]
         x if x.starts_with("l-ws-abstract:")  => 
-                Err("UNIX websocket support not compiled in".into()),
-        #[cfg(not(feature = "unix_websockets"))]
+                Err("UNIX socket and custom websocker server support not compiled in".into()),
+        #[cfg(not(feature="custom_websocket_servers"))]
         x if x.starts_with("inetd-ws:")  =>
-                Err("UNIX websocket support not compiled in".into()),
+                Err("Custom websocket server support not compiled in".into()),
         
         x if x.starts_with("l-tcp:")  => 
                 Ok(Server(TcpServer::new(&x[6..])?.upcast())),
