@@ -1,6 +1,6 @@
 [package]
 name = "websocat"
-version = "0.3.0"
+version = "0.4.0"
 authors = ["Vitaly \"_Vi\" Shukela <vi0oss@gmail.com>"]
 license = "MIT"
 repository = "https://github.com/vi/websocat"
@@ -19,4 +19,4 @@ clap = { version = "^2.18", default-features = false }
 unix_socket = { version = "~0.5", optional = true }
 
 [features]
-unix_websockets = ["unix_socket"]
+custom_websocket_servers = []
