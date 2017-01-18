@@ -85,7 +85,7 @@ Web socket usage is not obligatory, you can use any specs on both sides.
 If you want wss:// server, use socat or nginx in addition.
 ```
 
-Pre-built binaries for Linux (usual and musl), Windows, OS X and Android (ARM) are available on the [releases page](https://github.com/vi/websocat/releases). They are build against customized, faster [websocket library](https://github.com/cyderize/rust-websocket), but many can't connect to secure wss:// websockets, only ws://.
+Pre-built binaries for Linux (usual and musl), Windows, OS X and Android (ARM) are available on the [releases page](https://github.com/vi/websocat/releases). Most are built without SSL support, so can't connect to secure wss:// websockets, only ws://.
 
 Limitations
 ---
