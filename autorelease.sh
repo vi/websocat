@@ -10,6 +10,7 @@ D="$1"
 S=""
 E=""
 ST=strip
+FE=""
 
 V=$(cat Cargo.toml | grep '^version' | grep -o '\".*\"' | tr -d '"' | cut -d. -f 1-2)
 
@@ -18,22 +19,21 @@ echo Version: $V
 mkdir -p "$D"
 
 r() {
-    cargo rustc --release -j2 --target $T -- -C lto
+    cargo rustc $FE --release -j2 --target $T -- -C lto
     TF="$D"/websocat${S}_${V}_${T}${E}
     cp ./target/$T/release/websocat${E} "$TF"
     ${ST} "${TF}"
 }
 
 set -x
-git reset --hard
-git cherry-pick -n fast
 
+FE=--features=unix_socket
 T=x86_64-unknown-linux-gnu
 r
 
-git reset --hard
-git cherry-pick -n nossl
+
 S=_nossl
+FE=--no-default-features\ --features=unix_socket
 
 T=i686-unknown-linux-gnu
 r
@@ -51,10 +51,11 @@ ST=/mnt/src/git/osxcross/target/bin/x86_64-apple-darwin15-strip
 T=x86_64-apple-darwin
 r
 
+FE=--no-default-features
 ST=i586-mingw32msvc-strip
 E=.exe
 T=i686-pc-windows-gnu
 r
 
 set +x
-echo "Next steps: 1. create tag; 2. upload release; 3. rollback git; 4. upload to crates.io"
+echo "Next steps: 1. create tag; 2. upload release; 3. upload to crates.io"

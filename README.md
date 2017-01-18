@@ -2,17 +2,17 @@
 Websocket proxy, socat-style
 
 ```
-$ websocat --help
-websocat 0.4.?
+websocat 0.4.0
 Vitaly "_Vi" Shukela <vi0oss@gmail.com>
 Exchange binary data between binary or text websocket and something.
 Socat analogue with websockets.
 
 USAGE:
-    websocat_d [FLAGS] [OPTIONS] <spec1> <spec2>
+    websocat [FLAGS] [OPTIONS] <spec1> <spec2>
 
 FLAGS:
     -h, --help                      Prints help information
+    -q, --quiet                     No logging to stderr. Overrides RUST_LOG. Use in inetd mode.
     -t, --text                      Send WebSocket text messages instead of binary (unstable). Affects only ws[s]:/l-ws:
     -u, --unidirectional            Only copy from spec1 to spec2.
     -U, --unidirectional-reverse    Only copy from spec2 to spec1.
@@ -39,6 +39,8 @@ Specifiers can be:
   l-unix:path                       Listen for UNIX socket connections on path
   l-abstract:addr                   Listen for UNIX socket connections on abstract address
   -                                 stdin/stdout
+  inetd:                            stdin/stdout
+  inetd-ws:                         stdin/stdout, serve one WebSocket client
   exec:program                      spawn a program (no arguments)
   sh-c:program                      execute a command line with 'sh -c'
   (more to be implemented)
@@ -75,6 +77,8 @@ Examples:
         proxy_set_header Connection "upgrade";
     }
     Don't forget about --chmod and/or --unlink
+  inetd config line:
+    1234 stream tcp nowait myuser  /path/to/websocat websocat --quiet inetd-ws: tcp:127.0.0.1:22
 
     
 Specify listening part first, unless you want websocat to serve once.
@@ -90,8 +94,54 @@ Pre-built binaries for Linux (usual and musl), Windows, OS X and Android (ARM) a
 Limitations
 ---
 
-* Slower than socat
+* Speed overhead compared to plain TCP
 * Can't reply to WebSocket pings
+* EOF and half-shutdown socket handling may be subpar.
+* No UDP
+* exec: can't accept array of arguments (TODO)
+
+Loopback Speed Test
+---
+
+#### socat - 1G/s
+
+```
+$ socat tcp-l:8788,reuseaddr - > /dev/null&
+[1] 16042
+$ pv -i 10 /dev/zero | socat - tcp:127.0.0.1:8788
+20.8GiB 0:00:20 [1.07GiB/s] [    <=>                                                                                                                ]
+^C
+[1]+  Stopped                 socat tcp-l:8788,reuseaddr - > /dev/null
+```
+#### websockat (websocket mode) - 240 M/s
+```
+$ ./websocat_0.4_x86_64-unknown-linux-gnu -q -u l-ws:127.0.0.1:8788 - > /dev/null&
+[1] 17266
+$ pv -i 10 /dev/zero | ./websocat_0.4_x86_64-unknown-linux-gnu -u - ws://127.0.0.1:8788/
+INFO:websocat: Connecting to ws://127.0.0.1:8788/
+INFO:websocat: Validating response...
+INFO:websocat: Successfully connected
+ 4.9GiB 0:00:20 [ 242MiB/s] [    <=>                                                                                                                ]
+^C
+
+$ fg
+./websocat_0.4_x86_64-unknown-linux-gnu -q -u l-ws:127.0.0.1:8788 - > /dev/null
+^C
+```
+#### websocat (TCP mode, without websocket) - 1.7 G/s
+
+```
+$ ./websocat_0.4_x86_64-unknown-linux-gnu -q -u l-tcp:127.0.0.1:8788 - > /dev/null&
+[1] 17899
+$ pv -i 10 /dev/zero | ./websocat_nossl_0.4_i686-unknown-linux-musl -u - tcp:127.0.0.1:8788
+INFO:websocat: Connected to TCP 127.0.0.1:8788
+33.7GiB 0:00:20 [1.71GiB/s] [    <=>                                                                                                                ]
+^C
+
+$ fg
+./websocat_0.4_x86_64-unknown-linux-gnu -q -u l-tcp:127.0.0.1:8788 - > /dev/null
+^C
+```
 
 See also
 ---
