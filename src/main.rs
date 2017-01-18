@@ -1,6 +1,6 @@
 #![recursion_limit = "1024"] // error_chain
  
-extern crate websocket;
+extern crate websocket_vi;
 extern crate env_logger;
 #[macro_use]
 extern crate log;
@@ -18,10 +18,10 @@ const BUFSIZ : usize = 8192;
 use std::thread;
 use std::io::{stdin,stdout};
 
-use websocket::{Message, Sender, Receiver, DataFrame, Server as WsServer};
-use websocket::message::Type;
-use websocket::client::request::Url;
-use websocket::Client;
+use websocket_vi::{Message, Sender, Receiver, DataFrame, Server as WsServer};
+use websocket_vi::message::Type;
+use websocket_vi::client::request::Url;
+use websocket_vi::Client;
 
 use std::borrow::Borrow;
 use std::io::{Error as IoError, ErrorKind as IoErrorKind, Write, Read};
@@ -31,7 +31,7 @@ error_chain! {
         ::std::io::Error, Io;
         log::SetLoggerError, Log;
         ::url::ParseError, Url;
-        ::websocket::result::WebSocketError, Ws;
+        ::websocket_vi::result::WebSocketError, Ws;
         ::std::env::VarError, Ev;
         std::num::ParseIntError, WrongChmod;
     }
@@ -233,8 +233,8 @@ impl<R1,R2,W1,W2> DataExchangeSession<R1,R2,W1,W2>
 
 fn get_websocket_endpoint(urlstr: &str, wsm : WebSocketMessageMode) -> Result<
         Endpoint<
-            ReceiverWrapper<websocket::client::Receiver<websocket::WebSocketStream>>,
-            SenderWrapper<websocket::client::Sender<websocket::WebSocketStream>>>
+            ReceiverWrapper<websocket_vi::client::Receiver<websocket_vi::WebSocketStream>>,
+            SenderWrapper<websocket_vi::client::Sender<websocket_vi::WebSocketStream>>>
         > {
     let url = Url::parse(urlstr)?;
 
@@ -243,7 +243,7 @@ fn get_websocket_endpoint(urlstr: &str, wsm : WebSocketMessageMode) -> Result<
     let mut request = Client::connect(url)?;
     
     request.headers.set(
-        ::websocket::header::WebSocketProtocol(
+        ::websocket_vi::header::WebSocketProtocol(
             vec!["binary".to_string()]
         )
     );
@@ -445,11 +445,10 @@ impl<'a> Server for WebsockServer<'a> {
     }
 }
 
-#[cfg(feature = "custom_websocket_servers")]
 fn serve_custom_ws_client<R,W>(ep : Endpoint<R,W>, wsmm:WebSocketMessageMode) -> Result<IEndpoint>
         where R : Read + Send + 'static, W: Write + Send + 'static 
 {
-    let connection = websocket::server::Connection(ep.reader, ep.writer);
+    let connection = websocket_vi::server::Connection(ep.reader, ep.writer);
     let request = connection.read_request()?;
     request.validate()?;
     let response = request.accept(); // Form a response
@@ -464,7 +463,6 @@ fn serve_custom_ws_client<R,W>(ep : Endpoint<R,W>, wsmm:WebSocketMessageMode) ->
     Ok(endpoint.upcast())
 }
 
-#[cfg(feature = "custom_websocket_servers")]
 fn get_inetd_ws_endpoint(wsmm:WebSocketMessageMode) -> Result<IEndpoint> {
     let ep = Endpoint {
         reader : stdin(),
@@ -473,10 +471,10 @@ fn get_inetd_ws_endpoint(wsmm:WebSocketMessageMode) -> Result<IEndpoint> {
     serve_custom_ws_client(ep, wsmm)
 }
 
-#[cfg(all(feature = "unix_socket", feature="custom_websocket_servers"))]
+#[cfg(all(feature = "unix_socket"))]
 struct UnixWebsockServer(::unix_socket::UnixListener, WebSocketMessageMode);
 
-#[cfg(all(feature = "unix_socket", feature="custom_websocket_servers"))]
+#[cfg(all(feature = "unix_socket"))]
 impl UnixWebsockServer {
     fn new(addr: &str, usc:UnixSocketConf, wsm:WebSocketMessageMode) -> Result<Self> {
         maybe_unlink(addr, usc.unlink)?;
@@ -486,7 +484,7 @@ impl UnixWebsockServer {
     }
 }
 
-#[cfg(all(feature = "unix_socket", feature="custom_websocket_servers"))]
+#[cfg(all(feature = "unix_socket"))]
 impl Server for UnixWebsockServer {    
     fn accept_client(&mut self) -> Result<IEndpoint> {
         let (sock, addr) = self.0.accept()?;
@@ -663,27 +661,23 @@ fn get_endpoint_by_spec(specifier: &str, conf: Configuration) -> Result<Spec> {
                 Err("UNIX socket support not compiled in".into()),
                 
         
-        #[cfg(all(feature = "unix_socket", feature="custom_websocket_servers"))]
+        #[cfg(all(feature = "unix_socket"))]
         x if x.starts_with("l-ws-unix:")  => 
                 Ok(Server(UnixWebsockServer::new(
                     &get_unix_socket_address(&x[10..], false), conf.usc, conf.wsm)?.upcast())),
-        #[cfg(all(feature = "unix_socket", feature="custom_websocket_servers"))]
+        #[cfg(all(feature = "unix_socket"))]
         x if x.starts_with("l-ws-abstract:")  =>
                 Ok(Server(UnixWebsockServer::new(
                     &get_unix_socket_address(&x[14..], true), warn_if_chmod(conf.usc), conf.wsm)?.upcast())),
-        #[cfg(feature="custom_websocket_servers")]
         x if x.starts_with("inetd-ws:")  =>
                 Ok(Client(get_inetd_ws_endpoint(conf.wsm)?)),
         
-        #[cfg(not(all(feature = "unix_socket", feature="custom_websocket_servers")))]
+        #[cfg(not(all(feature = "unix_socket")))]
         x if x.starts_with("l-ws-unix:")  => 
-                Err("UNIX socket and custom websocker server support not compiled in".into()),
-        #[cfg(not(all(feature = "unix_socket", feature="custom_websocket_servers")))]
+                Err("UNIX socket support is not compiled in".into()),
+        #[cfg(not(all(feature = "unix_socket")))]
         x if x.starts_with("l-ws-abstract:")  => 
-                Err("UNIX socket and custom websocker server support not compiled in".into()),
-        #[cfg(not(feature="custom_websocket_servers"))]
-        x if x.starts_with("inetd-ws:")  =>
-                Err("Custom websocket server support not compiled in".into()),
+                Err("UNIX socket support is not compiled in".into()),
         
         x if x.starts_with("l-tcp:")  => 
                 Ok(Server(TcpServer::new(&x[6..])?.upcast())),
