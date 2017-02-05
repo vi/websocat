@@ -201,13 +201,13 @@ impl<R1,R2,W1,W2> DataExchangeSession<R1,R2,W1,W2>
                 let receive_loop = thread::Builder::new().spawn(move || -> Result<()> {
                     // Actual data transfer happens here
                     copy_with_flushes(&mut reader1, &mut writer2)?;
-                    writer2.write(b"")?; // signal close
+                    writer2.write_all(b"")?; // signal close
                     Ok(())
                 })?;
             
                 // Actual data transfer happens here
                 copy_with_flushes(&mut reader2, &mut writer1)?;
-                writer1.write(b"")?; // Signal close
+                writer1.write_all(b"")?; // Signal close
             
                 debug!("Waiting for receiver side to exit");
             
@@ -217,25 +217,25 @@ impl<R1,R2,W1,W2> DataExchangeSession<R1,R2,W1,W2>
                 ::std::mem::drop(reader2);
                 ::std::mem::drop(writer1);
                 copy_with_flushes(&mut reader1, &mut writer2)?;
-                writer2.write(b"")?; // Signal close
+                writer2.write_all(b"")?; // Signal close
                 Ok(())
             }
             DataExchangeDirection::UnidirectionalReverse => {
                 ::std::mem::drop(reader1);
                 ::std::mem::drop(writer2);
                 copy_with_flushes(&mut reader2, &mut writer1)?;
-                writer1.write(b"")?; // Signal close
+                writer1.write_all(b"")?; // Signal close
                 Ok(())
             }
         }
     }
 }
 
-fn get_websocket_endpoint(urlstr: &str, wsm : WebSocketMessageMode) -> Result<
-        Endpoint<
+type WebSocketEndpoint = Endpoint<
             ReceiverWrapper<websocket_vi::client::Receiver<websocket_vi::WebSocketStream>>,
-            SenderWrapper<websocket_vi::client::Sender<websocket_vi::WebSocketStream>>>
-        > {
+            SenderWrapper<websocket_vi::client::Sender<websocket_vi::WebSocketStream>>>;
+
+fn get_websocket_endpoint(urlstr: &str, wsm : WebSocketMessageMode) -> Result<WebSocketEndpoint> {
     let url = Url::parse(urlstr)?;
 
     info!("Connecting to {}", url);
@@ -366,11 +366,9 @@ impl Server for TcpServer {
 
 
 #[cfg(feature = "unix_socket")]
-fn maybe_unlink(path:&str,do_unlink:bool) -> Result<()> {
-    if do_unlink {
-        if let Err(_) = ::std::fs::remove_file(path) {
-            debug!("Failed to unlink socket path. Ignoring.");
-        }
+fn maybe_unlink(path:&str, do_unlink:bool) -> Result<()> {
+    if do_unlink && ::std::fs::remove_file(path).is_err() {
+        debug!("Failed to unlink socket path. Ignoring.");
     }
     Ok(())
 }
@@ -584,8 +582,7 @@ fn main2(spec1: &str, spec2: &str, once: bool, conf: Configuration, ded: DataExc
             
             let otherendpoint = match spec2_ {
                 Spec::Server(mut x) => {
-                    let t = x.accept_client()?;
-                    t
+                    x.accept_client()?
                 }
                 Spec::Client(p2) => {
                     p2
