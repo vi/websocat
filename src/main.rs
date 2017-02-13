@@ -175,7 +175,10 @@ pub fn copy_with_flushes<R: ?Sized, W: ?Sized>(reader: &mut R,
             Ok(0) => return Ok(written),
             Ok(len) => len,
             Err(ref e) if e.kind() == IoErrorKind::Interrupted => continue,
-            Err(ref e) if e.kind() == IoErrorKind::WouldBlock => continue,
+            Err(ref e) if e.kind() == IoErrorKind::WouldBlock => {
+                thread::sleep(::std::time::Duration::from_millis(200));
+                continue;
+            }
             Err(e) => return Err(e),
         };
         writer.write_all(&buf[..len])?;
