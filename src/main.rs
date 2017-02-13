@@ -26,12 +26,12 @@ use std::io::{Error as IoError, ErrorKind as IoErrorKind, Write, Read};
 
 error_chain! {
     foreign_links {
-        ::std::io::Error, Io;
-        log::SetLoggerError, Log;
-        ::url::ParseError, Url;
-        ::websocket_vi::result::WebSocketError, Ws;
-        ::std::env::VarError, Ev;
-        std::num::ParseIntError, WrongChmod;
+        Io(::std::io::Error);
+        Log(log::SetLoggerError);
+        Url(::url::ParseError);
+        Ws(::websocket_vi::result::WebSocketError);
+        Ev(::std::env::VarError);
+        WrongChmod(std::num::ParseIntError);
     }
     errors {
         InvalidSpecifier(t : String) {
@@ -847,9 +847,4 @@ If you want wss:// server, use socat or nginx in addition.
     Ok(())
 }
 
-fn main() {
-    if let Err(x) = try_main() {
-        let _ = writeln!(::std::io::stderr(), "{}", x);
-        ::std::process::exit(1);
-    }
-}
+quick_main!(try_main);
