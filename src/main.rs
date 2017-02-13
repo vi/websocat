@@ -38,6 +38,9 @@ error_chain! {
             description("invalid specifier")
             display("Invalid client or server specifier `{}`", t)
         }
+        NoUnixSocket {
+            description("UNIX socket support is not compiled in")
+        }
     }
 }
 
@@ -642,13 +645,13 @@ fn get_endpoint_by_spec(specifier: &str, conf: Configuration) -> Result<Spec> {
         }
 
         #[cfg(not(feature = "unix_socket"))]
-        x if x.starts_with("unix:") => Err("UNIX socket support not compiled in".into()),
+        x if x.starts_with("unix:") => bail!(ErrorKind::NoUnixSocket),
         #[cfg(not(feature = "unix_socket"))]
-        x if x.starts_with("abstract:") => Err("UNIX socket support not compiled in".into()),
+        x if x.starts_with("abstract:") => bail!(ErrorKind::NoUnixSocket),
         #[cfg(not(feature = "unix_socket"))]
-        x if x.starts_with("l-unix:") => Err("UNIX socket support not compiled in".into()),
+        x if x.starts_with("l-unix:") => bail!(ErrorKind::NoUnixSocket),
         #[cfg(not(feature = "unix_socket"))]
-        x if x.starts_with("l-abstract:") => Err("UNIX socket support not compiled in".into()),
+        x if x.starts_with("l-abstract:") => bail!(ErrorKind::NoUnixSocket),
 
         #[cfg(all(feature = "unix_socket"))]
         x if x.starts_with("l-ws-unix:") => {
@@ -669,17 +672,15 @@ fn get_endpoint_by_spec(specifier: &str, conf: Configuration) -> Result<Spec> {
         x if x.starts_with("inetd-ws:") => Ok(Client(get_inetd_ws_endpoint(conf.wsm)?)),
 
         #[cfg(not(all(feature = "unix_socket")))]
-        x if x.starts_with("l-ws-unix:") => Err("UNIX socket support is not compiled in".into()),
+        x if x.starts_with("l-ws-unix:") => bail!(ErrorKind::NoUnixSocket),
         #[cfg(not(all(feature = "unix_socket")))]
-        x if x.starts_with("l-ws-abstract:") => {
-            Err("UNIX socket support is not compiled in".into())
-        }
+        x if x.starts_with("l-ws-abstract:") => bail!(ErrorKind::NoUnixSocket),
 
         x if x.starts_with("l-tcp:") => Ok(Server(TcpServer::new(&x[6..])?.upcast())),
         x if x.starts_with("l-ws:") => Ok(Server(WebsockServer::new(&x[5..], conf.wsm)?.upcast())),
         x if x.starts_with("exec:") => Ok(Client(get_forkexec_endpoint(&x[5..], false)?.upcast())),
         x if x.starts_with("sh-c:") => Ok(Client(get_forkexec_endpoint(&x[5..], true)?.upcast())),
-        x => Err(ErrorKind::InvalidSpecifier(x.to_string()).into()),
+        x => bail!(ErrorKind::InvalidSpecifier(x.to_string())),
     }
 }
 
