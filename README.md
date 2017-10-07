@@ -99,6 +99,7 @@ Limitations
 * EOF and half-shutdown socket handling may be subpar.
 * No UDP
 * exec: can't accept array of arguments (TODO)
+* SSL support may be unstable due to [reliance on a function that is now deprecated and removed](https://github.com/cyderize/rust-websocket/issues/125).
 
 Loopback Speed Test
 ---
