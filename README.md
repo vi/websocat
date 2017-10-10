@@ -1,6 +1,8 @@
 # websocat
 Websocket proxy, socat-style
 
+**Note: Currently SSL-enabled version may be unbuildable on systems with newer libssl because of hard reliance on old versions of dependencies. Wait for websockat 1.0.0 with async and updated deps.**
+
 ```
 websocat 0.4.0
 Vitaly "_Vi" Shukela <vi0oss@gmail.com>
