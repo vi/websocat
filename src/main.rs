@@ -1,162 +1,169 @@
-#![allow(unused_extern_crates,unused_imports)]
+#![allow(unused)]
 
-//extern crate websocket;
-//extern crate env_logger;
-//#[macro_use]
-//extern crate log;
-//extern crate url;
-//#[macro_use] // crate_version
-//extern crate clap;
-
-extern crate tokio_core;
-extern crate tokio_io;
-#[macro_use]
+extern crate websocket;
 extern crate futures;
+extern crate tokio_core;
+#[macro_use]
+extern crate tokio_io;
+extern crate tokio_stdin_stdout;
 
-const BUFSIZ: usize = 8192;
-
-use std::io::{Error, ErrorKind, Result, Read, Write};
-use futures::{Stream,Poll,Async,Sink,Future,AsyncSink};
+use std::thread;
+use std::io::stdin;
 use tokio_core::reactor::Core;
+use futures::future::Future;
+use futures::sink::Sink;
+use futures::stream::Stream;
+use futures::sync::mpsc;
+use websocket::result::WebSocketError;
+use websocket::{ClientBuilder, OwnedMessage};
 use tokio_io::{AsyncRead,AsyncWrite};
+use std::io::{Read,Write};
+use std::io::Result as IoResult;
 
-type BBR = futures::sync::mpsc::Receiver <Box<[u8]>>;
-type BBS = futures::sync::mpsc::Sender   <Box<[u8]>>;
+use websocket::stream::async::Stream as WsStream;
+use futures::Async::{Ready, NotReady};
 
-struct ThreadedStdin {
-    debt : Option<Box<[u8]>>,
-    rcv : BBR,
+use tokio_io::io::copy;
+
+type Result<T> = std::result::Result<T, Box<std::error::Error>>;
+
+type WaitingForImplTraitFeature0 = tokio_io::codec::Framed<std::boxed::Box<websocket::async::Stream + std::marker::Send>, websocket::async::MessageCodec<websocket::OwnedMessage>>;
+type WaitingForImplTraitFeature1 = futures::stream::SplitStream<WaitingForImplTraitFeature0>;
+type WaitingForImplTraitFeature2 = futures::stream::SplitSink<WaitingForImplTraitFeature0>;
+
+struct WsReadWrapper(WaitingForImplTraitFeature1);
+
+impl AsyncRead for WsReadWrapper {
+
 }
 
-impl ThreadedStdin {
-    fn new() -> Self {
-        let (snd_, rcv) : (BBS,BBR) =  futures::sync::mpsc::channel(0);
-        std::thread::spawn(move || {
-            let mut snd = snd_;
-            let sin = ::std::io::stdin();
-            let mut sin_lock = sin.lock();
-            let mut buf = vec![0; BUFSIZ];
-            loop {
-                let ret = match sin_lock.read(&mut buf[..]) {
-                    Ok(x) => x,
-                    Err(_) => {
-                        // BrokenPipe
-                        break;
-                    }
-                };
-                let content = buf[0..ret].to_vec().into_boxed_slice();
-                snd = match snd.send(content).wait() {
-                    Ok(x) => x,
-                    Err(_) => break,
-                }
+fn wouldblock<T>() -> std::io::Result<T> {
+    Err(std::io::Error::new(std::io::ErrorKind::WouldBlock, ""))
+}
+fn brokenpipe<T>() -> std::io::Result<T> {
+    Err(std::io::Error::new(std::io::ErrorKind::BrokenPipe, ""))
+}
+fn io_other_error<E : std::error::Error + Send + Sync + 'static>(e:E) -> std::io::Error {
+    std::io::Error::new(std::io::ErrorKind::Other,e)
+}
+
+mod my_copy;
+
+impl Read for WsReadWrapper {
+    fn read(&mut self, buf: &mut [u8]) -> std::result::Result<usize, std::io::Error> {
+        match self.0.poll().map_err(io_other_error)? {
+            Ready(Some(OwnedMessage::Close(_))) => {
+                brokenpipe()
+            },
+            Ready(None) => {
+                brokenpipe()
             }
-        });
-        ThreadedStdin {
-            debt: None,
-            rcv,
-        }
-    }
-}
-
-impl AsyncRead for ThreadedStdin {}
-impl Read for ThreadedStdin {
-    fn read(&mut self, buf: &mut [u8]) -> Result<usize> {
-    
-        let mut handle_the_buffer = |incoming_buf:Box<[u8]>| {
-            let l = buf.len();
-            let dl = incoming_buf.len();
-            if l >= dl {
-                buf[0..dl].copy_from_slice(&incoming_buf);
-                (None, Ok(dl))
-            } else {
-                buf[0..l].copy_from_slice(&incoming_buf[0..l]);
-                let newdebt = Some(incoming_buf[l..].to_vec().into_boxed_slice());
-                (newdebt, Ok(l))
+            Ready(Some(OwnedMessage::Ping(_))) => {
+                Ok(0)
+                // TODO
             }
-        };
-        
-        let (new_debt, ret) =
-            if let Some(debt) = self.debt.take() {
-                handle_the_buffer(debt)
-            } else {
-                match self.rcv.poll() {
-                    Ok(Async::Ready(Some(newbuf))) => handle_the_buffer(newbuf),
-                    Ok(Async::Ready(None)) => (None, Err(ErrorKind::BrokenPipe.into())),
-                    Ok(Async::NotReady)    => (None, Err(ErrorKind::WouldBlock.into())),
-                    Err(_)                 => (None, Err(ErrorKind::Other.into())),
-                }
-            };
-        self.debt = new_debt;
-        return ret
-    }
-}
-
-
-
-struct ThreadedStdout {
-    snd : BBS,
-}
-impl ThreadedStdout {
-    fn new() -> Self {
-        let (snd, rcv) : (BBS,BBR) =  futures::sync::mpsc::channel(0);
-        std::thread::spawn(move || {
-            let sout = ::std::io::stdout();
-            let mut sout_lock = sout.lock();
-            for b in rcv.wait() {
-                if let Err(_) = b {
-                    break;
-                }
-                if let Err(_) = sout_lock.write_all(&b.unwrap()) {
-                    break;
-                }
+            Ready(Some(OwnedMessage::Pong(_))) => {
+                Ok(0)
             }
-        });
-        ThreadedStdout {
-            snd,
+            Ready(Some(OwnedMessage::Text(x))) => {
+                let buf_in = x.as_str().as_bytes();
+                let l = buf_in.len().min(buf.len());
+                buf[..l].copy_from_slice(&buf_in[..l]);
+                Ok(l)
+                // TODO
+            }
+            Ready(Some(OwnedMessage::Binary(x))) => {
+                let buf_in = x.as_slice();
+                let l = buf_in.len().min(buf.len());
+                buf[..l].copy_from_slice(&buf_in[..l]);
+                Ok(l)
+                // TODO
+            }
+            NotReady => {
+                wouldblock()
+            }
         }
     }
 }
-impl AsyncWrite for ThreadedStdout {
-    fn shutdown(&mut self) -> Poll<(), Error> {
-        // XXX
-        Ok(Async::Ready(()))
+
+struct WsWriteWrapper(WaitingForImplTraitFeature2);
+
+impl AsyncWrite for WsWriteWrapper {
+    fn shutdown(&mut self) -> futures::Poll<(),std::io::Error> {
+        // TODO: check this
+        Ok(Ready(()))
     }
 }
-impl Write for ThreadedStdout {
-    fn write(&mut self, buf: &[u8]) -> Result<usize> {
-        match self.snd.start_send(buf.to_vec().into_boxed_slice()) {
-            Ok(AsyncSink::Ready)       => (),
-            Ok(AsyncSink::NotReady(_)) => return Err(ErrorKind::WouldBlock.into()),
-            Err(_)                     => return Err(ErrorKind::Other.into()),
+
+impl Write for WsWriteWrapper {
+    fn write(&mut self, buf: &[u8]) -> IoResult<usize> {
+        let om = OwnedMessage::Binary(buf.to_vec());
+        match self.0.start_send(om).map_err(io_other_error)? {
+            futures::AsyncSink::NotReady(_) => {
+                wouldblock()
+            },
+            futures::AsyncSink::Ready => {
+                Ok(buf.len())
+            }
         }
-        match self.snd.poll_complete() {
-            // XXX
-            Ok(Async::Ready(_))    => (), // OK
-            Ok(Async::NotReady)    => (), // don't know what to do here
-            Err(_) => return Err(ErrorKind::Other.into()),
+    }
+    fn flush(&mut self) -> IoResult<()> {
+        match self.0.poll_complete().map_err(io_other_error)? {
+            NotReady => {
+                wouldblock()
+            },
+            Ready(()) => {
+                Ok(())
+            }
         }
-        Ok(buf.len())
     }
-    fn flush(&mut self) -> Result<()> {
-        // XXX
-        Ok(())
-    }
+
 }
 
 
 fn run() -> Result<()> {
+    let peeraddr = std::env::args().nth(1).ok_or("no arg")?;
+
+    println!("Connecting to {}", peeraddr);
     let mut core = Core::new()?;
     let handle = core.handle();
     
-    let stdin = ThreadedStdin::new();
-    let stdout = ThreadedStdout::new();
-    core.run(tokio_io::io::copy(stdin, stdout))?;
+    let si = tokio_stdin_stdout::stdin(0);
+    let so = tokio_stdin_stdout::stdout(0);
+
+    //let (usr_msg, stdin_ch) = mpsc::channel(0);
+    
+    let runner = ClientBuilder::new(peeraddr.as_ref())?
+        .add_protocol("rust-websocket")
+        .async_connect(None, &core.handle())
+        .and_then(|(duplex, _)| {
+            let (sink, stream) = duplex.split();
+            
+            let ws_str = WsReadWrapper(stream);
+            let ws_sin = WsWriteWrapper(sink);
+            
+            handle.spawn(my_copy::copy(si, ws_sin).map(|_|()).map_err(|_|()));
+            my_copy::copy(ws_str, so).map_err(|e| WebSocketError::IoError(e))
+            
+            /*stream.filter_map(|message| {
+                                  println!("Received Message: {:?}", message);
+                                  match message {
+                                      OwnedMessage::Close(e) => Some(OwnedMessage::Close(e)),
+                                      OwnedMessage::Ping(d) => Some(OwnedMessage::Pong(d)),
+                                      _ => None,
+                                  }
+                                 })
+                  .select(stdin_ch.map_err(|_| WebSocketError::NoDataAvailable))
+                  .forward(sink)
+            */
+        });
+    core.run(runner)?;
     Ok(())
 }
 
 fn main() {
     if let Err(e) = run() {
-        eprintln!("Something failed: {}", e);
+        eprintln!("websocat: {}", e);
         ::std::process::exit(1);
     }
 }
