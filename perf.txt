@@ -1,0 +1,61 @@
+v@l:01:47:37:~/code/websocat$ time -p websocat - ws://127.0.0.1:9988/ | pv | dd  bs=1M count=10240 iflag=fullblock 2> /dev/null > /dev/null 
+INFO:websocat: Connecting to ws://127.0.0.1:9988/
+INFO:websocat: Validating response...
+INFO:websocat: Successfully connected
+  10GiB 0:00:29 [ 351MiB/s] [                                                                      <=>                                               ]
+Broken pipe (os error 32)
+real 29.16
+user 12.21
+sys 69.42
+
+v@l:01:49:54:~/code/websocat$ time -p target/release/websocat ws://127.0.0.1:9988/ | pv | dd  bs=1M count=10240 iflag=fullblock 2> /dev/null > /dev/null 
+  10GiB 0:00:19 [ 527MiB/s] [                                              <=>                                                                       ]
+websocat: WebSocketError: I/O failure
+real 19.41
+user 5.95
+sys 36.51
+
+v@l:01:50:23:~/code/websocat$ strace -c -f websocat - ws://127.0.0.1:9988/ | pv | dd  bs=1M count=1024 iflag=fullblock 2> /dev/null > /dev/null 
+INFO:websocat: Connecting to ws://127.0.0.1:9988/
+INFO:websocat: Validating response...
+INFO:websocat: Successfully connected
+strace: Process 4567 attached
+   1GiB 0:00:27 [37.1MiB/s] [                                                                 <=>                                                    ]
+Broken pipe (os error 32)
+[pid  4567] ????( <detached ...>
+% time     seconds  usecs/call     calls    errors syscall
+------ ----------- ----------- --------- --------- ----------------
+ 53.74    0.035376           0    131086         1 write
+ 46.26    0.030457           0    667187    404893 read
+
+v@l:01:52:31:~/code/websocat$ strace -c -f target/release/websocat ws://127.0.0.1:9988/ | pv | dd  bs=1M count=1024 iflag=fullblock 2> /dev/null > /dev/null 
+   1GiB 0:00:17 [59.6MiB/s] [                                          <=>                                                                           ]
+websocat: WebSocketError: I/O failure
+% time     seconds  usecs/call     calls    errors syscall
+------ ----------- ----------- --------- --------- ----------------
+ 60.58    0.005968           0    131078           recvfrom
+ 39.42    0.003884           0    131162        43 write
+
+
+
+
+
+
+
+v@l:01:54:08:~/code/websocat$ dd if=/dev/zero bs=1M count=10240 2> /dev/null | pv | time -p websocat - ws://127.0.0.1:9988/
+INFO:websocat: Connecting to ws://127.0.0.1:9988/
+INFO:websocat: Validating response...
+INFO:websocat: Successfully connected
+  10GiB 0:00:45 [ 224MiB/s] [                                                                                                           <=>          ]
+^CCommand terminated by signal 2
+real 46.05
+user 30.92
+sys 13.02
+
+v@l:01:54:58:~/code/websocat$ dd if=/dev/zero bs=1M count=10240 2> /dev/null | pv | time -p target/release/websocat ws://127.0.0.1:9988/
+Connecting to ws://127.0.0.1:9988/
+  10GiB 0:00:44 [ 230MiB/s] [                                                                                                         <=>            ]
+^CCommand terminated by signal 2
+real 45.27
+user 32.94
+sys 10.75

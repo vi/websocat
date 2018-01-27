@@ -3,6 +3,10 @@ Websocket proxy, socat-style
 
 **Note: Currently SSL-enabled version may be unbuildable on systems with newer libssl because of hard reliance on old versions of dependencies. Wait for websockat 1.0.0 with async and updated deps.**
 
+Here is oneliner to remove non-blocking mode from terminal's stdin:
+
+    perl -we 'use Fcntl qw(F_GETFL F_SETFL O_NONBLOCK); open F, "<&=", 0; my $flags = fcntl(F, F_GETFL, 0); fcntl(F, F_SETFL, $flags & !O_NONBLOCK);'
+
 ```
 websocat 0.4.0
 Vitaly "_Vi" Shukela <vi0oss@gmail.com>

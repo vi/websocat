@@ -20,5 +20,17 @@ tokio-core = "0.1"
 tokio-io = "^0.1.2"
 tokio-stdin-stdout = "0.1"
 
+[target.'cfg(unix)'.dependencies]
+tokio-file-unix = "0.4"
+
 [features]
 default = []
+
+[profile.release]
+opt-level = 3
+debug = false
+rpath = false
+lto = true
+debug-assertions = false
+codegen-units = 1
+panic = 'abort'

@@ -1,3 +1,4 @@
+#![feature(catch_expr)]
 #![allow(unused)]
 
 extern crate websocket;
@@ -6,6 +7,8 @@ extern crate tokio_core;
 #[macro_use]
 extern crate tokio_io;
 extern crate tokio_stdin_stdout;
+
+extern crate tokio_file_unix;
 
 use std::thread;
 use std::io::stdin;
@@ -24,6 +27,12 @@ use websocket::stream::async::Stream as WsStream;
 use futures::Async::{Ready, NotReady};
 
 use tokio_io::io::copy;
+
+use tokio_io::codec::FramedRead;
+use std::fs::File;
+
+use tokio_file_unix::{File as UnixFile, StdFile};
+use std::os::unix::io::FromRawFd;
 
 type Result<T> = std::result::Result<T, Box<std::error::Error>>;
 
@@ -142,8 +151,20 @@ fn run() -> Result<()> {
     let mut core = Core::new()?;
     let handle = core.handle();
     
-    let si = tokio_stdin_stdout::stdin(0);
-    let so = tokio_stdin_stdout::stdout(0);
+    //let si = tokio_stdin_stdout::stdin(0);
+    //let so = tokio_stdin_stdout::stdout(0);
+    
+    //let mut stdin = std::io::stdin();
+    let stdin = unsafe {
+        File::from_raw_fd(0)
+    };
+    let stdout = unsafe {
+        File::from_raw_fd(1)
+    };
+    let si = UnixFile::new_nb(stdin)?.into_reader(&handle)?;
+    let so = UnixFile::new_nb(stdout)?.into_io(&handle)?;
+    //let si = File::new_nb(StdFile(sl))?.into_reader(&handle)?;
+    //let so = File::new_nb(StdFile(stdout.lock()))?.into_io(&handle)?;
 
     let runner = ClientBuilder::new(peeraddr.as_ref())?
         .add_protocol("rust-websocket")
