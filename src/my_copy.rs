@@ -47,7 +47,7 @@ pub fn copy<R, W>(reader: R, writer: W) -> Copy<R, W>
         amt: 0,
         pos: 0,
         cap: 0,
-        buf: Box::new([0; 2048]),
+        buf: Box::new([0; 8192]),
     }
 }
 
