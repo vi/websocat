@@ -25,6 +25,7 @@ tokio-file-unix = "0.4"
 
 [features]
 default = []
+no_unix_stdio = []
 
 [profile.release]
 opt-level = 3
