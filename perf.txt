@@ -39,6 +39,24 @@ websocat: WebSocketError: I/O failure
 
 
 
+v@l:07:47:54:~/code/websocat$ time -p target/release/websocat ws://127.0.0.1:9988/ | pv | dd  bs=1M count=10240 iflag=fullblock 2> /dev/null > /dev/null 
+  10GiB 0:00:20 [ 507MiB/s] [                                                 <=>                                                                    ]
+websocat: WebSocketError: I/O failure
+real 20.17
+user 7.23
+sys 37.41
+
+v@l:07:48:34:~/code/websocat$ strace -c -f target/release/websocat ws://127.0.0.1:9988/ | pv | dd  bs=1M count=1024 iflag=fullblock 2> /dev/null > /dev/null 
+   1GiB 0:00:17 [  59MiB/s] [                                          <=>                                                                           ]
+websocat: WebSocketError: I/O failure
+% time     seconds  usecs/call     calls    errors syscall
+------ ----------- ----------- --------- --------- ----------------
+ 62.94    0.006862           0    131079         1 recvfrom
+ 36.76    0.004008           0    131166        48 write
+
+
+
+
 
 
 
@@ -59,3 +77,5 @@ Connecting to ws://127.0.0.1:9988/
 real 45.27
 user 32.94
 sys 10.75
+
+
