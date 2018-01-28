@@ -9,6 +9,8 @@ extern crate tokio_stdin_stdout;
 
 #[cfg(unix)]
 extern crate tokio_file_unix;
+#[cfg(unix)]
+extern crate tokio_signal;
 
 use std::thread;
 use std::io::stdin;
@@ -164,14 +166,20 @@ fn run() -> Result<()> {
     
     #[cfg(all(unix,not(feature="no_unix_stdio")))]
     {
-        let stdin = unsafe {
-            File::from_raw_fd(0)
-        };
-        let stdout = unsafe {
-            File::from_raw_fd(1)
-        };
-        si = UnixFile::new_nb(stdin)?.into_reader(&handle)?;
-        so = UnixFile::new_nb(stdout)?.into_io(&handle)?;
+        let stdin  = UnixFile::new_nb(std::io::stdin())?;
+        let stdout = UnixFile::new_nb(std::io::stdout())?;
+    
+        si = stdin.into_reader(&handle)?;
+        so = stdout.into_io(&handle)?;
+        
+        let ctrl_c = tokio_signal::ctrl_c(&handle).flatten_stream();
+        let prog = ctrl_c.for_each(|()| {
+            UnixFile::raw_new(std::io::stdin()).set_nonblocking(false);
+            UnixFile::raw_new(std::io::stdout()).set_nonblocking(false);
+            ::std::process::exit(0);
+            Ok(())
+        });
+        handle.spawn(prog.map_err(|_|()));
     }
 
     let runner = ClientBuilder::new(peeraddr.as_ref())?
@@ -194,7 +202,15 @@ fn run() -> Result<()> {
 }
 
 fn main() {
-    if let Err(e) = run() {
+    let r = run();
+    
+    #[cfg(all(unix,not(feature="no_unix_stdio")))]
+    {
+        UnixFile::raw_new(std::io::stdin()).set_nonblocking(false);
+        UnixFile::raw_new(std::io::stdout()).set_nonblocking(false);
+    }
+            
+    if let Err(e) = r {
         eprintln!("websocat: {}", e);
         ::std::process::exit(1);
     }

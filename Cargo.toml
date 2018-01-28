@@ -22,6 +22,7 @@ tokio-stdin-stdout = "0.1"
 
 [target.'cfg(unix)'.dependencies]
 tokio-file-unix = "0.4"
+tokio-signal = "0.1"
 
 [features]
 default = []
