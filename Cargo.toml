@@ -21,7 +21,7 @@ tokio-io = "^0.1.2"
 tokio-stdin-stdout = "0.1"
 
 [target.'cfg(unix)'.dependencies]
-tokio-file-unix = "0.4"
+tokio-file-unix = "^0.4.2"
 tokio-signal = "0.1"
 
 [features]
