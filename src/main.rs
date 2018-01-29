@@ -25,6 +25,9 @@ use tokio_io::{AsyncRead,AsyncWrite};
 use std::io::{Read,Write};
 use std::io::Result as IoResult;
 
+use std::rc::Rc;
+use std::cell::RefCell;
+
 use websocket::stream::async::Stream as WsStream;
 use futures::Async::{Ready, NotReady};
 
@@ -41,8 +44,9 @@ use std::os::unix::io::FromRawFd;
 type Result<T> = std::result::Result<T, Box<std::error::Error>>;
 
 type WaitingForImplTraitFeature0 = tokio_io::codec::Framed<std::boxed::Box<websocket::async::Stream + std::marker::Send>, websocket::async::MessageCodec<websocket::OwnedMessage>>;
-type WaitingForImplTraitFeature1 = futures::stream::SplitStream<WaitingForImplTraitFeature0>;
 type WaitingForImplTraitFeature2 = futures::stream::SplitSink<WaitingForImplTraitFeature0>;
+type WsSource = futures::stream::SplitStream<WaitingForImplTraitFeature0>;
+type MultiProducerWsSink = Rc<RefCell<WaitingForImplTraitFeature2>>;
 
 
 fn wouldblock<T>() -> std::io::Result<T> {
@@ -58,9 +62,9 @@ fn io_other_error<E : std::error::Error + Send + Sync + 'static>(e:E) -> std::io
 mod my_copy;
 
 
-
 struct WsReadWrapper {
-    s: WaitingForImplTraitFeature1,
+    s: WsSource,
+    pingreply : MultiProducerWsSink,
     debt: Option<Vec<u8>>,
 }
 
@@ -93,9 +97,25 @@ impl Read for WsReadWrapper {
             Ready(None) => {
                 brokenpipe()
             }
-            Ready(Some(OwnedMessage::Ping(_))) => {
+            Ready(Some(OwnedMessage::Ping(x))) => {
+                let om = OwnedMessage::Pong(x);
+                let mut sink = self.pingreply.borrow_mut();
+                let mut proceed = false;
+                // I'm not sure this is safe enough, RefCell-wise and Futures-wise
+                // And pings and their replies are not tested yet
+                match sink.start_send(om).map_err(io_other_error)? {
+                    futures::AsyncSink::NotReady(_) => {
+                        // drop the ping
+                    },
+                    futures::AsyncSink::Ready => {
+                        proceed = true;
+                    }
+                }
+                if proceed {
+                    let _ = sink.poll_complete().map_err(io_other_error)?;
+                }
+                
                 Ok(0)
-                // TODO
             }
             Ready(Some(OwnedMessage::Pong(_))) => {
                 Ok(0)
@@ -113,7 +133,7 @@ impl Read for WsReadWrapper {
     }
 }
 
-struct WsWriteWrapper(WaitingForImplTraitFeature2);
+struct WsWriteWrapper(MultiProducerWsSink);
 
 impl AsyncWrite for WsWriteWrapper {
     fn shutdown(&mut self) -> futures::Poll<(),std::io::Error> {
@@ -125,7 +145,7 @@ impl AsyncWrite for WsWriteWrapper {
 impl Write for WsWriteWrapper {
     fn write(&mut self, buf: &[u8]) -> IoResult<usize> {
         let om = OwnedMessage::Binary(buf.to_vec());
-        match self.0.start_send(om).map_err(io_other_error)? {
+        match self.0.borrow_mut().start_send(om).map_err(io_other_error)? {
             futures::AsyncSink::NotReady(_) => {
                 wouldblock()
             },
@@ -135,7 +155,7 @@ impl Write for WsWriteWrapper {
         }
     }
     fn flush(&mut self) -> IoResult<()> {
-        match self.0.poll_complete().map_err(io_other_error)? {
+        match self.0.borrow_mut().poll_complete().map_err(io_other_error)? {
             NotReady => {
                 wouldblock()
             },
@@ -187,12 +207,14 @@ fn run() -> Result<()> {
         .async_connect(None, &core.handle())
         .and_then(|(duplex, _)| {
             let (sink, stream) = duplex.split();
+            let mpsink = Rc::new(RefCell::new(sink));
             
             let ws_str = WsReadWrapper {
                 s: stream,
+                pingreply: mpsink.clone(),
                 debt: None,
             };
-            let ws_sin = WsWriteWrapper(sink);
+            let ws_sin = WsWriteWrapper(mpsink);
             
             handle.spawn(my_copy::copy(si, ws_sin).map(|_|()).map_err(|_|()));
             my_copy::copy(ws_str, so).map_err(|e| WebSocketError::IoError(e))
