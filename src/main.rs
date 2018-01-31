@@ -43,7 +43,7 @@ use std::os::unix::io::FromRawFd;
 
 type Result<T> = std::result::Result<T, Box<std::error::Error>>;
 
-type WaitingForImplTraitFeature0 = tokio_io::codec::Framed<std::boxed::Box<websocket::async::Stream + std::marker::Send>, websocket::async::MessageCodec<websocket::OwnedMessage>>;
+type WaitingForImplTraitFeature0 = tokio_io::codec::Framed<websocket::async::TcpStream, websocket::async::MessageCodec<websocket::OwnedMessage>>;
 type WaitingForImplTraitFeature2 = futures::stream::SplitSink<WaitingForImplTraitFeature0>;
 type WsSource = futures::stream::SplitStream<WaitingForImplTraitFeature0>;
 type MultiProducerWsSink = Rc<RefCell<WaitingForImplTraitFeature2>>;
@@ -204,7 +204,7 @@ fn run() -> Result<()> {
 
     let runner = ClientBuilder::new(peeraddr.as_ref())?
         .add_protocol("rust-websocket")
-        .async_connect(None, &core.handle())
+        .async_connect_insecure(&core.handle())
         .and_then(|(duplex, _)| {
             let (sink, stream) = duplex.split();
             let mpsink = Rc::new(RefCell::new(sink));
