@@ -171,7 +171,7 @@ impl Write for WsWriteWrapper {
 fn run() -> Result<()> {
     let peeraddr = std::env::args().nth(1).ok_or("no arg")?;
 
-    println!("Connecting to {}", peeraddr);
+    //println!("Connecting to {}", peeraddr);
     let mut core = Core::new()?;
     let handle = core.handle();
     
