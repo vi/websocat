@@ -180,7 +180,8 @@ impl WsWriteWrapper {
 
 
 fn run() -> Result<()> {
-    let peeraddr = std::env::args().nth(1).ok_or("no arg")?;
+    let _        = std::env::args().nth(1).ok_or("Usage: websocat - ws[s]://...")?;
+    let peeraddr = std::env::args().nth(2).ok_or("no second arg")?;
 
     //println!("Connecting to {}", peeraddr);
     let mut core = Core::new()?;
