@@ -43,6 +43,9 @@ use std::os::unix::io::FromRawFd;
 
 type Result<T> = std::result::Result<T, Box<std::error::Error>>;
 
+#[cfg(feature="ssl")]
+type WaitingForImplTraitFeature0 = tokio_io::codec::Framed<std::boxed::Box<websocket::async::Stream + std::marker::Send>, websocket::async::MessageCodec<websocket::OwnedMessage>>;
+#[cfg(not(feature="ssl"))]
 type WaitingForImplTraitFeature0 = tokio_io::codec::Framed<websocket::async::TcpStream, websocket::async::MessageCodec<websocket::OwnedMessage>>;
 type WaitingForImplTraitFeature2 = futures::stream::SplitSink<WaitingForImplTraitFeature0>;
 type WsSource = futures::stream::SplitStream<WaitingForImplTraitFeature0>;
@@ -202,9 +205,15 @@ fn run() -> Result<()> {
         handle.spawn(prog.map_err(|_|()));
     }
 
-    let runner = ClientBuilder::new(peeraddr.as_ref())?
-        .add_protocol("rust-websocket")
-        .async_connect_insecure(&core.handle())
+    let before_connect = ClientBuilder::new(peeraddr.as_ref())?
+        .add_protocol("rust-websocket");
+    #[cfg(feature="ssl")]
+    let after_connect = before_connect
+        .async_connect(None, &core.handle());
+    #[cfg(not(feature="ssl"))]
+    let after_connect = before_connect
+        .async_connect_insecure(&core.handle());
+    let runner = after_connect
         .and_then(|(duplex, _)| {
             let (sink, stream) = duplex.split();
             let mpsink = Rc::new(RefCell::new(sink));

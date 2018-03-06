@@ -27,6 +27,7 @@ tokio-signal = "0.1"
 [features]
 default = []
 no_unix_stdio = []
+ssl = ["websocket/async-ssl"]
 
 [profile.release]
 opt-level = 3
