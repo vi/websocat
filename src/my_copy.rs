@@ -20,6 +20,7 @@ pub struct Copy<R, W> {
     cap: usize,
     amt: u64,
     buf: Box<[u8]>,
+    stop_on_reader_zero_read: bool,
 }
 
 /// Creates a future which represents copying all the bytes from one object to
@@ -34,9 +35,9 @@ pub struct Copy<R, W> {
 /// consumed. On error the error is returned and the I/O objects are consumed as
 /// well.
 ///
-/// Unlike original tokio_io::copy::copy, it does not stop on zero length reads
+/// Unlike original tokio_io::copy::copy, it does not always stop on zero length reads
 /// , handles BrokenPipe error kind as EOF and flushes after every write
-pub fn copy<R, W>(reader: R, writer: W) -> Copy<R, W>
+pub fn copy<R, W>(reader: R, writer: W, stop_on_reader_zero_read: bool) -> Copy<R, W>
     where R: AsyncRead,
           W: AsyncWrite,
 {
@@ -48,6 +49,7 @@ pub fn copy<R, W>(reader: R, writer: W) -> Copy<R, W>
         pos: 0,
         cap: 0,
         buf: Box::new([0; 8192]),
+        stop_on_reader_zero_read,
     }
 }
 
@@ -73,6 +75,9 @@ impl<R, W> Future for Copy<R, W>
                 }
                 let n = try_nb!(rr);
                 if n == 0 {
+                    if self.stop_on_reader_zero_read {
+                        self.read_done = true;
+                    }
                     continue;
                 } else {
                     self.pos = 0;

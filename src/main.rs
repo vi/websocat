@@ -225,8 +225,8 @@ fn run() -> Result<()> {
             };
             let ws_sin = WsWriteWrapper(mpsink);
             
-            handle.spawn(my_copy::copy(si, ws_sin).map(|_|()).map_err(|_|()));
-            my_copy::copy(ws_str, so).map_err(|e| WebSocketError::IoError(e))
+            handle.spawn(my_copy::copy(si, ws_sin, true).map(|_|()).map_err(|_|()));
+            my_copy::copy(ws_str, so, false).map_err(|e| WebSocketError::IoError(e))
         });
     core.run(runner)?;
     Ok(())
