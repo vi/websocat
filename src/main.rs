@@ -167,7 +167,15 @@ impl Write for WsWriteWrapper {
             }
         }
     }
+}
 
+impl WsWriteWrapper {
+    fn into_inner(self) -> MultiProducerWsSink {
+        self.0
+    }
+    fn inner(&self) -> &MultiProducerWsSink {
+        &self.0
+    }
 }
 
 
@@ -225,7 +233,19 @@ fn run() -> Result<()> {
             };
             let ws_sin = WsWriteWrapper(mpsink);
             
-            handle.spawn(my_copy::copy(si, ws_sin, true).map(|_|()).map_err(|_|()));
+            handle.spawn(
+                my_copy::copy(si, ws_sin, true)
+                    .map_err(|_|())
+                    .and_then(|(_,_,sinkwr)| {
+                        let mut sink = sinkwr.inner().borrow_mut();
+                        sink.start_send(OwnedMessage::Close(None))
+                            .map_err(|_|())
+                            .map(|_|());
+                        sink.poll_complete()
+                            .map_err(|_|())
+                            .map(|_|())
+                    })
+            );
             my_copy::copy(ws_str, so, false).map_err(|e| WebSocketError::IoError(e))
         });
     core.run(runner)?;
