@@ -192,10 +192,14 @@ impl Peer {
     }
 }
 
-type WaitingForImplTraitFeature4 = std::boxed::Box<futures::Future<Item=Peer, Error=std::boxed::Box<std::error::Error>>>;//futures::Map<(),Box<std::error::Error>>;
+type BoxedNewPeerFuture = Box<Future<Item=Peer, Error=Box<std::error::Error>>>;
 
-fn get_ws_client_peer(handle: &Handle, uri: &str) -> WaitingForImplTraitFeature4 {
-    let before_connect = ClientBuilder::new(uri).unwrap()
+fn get_ws_client_peer(handle: &Handle, uri: &str) -> BoxedNewPeerFuture {
+    let stage1 = match ClientBuilder::new(uri) {
+        Ok(x) => x,
+        Err(e) => return Box::new(futures::future::err(Box::new(e) as Box<std::error::Error>)),
+    };
+    let before_connect = stage1
         .add_protocol("rust-websocket");
     #[cfg(feature="ssl")]
     let after_connect = before_connect
@@ -219,7 +223,41 @@ fn get_ws_client_peer(handle: &Handle, uri: &str) -> WaitingForImplTraitFeature4
             ws
         })
         .map_err(|e|Box::new(e) as Box<std::error::Error>)
-    ) as Box<Future<Item=Peer, Error=Box<std::error::Error>>>
+    ) as BoxedNewPeerFuture
+}
+
+fn get_stdio_peer_impl(handle: &Handle) -> Result<Peer> {
+    let si;
+    let so;
+    
+    #[cfg(any(not(unix),feature="no_unix_stdio"))]
+    {
+        si = tokio_stdin_stdout::stdin(0);
+        so = tokio_stdin_stdout::stdout(0);
+    }
+    
+    #[cfg(all(unix,not(feature="no_unix_stdio")))]
+    {
+        let stdin  = UnixFile::new_nb(std::io::stdin())?;
+        let stdout = UnixFile::new_nb(std::io::stdout())?;
+    
+        si = stdin.into_reader(&handle)?;
+        so = stdout.into_io(&handle)?;
+        
+        let ctrl_c = tokio_signal::ctrl_c(&handle).flatten_stream();
+        let prog = ctrl_c.for_each(|()| {
+            UnixFile::raw_new(std::io::stdin()).set_nonblocking(false);
+            UnixFile::raw_new(std::io::stdout()).set_nonblocking(false);
+            ::std::process::exit(0);
+            Ok(())
+        });
+        handle.spawn(prog.map_err(|_|()));
+    }
+    Ok(Peer::new(si,so))
+}
+
+fn get_stdio_peer(handle: &Handle) -> BoxedNewPeerFuture {
+    Box::new(futures::future::result(get_stdio_peer_impl(handle))) as BoxedNewPeerFuture
 }
 
 struct Transfer {
@@ -267,75 +305,22 @@ fn run() -> Result<()> {
     //println!("Connecting to {}", peeraddr);
     let mut core = Core::new()?;
     let handle = core.handle();
-    
-    let si;
-    let so;
-    
-    #[cfg(any(not(unix),feature="no_unix_stdio"))]
-    {
-        si = tokio_stdin_stdout::stdin(0);
-        so = tokio_stdin_stdout::stdout(0);
-    }
-    
-    #[cfg(all(unix,not(feature="no_unix_stdio")))]
-    {
-        let stdin  = UnixFile::new_nb(std::io::stdin())?;
-        let stdout = UnixFile::new_nb(std::io::stdout())?;
-    
-        si = stdin.into_reader(&handle)?;
-        so = stdout.into_io(&handle)?;
-        
-        let ctrl_c = tokio_signal::ctrl_c(&handle).flatten_stream();
-        let prog = ctrl_c.for_each(|()| {
-            UnixFile::raw_new(std::io::stdin()).set_nonblocking(false);
-            UnixFile::raw_new(std::io::stdout()).set_nonblocking(false);
-            ::std::process::exit(0);
-            Ok(())
-        });
-        handle.spawn(prog.map_err(|_|()));
-    }
 
-    let runner = get_ws_client_peer(&core.handle(), peeraddr.as_ref())
-        .and_then(|ws_peer| {
-            let std = Peer::new(si, so);
-            
-            let s = Session::new(ws_peer,std);
+    let h1 = core.handle();
+    let h2 = core.handle();
+
+    let runner = get_ws_client_peer(&h1, peeraddr.as_ref())
+    .and_then(|ws_peer| {
+        get_stdio_peer(&h2)
+        .and_then(|std_peer| {
+            let s = Session::new(ws_peer,std_peer);
             
             s.run(&handle)
                 .map(|_|())
                 .map_err(|_|unreachable!())
-        });
+        })
+    });
 
-    /*let before_connect = ClientBuilder::new(peeraddr.as_ref())?
-        .add_protocol("rust-websocket");
-    #[cfg(feature="ssl")]
-    let after_connect = before_connect
-        .async_connect(None, &core.handle());
-    #[cfg(not(feature="ssl"))]
-    let after_connect = before_connect
-        .async_connect_insecure(&core.handle());
-    let runner = after_connect
-        .and_then(|(duplex, _)| {
-            let (sink, stream) = duplex.split();
-            let mpsink = Rc::new(RefCell::new(sink));
-            
-            let ws_str = WsReadWrapper {
-                s: stream,
-                pingreply: mpsink.clone(),
-                debt: None,
-            };
-            let ws_sin = WsWriteWrapper(mpsink);
-            
-            let ws = Peer::new(ws_str, ws_sin);
-            let std = Peer::new(si, so);
-            
-            let s = Session::new(ws,std);
-            
-            s.run(&handle)
-                .map(|_|())
-                .map_err(|_|unreachable!())
-        });
-    */
     core.run(runner)?;
     Ok(())
 }
