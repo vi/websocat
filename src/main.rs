@@ -14,7 +14,7 @@ extern crate tokio_signal;
 
 use std::thread;
 use std::io::stdin;
-use tokio_core::reactor::Core;
+use tokio_core::reactor::{Core, Handle};
 use futures::future::Future;
 use futures::sink::Sink;
 use futures::stream::Stream;
@@ -181,6 +181,54 @@ impl Drop for WsWriteWrapper {
     }
 }
 
+struct Peer(Box<AsyncRead>, Box<AsyncWrite>);
+
+impl Peer {
+    fn new<R:AsyncRead+'static, W:AsyncWrite+'static>(r:R, w:W) -> Self {
+        Peer (
+            Box::new(r) as Box<AsyncRead>,
+            Box::new(w) as Box<AsyncWrite>,
+        )
+    }
+}
+
+struct Transfer {
+    from: Box<AsyncRead>,
+    to:   Box<AsyncWrite>,
+}
+struct Session(Transfer,Transfer);
+
+type WaitingForImplTraitFeature3 = futures::stream::StreamFuture<futures::sync::mpsc::Receiver<()>>;
+
+impl Session {
+    fn run(self, handle: &Handle) -> WaitingForImplTraitFeature3 {
+        let (notif1,rcv) = mpsc::channel::<()>(0);
+        let notif2 = notif1.clone();
+        handle.spawn(
+            my_copy::copy(self.0.from, self.0.to, true)
+                .map_err(|_|())
+                .map(|_|{notif1;()})
+        );
+        handle.spawn(
+            my_copy::copy(self.1.from, self.1.to, true)
+                .map_err(|_|())
+                .map(|_|{notif2;()})
+        );
+        rcv.into_future()
+    }
+    fn new(peer1: Peer, peer2: Peer) -> Self {
+        Session (
+            Transfer {
+                from: peer1.0,
+                to: peer2.1,
+            },
+            Transfer {
+                from: peer2.0,
+                to: peer1.1,
+            },
+        )
+    }
+}
 
 fn run() -> Result<()> {
     let _        = std::env::args().nth(1).ok_or("Usage: websocat - ws[s]://...")?;
@@ -237,12 +285,14 @@ fn run() -> Result<()> {
             };
             let ws_sin = WsWriteWrapper(mpsink);
             
-            handle.spawn(
-                my_copy::copy(si, ws_sin, true)
-                    .map_err(|_|())
-                    .map(|_|()));
-            my_copy::copy(ws_str, so, false)
-                    .map_err(|e| WebSocketError::IoError(e))
+            let ws = Peer::new(ws_str, ws_sin);
+            let std = Peer::new(si, so);
+            
+            let s = Session::new(ws,std);
+            
+            s.run(&handle)
+                .map(|_|())
+                .map_err(|_|unreachable!())
         });
     core.run(runner)?;
     Ok(())
