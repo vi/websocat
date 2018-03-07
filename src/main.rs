@@ -192,6 +192,36 @@ impl Peer {
     }
 }
 
+type WaitingForImplTraitFeature4 = std::boxed::Box<futures::Future<Item=Peer, Error=std::boxed::Box<std::error::Error>>>;//futures::Map<(),Box<std::error::Error>>;
+
+fn get_ws_client_peer(handle: &Handle, uri: &str) -> WaitingForImplTraitFeature4 {
+    let before_connect = ClientBuilder::new(uri).unwrap()
+        .add_protocol("rust-websocket");
+    #[cfg(feature="ssl")]
+    let after_connect = before_connect
+        .async_connect(None, handle);
+    #[cfg(not(feature="ssl"))]
+    let after_connect = before_connect
+        .async_connect_insecure(handle);
+    Box::new(after_connect
+        .map(|(duplex, _)| {
+            let (sink, stream) = duplex.split();
+            let mpsink = Rc::new(RefCell::new(sink));
+            
+            let ws_str = WsReadWrapper {
+                s: stream,
+                pingreply: mpsink.clone(),
+                debt: None,
+            };
+            let ws_sin = WsWriteWrapper(mpsink);
+            
+            let ws = Peer::new(ws_str, ws_sin);
+            ws
+        })
+        .map_err(|e|Box::new(e) as Box<std::error::Error>)
+    ) as Box<Future<Item=Peer, Error=Box<std::error::Error>>>
+}
+
 struct Transfer {
     from: Box<AsyncRead>,
     to:   Box<AsyncWrite>,
@@ -265,7 +295,18 @@ fn run() -> Result<()> {
         handle.spawn(prog.map_err(|_|()));
     }
 
-    let before_connect = ClientBuilder::new(peeraddr.as_ref())?
+    let runner = get_ws_client_peer(&core.handle(), peeraddr.as_ref())
+        .and_then(|ws_peer| {
+            let std = Peer::new(si, so);
+            
+            let s = Session::new(ws_peer,std);
+            
+            s.run(&handle)
+                .map(|_|())
+                .map_err(|_|unreachable!())
+        });
+
+    /*let before_connect = ClientBuilder::new(peeraddr.as_ref())?
         .add_protocol("rust-websocket");
     #[cfg(feature="ssl")]
     let after_connect = before_connect
@@ -294,6 +335,7 @@ fn run() -> Result<()> {
                 .map(|_|())
                 .map_err(|_|unreachable!())
         });
+    */
     core.run(runner)?;
     Ok(())
 }
