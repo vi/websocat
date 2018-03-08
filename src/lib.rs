@@ -1,38 +1,15 @@
-#![allow(unused)]
-
-extern crate websocket;
 extern crate futures;
 extern crate tokio_core;
 #[macro_use]
 extern crate tokio_io;
-extern crate tokio_stdin_stdout;
 
-use std::thread;
-use std::io::stdin;
-use tokio_core::reactor::{Core, Handle};
+use tokio_core::reactor::{Handle};
 use futures::future::Future;
-use futures::sink::Sink;
-use futures::stream::Stream;
 use futures::sync::mpsc;
-use websocket::result::WebSocketError;
-use websocket::{ClientBuilder, OwnedMessage};
 use tokio_io::{AsyncRead,AsyncWrite};
-use std::io::{Read,Write};
-use std::io::Result as IoResult;
 
-use std::rc::Rc;
-use std::cell::RefCell;
+use futures::Stream;
 
-use websocket::stream::async::Stream as WsStream;
-use futures::Async::{Ready, NotReady};
-
-use tokio_io::io::copy;
-
-use tokio_io::codec::FramedRead;
-use std::fs::File;
-
-#[cfg(unix)]
-use std::os::unix::io::FromRawFd;
 
 type Result<T> = std::result::Result<T, Box<std::error::Error>>;
 
@@ -64,7 +41,7 @@ impl Peer {
 }
 
 pub fn peer_from_str(handle: &Handle, s: &str) -> BoxedNewPeerFuture {
-    if (s == "-") {
+    if s == "-" {
         stdio_peer::get_stdio_peer(handle)
     } else {
         ws_peer::get_ws_client_peer(handle, s)
@@ -86,12 +63,18 @@ impl Session {
         handle.spawn(
             my_copy::copy(self.0.from, self.0.to, true)
                 .map_err(|_|())
-                .map(|_|{notif1;()})
+                .map(move |_|{
+                    std::mem::drop(notif1);
+                    ()
+                })
         );
         handle.spawn(
             my_copy::copy(self.1.from, self.1.to, true)
                 .map_err(|_|())
-                .map(|_|{notif2;()})
+                .map(move |_|{
+                    std::mem::drop(notif2);
+                    ()
+                })
         );
         rcv.into_future()
     }

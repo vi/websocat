@@ -1,14 +1,12 @@
+extern crate websocket;
+
 use std;
-use std::thread;
-use std::io::stdin;
-use tokio_core::reactor::{Core, Handle};
+use tokio_core::reactor::{Handle};
 use futures;
 use futures::future::Future;
 use futures::sink::Sink;
 use futures::stream::Stream;
-use futures::sync::mpsc;
-use websocket::result::WebSocketError;
-use websocket::{self,ClientBuilder, OwnedMessage};
+use self::websocket::{ClientBuilder, OwnedMessage};
 use tokio_io::{self,AsyncRead,AsyncWrite};
 use std::io::{Read,Write};
 use std::io::Result as IoResult;
@@ -16,13 +14,7 @@ use std::io::Result as IoResult;
 use std::rc::Rc;
 use std::cell::RefCell;
 
-use websocket::stream::async::Stream as WsStream;
 use futures::Async::{Ready, NotReady};
-
-use tokio_io::io::copy;
-
-use tokio_io::codec::FramedRead;
-use std::fs::File;
 
 use super::{Peer, io_other_error, brokenpipe, wouldblock, BoxedNewPeerFuture};
 
@@ -174,10 +166,10 @@ impl Write for WsWriteWrapper {
 impl Drop for WsWriteWrapper {
     fn drop(&mut self) {
         let mut sink = self.0.borrow_mut();
-        sink.start_send(OwnedMessage::Close(None))
+        let _ = sink.start_send(OwnedMessage::Close(None))
             .map_err(|_|())
             .map(|_|());
-        sink.poll_complete()
+        let _ = sink.poll_complete()
             .map_err(|_|())
             .map(|_|());
     }
