@@ -42,8 +42,8 @@ type Result<T> = std::result::Result<T, Box<std::error::Error>>;
 
 
 fn run() -> Result<()> {
-    let _        = std::env::args().nth(1).ok_or("Usage: websocat - ws[s]://...")?;
-    let peeraddr = std::env::args().nth(2).ok_or("no second arg")?;
+    let arg1 = std::env::args().nth(1).ok_or("Usage: websocat - ws[s]://...")?;
+    let arg2 = std::env::args().nth(2).ok_or("no second arg")?;
 
     //println!("Connecting to {}", peeraddr);
     let mut core = Core::new()?;
@@ -52,9 +52,9 @@ fn run() -> Result<()> {
     let h1 = core.handle();
     let h2 = core.handle();
 
-    let runner = websocat::ws_peer::get_ws_client_peer(&h1, peeraddr.as_ref())
+    let runner = websocat::peer_from_str(&h1, arg1.as_ref())
     .and_then(|ws_peer| {
-        websocat::stdio_peer::get_stdio_peer(&h2)
+        websocat::peer_from_str(&h2, arg2.as_ref())
         .and_then(|std_peer| {
             let s = Session::new(ws_peer,std_peer);
             

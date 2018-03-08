@@ -63,6 +63,13 @@ impl Peer {
     }
 }
 
+pub fn peer_from_str(handle: &Handle, s: &str) -> BoxedNewPeerFuture {
+    if (s == "-") {
+        stdio_peer::get_stdio_peer(handle)
+    } else {
+        ws_peer::get_ws_client_peer(handle, s)
+    }
+}
 
 pub struct Transfer {
     from: Box<AsyncRead>,
