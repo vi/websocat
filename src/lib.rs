@@ -23,6 +23,11 @@ fn io_other_error<E : std::error::Error + Send + Sync + 'static>(e:E) -> std::io
     std::io::Error::new(std::io::ErrorKind::Other,e)
 }
 
+#[derive(Default)]
+pub struct ProgramState {
+    stdio : stdio_peer::GlobalState,
+}
+
 pub struct Peer(Box<AsyncRead>, Box<AsyncWrite>);
 type BoxedNewPeerFuture = Box<Future<Item=Peer, Error=Box<std::error::Error>>>;
 
@@ -40,9 +45,9 @@ impl Peer {
     }
 }
 
-pub fn peer_from_str(handle: &Handle, s: &str) -> BoxedNewPeerFuture {
+pub fn peer_from_str(ps: &mut ProgramState, handle: &Handle, s: &str) -> BoxedNewPeerFuture {
     if s == "-" {
-        stdio_peer::get_stdio_peer(handle)
+        stdio_peer::get_stdio_peer(&mut ps.stdio, handle)
     } else {
         ws_peer::get_ws_client_peer(handle, s)
     }
