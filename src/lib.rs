@@ -61,11 +61,30 @@ pub fn is_stdio_peer(s: &str) -> bool {
     }
 }
 
-pub fn is_inetdws_peer(s: &str) -> bool {
-    match s {
-        "inetd-ws:" => true,
-        "ws-inetd:" => true,
-        _ => false,
+pub fn is_stdioish_peer(s: &str) -> bool {
+    if is_stdio_peer(s) {
+        true
+    } else {
+        if let Some(x) = ws_l_prefix(s) {
+            is_stdioish_peer(x)
+        } else {
+            false
+        }
+    }
+}
+
+pub fn ws_l_prefix(s:&str) -> Option<&str> {
+    if    s.starts_with("ws-l:") 
+       || s.starts_with("l-ws:")
+    {
+        Some(&s[5..])
+    }
+    else if  s.starts_with("ws-listen:")
+          || s.starts_with("listen-ws:")
+    {
+        Some(&s[10..])
+    } else {
+        None
     }
 }
 
@@ -85,16 +104,13 @@ pub fn peer_from_str(ps: &mut ProgramState, handle: &Handle, s: &str) -> BoxedNe
     if s == "threadedstdio:" {
         stdio_threaded_peer::get_stdio_peer()
     } else 
-    if s == "ws-inetd:" || s == "inetd-ws:" {
-        let inner;
-        #[cfg(all(unix,not(feature="no_unix_stdio")))]
-        {
-            inner = stdio_peer::get_stdio_peer(&mut ps.stdio, handle)
+    if let Some(x) = ws_l_prefix(s) {
+        if x == "" {
+            return Box::new(
+                futures::future::err(
+                    "Specify underlying protocol for ws-l:".into())) as BoxedNewPeerFuture;
         }
-        #[cfg(any(not(unix),feature="no_unix_stdio"))]
-        {
-            inner = stdio_threaded_peer::get_stdio_peer()
-        }
+        let inner = peer_from_str(ps, handle, x);
         Box::new(inner.and_then(ws_inetd_peer::ws_upgrade_peer)) as BoxedNewPeerFuture
     } else 
     {
