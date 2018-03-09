@@ -6,7 +6,7 @@ extern crate tokio_stdin_stdout;
 
 use tokio_core::reactor::{Core};
 use futures::future::Future;
-use websocat::{Session,peer_from_str,ProgramState};
+use websocat::{Session,peer_from_str,ProgramState,is_stdio_peer};
 
 type Result<T> = std::result::Result<T, Box<std::error::Error>>;
 
@@ -16,6 +16,12 @@ fn run() -> Result<()> {
 
     let arg1 = std::env::args().nth(1).ok_or("Usage: websocat - ws[s]://...")?;
     let arg2 = std::env::args().nth(2).ok_or("no second arg")?;
+
+    if is_stdio_peer(arg1.as_ref()) && is_stdio_peer(arg2.as_ref()) {
+        // Degenerate mode: just copy stdin to stdout and call it a day
+        ::std::io::copy(&mut ::std::io::stdin(), &mut ::std::io::stdout())?;
+        return Ok(())
+    }
 
     let mut core = Core::new()?;
     let handle = core.handle();
