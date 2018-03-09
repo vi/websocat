@@ -6,7 +6,7 @@ extern crate tokio_stdin_stdout;
 
 use tokio_core::reactor::{Core};
 use futures::future::Future;
-use websocat::{Session,peer_from_str,ProgramState,is_stdio_peer};
+use websocat::{Session,peer_from_str,ProgramState,is_stdio_peer,is_inetdws_peer};
 
 type Result<T> = std::result::Result<T, Box<std::error::Error>>;
 
@@ -21,6 +21,17 @@ fn run() -> Result<()> {
         // Degenerate mode: just copy stdin to stdout and call it a day
         ::std::io::copy(&mut ::std::io::stdin(), &mut ::std::io::stdout())?;
         return Ok(())
+    }
+    
+    {
+        let mut doom_counter = 0;
+        if is_inetdws_peer(arg1.as_ref()) { doom_counter += 1; }
+        if is_stdio_peer  (arg1.as_ref()) { doom_counter += 1; }
+        if is_inetdws_peer(arg2.as_ref()) { doom_counter += 1; }
+        if is_stdio_peer  (arg2.as_ref()) { doom_counter += 1; }
+        if doom_counter > 1 {
+            Err("Too many usages of stdin/stdout")?;
+        }
     }
 
     let mut core = Core::new()?;

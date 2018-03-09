@@ -51,18 +51,24 @@ impl Peer {
 }
 
 pub fn is_stdio_peer(s: &str) -> bool {
-    if s == "-" {
-        true
-    } else 
-    if s == "threadedstdio:" {
-        true
-    } else {
-        false
+    match s {
+        "-" => true,
+        "inetd:" => true,
+        "threadedstdio:" => true,
+        _ => false,
+    }
+}
+
+pub fn is_inetdws_peer(s: &str) -> bool {
+    match s {
+        "inetd-ws:" => true,
+        "ws-inetd:" => true,
+        _ => false,
     }
 }
 
 pub fn peer_from_str(ps: &mut ProgramState, handle: &Handle, s: &str) -> BoxedNewPeerFuture {
-    if s == "-" {
+    if s == "-" || s == "inetd:" {
         let ret;
         #[cfg(all(unix,not(feature="no_unix_stdio")))]
         {
@@ -76,7 +82,11 @@ pub fn peer_from_str(ps: &mut ProgramState, handle: &Handle, s: &str) -> BoxedNe
     } else 
     if s == "threadedstdio:" {
         stdio_threaded_peer::get_stdio_peer()
-    } else {
+    } else 
+    if s == "ws-inetd:" || s == "inetd-ws:" {
+        unimplemented!()
+    } else 
+    {
         ws_peer::get_ws_client_peer(handle, s)
     }
 }
