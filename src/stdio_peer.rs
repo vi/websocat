@@ -19,13 +19,6 @@ fn get_stdio_peer_impl(s: &mut GlobalState, handle: &Handle) -> Result<Peer> {
     let si;
     let so;
     
-    #[cfg(any(not(unix),feature="no_unix_stdio"))]
-    {
-        si = tokio_stdin_stdout::stdin(0);
-        so = tokio_stdin_stdout::stdout(0);
-    }
-    
-    #[cfg(all(unix,not(feature="no_unix_stdio")))]
     {
         if !UnixFile::raw_new(std::io::stdin()).get_nonblocking()? {
             s.need_to_restore_stdin_blocking_status = true;
@@ -71,7 +64,6 @@ impl Drop for GlobalState {
 }
 
 fn restore_blocking_status(s : &GlobalState) {
-    #[cfg(all(unix,not(feature="no_unix_stdio")))]
     {
         if s.need_to_restore_stdin_blocking_status {
             let _ = UnixFile::raw_new(std::io::stdin()).set_nonblocking(false);

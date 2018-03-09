@@ -25,6 +25,7 @@ fn io_other_error<E : std::error::Error + Send + Sync + 'static>(e:E) -> std::io
 
 #[derive(Default)]
 pub struct ProgramState {
+    #[cfg(all(unix,not(feature="no_unix_stdio")))]
     stdio : stdio_peer::GlobalState,
 }
 
@@ -34,7 +35,11 @@ type BoxedNewPeerFuture = Box<Future<Item=Peer, Error=Box<std::error::Error>>>;
 mod my_copy;
 
 pub mod ws_peer;
+
+#[cfg(all(unix,not(feature="no_unix_stdio")))]
 pub mod stdio_peer;
+
+pub mod stdio_threaded_peer;
 
 impl Peer {
     fn new<R:AsyncRead+'static, W:AsyncWrite+'static>(r:R, w:W) -> Self {
@@ -45,9 +50,32 @@ impl Peer {
     }
 }
 
+pub fn is_stdio_peer(s: &str) -> bool {
+    if s == "-" {
+        true
+    } else 
+    if s == "threadedstdio:" {
+        true
+    } else {
+        false
+    }
+}
+
 pub fn peer_from_str(ps: &mut ProgramState, handle: &Handle, s: &str) -> BoxedNewPeerFuture {
     if s == "-" {
-        stdio_peer::get_stdio_peer(&mut ps.stdio, handle)
+        let ret;
+        #[cfg(all(unix,not(feature="no_unix_stdio")))]
+        {
+            ret = stdio_peer::get_stdio_peer(&mut ps.stdio, handle)
+        }
+        #[cfg(any(not(unix),feature="no_unix_stdio"))]
+        {
+            ret = stdio_threaded_peer::get_stdio_peer()
+        }
+        ret
+    } else 
+    if s == "threadedstdio:" {
+        stdio_threaded_peer::get_stdio_peer()
     } else {
         ws_peer::get_ws_client_peer(handle, s)
     }
