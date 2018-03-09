@@ -7,6 +7,7 @@ use futures::future::Future;
 use futures::sink::Sink;
 use futures::stream::Stream;
 use self::websocket::{ClientBuilder, OwnedMessage};
+use self::websocket::stream::async::{Stream as WsStream};
 use tokio_io::{self,AsyncRead,AsyncWrite};
 use std::io::{Read,Write};
 use std::io::Result as IoResult;
@@ -18,26 +19,19 @@ use futures::Async::{Ready, NotReady};
 
 use super::{Peer, io_other_error, brokenpipe, wouldblock, BoxedNewPeerFuture};
 
-#[cfg(feature="ssl")]
-type WaitingForImplTraitFeature0 = tokio_io::codec::Framed<std::boxed::Box<websocket::async::Stream + std::marker::Send>, websocket::async::MessageCodec<websocket::OwnedMessage>>;
-#[cfg(not(feature="ssl"))]
-type WaitingForImplTraitFeature0 = tokio_io::codec::Framed<websocket::async::TcpStream, websocket::async::MessageCodec<websocket::OwnedMessage>>;
-type WaitingForImplTraitFeature2 = futures::stream::SplitSink<WaitingForImplTraitFeature0>;
-type WsSource = futures::stream::SplitStream<WaitingForImplTraitFeature0>;
-type MultiProducerWsSink = Rc<RefCell<WaitingForImplTraitFeature2>>;
+type MultiProducerWsSink<T> = Rc<RefCell<futures::stream::SplitSink<tokio_io::codec::Framed<T, websocket::async::MessageCodec<websocket::OwnedMessage>>>>>;
+type WsSource<T> = futures::stream::SplitStream<tokio_io::codec::Framed<T, websocket::async::MessageCodec<websocket::OwnedMessage>>>;
 
-
-struct WsReadWrapper {
-    s: WsSource,
-    pingreply : MultiProducerWsSink,
-    debt: Option<Vec<u8>>,
+pub struct WsReadWrapper<T:WsStream+'static> {
+    pub s: WsSource<T>,
+    pub pingreply : MultiProducerWsSink<T>,
+    pub debt: Option<Vec<u8>>,
 }
 
-impl AsyncRead for WsReadWrapper {
+impl<T:WsStream+'static>  AsyncRead for WsReadWrapper<T>
+{}
 
-}
-
-impl WsReadWrapper {
+impl<T:WsStream+'static>  WsReadWrapper<T>  {
     fn process_message(&mut self, buf: &mut [u8], buf_in: &[u8]) -> std::result::Result<usize, std::io::Error> {
         let l = buf_in.len().min(buf.len());
         buf[..l].copy_from_slice(&buf_in[..l]);
@@ -50,7 +44,8 @@ impl WsReadWrapper {
     }
 }
 
-impl Read for WsReadWrapper {
+impl<T:WsStream+'static>  Read for WsReadWrapper<T>
+{
     fn read(&mut self, buf: &mut [u8]) -> std::result::Result<usize, std::io::Error> {
         if let Some(debt) = self.debt.take() {
             return self.process_message(buf, debt.as_slice())
@@ -130,16 +125,16 @@ pub fn get_ws_client_peer(handle: &Handle, uri: &str) -> BoxedNewPeerFuture {
     ) as BoxedNewPeerFuture
 }
 
-struct WsWriteWrapper(MultiProducerWsSink);
+pub struct WsWriteWrapper<T:WsStream+'static>(pub MultiProducerWsSink<T>);
 
-impl AsyncWrite for WsWriteWrapper {
+impl<T:WsStream+'static> AsyncWrite for WsWriteWrapper<T> {
     fn shutdown(&mut self) -> futures::Poll<(),std::io::Error> {
         // TODO: check this
         Ok(Ready(()))
     }
 }
 
-impl Write for WsWriteWrapper {
+impl<T:WsStream+'static> Write for WsWriteWrapper<T> {
     fn write(&mut self, buf: &[u8]) -> IoResult<usize> {
         let om = OwnedMessage::Binary(buf.to_vec());
         match self.0.borrow_mut().start_send(om).map_err(io_other_error)? {
@@ -163,7 +158,7 @@ impl Write for WsWriteWrapper {
     }
 }
 
-impl Drop for WsWriteWrapper {
+impl<T:WsStream+'static> Drop for WsWriteWrapper<T> {
     fn drop(&mut self) {
         let mut sink = self.0.borrow_mut();
         let _ = sink.start_send(OwnedMessage::Close(None))

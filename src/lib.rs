@@ -36,6 +36,8 @@ mod my_copy;
 
 pub mod ws_peer;
 
+pub mod ws_inetd_peer;
+
 #[cfg(all(unix,not(feature="no_unix_stdio")))]
 pub mod stdio_peer;
 
@@ -84,7 +86,16 @@ pub fn peer_from_str(ps: &mut ProgramState, handle: &Handle, s: &str) -> BoxedNe
         stdio_threaded_peer::get_stdio_peer()
     } else 
     if s == "ws-inetd:" || s == "inetd-ws:" {
-        unimplemented!()
+        let inner;
+        #[cfg(all(unix,not(feature="no_unix_stdio")))]
+        {
+            inner = stdio_peer::get_stdio_peer(&mut ps.stdio, handle)
+        }
+        #[cfg(any(not(unix),feature="no_unix_stdio"))]
+        {
+            inner = stdio_threaded_peer::get_stdio_peer()
+        }
+        Box::new(inner.and_then(ws_inetd_peer::ws_upgrade_peer)) as BoxedNewPeerFuture
     } else 
     {
         ws_peer::get_ws_client_peer(handle, s)
