@@ -36,7 +36,7 @@ mod my_copy;
 
 pub mod ws_peer;
 
-pub mod ws_inetd_peer;
+pub mod ws_server_peer;
 
 #[cfg(all(unix,not(feature="no_unix_stdio")))]
 pub mod stdio_peer;
@@ -111,7 +111,7 @@ pub fn peer_from_str(ps: &mut ProgramState, handle: &Handle, s: &str) -> BoxedNe
                     "Specify underlying protocol for ws-l:".into())) as BoxedNewPeerFuture;
         }
         let inner = peer_from_str(ps, handle, x);
-        Box::new(inner.and_then(ws_inetd_peer::ws_upgrade_peer)) as BoxedNewPeerFuture
+        Box::new(inner.and_then(ws_server_peer::ws_upgrade_peer)) as BoxedNewPeerFuture
     } else 
     {
         ws_peer::get_ws_client_peer(handle, s)
