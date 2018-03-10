@@ -1,14 +1,11 @@
-#![allow(unused)]
 extern crate websocket;
 
 use std;
-use tokio_core::reactor::{Handle};
 use futures;
 use futures::future::Future;
-use futures::sink::Sink;
 use futures::stream::Stream;
-use self::websocket::{ClientBuilder, OwnedMessage, WebSocketError};
-use tokio_io::{self,AsyncRead,AsyncWrite};
+use self::websocket::{WebSocketError};
+use tokio_io::{AsyncRead,AsyncWrite};
 use std::io::{Read,Write};
 use std::io::Result as IoResult;
 
@@ -17,9 +14,7 @@ use std::cell::RefCell;
 
 use self::websocket::server::upgrade::async::IntoWs;
 
-use futures::Async::{Ready, NotReady};
-
-use super::{Peer, io_other_error, brokenpipe, wouldblock, BoxedNewPeerFuture};
+use super::{Peer, io_other_error, BoxedNewPeerFuture};
 
 struct PeerForWs(Peer);
 
@@ -49,7 +44,7 @@ pub fn ws_upgrade_peer(inner_peer : Peer) -> BoxedNewPeerFuture {
     let step1 = PeerForWs(inner_peer);
     let step2 : Box<Future<Item=self::websocket::server::upgrade::async::Upgrade<_>,Error=_>> = step1.into_ws();
     let step3 = step2
-        .map_err(|(_,_,_,e)| WebSocketError::RequestError("something wrong 1") )
+        .map_err(|(_,_,_,e)| WebSocketError::IoError(io_other_error(e)) )
         .and_then(|x| {
             x.accept().map(|(y,_)| {
                 let (sink, stream) = y.split();
