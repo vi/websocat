@@ -32,6 +32,11 @@ pub struct ProgramState {
 pub struct Peer(Box<AsyncRead>, Box<AsyncWrite>);
 type BoxedNewPeerFuture = Box<Future<Item=Peer, Error=Box<std::error::Error>>>;
 
+pub fn peer_err<E: std::error::Error + 'static>(e : E) -> BoxedNewPeerFuture {
+    Box::new(futures::future::err(Box::new(e) as Box<std::error::Error>)) as BoxedNewPeerFuture
+}
+
+
 mod my_copy;
 
 pub mod ws_peer;
