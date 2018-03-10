@@ -38,6 +38,8 @@ pub mod ws_peer;
 
 pub mod ws_server_peer;
 
+pub mod net_peer;
+
 #[cfg(all(unix,not(feature="no_unix_stdio")))]
 pub mod stdio_peer;
 
