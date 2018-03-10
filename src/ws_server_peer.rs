@@ -14,7 +14,7 @@ use std::cell::RefCell;
 
 use self::websocket::server::upgrade::async::IntoWs;
 
-use super::{Peer, io_other_error, BoxedNewPeerFuture};
+use super::{Peer, io_other_error, BoxedNewPeerFuture, box_up_err};
 
 struct PeerForWs(Peer);
 
@@ -61,7 +61,7 @@ pub fn ws_upgrade_peer(inner_peer : Peer) -> BoxedNewPeerFuture {
                 ws
             })
         });
-    let step4 = step3.map_err(|e| Box::new(e) as Box<std::error::Error>);
+    let step4 = step3.map_err(box_up_err);
     Box::new(step4) as BoxedNewPeerFuture
 }
 

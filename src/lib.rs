@@ -35,7 +35,9 @@ type BoxedNewPeerFuture = Box<Future<Item=Peer, Error=Box<std::error::Error>>>;
 pub fn peer_err<E: std::error::Error + 'static>(e : E) -> BoxedNewPeerFuture {
     Box::new(futures::future::err(Box::new(e) as Box<std::error::Error>)) as BoxedNewPeerFuture
 }
-
+pub fn box_up_err<E: std::error::Error + 'static>(e : E) -> Box<std::error::Error> {
+    Box::new(e) as Box<std::error::Error>
+}
 
 mod my_copy;
 

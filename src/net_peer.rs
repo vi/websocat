@@ -17,7 +17,7 @@ use futures::Async::{Ready, NotReady};
 
 use tokio_core::net::{TcpStream, TcpListener, UdpSocket};
 
-use super::{Peer, io_other_error, brokenpipe, wouldblock, BoxedNewPeerFuture, peer_err};
+use super::{Peer, io_other_error, brokenpipe, wouldblock, BoxedNewPeerFuture, peer_err, box_up_err};
 
 /*
 struct RcReadProxy<R:AsyncRead>(Rc<R>);
@@ -83,7 +83,7 @@ pub fn tcp_connect_peer(handle: &Handle, addr: &str) -> BoxedNewPeerFuture {
         TcpStream::connect(&parsed_addr, handle).map(|x| {
             let x = Rc::new(x);
             Peer::new(MyTcpStream(x.clone()), MyTcpStream(x.clone()))
-        }).map_err(|e|Box::new(e) as Box<std::error::Error>)
+        }).map_err(box_up_err)
     ) as BoxedNewPeerFuture
 }
 

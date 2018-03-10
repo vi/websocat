@@ -17,7 +17,7 @@ use std::cell::RefCell;
 
 use futures::Async::{Ready, NotReady};
 
-use super::{Peer, io_other_error, brokenpipe, wouldblock, BoxedNewPeerFuture};
+use super::{Peer, io_other_error, brokenpipe, wouldblock, BoxedNewPeerFuture, box_up_err, peer_err};
 
 type MultiProducerWsSink<T> = Rc<RefCell<futures::stream::SplitSink<tokio_io::codec::Framed<T, websocket::async::MessageCodec<websocket::OwnedMessage>>>>>;
 type WsSource<T> = futures::stream::SplitStream<tokio_io::codec::Framed<T, websocket::async::MessageCodec<websocket::OwnedMessage>>>;
@@ -96,7 +96,7 @@ impl<T:WsStream+'static>  Read for WsReadWrapper<T>
 pub fn get_ws_client_peer(handle: &Handle, uri: &str) -> BoxedNewPeerFuture {
     let stage1 = match ClientBuilder::new(uri) {
         Ok(x) => x,
-        Err(e) => return Box::new(futures::future::err(Box::new(e) as Box<std::error::Error>)),
+        Err(e) => return peer_err(e),
     };
     let before_connect = stage1
         .add_protocol("rust-websocket");
@@ -121,7 +121,7 @@ pub fn get_ws_client_peer(handle: &Handle, uri: &str) -> BoxedNewPeerFuture {
             let ws = Peer::new(ws_str, ws_sin);
             ws
         })
-        .map_err(|e|Box::new(e) as Box<std::error::Error>)
+        .map_err(box_up_err)
     ) as BoxedNewPeerFuture
 }
 
