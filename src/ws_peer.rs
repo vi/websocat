@@ -1,12 +1,10 @@
 extern crate websocket;
 
 use std;
-use tokio_core::reactor::{Handle};
 use futures;
-use futures::future::Future;
 use futures::sink::Sink;
 use futures::stream::Stream;
-use self::websocket::{ClientBuilder, OwnedMessage};
+use self::websocket::{OwnedMessage};
 use self::websocket::stream::async::{Stream as WsStream};
 use tokio_io::{self,AsyncRead,AsyncWrite};
 use std::io::{Read,Write};
@@ -17,7 +15,7 @@ use std::cell::RefCell;
 
 use futures::Async::{Ready, NotReady};
 
-use super::{Peer, io_other_error, brokenpipe, wouldblock, BoxedNewPeerFuture, box_up_err, peer_err};
+use super::{io_other_error, brokenpipe, wouldblock, Peer};
 
 type MultiProducerWsSink<T> = Rc<RefCell<futures::stream::SplitSink<tokio_io::codec::Framed<T, websocket::async::MessageCodec<websocket::OwnedMessage>>>>>;
 type WsSource<T> = futures::stream::SplitStream<tokio_io::codec::Framed<T, websocket::async::MessageCodec<websocket::OwnedMessage>>>;
@@ -93,38 +91,6 @@ impl<T:WsStream+'static>  Read for WsReadWrapper<T>
     }
 }
 
-pub fn get_ws_client_peer(handle: &Handle, uri: &str) -> BoxedNewPeerFuture {
-    let stage1 = match ClientBuilder::new(uri) {
-        Ok(x) => x,
-        Err(e) => return peer_err(e),
-    };
-    let before_connect = stage1
-        .add_protocol("rust-websocket");
-    #[cfg(feature="ssl")]
-    let after_connect = before_connect
-        .async_connect(None, handle);
-    #[cfg(not(feature="ssl"))]
-    let after_connect = before_connect
-        .async_connect_insecure(handle);
-    Box::new(after_connect
-        .map(|(duplex, _)| {
-            let (sink, stream) = duplex.split();
-            let mpsink = Rc::new(RefCell::new(sink));
-            
-            let ws_str = WsReadWrapper {
-                s: stream,
-                pingreply: mpsink.clone(),
-                debt: None,
-            };
-            let ws_sin = WsWriteWrapper(mpsink);
-            
-            let ws = Peer::new(ws_str, ws_sin);
-            ws
-        })
-        .map_err(box_up_err)
-    ) as BoxedNewPeerFuture
-}
-
 pub struct WsWriteWrapper<T:WsStream+'static>(pub MultiProducerWsSink<T>);
 
 impl<T:WsStream+'static> AsyncWrite for WsWriteWrapper<T> {
@@ -170,3 +136,27 @@ impl<T:WsStream+'static> Drop for WsWriteWrapper<T> {
     }
 }
 
+
+pub struct PeerForWs(pub Peer);
+
+//implicit impl websocket::stream::async::Stream for PeerForWs {}
+
+impl AsyncRead for PeerForWs{}
+impl Read for PeerForWs {
+    fn read(&mut self, buf: &mut [u8]) -> std::result::Result<usize, std::io::Error> {
+        (self.0).0.read(buf)
+    }
+}
+impl AsyncWrite for PeerForWs{
+    fn shutdown(&mut self) -> futures::Poll<(),std::io::Error> {
+        (self.0).1.shutdown()
+    }
+}
+impl Write for PeerForWs {
+    fn write(&mut self, buf: &[u8]) -> IoResult<usize> {
+        (self.0).1.write(buf)
+    }
+    fn flush(&mut self) -> IoResult<()> {
+        (self.0).1.flush()
+    }
+}

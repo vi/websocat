@@ -44,6 +44,7 @@ mod my_copy;
 pub mod ws_peer;
 
 pub mod ws_server_peer;
+pub mod ws_client_peer;
 
 pub mod net_peer;
 
@@ -144,7 +145,7 @@ pub fn peer_from_str(ps: &mut ProgramState, handle: &Handle, s: &str) -> BoxedNe
         Box::new(inner.and_then(ws_server_peer::ws_upgrade_peer)) as BoxedNewPeerFuture
     } else 
     {
-        ws_peer::get_ws_client_peer(handle, s)
+        ws_client_peer::get_ws_client_peer(handle, s)
     }
 }
 
