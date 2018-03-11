@@ -20,30 +20,31 @@ use tokio_core::net::{TcpStream, TcpListener, UdpSocket};
 use super::{Peer, io_other_error, brokenpipe, wouldblock, BoxedNewPeerFuture, peer_err, box_up_err};
 
 /*
-struct RcReadProxy<R:AsyncRead>(Rc<R>);
+struct RcReadProxy<R>(Rc<R>) where for<'a> &'a R : AsyncRead;
 
-impl<R:AsyncRead> AsyncRead for RcReadProxy<R>{}
-impl<R:AsyncRead> Read for RcReadProxy<R> {
+impl<R> AsyncRead for RcReadProxy<R> where for<'a> &'a R : AsyncRead{}
+impl<R> Read for RcReadProxy<R> where for<'a> &'a R : AsyncRead {
     fn read(&mut self, buf: &mut [u8]) -> std::result::Result<usize, std::io::Error> {
         (&*self.0).read(buf)
     }
 }
 
-struct RcWriteProxy<W:AsyncWrite>(Rc<W>);
+struct RcWriteProxy<W>(Rc<W>) where for<'a> &'a W : AsyncWrite;
 
-impl<W:AsyncWrite> AsyncWrite for RcWriteProxy<W>{
+impl<W> AsyncWrite for RcWriteProxy<W> where for<'a> &'a W : AsyncWrite {
     fn shutdown(&mut self) -> futures::Poll<(),std::io::Error> {
-        self.0.shutdown()
+        (&*self.0).shutdown()
     }
 }
-impl<W:AsyncWrite> Write for RcWriteProxy<W> {
+impl<W> Write for RcWriteProxy<W> where for<'a> &'a W : AsyncWrite {
     fn write(&mut self, buf: &[u8]) -> IoResult<usize> {
-        self.0.write(buf)
+        (&*self.0).write(buf)
     }
     fn flush(&mut self) -> IoResult<()> {
-        self.0.flush()
+        (&*self.0).flush()
     }
-}*/
+}
+*/
 
 // based on https://github.com/tokio-rs/tokio-core/blob/master/examples/proxy.rs
 #[derive(Clone)]
