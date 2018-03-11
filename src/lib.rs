@@ -119,6 +119,15 @@ pub fn peer_from_str(ps: &mut ProgramState, handle: &Handle, s: &str) -> BoxedNe
     if s.starts_with("tcp-connect:") {
         net_peer::tcp_connect_peer(handle, &s[12..])
     } else 
+    if s.starts_with("tcp-l:") {
+        net_peer::tcp_listen_peer(handle, &s[6..])
+    } else 
+    if s.starts_with("l-tcp:") {
+        net_peer::tcp_listen_peer(handle, &s[6..])
+    } else 
+    if s.starts_with("tcp-listen:") {
+        net_peer::tcp_listen_peer(handle, &s[11..])
+    } else 
     if let Some(x) = ws_l_prefix(s) {
         if x == "" {
             return Box::new(

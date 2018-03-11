@@ -88,3 +88,31 @@ pub fn tcp_connect_peer(handle: &Handle, addr: &str) -> BoxedNewPeerFuture {
     ) as BoxedNewPeerFuture
 }
 
+pub fn tcp_listen_peer(handle: &Handle, addr: &str) -> BoxedNewPeerFuture {
+    let parsed_addr = match addr.parse() {
+        Ok(x) => x,
+        Err(e) => return peer_err(e),
+    };
+    let bound = match TcpListener::bind(&parsed_addr, handle) {
+        Ok(x) => x,
+        Err(e) => return peer_err(e),
+    };
+    Box::new(
+        bound
+        .incoming()
+        .into_future()
+        .map(|(x, _)| {
+            if let Some((x, _addr)) = x {
+                let x = Rc::new(x);
+                Some(Peer::new(MyTcpStream(x.clone()), MyTcpStream(x.clone())))
+            } else {
+                None
+            }
+        })
+        .map_err(|(e,_)|box_up_err(e))
+        .and_then(|x| futures::future::result(
+            x.ok_or("Failed to accept a connection".into())) )
+    ) as BoxedNewPeerFuture
+}
+
+
