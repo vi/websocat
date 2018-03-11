@@ -113,6 +113,12 @@ pub fn peer_from_str(ps: &mut ProgramState, handle: &Handle, s: &str) -> BoxedNe
     if s == "threadedstdio:" {
         stdio_threaded_peer::get_stdio_peer()
     } else 
+    if s.starts_with("tcp:") {
+        net_peer::tcp_connect_peer(handle, &s[4..])
+    } else 
+    if s.starts_with("tcp-connect:") {
+        net_peer::tcp_connect_peer(handle, &s[12..])
+    } else 
     if let Some(x) = ws_l_prefix(s) {
         if x == "" {
             return Box::new(
