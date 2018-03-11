@@ -134,6 +134,12 @@ pub fn peer_from_str(ps: &mut ProgramState, handle: &Handle, s: &str) -> BoxedNe
                 futures::future::err(
                     "Specify underlying protocol for ws-l:".into())) as BoxedNewPeerFuture;
         }
+        if let Some(c) = x.chars().next() {
+            if c.is_numeric() || c == '[' {
+                // Assuming user uses old format like ws-l:127.0.0.1:8080
+                return peer_from_str(ps, handle, &("ws-l:tcp-l:".to_owned() + x));
+            }
+        }
         let inner = peer_from_str(ps, handle, x);
         Box::new(inner.and_then(ws_server_peer::ws_upgrade_peer)) as BoxedNewPeerFuture
     } else 
