@@ -77,6 +77,9 @@ pub fn is_stdioish_peer(s: &str) -> bool {
     } else {
         if let Some(x) = ws_l_prefix(s) {
             is_stdioish_peer(x)
+        } else
+        if let Some(x) = ws_c_prefix(s) {
+            is_stdioish_peer(x)
         } else {
             false
         }
@@ -97,6 +100,22 @@ pub fn ws_l_prefix(s:&str) -> Option<&str> {
         None
     }
 }
+
+pub fn ws_c_prefix(s:&str) -> Option<&str> {
+    if    s.starts_with("ws-c:") 
+       || s.starts_with("c-ws:")
+    {
+        Some(&s[5..])
+    }
+    else if  s.starts_with("ws-connect:")
+          || s.starts_with("connect-ws:")
+    {
+        Some(&s[11..])
+    } else {
+        None
+    }
+}
+
 
 pub fn peer_from_str(ps: &mut ProgramState, handle: &Handle, s: &str) -> BoxedNewPeerFuture {
     if s == "-" || s == "inetd:" {
@@ -143,6 +162,12 @@ pub fn peer_from_str(ps: &mut ProgramState, handle: &Handle, s: &str) -> BoxedNe
         }
         let inner = peer_from_str(ps, handle, x);
         Box::new(inner.and_then(ws_server_peer::ws_upgrade_peer)) as BoxedNewPeerFuture
+    } else 
+    if let Some(x) = ws_c_prefix(s) {
+        let inner = peer_from_str(ps, handle, x);
+        Box::new(inner.and_then(|q| {
+            ws_client_peer::get_ws_client_peer_wrapped("ws://0.0.0.0/", q)
+        })) as BoxedNewPeerFuture
     } else 
     {
         ws_client_peer::get_ws_client_peer(handle, s)
