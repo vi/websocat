@@ -1,3 +1,5 @@
+//! Note: library usage is not semver/API-stable
+
 extern crate futures;
 extern crate tokio_core;
 #[macro_use]
@@ -30,10 +32,20 @@ pub struct ProgramState {
 }
 
 pub struct Peer(Box<AsyncRead>, Box<AsyncWrite>);
-type BoxedNewPeerFuture = Box<Future<Item=Peer, Error=Box<std::error::Error>>>;
+
+pub type BoxedNewPeerFuture = Box<Future<Item=Peer, Error=Box<std::error::Error>>>;
+pub type BoxedNewPeerStream = Box<Stream<Item=Peer, Error=Box<std::error::Error>>>;
+
+pub fn fut2str<T:'static,E:'static> (f : Box<Future<Item=T, Error=E>>) -> Box<Stream<Item=T, Error=E>> {
+    Box::new(futures::stream::futures_ordered(vec![f])) as Box<Stream<Item=T, Error=E>>
+}
 
 pub fn peer_err<E: std::error::Error + 'static>(e : E) -> BoxedNewPeerFuture {
     Box::new(futures::future::err(Box::new(e) as Box<std::error::Error>)) as BoxedNewPeerFuture
+}
+pub fn peer_strerr(e : &str) -> BoxedNewPeerFuture {
+    let q : Box<std::error::Error> = From::from(e);
+    Box::new(futures::future::err(q)) as BoxedNewPeerFuture
 }
 pub fn box_up_err<E: std::error::Error + 'static>(e : E) -> Box<std::error::Error> {
     Box::new(e) as Box<std::error::Error>
@@ -117,7 +129,7 @@ pub fn ws_c_prefix(s:&str) -> Option<&str> {
 }
 
 
-pub fn peer_from_str(ps: &mut ProgramState, handle: &Handle, s: &str) -> BoxedNewPeerFuture {
+pub fn peer_from_str(ps: &mut ProgramState, handle: &Handle, s: &str) -> BoxedNewPeerStream {
     if s == "-" || s == "inetd:" {
         let ret;
         #[cfg(all(unix,not(feature="no_unix_stdio")))]
@@ -128,31 +140,29 @@ pub fn peer_from_str(ps: &mut ProgramState, handle: &Handle, s: &str) -> BoxedNe
         {
             ret = stdio_threaded_peer::get_stdio_peer()
         }
-        ret
+        fut2str(ret)
     } else 
     if s == "threadedstdio:" {
-        stdio_threaded_peer::get_stdio_peer()
+        fut2str(stdio_threaded_peer::get_stdio_peer())
     } else 
     if s.starts_with("tcp:") {
-        net_peer::tcp_connect_peer(handle, &s[4..])
+        fut2str(net_peer::tcp_connect_peer(handle, &s[4..]))
     } else 
     if s.starts_with("tcp-connect:") {
-        net_peer::tcp_connect_peer(handle, &s[12..])
+        fut2str(net_peer::tcp_connect_peer(handle, &s[12..]))
     } else 
     if s.starts_with("tcp-l:") {
-        net_peer::tcp_listen_peer(handle, &s[6..])
+        fut2str(net_peer::tcp_listen_peer(handle, &s[6..]))
     } else 
     if s.starts_with("l-tcp:") {
-        net_peer::tcp_listen_peer(handle, &s[6..])
+        fut2str(net_peer::tcp_listen_peer(handle, &s[6..]))
     } else 
     if s.starts_with("tcp-listen:") {
-        net_peer::tcp_listen_peer(handle, &s[11..])
+        fut2str(net_peer::tcp_listen_peer(handle, &s[11..]))
     } else 
     if let Some(x) = ws_l_prefix(s) {
         if x == "" {
-            return Box::new(
-                futures::future::err(
-                    "Specify underlying protocol for ws-l:".into())) as BoxedNewPeerFuture;
+            return fut2str(peer_strerr("Specify underlying protocol for ws-l:"))
         }
         if let Some(c) = x.chars().next() {
             if c.is_numeric() || c == '[' {
@@ -161,16 +171,16 @@ pub fn peer_from_str(ps: &mut ProgramState, handle: &Handle, s: &str) -> BoxedNe
             }
         }
         let inner = peer_from_str(ps, handle, x);
-        Box::new(inner.and_then(ws_server_peer::ws_upgrade_peer)) as BoxedNewPeerFuture
+        Box::new(inner.and_then(ws_server_peer::ws_upgrade_peer)) as BoxedNewPeerStream
     } else 
     if let Some(x) = ws_c_prefix(s) {
         let inner = peer_from_str(ps, handle, x);
         Box::new(inner.and_then(|q| {
             ws_client_peer::get_ws_client_peer_wrapped("ws://0.0.0.0/", q)
-        })) as BoxedNewPeerFuture
+        })) as BoxedNewPeerStream
     } else 
     {
-        ws_client_peer::get_ws_client_peer(handle, s)
+        fut2str(ws_client_peer::get_ws_client_peer(handle, s))
     }
 }
 
