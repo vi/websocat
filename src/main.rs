@@ -32,23 +32,41 @@ fn run() -> Result<()> {
 
     let h1 = core.handle();
     let h2 = core.handle();
+    
+    use websocat::PeerConstructor::{ServeMultipleTimes, ServeOnce};
 
-    let runner = peer_from_str(&mut ps, &h1, arg1.as_ref())
-    .for_each(|peer1| {
-        let h2 = h2.clone();
-        let h3 = h2.clone();
-        peer_from_str(&mut ps, &h2, arg2.as_ref())
-        .into_future()
-        .and_then(move |(std_peer,_)| {
-            let peer2 = std_peer.expect("At least one value shoule be produced from each newpeergetter");
-            let s = Session::new(peer1,peer2);
-            
-            s.run(&h3)
-                .map(|_|())
-                .map_err(|_|unreachable!())
-        })
-        .map_err(|(e,_)|e)
-    });
+    let left = peer_from_str(&mut ps, &h1, arg1.as_ref());
+    let runner = match left {
+        ServeMultipleTimes(stream) => {
+            stream
+            .for_each(|peer1| {
+                let h2 = h2.clone();
+                let h3 = h2.clone();
+                let right = peer_from_str(&mut ps, &h2, arg2.as_ref());
+                match right {
+                    ServeMultipleTimes(stre) => {
+                        stre
+                        .into_future()
+                        .and_then(move |(std_peer,_)| {
+                            let peer2 = std_peer.expect("At least one value shoule be produced from each newpeergetter");
+                            let s = Session::new(peer1,peer2);
+                            
+                            s.run(&h3)
+                                .map(|_|())
+                                .map_err(|_|unreachable!())
+                        })
+                        .map_err(|(e,_)|e)
+                    },
+                    ServeOnce(_future) => {
+                        unimplemented!()
+                    },
+                }
+            })
+        },
+        ServeOnce(_future) => {
+            unimplemented!()
+        },
+    };
 
     core.run(runner)?;
     Ok(())
