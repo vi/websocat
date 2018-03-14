@@ -39,19 +39,19 @@ fn run() -> Result<()> {
     match left {
         ServeMultipleTimes(stream) => {
             let runner = stream
-            .for_each(|peer1| {
-                let h3 = h2.clone();
-                let right = peer_from_str(&mut ps, &h2, arg2.as_ref());
-                let fut = right.get_only_first_conn();
-                fut.map(move |peer2| {
-                    let s = Session::new(peer1,peer2);
-                    h3.spawn(
-                        s.run().map_err(|e| {
-                            eprintln!("websocat: {}", e);
-                        })
-                    );
-                })
-            });
+            .map(|peer1| {
+                h2.spawn(
+                    peer_from_str(&mut ps, &h2, arg2.as_ref())
+                    .get_only_first_conn()
+                    .and_then(move |peer2| {
+                        let s = Session::new(peer1,peer2);
+                        s.run()
+                    })
+                    .map_err(|e| {
+                        eprintln!("websocat: {}", e);
+                    })
+                )
+            }).for_each(|()|futures::future::ok(()));
             core.run(runner)?;
         },
         ServeOnce(peer1c) => {
