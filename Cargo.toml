@@ -22,12 +22,13 @@ tokio-stdin-stdout = "0.1"
 
 [target.'cfg(unix)'.dependencies]
 tokio-file-unix = "^0.4.2"
-tokio-signal = "0.1"
+tokio-signal = { version = "0.1", optional = true }
 
 [features]
-default = []
+default = ["signal_handler"]
 no_unix_stdio = []
 ssl = ["websocket/async-ssl"]
+signal_handler = ["tokio-signal"]
 
 [profile.release]
 opt-level = 3

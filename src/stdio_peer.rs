@@ -1,7 +1,7 @@
 extern crate tokio_stdin_stdout;
 #[cfg(unix)]
 extern crate tokio_file_unix;
-#[cfg(unix)]
+#[cfg(all(unix,feature="signal_handler"))]
 extern crate tokio_signal;
 
 use std;
@@ -35,14 +35,17 @@ fn get_stdio_peer_impl(s: &mut GlobalState, handle: &Handle) -> Result<Peer> {
         
         let s_clone = s.clone();
         
-        let ctrl_c = tokio_signal::ctrl_c(&handle).flatten_stream();
-        let prog = ctrl_c.for_each(move |()| {
-            restore_blocking_status(&s_clone);
-            ::std::process::exit(0);
-            #[allow(unreachable_code)]
-            Ok(())
-        });
-        handle.spawn(prog.map_err(|_|()));
+        #[cfg(all(unix,feature="signal_handler"))]
+        {
+            let ctrl_c = tokio_signal::ctrl_c(&handle).flatten_stream();
+            let prog = ctrl_c.for_each(move |()| {
+                restore_blocking_status(&s_clone);
+                ::std::process::exit(0);
+                #[allow(unreachable_code)]
+                Ok(())
+            });
+            handle.spawn(prog.map_err(|_|()));
+        }
     }
     Ok(Peer::new(si,so))
 }
