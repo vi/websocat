@@ -15,7 +15,17 @@ type Result<T> = std::result::Result<T, Box<std::error::Error>>;
 fn run() -> Result<()> {
     let mut ps : ProgramState = Default::default();
 
-    let arg1 = std::env::args().nth(1).ok_or("Usage: websocat - ws[s]://...")?;
+    let arg1 = std::env::args().nth(1).ok_or(
+        "Usage: websocat - ws[s]://...
+Some examples:
+    websocat - -
+    websocat ws-l:tcp-l:127.0.0.1:8080 tcp:127.0.0.1:5678
+    websocat - ws-c:tcp:127.0.0.1:8080
+Wacky mode:
+    websocat ws-l:ws-l:ws-c:- tcp:127.0.0.1:5678
+    (Excercise to the reader: manage to actually connect to it).
+"
+    )?;
     let arg2 = std::env::args().nth(2).ok_or("no second arg")?;
 
     if is_stdio_peer(arg1.as_ref()) && is_stdio_peer(arg2.as_ref()) {
