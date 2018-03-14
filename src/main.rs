@@ -36,39 +36,38 @@ fn run() -> Result<()> {
     use websocat::PeerConstructor::{ServeMultipleTimes, ServeOnce};
 
     let left = peer_from_str(&mut ps, &h1, arg1.as_ref());
-    let runner = match left {
+    match left {
         ServeMultipleTimes(stream) => {
-            stream
+            let runner = stream
             .for_each(|peer1| {
-                let h2 = h2.clone();
                 let h3 = h2.clone();
                 let right = peer_from_str(&mut ps, &h2, arg2.as_ref());
-                match right {
-                    ServeMultipleTimes(stre) => {
-                        stre
-                        .into_future()
-                        .and_then(move |(std_peer,_)| {
-                            let peer2 = std_peer.expect("At least one value shoule be produced from each newpeergetter");
-                            let s = Session::new(peer1,peer2);
-                            
-                            s.run(&h3)
-                                .map(|_|())
-                                .map_err(|_|unreachable!())
+                let fut = right.get_only_first_conn();
+                fut.map(move |peer2| {
+                    let s = Session::new(peer1,peer2);
+                    h3.spawn(
+                        s.run().map_err(|e| {
+                            eprintln!("websocat: {}", e);
                         })
-                        .map_err(|(e,_)|e)
-                    },
-                    ServeOnce(_future) => {
-                        unimplemented!()
-                    },
-                }
-            })
+                    );
+                })
+            });
+            core.run(runner)?;
         },
-        ServeOnce(_future) => {
-            unimplemented!()
+        ServeOnce(peer1c) => {
+            let runner = peer1c
+            .and_then(|peer1| {
+                let right = peer_from_str(&mut ps, &h2, arg2.as_ref());
+                let fut = right.get_only_first_conn();
+                fut.and_then(move |peer2| {
+                    let s = Session::new(peer1,peer2);
+                    s.run()
+                })
+            });
+            core.run(runner)?;
         },
     };
 
-    core.run(runner)?;
     Ok(())
 }
 

@@ -7,7 +7,6 @@ extern crate tokio_io;
 
 use tokio_core::reactor::{Handle};
 use futures::future::Future;
-use futures::sync::mpsc;
 use tokio_io::{AsyncRead,AsyncWrite};
 
 use futures::Stream;
@@ -42,10 +41,38 @@ pub enum PeerConstructor {
 }
 
 impl PeerConstructor {
-    fn map<F>(self, f : F) -> Self
-            where F:FnOnce(Peer) -> BoxedNewPeerFuture
+    pub fn map<F:'static>(self, f : F) -> Self
+            where F:FnMut(Peer) -> BoxedNewPeerFuture
     {
-        unimplemented!()
+        use PeerConstructor::*;
+        match self {
+            ServeOnce(x) => ServeOnce(Box::new(x.and_then(f)) as BoxedNewPeerFuture),
+            ServeMultipleTimes(s) => ServeMultipleTimes(
+                Box::new(
+                    s.and_then(f)
+                ) as BoxedNewPeerStream
+            )
+        }
+    }
+    
+    pub fn get_only_first_conn(self) -> BoxedNewPeerFuture {
+        use PeerConstructor::*;
+        match self {
+            ServeMultipleTimes(stre) => {
+                Box::new(
+                    stre
+                    .into_future()
+                    .map(move |(std_peer,_)| {
+                        let peer2 = std_peer.expect("Nowhere to connect it");
+                        peer2
+                    })
+                    .map_err(|(e,_)|e)
+                ) as BoxedNewPeerFuture
+            },
+            ServeOnce(future) => {
+                future
+            },
+        }
     }
 }
 
@@ -204,29 +231,16 @@ pub struct Transfer {
 }
 pub struct Session(Transfer,Transfer);
 
-type WaitingForImplTraitFeature3 = futures::stream::StreamFuture<futures::sync::mpsc::Receiver<()>>;
 
 impl Session {
-    pub fn run(self, handle: &Handle) -> WaitingForImplTraitFeature3 {
-        let (notif1,rcv) = mpsc::channel::<()>(0);
-        let notif2 = notif1.clone();
-        handle.spawn(
-            my_copy::copy(self.0.from, self.0.to, true)
-                .map_err(|_|())
-                .map(move |_|{
-                    std::mem::drop(notif1);
-                    ()
-                })
-        );
-        handle.spawn(
-            my_copy::copy(self.1.from, self.1.to, true)
-                .map_err(|_|())
-                .map(move |_|{
-                    std::mem::drop(notif2);
-                    ()
-                })
-        );
-        rcv.into_future()
+    pub fn run(self) -> Box<Future<Item=(),Error=Box<std::error::Error>>> {
+        let f1 = my_copy::copy(self.0.from, self.0.to, true);
+        let f2 = my_copy::copy(self.1.from, self.1.to, true);
+        Box::new(
+            f1.join(f2)
+            .map(|(_,_)|())
+            .map_err(|x|  Box::new(x) as Box<std::error::Error> )
+        ) as Box<Future<Item=(),Error=Box<std::error::Error>>>
     }
     pub fn new(peer1: Peer, peer2: Peer) -> Self {
         Session (
