@@ -17,7 +17,7 @@ use futures::Async::{Ready, NotReady};
 
 use tokio_core::net::{TcpStream, TcpListener, UdpSocket};
 
-use super::{Peer, io_other_error, brokenpipe, wouldblock, BoxedNewPeerFuture, peer_err, box_up_err};
+use super::{Peer, io_other_error, brokenpipe, wouldblock, BoxedNewPeerFuture, BoxedNewPeerStream, peer_err, peer_err_s, box_up_err};
 
 /*
 struct RcReadProxy<R>(Rc<R>) where for<'a> &'a R : AsyncRead;
@@ -88,31 +88,24 @@ pub fn tcp_connect_peer(handle: &Handle, addr: &str) -> BoxedNewPeerFuture {
     ) as BoxedNewPeerFuture
 }
 
-pub fn tcp_listen_peer(handle: &Handle, addr: &str) -> BoxedNewPeerFuture {
+pub fn tcp_listen_peer(handle: &Handle, addr: &str) -> BoxedNewPeerStream {
     let parsed_addr = match addr.parse() {
         Ok(x) => x,
-        Err(e) => return peer_err(e),
+        Err(e) => return peer_err_s(e),
     };
     let bound = match TcpListener::bind(&parsed_addr, handle) {
         Ok(x) => x,
-        Err(e) => return peer_err(e),
+        Err(e) => return peer_err_s(e),
     };
     Box::new(
         bound
         .incoming()
-        .into_future()
-        .map(|(x, _)| {
-            if let Some((x, _addr)) = x {
-                let x = Rc::new(x);
-                Some(Peer::new(MyTcpStream(x.clone()), MyTcpStream(x.clone())))
-            } else {
-                None
-            }
+        .map(|(x, _addr)| {
+            let x = Rc::new(x);
+            Peer::new(MyTcpStream(x.clone()), MyTcpStream(x.clone()))
         })
-        .map_err(|(e,_)|box_up_err(e))
-        .and_then(|x| futures::future::result(
-            x.ok_or("Failed to accept a connection".into())) )
-    ) as BoxedNewPeerFuture
+        .map_err(|e|box_up_err(e))
+    ) as BoxedNewPeerStream
 }
 
 

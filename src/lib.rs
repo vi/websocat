@@ -79,9 +79,17 @@ impl PeerConstructor {
 pub fn once(x:BoxedNewPeerFuture) -> PeerConstructor {
     PeerConstructor::ServeOnce(x)
 }
+pub fn multi(x:BoxedNewPeerStream) -> PeerConstructor {
+    PeerConstructor::ServeMultipleTimes(x)
+}
 
 pub fn peer_err<E: std::error::Error + 'static>(e : E) -> BoxedNewPeerFuture {
     Box::new(futures::future::err(Box::new(e) as Box<std::error::Error>)) as BoxedNewPeerFuture
+}
+pub fn peer_err_s<E: std::error::Error + 'static>(e : E) -> BoxedNewPeerStream {
+    Box::new(
+        futures::stream::iter_result(vec![Err(Box::new(e) as Box<std::error::Error>)])
+    ) as BoxedNewPeerStream
 }
 pub fn peer_strerr(e : &str) -> BoxedNewPeerFuture {
     let q : Box<std::error::Error> = From::from(e);
@@ -192,13 +200,13 @@ pub fn peer_from_str(ps: &mut ProgramState, handle: &Handle, s: &str) -> PeerCon
         once(net_peer::tcp_connect_peer(handle, &s[12..]))
     } else 
     if s.starts_with("tcp-l:") {
-        once(net_peer::tcp_listen_peer(handle, &s[6..]))
+        multi(net_peer::tcp_listen_peer(handle, &s[6..]))
     } else 
     if s.starts_with("l-tcp:") {
-        once(net_peer::tcp_listen_peer(handle, &s[6..]))
+        multi(net_peer::tcp_listen_peer(handle, &s[6..]))
     } else 
     if s.starts_with("tcp-listen:") {
-        once(net_peer::tcp_listen_peer(handle, &s[11..]))
+        multi(net_peer::tcp_listen_peer(handle, &s[11..]))
     } else 
     if let Some(x) = ws_l_prefix(s) {
         if x == "" {
