@@ -9,17 +9,16 @@ use self::websocket::stream::async::{Stream as WsStream};
 use std::rc::Rc;
 use std::cell::RefCell;
 
-use super::{Peer, BoxedNewPeerFuture, box_up_err, peer_err};
+use self::websocket::client::Url;
+
+use super::{Peer, BoxedNewPeerFuture, box_up_err};
 
 use super::ws_peer::{WsReadWrapper, WsWriteWrapper, PeerForWs};
 
-fn get_ws_client_peer_impl<S,F>(uri: &str, f: F) -> BoxedNewPeerFuture 
+fn get_ws_client_peer_impl<S,F>(uri: &Url, f: F) -> BoxedNewPeerFuture 
     where S:WsStream+Send+'static, F : FnOnce(ClientBuilder)->ClientNew<S>
 {
-    let stage1 = match ClientBuilder::new(uri) {
-        Ok(x) => x,
-        Err(e) => return peer_err(e),
-    };
+    let stage1 = ClientBuilder::from_url(uri);
     let before_connect = stage1
         .add_protocol("rust-websocket");
     let after_connect = f(before_connect);
@@ -42,7 +41,7 @@ fn get_ws_client_peer_impl<S,F>(uri: &str, f: F) -> BoxedNewPeerFuture
     ) as BoxedNewPeerFuture
 }
 
-pub fn get_ws_client_peer(handle: &Handle, uri: &str) -> BoxedNewPeerFuture {
+pub fn get_ws_client_peer(handle: &Handle, uri: &Url) -> BoxedNewPeerFuture {
     get_ws_client_peer_impl(uri, |before_connect| {
         #[cfg(feature="ssl")]
         let after_connect = before_connect
@@ -58,7 +57,7 @@ unsafe impl Send for PeerForWs {
     //! https://github.com/cyderize/rust-websocket/issues/168
 }
 
-pub fn get_ws_client_peer_wrapped(uri: &str, inner: Peer) -> BoxedNewPeerFuture {
+pub fn get_ws_client_peer_wrapped(uri: &Url, inner: Peer) -> BoxedNewPeerFuture {
     get_ws_client_peer_impl(uri, |before_connect| {
         let after_connect = before_connect
             .async_connect_on(PeerForWs(inner));

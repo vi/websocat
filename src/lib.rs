@@ -4,12 +4,15 @@ extern crate futures;
 extern crate tokio_core;
 #[macro_use]
 extern crate tokio_io;
+extern crate websocket;
 
 use tokio_core::reactor::{Handle};
 use futures::future::Future;
 use tokio_io::{AsyncRead,AsyncWrite};
 
 use futures::Stream;
+
+use websocket::client::Url;
 
 
 type Result<T> = std::result::Result<T, Box<std::error::Error>>;
@@ -34,6 +37,73 @@ pub struct Peer(Box<AsyncRead>, Box<AsyncWrite>);
 
 pub type BoxedNewPeerFuture = Box<Future<Item=Peer, Error=Box<std::error::Error>>>;
 pub type BoxedNewPeerStream = Box<Stream<Item=Peer, Error=Box<std::error::Error>>>;
+
+pub trait Specifier {
+    fn construct(&self, h:&Handle, ps: &mut ProgramState) -> PeerConstructor;
+    fn is_stdio() -> bool { false }
+    fn is_stdioish(&self) -> bool { false }
+}
+
+pub struct Stdio;
+impl Specifier for Stdio {
+    fn construct(&self, h:&Handle, ps: &mut ProgramState) -> PeerConstructor {
+        let ret;
+        #[cfg(all(unix,not(feature="no_unix_stdio")))]
+        {
+            ret = stdio_peer::get_stdio_peer(&mut ps.stdio, h)
+        }
+        #[cfg(any(not(unix),feature="no_unix_stdio"))]
+        {
+            ret = stdio_threaded_peer::get_stdio_peer()
+        }
+        once(ret)
+    }
+    fn is_stdio() -> bool { true }
+    fn is_stdioish(&self) -> bool { true }
+}
+
+pub struct ThreadedStdio;
+impl Specifier for ThreadedStdio {
+    fn construct(&self, _:&Handle, _: &mut ProgramState) -> PeerConstructor {
+        let ret;
+        ret = stdio_threaded_peer::get_stdio_peer();
+        once(ret)
+    }
+    fn is_stdio() -> bool { true }
+    fn is_stdioish(&self) -> bool { true }
+}
+
+
+pub struct WsConnect<T:Specifier>(Url,T);
+impl<T:Specifier> Specifier for WsConnect<T> {
+    fn construct(&self, h:&Handle, ps: &mut ProgramState) -> PeerConstructor {
+        let inner = self.1.construct(h, ps);
+        
+        let url = self.0.clone();
+        
+        inner.map(move |q| {
+            ws_client_peer::get_ws_client_peer_wrapped(&url, q)
+        })
+    }
+    fn is_stdioish(&self) -> bool { self.1.is_stdioish() }
+}
+
+pub struct WsUpgrade<T:Specifier>(T);
+impl<T:Specifier> Specifier for WsUpgrade<T> {
+    fn construct(&self, h:&Handle, ps: &mut ProgramState) -> PeerConstructor {
+        let inner = self.0.construct(h, ps);
+        inner.map(ws_server_peer::ws_upgrade_peer)
+    }
+    fn is_stdioish(&self) -> bool { self.0.is_stdioish() }
+}
+
+pub struct WsClient(Url);
+impl Specifier for WsClient {
+    fn construct(&self, h:&Handle, _: &mut ProgramState) -> PeerConstructor {
+        let url = self.0.clone();
+        once(ws_client_peer::get_ws_client_peer(h, &url))
+    }
+}
 
 pub enum PeerConstructor {
     ServeOnce(BoxedNewPeerFuture),
@@ -225,11 +295,16 @@ pub fn peer_from_str(ps: &mut ProgramState, handle: &Handle, s: &str) -> PeerCon
         let inner = peer_from_str(ps, handle, x);
         
         inner.map(|q| {
-            ws_client_peer::get_ws_client_peer_wrapped("ws://0.0.0.0/", q)
+            ws_client_peer::get_ws_client_peer_wrapped(
+                &Url::parse("ws://0.0.0.0/").unwrap(), q)
         })
     } else 
     {
-        once(ws_client_peer::get_ws_client_peer(handle, s))
+        let url : Url = match s.parse() {
+            Ok(x) => x,
+            Err(e) => return once(peer_err(e)),
+        };
+        once(ws_client_peer::get_ws_client_peer(handle, &url))
     }
 }
 
