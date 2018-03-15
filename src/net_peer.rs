@@ -9,6 +9,7 @@ use futures::stream::Stream;
 use tokio_io::{self,AsyncRead,AsyncWrite};
 use std::io::{Read,Write};
 use std::io::Result as IoResult;
+use std::net::SocketAddr;
 
 use std::rc::Rc;
 use std::cell::RefCell;
@@ -75,25 +76,17 @@ impl AsyncWrite for MyTcpStream {
     }
 }
 
-pub fn tcp_connect_peer(handle: &Handle, addr: &str) -> BoxedNewPeerFuture {
-    let parsed_addr = match addr.parse() {
-        Ok(x) => x,
-        Err(e) => return peer_err(e),
-    };
+pub fn tcp_connect_peer(handle: &Handle, addr: &SocketAddr) -> BoxedNewPeerFuture {
     Box::new(
-        TcpStream::connect(&parsed_addr, handle).map(|x| {
+        TcpStream::connect(&addr, handle).map(|x| {
             let x = Rc::new(x);
             Peer::new(MyTcpStream(x.clone()), MyTcpStream(x.clone()))
         }).map_err(box_up_err)
     ) as BoxedNewPeerFuture
 }
 
-pub fn tcp_listen_peer(handle: &Handle, addr: &str) -> BoxedNewPeerStream {
-    let parsed_addr = match addr.parse() {
-        Ok(x) => x,
-        Err(e) => return peer_err_s(e),
-    };
-    let bound = match TcpListener::bind(&parsed_addr, handle) {
+pub fn tcp_listen_peer(handle: &Handle, addr: &SocketAddr) -> BoxedNewPeerStream {
+    let bound = match TcpListener::bind(&addr, handle) {
         Ok(x) => x,
         Err(e) => return peer_err_s(e),
     };

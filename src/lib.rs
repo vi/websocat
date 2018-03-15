@@ -13,6 +13,7 @@ use tokio_io::{AsyncRead,AsyncWrite};
 use futures::Stream;
 
 use websocket::client::Url;
+use std::net::SocketAddr;
 
 
 type Result<T> = std::result::Result<T, Box<std::error::Error>>;
@@ -40,8 +41,16 @@ pub type BoxedNewPeerStream = Box<Stream<Item=Peer, Error=Box<std::error::Error>
 
 pub trait Specifier {
     fn construct(&self, h:&Handle, ps: &mut ProgramState) -> PeerConstructor;
-    fn is_stdio() -> bool { false }
+    fn is_stdio(&self) -> bool { false }
     fn is_stdioish(&self) -> bool { false }
+}
+
+impl Specifier for Box<Specifier> {
+    fn construct(&self, h:&Handle, ps: &mut ProgramState) -> PeerConstructor {
+        (**self).construct(h, ps)
+    }
+    fn is_stdio(&self) -> bool { (**self).is_stdio() }
+    fn is_stdioish(&self) -> bool { (**self).is_stdioish() }
 }
 
 pub struct Stdio;
@@ -58,7 +67,7 @@ impl Specifier for Stdio {
         }
         once(ret)
     }
-    fn is_stdio() -> bool { true }
+    fn is_stdio(&self) -> bool { true }
     fn is_stdioish(&self) -> bool { true }
 }
 
@@ -69,7 +78,7 @@ impl Specifier for ThreadedStdio {
         ret = stdio_threaded_peer::get_stdio_peer();
         once(ret)
     }
-    fn is_stdio() -> bool { true }
+    fn is_stdio(&self) -> bool { true }
     fn is_stdioish(&self) -> bool { true }
 }
 
@@ -102,6 +111,20 @@ impl Specifier for WsClient {
     fn construct(&self, h:&Handle, _: &mut ProgramState) -> PeerConstructor {
         let url = self.0.clone();
         once(ws_client_peer::get_ws_client_peer(h, &url))
+    }
+}
+
+pub struct TcpConnect(SocketAddr);
+impl Specifier for TcpConnect {
+    fn construct(&self, h:&Handle, _: &mut ProgramState) -> PeerConstructor {
+        once(net_peer::tcp_connect_peer(h, &self.0))
+    }
+}
+
+pub struct TcpListen(SocketAddr);
+impl Specifier for TcpListen {
+    fn construct(&self, h:&Handle, _: &mut ProgramState) -> PeerConstructor {
+        multi(net_peer::tcp_listen_peer(h, &self.0))
     }
 }
 
@@ -246,66 +269,59 @@ pub fn ws_c_prefix(s:&str) -> Option<&str> {
     }
 }
 
+fn boxup<T:Specifier+'static>(x:T) -> Result<Box<Specifier>> {
+    Ok(Box::new(x))
+}
 
-pub fn peer_from_str(ps: &mut ProgramState, handle: &Handle, s: &str) -> PeerConstructor {
+pub fn peer_from_str_impl(s: &str) -> Result<Box<Specifier>> {
     if s == "-" || s == "inetd:" {
-        let ret;
-        #[cfg(all(unix,not(feature="no_unix_stdio")))]
-        {
-            ret = stdio_peer::get_stdio_peer(&mut ps.stdio, handle)
-        }
-        #[cfg(any(not(unix),feature="no_unix_stdio"))]
-        {
-            ret = stdio_threaded_peer::get_stdio_peer()
-        }
-        once(ret)
+        boxup(Stdio)
     } else 
     if s == "threadedstdio:" {
-        once(stdio_threaded_peer::get_stdio_peer())
+        boxup(ThreadedStdio)
     } else 
     if s.starts_with("tcp:") {
-        once(net_peer::tcp_connect_peer(handle, &s[4..]))
+        boxup(TcpConnect(s[4..].parse()?))
     } else 
     if s.starts_with("tcp-connect:") {
-        once(net_peer::tcp_connect_peer(handle, &s[12..]))
+        boxup(TcpConnect(s[12..].parse()?))
     } else 
     if s.starts_with("tcp-l:") {
-        multi(net_peer::tcp_listen_peer(handle, &s[6..]))
+        boxup(TcpListen(s[6..].parse()?))
     } else 
     if s.starts_with("l-tcp:") {
-        multi(net_peer::tcp_listen_peer(handle, &s[6..]))
+        boxup(TcpListen(s[6..].parse()?))
     } else 
     if s.starts_with("tcp-listen:") {
-        multi(net_peer::tcp_listen_peer(handle, &s[11..]))
-    } else 
+        boxup(TcpListen(s[11..].parse()?))
+    } else
     if let Some(x) = ws_l_prefix(s) {
         if x == "" {
-            return once(peer_strerr("Specify underlying protocol for ws-l:"))
+            Err("Specify underlying protocol for ws-l:")?;
         }
         if let Some(c) = x.chars().next() {
             if c.is_numeric() || c == '[' {
                 // Assuming user uses old format like ws-l:127.0.0.1:8080
-                return peer_from_str(ps, handle, &("ws-l:tcp-l:".to_owned() + x));
+                return peer_from_str_impl(&("ws-l:tcp-l:".to_owned() + x));
             }
         }
-        let inner = peer_from_str(ps, handle, x);
-        inner.map(ws_server_peer::ws_upgrade_peer)
+        boxup(WsUpgrade(peer_from_str_impl(x)?))
     } else 
     if let Some(x) = ws_c_prefix(s) {
-        let inner = peer_from_str(ps, handle, x);
-        
-        inner.map(|q| {
-            ws_client_peer::get_ws_client_peer_wrapped(
-                &Url::parse("ws://0.0.0.0/").unwrap(), q)
-        })
+        boxup(WsConnect(Url::parse("ws://0.0.0.0/").unwrap(), peer_from_str_impl(x)?))
     } else 
     {
-        let url : Url = match s.parse() {
-            Ok(x) => x,
-            Err(e) => return once(peer_err(e)),
-        };
-        once(ws_client_peer::get_ws_client_peer(handle, &url))
+        let url : Url = s.parse()?;
+        boxup(WsClient(url))
     }
+}
+
+pub fn peer_from_str(ps: &mut ProgramState, handle: &Handle, s: &str) -> PeerConstructor {
+    let spec = match peer_from_str_impl(s) {
+        Ok(x) => x,
+        Err(e) => return once(Box::new(futures::future::err(e)) as BoxedNewPeerFuture),
+    };
+    spec.construct(handle, ps)
 }
 
 pub struct Transfer {
