@@ -28,10 +28,13 @@ fn io_other_error<E : std::error::Error + Send + Sync + 'static>(e:E) -> std::io
     std::io::Error::new(std::io::ErrorKind::Other,e)
 }
 
+
 #[derive(Default)]
 pub struct ProgramState {
     #[cfg(all(unix,not(feature="no_unix_stdio")))]
     stdio : stdio_peer::GlobalState,
+    
+    reuser: connection_reuse_peer::GlobalState,
 }
 
 pub struct Peer(Box<AsyncRead>, Box<AsyncWrite>);
@@ -128,6 +131,16 @@ impl Specifier for TcpListen {
     }
 }
 
+pub struct Reuser<T:Specifier>(T);
+impl<T:Specifier> Specifier for Reuser<T> {
+    fn construct(&self, h:&Handle, ps: &mut ProgramState) -> PeerConstructor {
+        let mut reuser = ps.reuser.clone();
+        let inner = self.0.construct(h, ps).get_only_first_conn();
+        once(connection_reuse_peer::connection_reuser(&mut reuser, inner))
+    }
+    fn is_stdioish(&self) -> bool { self.0.is_stdioish() }
+}
+
 pub enum PeerConstructor {
     ServeOnce(BoxedNewPeerFuture),
     ServeMultipleTimes(BoxedNewPeerStream),
@@ -206,6 +219,8 @@ pub mod stdio_peer;
 
 pub mod stdio_threaded_peer;
 
+pub mod connection_reuse_peer;
+
 impl Peer {
     fn new<R:AsyncRead+'static, W:AsyncWrite+'static>(r:R, w:W) -> Self {
         Peer (
@@ -269,6 +284,14 @@ pub fn ws_c_prefix(s:&str) -> Option<&str> {
     }
 }
 
+pub fn reuser_prefix(s:&str) -> Option<&str> {
+    if s.starts_with("reuse:") {
+        Some(&s[6..])
+    } else {
+        None
+    }
+}
+
 fn boxup<T:Specifier+'static>(x:T) -> Result<Box<Specifier>> {
     Ok(Box::new(x))
 }
@@ -279,7 +302,7 @@ pub fn peer_from_str_impl(s: &str) -> Result<Box<Specifier>> {
     } else 
     if s == "threadedstdio:" {
         boxup(ThreadedStdio)
-    } else 
+    } else
     if s.starts_with("tcp:") {
         boxup(TcpConnect(s[4..].parse()?))
     } else 
@@ -306,10 +329,13 @@ pub fn peer_from_str_impl(s: &str) -> Result<Box<Specifier>> {
             }
         }
         boxup(WsUpgrade(peer_from_str_impl(x)?))
-    } else 
+    } else
     if let Some(x) = ws_c_prefix(s) {
         boxup(WsConnect(Url::parse("ws://0.0.0.0/").unwrap(), peer_from_str_impl(x)?))
-    } else 
+    } else
+    if let Some(x) = reuser_prefix(s) {
+        boxup(Reuser(peer_from_str_impl(x)?))
+    } else
     {
         let url : Url = s.parse()?;
         boxup(WsClient(url))
