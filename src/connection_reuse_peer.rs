@@ -1,5 +1,3 @@
-#![allow(dead_code,unused)]
-
 extern crate tokio_io;
 extern crate futures;
 
@@ -7,8 +5,7 @@ use futures::future::ok;
 use std::rc::Rc;
 use std::cell::RefCell;
 
-use super::{Peer, io_other_error, BoxedNewPeerFuture, box_up_err};
-use super::ws_peer::{WsReadWrapper, WsWriteWrapper, PeerForWs};
+use super::{Peer, BoxedNewPeerFuture};
 
 use tokio_io::{AsyncRead,AsyncWrite};
 use std::io::{Read, Write, Error as IoError};
