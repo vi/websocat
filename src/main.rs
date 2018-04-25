@@ -44,7 +44,7 @@ Wacky mode:
     let mut core = Core::new()?;
 
     let opts = Default::default();
-    let prog = serve(core.handle(), Default::default(), s1, s2, opts, std::rc::Rc::new(|e| {
+    let prog = serve(core.handle(), s1, s2, opts, std::rc::Rc::new(|e| {
         eprintln!("websocat: {}", e);
     }));
     core.run(prog).map_err(|()|"error running".to_string())?;

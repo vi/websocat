@@ -388,10 +388,12 @@ impl Session {
 pub struct Options {
 }
 
-pub fn serve<S1, S2, OE>(h: Handle, mut ps: ProgramState, s1: S1, s2 : S2, _options: Options, onerror: std::rc::Rc<OE>) 
+pub fn serve<S1, S2, OE>(h: Handle, s1: S1, s2 : S2, _options: Options, onerror: std::rc::Rc<OE>) 
     -> Box<Future<Item=(), Error=()>>
     where S1 : Specifier + 'static, S2: Specifier + 'static, OE : Fn(Box<std::error::Error>) -> () + 'static
 {
+    let mut ps = ProgramState::default();
+
     use PeerConstructor::{ServeMultipleTimes, ServeOnce};
 
     let h1 = h.clone();
