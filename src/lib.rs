@@ -426,7 +426,11 @@ pub fn serve<S1, S2, OE>(h: Handle, mut ps: ProgramState, s1: S1, s2 : S2, _opti
                 let fut = right.get_only_first_conn();
                 fut.and_then(move |peer2| {
                     let s = Session::new(peer1,peer2);
-                    s.run()
+                    s.run().map(|()| {
+                        ::std::mem::drop(ps) 
+                        // otherwise ps will be dropped sooner
+                        // and stdin/stdout may become blocking sooner
+                    })
                 })
             });
             Box::new(runner.map_err(move |e|e3(e))) as Box<Future<Item=(), Error=()>>
