@@ -5,16 +5,12 @@ extern crate tokio_core;
 extern crate tokio_stdin_stdout;
 
 use tokio_core::reactor::{Core};
-use futures::future::Future;
-use futures::Stream;
-use websocat::{Session,peer_from_str,ProgramState,is_stdio_peer,is_stdioish_peer};
+use websocat::{spec,serve};
 
 type Result<T> = std::result::Result<T, Box<std::error::Error>>;
 
 
 fn run() -> Result<()> {
-    let mut ps : ProgramState = Default::default();
-
     let arg1 = std::env::args().nth(1).ok_or(
         "Usage: websocat - ws[s]://...
 Some examples:
@@ -27,57 +23,31 @@ Wacky mode:
 "
     )?;
     let arg2 = std::env::args().nth(2).ok_or("no second arg")?;
-
-    if is_stdio_peer(arg1.as_ref()) && is_stdio_peer(arg2.as_ref()) {
+    
+    let s1 = spec(&arg1)?;
+    let s2 = spec(&arg2)?;
+    
+    if s1.is_stdio() && s2.is_stdio() {
         // Degenerate mode: just copy stdin to stdout and call it a day
         ::std::io::copy(&mut ::std::io::stdin(), &mut ::std::io::stdout())?;
         return Ok(())
     }
     
-    if is_stdioish_peer(arg1.as_ref()) && is_stdioish_peer(arg2.as_ref()) {
+    if s1.directly_uses_stdio() && s2.directly_uses_stdio() {
         Err("Too many usages of stdin/stdout")?;
+    }
+    
+    if s1.is_multiconnect() && s2.directly_uses_stdio() {
+        Err("Stdin/stdout is used without a `reuse:` overlay.")?;
     }
 
     let mut core = Core::new()?;
 
-    let h1 = core.handle();
-    let h2 = core.handle();
-    
-    use websocat::PeerConstructor::{ServeMultipleTimes, ServeOnce};
-
-    let left = peer_from_str(&mut ps, &h1, arg1.as_ref());
-    match left {
-        ServeMultipleTimes(stream) => {
-            let runner = stream
-            .map(|peer1| {
-                h2.spawn(
-                    peer_from_str(&mut ps, &h2, arg2.as_ref())
-                    .get_only_first_conn()
-                    .and_then(move |peer2| {
-                        let s = Session::new(peer1,peer2);
-                        s.run()
-                    })
-                    .map_err(|e| {
-                        eprintln!("websocat: {}", e);
-                    })
-                )
-            }).for_each(|()|futures::future::ok(()));
-            core.run(runner)?;
-        },
-        ServeOnce(peer1c) => {
-            let runner = peer1c
-            .and_then(|peer1| {
-                let right = peer_from_str(&mut ps, &h2, arg2.as_ref());
-                let fut = right.get_only_first_conn();
-                fut.and_then(move |peer2| {
-                    let s = Session::new(peer1,peer2);
-                    s.run()
-                })
-            });
-            core.run(runner)?;
-        },
-    };
-
+    let opts = Default::default();
+    let prog = serve(core.handle(), Default::default(), s1, s2, opts, std::rc::Rc::new(|e| {
+        eprintln!("websocat: {}", e);
+    }));
+    core.run(prog).map_err(|()|"error running".to_string())?;
     Ok(())
 }
 

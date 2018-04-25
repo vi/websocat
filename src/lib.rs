@@ -1,4 +1,10 @@
 //! Note: library usage is not semver/API-stable
+//!
+//! Abstract type evolution of an endpoint:
+//! 1. `&str` - string as passed to command line
+//! 2. `Specifier` - more organized representation, maybe nested
+//! 3. `PeerConstructor` - a future or stream that returns one or more connections
+//! 4. `Peer` - one active connection
 
 extern crate futures;
 extern crate tokio_core;
@@ -14,6 +20,8 @@ use futures::Stream;
 
 use websocket::client::Url;
 use std::net::SocketAddr;
+
+use std::str::FromStr;
 
 
 type Result<T> = std::result::Result<T, Box<std::error::Error>>;
@@ -45,7 +53,9 @@ pub type BoxedNewPeerStream = Box<Stream<Item=Peer, Error=Box<std::error::Error>
 pub trait Specifier {
     fn construct(&self, h:&Handle, ps: &mut ProgramState) -> PeerConstructor;
     fn is_stdio(&self) -> bool { false }
-    fn is_stdioish(&self) -> bool { false }
+    /// "Directly" means "without reuser"
+    fn directly_uses_stdio(&self) -> bool { false }
+    fn is_multiconnect(&self) -> bool;
 }
 
 impl Specifier for Box<Specifier> {
@@ -53,7 +63,8 @@ impl Specifier for Box<Specifier> {
         (**self).construct(h, ps)
     }
     fn is_stdio(&self) -> bool { (**self).is_stdio() }
-    fn is_stdioish(&self) -> bool { (**self).is_stdioish() }
+    fn directly_uses_stdio(&self) -> bool { (**self).directly_uses_stdio() }
+    fn is_multiconnect(&self) -> bool { (**self).is_multiconnect() }
 }
 
 pub struct Stdio;
@@ -71,7 +82,8 @@ impl Specifier for Stdio {
         once(ret)
     }
     fn is_stdio(&self) -> bool { true }
-    fn is_stdioish(&self) -> bool { true }
+    fn directly_uses_stdio(&self) -> bool { true }
+    fn is_multiconnect(&self) -> bool { false }
 }
 
 pub struct ThreadedStdio;
@@ -82,7 +94,8 @@ impl Specifier for ThreadedStdio {
         once(ret)
     }
     fn is_stdio(&self) -> bool { true }
-    fn is_stdioish(&self) -> bool { true }
+    fn directly_uses_stdio(&self) -> bool { true }
+    fn is_multiconnect(&self) -> bool { false }
 }
 
 
@@ -97,7 +110,8 @@ impl<T:Specifier> Specifier for WsConnect<T> {
             ws_client_peer::get_ws_client_peer_wrapped(&url, q)
         })
     }
-    fn is_stdioish(&self) -> bool { self.1.is_stdioish() }
+    fn directly_uses_stdio(&self) -> bool { self.1.directly_uses_stdio() }
+    fn is_multiconnect(&self) -> bool { self.1.is_multiconnect() }
 }
 
 pub struct WsUpgrade<T:Specifier>(T);
@@ -106,7 +120,8 @@ impl<T:Specifier> Specifier for WsUpgrade<T> {
         let inner = self.0.construct(h, ps);
         inner.map(ws_server_peer::ws_upgrade_peer)
     }
-    fn is_stdioish(&self) -> bool { self.0.is_stdioish() }
+    fn directly_uses_stdio(&self) -> bool { self.0.directly_uses_stdio() }
+    fn is_multiconnect(&self) -> bool { self.0.is_multiconnect() }
 }
 
 pub struct WsClient(Url);
@@ -115,6 +130,7 @@ impl Specifier for WsClient {
         let url = self.0.clone();
         once(ws_client_peer::get_ws_client_peer(h, &url))
     }
+    fn is_multiconnect(&self) -> bool { false }
 }
 
 pub struct TcpConnect(SocketAddr);
@@ -122,6 +138,7 @@ impl Specifier for TcpConnect {
     fn construct(&self, h:&Handle, _: &mut ProgramState) -> PeerConstructor {
         once(net_peer::tcp_connect_peer(h, &self.0))
     }
+    fn is_multiconnect(&self) -> bool { false }
 }
 
 pub struct TcpListen(SocketAddr);
@@ -129,6 +146,7 @@ impl Specifier for TcpListen {
     fn construct(&self, h:&Handle, _: &mut ProgramState) -> PeerConstructor {
         multi(net_peer::tcp_listen_peer(h, &self.0))
     }
+    fn is_multiconnect(&self) -> bool { true }
 }
 
 pub struct Reuser<T:Specifier>(T);
@@ -138,7 +156,8 @@ impl<T:Specifier> Specifier for Reuser<T> {
         let inner = self.0.construct(h, ps).get_only_first_conn();
         once(connection_reuse_peer::connection_reuser(&mut reuser, inner))
     }
-    fn is_stdioish(&self) -> bool { self.0.is_stdioish() }
+    fn directly_uses_stdio(&self) -> bool { false }
+    fn is_multiconnect(&self) -> bool { false }
 }
 
 pub enum PeerConstructor {
@@ -230,30 +249,6 @@ impl Peer {
     }
 }
 
-pub fn is_stdio_peer(s: &str) -> bool {
-    match s {
-        "-" => true,
-        "inetd:" => true,
-        "threadedstdio:" => true,
-        _ => false,
-    }
-}
-
-pub fn is_stdioish_peer(s: &str) -> bool {
-    if is_stdio_peer(s) {
-        true
-    } else {
-        if let Some(x) = ws_l_prefix(s) {
-            is_stdioish_peer(x)
-        } else
-        if let Some(x) = ws_c_prefix(s) {
-            is_stdioish_peer(x)
-        } else {
-            false
-        }
-    }
-}
-
 pub fn ws_l_prefix(s:&str) -> Option<&str> {
     if    s.starts_with("ws-l:") 
        || s.starts_with("l-ws:")
@@ -296,54 +291,62 @@ fn boxup<T:Specifier+'static>(x:T) -> Result<Box<Specifier>> {
     Ok(Box::new(x))
 }
 
-pub fn peer_from_str_impl(s: &str) -> Result<Box<Specifier>> {
-    if s == "-" || s == "inetd:" {
-        boxup(Stdio)
-    } else 
-    if s == "threadedstdio:" {
-        boxup(ThreadedStdio)
-    } else
-    if s.starts_with("tcp:") {
-        boxup(TcpConnect(s[4..].parse()?))
-    } else 
-    if s.starts_with("tcp-connect:") {
-        boxup(TcpConnect(s[12..].parse()?))
-    } else 
-    if s.starts_with("tcp-l:") {
-        boxup(TcpListen(s[6..].parse()?))
-    } else 
-    if s.starts_with("l-tcp:") {
-        boxup(TcpListen(s[6..].parse()?))
-    } else 
-    if s.starts_with("tcp-listen:") {
-        boxup(TcpListen(s[11..].parse()?))
-    } else
-    if let Some(x) = ws_l_prefix(s) {
-        if x == "" {
-            Err("Specify underlying protocol for ws-l:")?;
-        }
-        if let Some(c) = x.chars().next() {
-            if c.is_numeric() || c == '[' {
-                // Assuming user uses old format like ws-l:127.0.0.1:8080
-                return peer_from_str_impl(&("ws-l:tcp-l:".to_owned() + x));
+pub fn spec(s : &str) -> Result<Box<Specifier>>  {
+    FromStr::from_str(s)
+}
+
+impl FromStr for Box<Specifier> {
+    type Err = Box<std::error::Error>;
+    
+    fn from_str(s: &str) -> Result<Box<Specifier>> {
+            if s == "-" || s == "inetd:" {
+            boxup(Stdio)
+        } else 
+        if s == "threadedstdio:" {
+            boxup(ThreadedStdio)
+        } else
+        if s.starts_with("tcp:") {
+            boxup(TcpConnect(s[4..].parse()?))
+        } else 
+        if s.starts_with("tcp-connect:") {
+            boxup(TcpConnect(s[12..].parse()?))
+        } else 
+        if s.starts_with("tcp-l:") {
+            boxup(TcpListen(s[6..].parse()?))
+        } else 
+        if s.starts_with("l-tcp:") {
+            boxup(TcpListen(s[6..].parse()?))
+        } else 
+        if s.starts_with("tcp-listen:") {
+            boxup(TcpListen(s[11..].parse()?))
+        } else
+        if let Some(x) = ws_l_prefix(s) {
+            if x == "" {
+                Err("Specify underlying protocol for ws-l:")?;
             }
+            if let Some(c) = x.chars().next() {
+                if c.is_numeric() || c == '[' {
+                    // Assuming user uses old format like ws-l:127.0.0.1:8080
+                    return spec(&("ws-l:tcp-l:".to_owned() + x));
+                }
+            }
+            boxup(WsUpgrade(spec(x)?))
+        } else
+        if let Some(x) = ws_c_prefix(s) {
+            boxup(WsConnect(Url::parse("ws://0.0.0.0/").unwrap(), spec(x)?))
+        } else
+        if let Some(x) = reuser_prefix(s) {
+            boxup(Reuser(spec(x)?))
+        } else
+        {
+            let url : Url = s.parse()?;
+            boxup(WsClient(url))
         }
-        boxup(WsUpgrade(peer_from_str_impl(x)?))
-    } else
-    if let Some(x) = ws_c_prefix(s) {
-        boxup(WsConnect(Url::parse("ws://0.0.0.0/").unwrap(), peer_from_str_impl(x)?))
-    } else
-    if let Some(x) = reuser_prefix(s) {
-        boxup(Reuser(peer_from_str_impl(x)?))
-    } else
-    {
-        let url : Url = s.parse()?;
-        boxup(WsClient(url))
     }
 }
 
 pub fn peer_from_str(ps: &mut ProgramState, handle: &Handle, s: &str) -> PeerConstructor {
-    let spec = match peer_from_str_impl(s) {
+    let spec = match spec(s) {
         Ok(x) => x,
         Err(e) => return once(Box::new(futures::future::err(e)) as BoxedNewPeerFuture),
     };
@@ -381,3 +384,54 @@ impl Session {
     }
 }
 
+#[derive(Default)]
+pub struct Options {
+}
+
+pub fn serve<S1, S2, OE>(h: Handle, mut ps: ProgramState, s1: S1, s2 : S2, _options: Options, onerror: std::rc::Rc<OE>) 
+    -> Box<Future<Item=(), Error=()>>
+    where S1 : Specifier + 'static, S2: Specifier + 'static, OE : Fn(Box<std::error::Error>) -> () + 'static
+{
+    use PeerConstructor::{ServeMultipleTimes, ServeOnce};
+
+    let h1 = h.clone();
+    let h2 = h.clone();
+    
+    let e1 = onerror.clone();
+    let e2 = onerror.clone();
+    let e3 = onerror.clone();
+
+    let left = s1.construct(&h, &mut ps);
+    let prog = match left {
+        ServeMultipleTimes(stream) => {
+            let runner = stream
+            .map(move |peer1| {
+                let e1_1 = e1.clone();
+                h1.spawn(
+                    s2.construct(&h1, &mut ps)
+                    .get_only_first_conn()
+                    .and_then(move |peer2| {
+                        let s = Session::new(peer1,peer2);
+                        s.run()
+                    })
+                    .map_err(move|e|e1_1(e))
+                )
+            }).for_each(|()|futures::future::ok(()));
+            Box::new(runner.map_err(move|e|e2(e))) as Box<Future<Item=(), Error=()>>
+        },
+        ServeOnce(peer1c) => {
+            let runner = peer1c
+            .and_then(move |peer1| {
+                let right = s2.construct(&h2, &mut ps);
+                let fut = right.get_only_first_conn();
+                fut.and_then(move |peer2| {
+                    let s = Session::new(peer1,peer2);
+                    s.run()
+                })
+            });
+            Box::new(runner.map_err(move |e|e3(e))) as Box<Future<Item=(), Error=()>>
+        },
+    };
+    prog
+}
+    
