@@ -22,6 +22,7 @@ use websocket::client::Url;
 use std::net::SocketAddr;
 
 use std::str::FromStr;
+use std::any::Any;
 
 
 type Result<T> = std::result::Result<T, Box<std::error::Error>>;
@@ -50,23 +51,61 @@ pub struct Peer(Box<AsyncRead>, Box<AsyncWrite>);
 pub type BoxedNewPeerFuture = Box<Future<Item=Peer, Error=Box<std::error::Error>>>;
 pub type BoxedNewPeerStream = Box<Stream<Item=Peer, Error=Box<std::error::Error>>>;
 
+#[derive(Ord,PartialOrd,Eq,PartialEq,Copy,Clone)]
+pub enum StdioUsageStatus {
+    /// Does not use standard input or output at all
+    None,
+    /// Uses a reuser for connecting multiple peers at stdio, not distinguishing between IsItself and Indirectly
+    WithReuser,
+    /// Stdio wrapped into something (but not the reuser)
+    Indirectly,
+    /// Is the `-` or `stdio:` or `threadedstdio:` itself.
+    IsItself,
+}
+
+/// He wants to peek into a Specifier. `FnMut` wants to be `FnOnce` actually.
+pub type SpecifierInspector = Box<FnMut(&Specifier)-> Box<Any>>;
+
+/// A parsed command line argument.
+/// For example, `ws-listen:tcp-l:127.0.0.1:8080` gets parsed into
+/// a `WsUpgrade(TcpListen(SocketAddr))`.
 pub trait Specifier {
+    /// Apply the specifier for constructing a "socket" or other connecting device.
     fn construct(&self, h:&Handle, ps: &mut ProgramState) -> PeerConstructor;
-    fn is_stdio(&self) -> bool { false }
-    /// "Directly" means "without reuser"
-    fn directly_uses_stdio(&self) -> bool { false }
+    /// A server (multiconnect) or a client (single connect)?
     fn is_multiconnect(&self) -> bool;
+    fn stdio_usage_status(&self) -> StdioUsageStatus {
+        if let Some(status) = self.use_child_specifier(Box::new(|child : &Specifier| {
+                Box::new(child.stdio_usage_status()) as Box<Any>
+            }))
+        {
+            let ss = *status.downcast().unwrap();
+            if ss == StdioUsageStatus::IsItself {
+                return StdioUsageStatus::Indirectly
+            }
+            ss
+        } else {
+            StdioUsageStatus::None
+        }
+    }
+    /// In case of being a wrapper, run the function on the inner specifier
+    fn use_child_specifier(&self, _f: SpecifierInspector) -> Option<Box<Any>> { 
+        // Nothing to do for non-wrappers.
+        None
+    }
+    
 }
 
 impl Specifier for Box<Specifier> {
     fn construct(&self, h:&Handle, ps: &mut ProgramState) -> PeerConstructor {
         (**self).construct(h, ps)
     }
-    fn is_stdio(&self) -> bool { (**self).is_stdio() }
-    fn directly_uses_stdio(&self) -> bool { (**self).directly_uses_stdio() }
+    fn use_child_specifier(&self, f: SpecifierInspector) -> Option<Box<Any>> { (**self).use_child_specifier(f) }
+    fn stdio_usage_status(&self) -> StdioUsageStatus { (**self).stdio_usage_status() }
     fn is_multiconnect(&self) -> bool { (**self).is_multiconnect() }
 }
 
+#[derive(Clone)]
 pub struct Stdio;
 impl Specifier for Stdio {
     fn construct(&self, h:&Handle, ps: &mut ProgramState) -> PeerConstructor {
@@ -81,8 +120,7 @@ impl Specifier for Stdio {
         }
         once(ret)
     }
-    fn is_stdio(&self) -> bool { true }
-    fn directly_uses_stdio(&self) -> bool { true }
+    fn stdio_usage_status(&self) -> StdioUsageStatus { StdioUsageStatus::IsItself }
     fn is_multiconnect(&self) -> bool { false }
 }
 
@@ -93,13 +131,12 @@ impl Specifier for ThreadedStdio {
         ret = stdio_threaded_peer::get_stdio_peer();
         once(ret)
     }
-    fn is_stdio(&self) -> bool { true }
-    fn directly_uses_stdio(&self) -> bool { true }
+    fn stdio_usage_status(&self) -> StdioUsageStatus { StdioUsageStatus::IsItself }
     fn is_multiconnect(&self) -> bool { false }
 }
 
 
-pub struct WsConnect<T:Specifier>(Url,T);
+pub struct WsConnect<T:Specifier>(pub Url,pub T);
 impl<T:Specifier> Specifier for WsConnect<T> {
     fn construct(&self, h:&Handle, ps: &mut ProgramState) -> PeerConstructor {
         let inner = self.1.construct(h, ps);
@@ -110,21 +147,25 @@ impl<T:Specifier> Specifier for WsConnect<T> {
             ws_client_peer::get_ws_client_peer_wrapped(&url, q)
         })
     }
-    fn directly_uses_stdio(&self) -> bool { self.1.directly_uses_stdio() }
+    fn use_child_specifier(&self, mut f: SpecifierInspector) -> Option<Box<Any>> {
+        Some(f(&self.1))
+    }
     fn is_multiconnect(&self) -> bool { self.1.is_multiconnect() }
 }
 
-pub struct WsUpgrade<T:Specifier>(T);
+pub struct WsUpgrade<T:Specifier>(pub T);
 impl<T:Specifier> Specifier for WsUpgrade<T> {
     fn construct(&self, h:&Handle, ps: &mut ProgramState) -> PeerConstructor {
         let inner = self.0.construct(h, ps);
         inner.map(ws_server_peer::ws_upgrade_peer)
     }
-    fn directly_uses_stdio(&self) -> bool { self.0.directly_uses_stdio() }
+    fn use_child_specifier(&self, mut f: SpecifierInspector) -> Option<Box<Any>> {
+        Some(f(&self.0))
+    }
     fn is_multiconnect(&self) -> bool { self.0.is_multiconnect() }
 }
 
-pub struct WsClient(Url);
+pub struct WsClient(pub Url);
 impl Specifier for WsClient {
     fn construct(&self, h:&Handle, _: &mut ProgramState) -> PeerConstructor {
         let url = self.0.clone();
@@ -133,7 +174,7 @@ impl Specifier for WsClient {
     fn is_multiconnect(&self) -> bool { false }
 }
 
-pub struct TcpConnect(SocketAddr);
+pub struct TcpConnect(pub SocketAddr);
 impl Specifier for TcpConnect {
     fn construct(&self, h:&Handle, _: &mut ProgramState) -> PeerConstructor {
         once(net_peer::tcp_connect_peer(h, &self.0))
@@ -141,7 +182,7 @@ impl Specifier for TcpConnect {
     fn is_multiconnect(&self) -> bool { false }
 }
 
-pub struct TcpListen(SocketAddr);
+pub struct TcpListen(pub SocketAddr);
 impl Specifier for TcpListen {
     fn construct(&self, h:&Handle, _: &mut ProgramState) -> PeerConstructor {
         multi(net_peer::tcp_listen_peer(h, &self.0))
@@ -149,14 +190,23 @@ impl Specifier for TcpListen {
     fn is_multiconnect(&self) -> bool { true }
 }
 
-pub struct Reuser<T:Specifier>(T);
+pub struct Reuser<T:Specifier>(pub T);
 impl<T:Specifier> Specifier for Reuser<T> {
     fn construct(&self, h:&Handle, ps: &mut ProgramState) -> PeerConstructor {
         let mut reuser = ps.reuser.clone();
         let inner = self.0.construct(h, ps).get_only_first_conn();
         once(connection_reuse_peer::connection_reuser(&mut reuser, inner))
     }
-    fn directly_uses_stdio(&self) -> bool { false }
+    fn use_child_specifier(&self, mut f: SpecifierInspector) -> Option<Box<Any>> {
+        Some(f(&self.0))
+    }
+    fn stdio_usage_status(&self) -> StdioUsageStatus {
+        let ss = self.0.stdio_usage_status();
+        if ss > StdioUsageStatus::Indirectly {
+            return StdioUsageStatus::WithReuser;
+        }
+        ss
+    }
     fn is_multiconnect(&self) -> bool { false }
 }
 
