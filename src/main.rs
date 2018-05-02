@@ -5,9 +5,7 @@ extern crate tokio_core;
 extern crate tokio_stdin_stdout;
 
 use tokio_core::reactor::{Core};
-use websocat::{spec,serve,Reuser,StdioUsageStatus};
-
-use StdioUsageStatus::{IsItself, WithReuser};
+use websocat::{spec, WebsocatConfiguration};
 
 type Result<T> = std::result::Result<T, Box<std::error::Error>>;
 
@@ -26,29 +24,35 @@ Wacky mode:
     )?;
     let arg2 = std::env::args().nth(2).ok_or("no second arg")?;
     
+    let opts = Default::default();
+    
     let s1 = spec(&arg1)?;
-    let mut s2 = spec(&arg2)?;
+    let s2 = spec(&arg2)?;
     
-    if s1.stdio_usage_status() == IsItself && s2.stdio_usage_status() == IsItself {
-        // Degenerate mode: just copy stdin to stdout and call it a day
-        ::std::io::copy(&mut ::std::io::stdin(), &mut ::std::io::stdout())?;
-        return Ok(())
-    }
+    let mut websocat = WebsocatConfiguration { opts, s1, s2 };
     
-    if s1.stdio_usage_status() >= WithReuser && s2.stdio_usage_status() >= WithReuser {
-        Err("Too many usages of stdin/stdout")?;
-    }
-    
-    if s1.is_multiconnect() && s2.stdio_usage_status() > WithReuser {
-        //Err("Stdin/stdout is used without a `reuse:` overlay.")?;
-        eprintln!("Warning: replies on stdio get directed at random connected client");
-        s2 = Box::new(Reuser(s2));
+    if let Some(concern) = websocat.get_concern() {
+        use websocat::ConfigurationConcern::*;
+        if concern == StdinToStdout {
+            // Degenerate mode: just copy stdin to stdout and call it a day
+            ::std::io::copy(&mut ::std::io::stdin(), &mut ::std::io::stdout())?;
+            return Ok(())
+        }
+        
+        if concern == StdioConflict {
+            Err("Too many usages of stdin/stdout")?;
+        }
+        
+        if concern == NeedsStdioReuser {
+            //Err("Stdin/stdout is used without a `reuse:` overlay.")?;
+            eprintln!("Warning: replies on stdio get directed at random connected client");
+            websocat = websocat.auto_install_reuser();
+        }
     }
 
     let mut core = Core::new()?;
 
-    let opts = Default::default();
-    let prog = serve(core.handle(), s1, s2, opts, std::rc::Rc::new(|e| {
+    let prog = websocat.serve(core.handle(), std::rc::Rc::new(|e| {
         eprintln!("websocat: {}", e);
     }));
     core.run(prog).map_err(|()|"error running".to_string())?;

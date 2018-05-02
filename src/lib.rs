@@ -37,6 +37,56 @@ fn io_other_error<E : std::error::Error + Send + Sync + 'static>(e:E) -> std::io
     std::io::Error::new(std::io::ErrorKind::Other,e)
 }
 
+/// Diagnostics for specifiers and options combinations
+#[derive(PartialEq,Eq)]
+pub enum ConfigurationConcern {
+    StdinToStdout,
+    StdioConflict,
+    NeedsStdioReuser,
+}
+
+pub struct WebsocatConfiguration {
+    pub opts : Options,
+    pub s1 : Box<Specifier>,
+    pub s2: Box<Specifier>,
+}
+
+impl WebsocatConfiguration {
+    pub fn serve<OE>(self, h: Handle, onerror: std::rc::Rc<OE>) 
+        -> Box<Future<Item=(), Error=()>> 
+        where OE : Fn(Box<std::error::Error>) -> () + 'static
+    {
+        serve(h, self.s1,self.s2, self.opts, onerror)
+    }
+    
+    pub fn get_concern(&self) -> Option<ConfigurationConcern> {
+        use ConfigurationConcern::*;
+        use StdioUsageStatus::{IsItself,WithReuser};
+    
+        if self.s1.stdio_usage_status() == IsItself && self.s2.stdio_usage_status() == IsItself {
+            return Some(StdinToStdout);
+        }
+        
+        if self.s1.stdio_usage_status() >= WithReuser && self.s2.stdio_usage_status() >= WithReuser {
+            return Some(StdioConflict);
+        }
+        
+        if self.s1.is_multiconnect() && self.s2.stdio_usage_status() > WithReuser {
+            return Some(NeedsStdioReuser);
+        }
+        None
+    }
+    
+    pub fn auto_install_reuser(self) -> Self {
+        let WebsocatConfiguration { opts, s1, s2 } = self;
+        WebsocatConfiguration { opts, s1, s2: Box::new(Reuser(s2)) }
+    }
+}
+
+
+#[derive(Default)]
+pub struct Options {
+}
 
 #[derive(Default)]
 pub struct ProgramState {
@@ -432,10 +482,6 @@ impl Session {
             },
         )
     }
-}
-
-#[derive(Default)]
-pub struct Options {
 }
 
 pub fn serve<S1, S2, OE>(h: Handle, s1: S1, s2 : S2, _options: Options, onerror: std::rc::Rc<OE>) 
