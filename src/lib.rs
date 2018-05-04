@@ -301,6 +301,16 @@ impl PeerConstructor {
     }
 }
 
+pub struct Mirror;
+impl Specifier for Mirror {
+    fn construct(&self, _:&Handle, _: &mut ProgramState) -> PeerConstructor {
+        let ret;
+        ret = mirror::get_mirror_peer();
+        once(ret)
+    }
+    fn is_multiconnect(&self) -> bool { false }
+}
+
 pub fn once(x:BoxedNewPeerFuture) -> PeerConstructor {
     PeerConstructor::ServeOnce(x)
 }
@@ -339,6 +349,8 @@ pub mod stdio_peer;
 pub mod stdio_threaded_peer;
 
 pub mod connection_reuse_peer;
+
+pub mod mirror;
 
 impl Peer {
     fn new<R:AsyncRead+'static, W:AsyncWrite+'static>(r:R, w:W) -> Self {
@@ -404,6 +416,9 @@ impl FromStr for Box<Specifier> {
         } else 
         if s == "threadedstdio:" {
             boxup(ThreadedStdio)
+        } else
+        if s == "mirror:" {
+            boxup(Mirror)
         } else
         if s.starts_with("tcp:") {
             boxup(TcpConnect(s[4..].parse()?))
