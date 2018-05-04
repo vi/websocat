@@ -15,32 +15,20 @@ use futures::sync::mpsc;
 
 use tokio_io::{AsyncRead,AsyncWrite};
 
+use super::ReadDebt;
+
 struct MirrorWrite(mpsc::Sender<Vec<u8>>);
 struct MirrorRead {
-    debt: Option<Vec<u8>>,
+    debt: ReadDebt,
     ch: mpsc::Receiver<Vec<u8>>,
 }
 
 pub fn get_mirror_peer() -> BoxedNewPeerFuture {
     let (sender, receiver) = mpsc::channel::<Vec<u8>>(0);
-    let r = MirrorRead{debt:None, ch:receiver};
+    let r = MirrorRead{debt:Default::default(), ch:receiver};
     let w = MirrorWrite(sender);
     let p = Peer::new(r,w);
     Box::new(futures::future::ok(p)) as BoxedNewPeerFuture
-}
-
-
-impl MirrorRead {
-    fn process_message(&mut self, buf: &mut [u8], buf_in: &[u8]) -> std::result::Result<usize, std::io::Error> {
-        let l = buf_in.len().min(buf.len());
-        buf[..l].copy_from_slice(&buf_in[..l]);
-        
-        if l < buf_in.len() {
-            self.debt = Some(buf_in[l..].to_vec());
-        }
-        
-        Ok(l)
-    }
 }
 
 
@@ -51,12 +39,12 @@ impl AsyncRead for MirrorRead
 impl Read for MirrorRead
 {
     fn read(&mut self, buf: &mut [u8]) -> std::result::Result<usize, std::io::Error> {
-        if let Some(debt) = self.debt.take() {
-            return self.process_message(buf, debt.as_slice());
+        if let Some(ret) = self.debt.check_debt(buf) {
+            return ret;
         }
         let r = self.ch.poll();
         match r {
-            Ok(Ready(Some(x))) => self.process_message(buf, x.as_slice()),
+            Ok(Ready(Some(x))) => self.debt.process_message(buf, x.as_slice()),
             Ok(Ready(None)) => brokenpipe(),
             Ok(NotReady) => wouldblock(),
             Err(_) => brokenpipe(),

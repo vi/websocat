@@ -17,36 +17,25 @@ use futures::Async::{Ready, NotReady};
 
 use super::{io_other_error, brokenpipe, wouldblock, Peer};
 
+use super::ReadDebt;
+
 type MultiProducerWsSink<T> = Rc<RefCell<futures::stream::SplitSink<tokio_io::codec::Framed<T, websocket::async::MessageCodec<websocket::OwnedMessage>>>>>;
 type WsSource<T> = futures::stream::SplitStream<tokio_io::codec::Framed<T, websocket::async::MessageCodec<websocket::OwnedMessage>>>;
 
 pub struct WsReadWrapper<T:WsStream+'static> {
     pub s: WsSource<T>,
     pub pingreply : MultiProducerWsSink<T>,
-    pub debt: Option<Vec<u8>>,
+    pub debt: ReadDebt,
 }
 
 impl<T:WsStream+'static>  AsyncRead for WsReadWrapper<T>
 {}
 
-impl<T:WsStream+'static>  WsReadWrapper<T>  {
-    fn process_message(&mut self, buf: &mut [u8], buf_in: &[u8]) -> std::result::Result<usize, std::io::Error> {
-        let l = buf_in.len().min(buf.len());
-        buf[..l].copy_from_slice(&buf_in[..l]);
-        
-        if l < buf_in.len() {
-            self.debt = Some(buf_in[l..].to_vec());
-        }
-        
-        Ok(l)
-    }
-}
-
 impl<T:WsStream+'static>  Read for WsReadWrapper<T>
 {
     fn read(&mut self, buf: &mut [u8]) -> std::result::Result<usize, std::io::Error> {
-        if let Some(debt) = self.debt.take() {
-            return self.process_message(buf, debt.as_slice())
+        if let Some(ret) = self.debt.check_debt(buf) {
+            return ret
         }
         match self.s.poll().map_err(io_other_error)? {
             Ready(Some(OwnedMessage::Close(_))) => {
@@ -83,11 +72,11 @@ impl<T:WsStream+'static>  Read for WsReadWrapper<T>
             }
             Ready(Some(OwnedMessage::Text(x))) => {
                 debug!("incoming text");
-                self.process_message(buf, x.as_str().as_bytes())
+                self.debt.process_message(buf, x.as_str().as_bytes())
             }
             Ready(Some(OwnedMessage::Binary(x))) => {
                 debug!("incoming binary");
-                self.process_message(buf, x.as_slice())
+                self.debt.process_message(buf, x.as_slice())
             }
             NotReady => {
                 wouldblock()

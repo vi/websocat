@@ -31,7 +31,7 @@ fn get_ws_client_peer_impl<S,F>(uri: &Url, f: F) -> BoxedNewPeerFuture
             let ws_str = WsReadWrapper {
                 s: stream,
                 pingreply: mpsink.clone(),
-                debt: None,
+                debt: Default::default(),
             };
             let ws_sin = WsWriteWrapper(mpsink);
             

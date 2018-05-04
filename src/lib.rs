@@ -321,6 +321,32 @@ impl PeerConstructor {
     }
 }
 
+/// A `Read` utility to deal with partial reads
+#[derive(Default)]
+pub struct ReadDebt(pub Option<Vec<u8>>);
+
+impl ReadDebt {
+    pub fn process_message(&mut self, buf: &mut [u8], buf_in: &[u8]) -> std::result::Result<usize, std::io::Error> {
+        assert_eq!(self.0, None);
+        let l = buf_in.len().min(buf.len());
+        buf[..l].copy_from_slice(&buf_in[..l]);
+        
+        if l < buf_in.len() {
+            self.0 = Some(buf_in[l..].to_vec());
+        }
+        
+        Ok(l)
+    }
+    pub fn check_debt(&mut self, buf: &mut [u8]) -> Option<std::result::Result<usize, std::io::Error>>       {
+        if let Some(debt) = self.0.take() {
+            Some(self.process_message(buf, debt.as_slice()))
+        } else {
+            None
+        }
+    }
+}
+
+
 pub fn once(x:BoxedNewPeerFuture) -> PeerConstructor {
     PeerConstructor::ServeOnce(x)
 }
