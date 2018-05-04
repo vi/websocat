@@ -11,8 +11,8 @@ exclude = ["autorelease.sh"]
 
 [dependencies]
 websocket = { version = "0.20", default-features = false, features=["async"] }
-#env_logger = {version="*", default-features = false }
-#log = {version="*", default-features = false}
+env_logger = {version="0.5", default-features = false }
+log = {version="0.4", default-features = false}
 #url = { version="*" }
 #clap = { version = "*", default-features = false }
 futures = "0.1"

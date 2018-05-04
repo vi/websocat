@@ -4,6 +4,9 @@ extern crate futures;
 extern crate tokio_core;
 extern crate tokio_stdin_stdout;
 
+extern crate env_logger;
+
+
 use tokio_core::reactor::{Core};
 use websocat::{spec, WebsocatConfiguration};
 
@@ -60,6 +63,7 @@ Wacky mode:
 }
 
 fn main() {
+    env_logger::init();
     let r = run();
 
     if let Err(e) = r {

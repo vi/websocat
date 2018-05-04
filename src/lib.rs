@@ -12,6 +12,9 @@ extern crate tokio_core;
 extern crate tokio_io;
 extern crate websocket;
 
+#[macro_use]
+extern crate log;
+
 use tokio_core::reactor::{Handle};
 use futures::future::Future;
 use tokio_io::{AsyncRead,AsyncWrite};
@@ -480,13 +483,13 @@ impl Session {
         let f1 = my_copy::copy(self.0.from, self.0.to, true);
         let f2 = my_copy::copy(self.1.from, self.1.to, true);
         let f1 = f1.map(|(_,r,mut w)|{
-            //eprintln!("Forward finished");
+            debug!("Forward finished");
             let _ = w.shutdown();
             std::mem::drop(r);
             std::mem::drop(w); 
         });
         let f2 = f2.map(|(_,r,mut w)|{ 
-            //eprintln!("Reverse finished");
+            debug!("Reverse finished");
             let _ = w.shutdown();
             std::mem::drop(r);
             std::mem::drop(w); 
