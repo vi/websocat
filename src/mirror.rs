@@ -30,7 +30,13 @@ pub fn get_mirror_peer() -> BoxedNewPeerFuture {
     let p = Peer::new(r,w);
     Box::new(futures::future::ok(p)) as BoxedNewPeerFuture
 }
-
+pub fn get_literal_reply_peer(content: Vec<u8>) -> BoxedNewPeerFuture {
+    let (sender, receiver) = mpsc::channel::<()>(0);
+    let r = LiteralReply{debt:Default::default(), ch:receiver, content};
+    let w = LiteralReplyHandle(sender);
+    let p = Peer::new(r,w);
+    Box::new(futures::future::ok(p)) as BoxedNewPeerFuture
+}
 
 impl AsyncRead for MirrorRead
 {}
@@ -94,3 +100,61 @@ impl Drop for MirrorWrite {
             .map(|_|());
     }
 }
+
+
+
+////
+struct LiteralReplyHandle(mpsc::Sender<()>);
+struct LiteralReply {
+    debt: ReadDebt,
+    ch: mpsc::Receiver<()>,
+    content: Vec<u8>,
+}
+
+impl AsyncWrite for LiteralReplyHandle {
+    fn shutdown(&mut self) -> futures::Poll<(),std::io::Error> {
+        Ok(Ready(()))
+    }
+}
+
+impl Write for  LiteralReplyHandle {
+    fn write(&mut self, buf: &[u8]) -> IoResult<usize> {
+        let om = ();
+        match self.0.start_send(om).map_err(io_other_error)? {
+            futures::AsyncSink::NotReady(_) => {
+                wouldblock()
+            },
+            futures::AsyncSink::Ready => {
+                Ok(buf.len())
+            }
+        }
+    }
+    fn flush(&mut self) -> IoResult<()> {
+        match self.0.poll_complete().map_err(io_other_error)? {
+            NotReady => {
+                wouldblock()
+            },
+            Ready(()) => {
+                Ok(())
+            }
+        }
+    }
+}
+impl AsyncRead for LiteralReply
+{}
+impl Read for LiteralReply
+{
+    fn read(&mut self, buf: &mut [u8]) -> std::result::Result<usize, std::io::Error> {
+        if let Some(ret) = self.debt.check_debt(buf) {
+            return ret;
+        }
+        let r = self.ch.poll();
+        match r {
+            Ok(Ready(Some(()))) => self.debt.process_message(buf, &self.content),
+            Ok(Ready(None)) => brokenpipe(),
+            Ok(NotReady) => wouldblock(),
+            Err(_) => brokenpipe(),
+        }
+    }
+}
+

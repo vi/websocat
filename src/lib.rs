@@ -28,6 +28,26 @@ use std::str::FromStr;
 use std::any::Any;
 
 
+
+mod my_copy;
+
+pub mod ws_peer;
+
+pub mod ws_server_peer;
+pub mod ws_client_peer;
+
+pub mod net_peer;
+
+#[cfg(all(unix,not(feature="no_unix_stdio")))]
+pub mod stdio_peer;
+
+pub mod stdio_threaded_peer;
+
+pub mod connection_reuse_peer;
+
+pub mod mirror;
+pub mod trivial;
+
 type Result<T> = std::result::Result<T, Box<std::error::Error>>;
 
 fn wouldblock<T>() -> std::io::Result<T> {
@@ -273,12 +293,47 @@ impl<T:Specifier> Specifier for Reuser<T> {
 pub struct Mirror;
 impl Specifier for Mirror {
     fn construct(&self, _:&Handle, _: &mut ProgramState) -> PeerConstructor {
-        let ret;
-        ret = mirror::get_mirror_peer();
-        once(ret)
+        once(mirror::get_mirror_peer())
     }
     fn is_multiconnect(&self) -> bool { false }
 }
+
+pub struct Literal(pub Vec<u8>);
+impl Specifier for Literal {
+    fn construct(&self, _:&Handle, _: &mut ProgramState) -> PeerConstructor {
+        once(trivial::get_literal_peer(self.0.clone()))
+    }
+    fn is_multiconnect(&self) -> bool { false }
+}
+impl std::fmt::Debug for Literal{fn fmt(&self, f:&mut std::fmt::Formatter) -> std::result::Result<(), std::fmt::Error> { write!(f, "Literal") }  }
+
+pub struct LiteralReply(pub Vec<u8>);
+impl Specifier for LiteralReply {
+    fn construct(&self, _:&Handle, _: &mut ProgramState) -> PeerConstructor {
+        once(mirror::get_literal_reply_peer(self.0.clone()))
+    }
+    fn is_multiconnect(&self) -> bool { false }
+}
+impl std::fmt::Debug for LiteralReply{fn fmt(&self, f:&mut std::fmt::Formatter) -> std::result::Result<(), std::fmt::Error> { write!(f, "LiteralReply") }  }
+
+pub struct Assert(pub Vec<u8>);
+impl Specifier for Assert {
+    fn construct(&self, _:&Handle, _: &mut ProgramState) -> PeerConstructor {
+        once(trivial::get_assert_peer(self.0.clone()))
+    }
+    fn is_multiconnect(&self) -> bool { false }
+}
+impl std::fmt::Debug for Assert{fn fmt(&self, f:&mut std::fmt::Formatter) -> std::result::Result<(), std::fmt::Error> { write!(f, "Assert") }  }
+
+#[derive(Debug)]
+pub struct Constipated;
+impl Specifier for Constipated {
+    fn construct(&self, _:&Handle, _: &mut ProgramState) -> PeerConstructor {
+        once(trivial::get_constipated_peer())
+    }
+    fn is_multiconnect(&self) -> bool { false }
+}
+
 
 pub enum PeerConstructor {
     ServeOnce(BoxedNewPeerFuture),
@@ -370,24 +425,6 @@ pub fn box_up_err<E: std::error::Error + 'static>(e : E) -> Box<std::error::Erro
     Box::new(e) as Box<std::error::Error>
 }
 
-mod my_copy;
-
-pub mod ws_peer;
-
-pub mod ws_server_peer;
-pub mod ws_client_peer;
-
-pub mod net_peer;
-
-#[cfg(all(unix,not(feature="no_unix_stdio")))]
-pub mod stdio_peer;
-
-pub mod stdio_threaded_peer;
-
-pub mod connection_reuse_peer;
-
-pub mod mirror;
-
 impl Peer {
     fn new<R:AsyncRead+'static, W:AsyncWrite+'static>(r:R, w:W) -> Self {
         Peer (
@@ -435,6 +472,17 @@ pub fn reuser_prefix(s:&str) -> Option<&str> {
     }
 }
 
+pub fn ws_url_prefix(s:&str) -> Option<&str> {
+    if s.starts_with("ws://") {
+        Some(s)
+    } else
+    if s.starts_with("wss://") {
+        Some(s)
+    } else {
+        None
+    }
+}
+
 fn boxup<T:Specifier+'static>(x:T) -> Result<Box<Specifier>> {
     Ok(Box::new(x))
 }
@@ -455,6 +503,18 @@ impl FromStr for Box<Specifier> {
         } else
         if s == "mirror:" {
             boxup(Mirror)
+        } else
+        if s == "constipated:" {
+            boxup(Constipated)
+        } else
+        if s.starts_with("literal:"){
+            boxup(Literal(s[8..].as_bytes().to_vec()))
+        } else
+        if s.starts_with("literalreply:"){
+            boxup(LiteralReply(s[13..].as_bytes().to_vec()))
+        } else
+        if s.starts_with("assert:"){
+            boxup(Assert(s[7..].as_bytes().to_vec()))
         } else
         if s.starts_with("tcp:") {
             boxup(TcpConnect(s[4..].parse()?))
@@ -489,9 +549,12 @@ impl FromStr for Box<Specifier> {
         if let Some(x) = reuser_prefix(s) {
             boxup(Reuser(spec(x)?))
         } else
-        {
-            let url : Url = s.parse()?;
+        if let Some(url_s) = ws_url_prefix(s) {
+            let url : Url = url_s.parse()?;
             boxup(WsClient(url))
+        } else {
+            error!("Invalid specifier string `{}`", s);
+            Err("Wrong specifier")?
         }
     }
 }
