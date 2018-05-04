@@ -479,13 +479,15 @@ impl Session {
     pub fn run(self) -> Box<Future<Item=(),Error=Box<std::error::Error>>> {
         let f1 = my_copy::copy(self.0.from, self.0.to, true);
         let f2 = my_copy::copy(self.1.from, self.1.to, true);
-        let f1 = f1.map(|(_,r,w)|{
+        let f1 = f1.map(|(_,r,mut w)|{
             //eprintln!("Forward finished");
+            let _ = w.shutdown();
             std::mem::drop(r);
             std::mem::drop(w); 
         });
-        let f2 = f2.map(|(_,r,w)|{ 
+        let f2 = f2.map(|(_,r,mut w)|{ 
             //eprintln!("Reverse finished");
+            let _ = w.shutdown();
             std::mem::drop(r);
             std::mem::drop(w); 
         });
