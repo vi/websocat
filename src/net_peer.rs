@@ -88,6 +88,7 @@ impl Drop for MyTcpStream {
 pub fn tcp_connect_peer(handle: &Handle, addr: &SocketAddr) -> BoxedNewPeerFuture {
     Box::new(
         TcpStream::connect(&addr, handle).map(|x| {
+            info!("Connected to TCP");
             let x = Rc::new(x);
             Peer::new(MyTcpStream(x.clone(), true), MyTcpStream(x.clone(), false))
         }).map_err(box_up_err)
@@ -103,6 +104,7 @@ pub fn tcp_listen_peer(handle: &Handle, addr: &SocketAddr) -> BoxedNewPeerStream
         bound
         .incoming()
         .map(|(x, _addr)| {
+            info!("Incoming TCP connection");
             let x = Rc::new(x);
             Peer::new(MyTcpStream(x.clone(), true), MyTcpStream(x.clone(), false))
         })

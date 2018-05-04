@@ -64,18 +64,23 @@ impl<R, W> Future for Copy<R, W>
         loop {
             // If our buffer is empty, then we need to read some data to
             // continue.
+            trace!("poll");
             if self.pos == self.cap && !self.read_done {
                 let reader = self.reader.as_mut().unwrap();
                 let rr = reader.read(&mut self.buf);
                 if let Err(ref e) = rr {
                     if e.kind() == io::ErrorKind::BrokenPipe {
+                        debug!("BrokenPipe: read_done");
                         self.read_done = true;
                         continue;
                     }
                 }
                 let n = try_nb!(rr);
+                trace!("read {}", n);
                 if n == 0 {
+                    debug!("zero len");
                     if self.stop_on_reader_zero_read {
+                        debug!("read_done");
                         self.read_done = true;
                     }
                     continue;
@@ -93,6 +98,7 @@ impl<R, W> Future for Copy<R, W>
                     return Err(io::Error::new(io::ErrorKind::WriteZero,
                                               "write zero byte into writer"));
                 } else {
+                    trace!("write {}", i);
                     self.pos += i;
                     self.amt += i as u64;
                 }
@@ -106,6 +112,7 @@ impl<R, W> Future for Copy<R, W>
                 try_nb!(self.writer.as_mut().unwrap().flush());
                 let reader = self.reader.take().unwrap();
                 let writer = self.writer.take().unwrap();
+                debug!("done");
                 return Ok((self.amt, reader, writer).into())
             }
         }

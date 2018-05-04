@@ -50,9 +50,11 @@ impl<T:WsStream+'static>  Read for WsReadWrapper<T>
         }
         match self.s.poll().map_err(io_other_error)? {
             Ready(Some(OwnedMessage::Close(_))) => {
+                debug!("incoming close");
                 brokenpipe()
             },
             Ready(None) => {
+                debug!("incoming None");
                 brokenpipe()
             }
             Ready(Some(OwnedMessage::Ping(x))) => {
@@ -63,7 +65,7 @@ impl<T:WsStream+'static>  Read for WsReadWrapper<T>
                 // And pings and their replies are not tested yet
                 match sink.start_send(om).map_err(io_other_error)? {
                     futures::AsyncSink::NotReady(_) => {
-                        // drop the ping
+                        warn!("dropped a ping request from websocket due to channel contention");
                     },
                     futures::AsyncSink::Ready => {
                         proceed = true;
@@ -76,12 +78,15 @@ impl<T:WsStream+'static>  Read for WsReadWrapper<T>
                 Ok(0)
             }
             Ready(Some(OwnedMessage::Pong(_))) => {
+                warn!("Received a pong from websocket");
                 Ok(0)
             }
             Ready(Some(OwnedMessage::Text(x))) => {
+                debug!("incoming text");
                 self.process_message(buf, x.as_str().as_bytes())
             }
             Ready(Some(OwnedMessage::Binary(x))) => {
+                debug!("incoming binary");
                 self.process_message(buf, x.as_slice())
             }
             NotReady => {
@@ -126,6 +131,7 @@ impl<T:WsStream+'static> Write for WsWriteWrapper<T> {
 
 impl<T:WsStream+'static> Drop for WsWriteWrapper<T> {
     fn drop(&mut self) {
+        debug!("drop WsWriteWrapper",);
         let mut sink = self.0.borrow_mut();
         let _ = sink.start_send(OwnedMessage::Close(None))
             .map_err(|_|())

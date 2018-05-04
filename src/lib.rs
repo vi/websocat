@@ -87,7 +87,7 @@ impl WebsocatConfiguration {
 }
 
 
-#[derive(Default)]
+#[derive(Default,Debug)]
 pub struct Options {
 }
 
@@ -122,7 +122,7 @@ pub type SpecifierInspector = Box<FnMut(&Specifier)-> Box<Any>>;
 /// A parsed command line argument.
 /// For example, `ws-listen:tcp-l:127.0.0.1:8080` gets parsed into
 /// a `WsUpgrade(TcpListen(SocketAddr))`.
-pub trait Specifier {
+pub trait Specifier : std::fmt::Debug {
     /// Apply the specifier for constructing a "socket" or other connecting device.
     fn construct(&self, h:&Handle, ps: &mut ProgramState) -> PeerConstructor;
     /// A server (multiconnect) or a client (single connect)?
@@ -158,7 +158,7 @@ impl Specifier for Box<Specifier> {
     fn is_multiconnect(&self) -> bool { (**self).is_multiconnect() }
 }
 
-#[derive(Clone)]
+#[derive(Clone,Debug)]
 pub struct Stdio;
 impl Specifier for Stdio {
     fn construct(&self, h:&Handle, ps: &mut ProgramState) -> PeerConstructor {
@@ -177,6 +177,7 @@ impl Specifier for Stdio {
     fn is_multiconnect(&self) -> bool { false }
 }
 
+#[derive(Debug)]
 pub struct ThreadedStdio;
 impl Specifier for ThreadedStdio {
     fn construct(&self, _:&Handle, _: &mut ProgramState) -> PeerConstructor {
@@ -188,7 +189,7 @@ impl Specifier for ThreadedStdio {
     fn is_multiconnect(&self) -> bool { false }
 }
 
-
+#[derive(Debug)]
 pub struct WsConnect<T:Specifier>(pub Url,pub T);
 impl<T:Specifier> Specifier for WsConnect<T> {
     fn construct(&self, h:&Handle, ps: &mut ProgramState) -> PeerConstructor {
@@ -206,6 +207,7 @@ impl<T:Specifier> Specifier for WsConnect<T> {
     fn is_multiconnect(&self) -> bool { self.1.is_multiconnect() }
 }
 
+#[derive(Debug)]
 pub struct WsUpgrade<T:Specifier>(pub T);
 impl<T:Specifier> Specifier for WsUpgrade<T> {
     fn construct(&self, h:&Handle, ps: &mut ProgramState) -> PeerConstructor {
@@ -218,6 +220,7 @@ impl<T:Specifier> Specifier for WsUpgrade<T> {
     fn is_multiconnect(&self) -> bool { self.0.is_multiconnect() }
 }
 
+#[derive(Debug)]
 pub struct WsClient(pub Url);
 impl Specifier for WsClient {
     fn construct(&self, h:&Handle, _: &mut ProgramState) -> PeerConstructor {
@@ -227,6 +230,7 @@ impl Specifier for WsClient {
     fn is_multiconnect(&self) -> bool { false }
 }
 
+#[derive(Debug)]
 pub struct TcpConnect(pub SocketAddr);
 impl Specifier for TcpConnect {
     fn construct(&self, h:&Handle, _: &mut ProgramState) -> PeerConstructor {
@@ -235,6 +239,7 @@ impl Specifier for TcpConnect {
     fn is_multiconnect(&self) -> bool { false }
 }
 
+#[derive(Debug)]
 pub struct TcpListen(pub SocketAddr);
 impl Specifier for TcpListen {
     fn construct(&self, h:&Handle, _: &mut ProgramState) -> PeerConstructor {
@@ -243,6 +248,7 @@ impl Specifier for TcpListen {
     fn is_multiconnect(&self) -> bool { true }
 }
 
+#[derive(Debug)]
 pub struct Reuser<T:Specifier>(pub T);
 impl<T:Specifier> Specifier for Reuser<T> {
     fn construct(&self, h:&Handle, ps: &mut ProgramState) -> PeerConstructor {
@@ -259,6 +265,17 @@ impl<T:Specifier> Specifier for Reuser<T> {
             return StdioUsageStatus::WithReuser;
         }
         ss
+    }
+    fn is_multiconnect(&self) -> bool { false }
+}
+
+#[derive(Debug)]
+pub struct Mirror;
+impl Specifier for Mirror {
+    fn construct(&self, _:&Handle, _: &mut ProgramState) -> PeerConstructor {
+        let ret;
+        ret = mirror::get_mirror_peer();
+        once(ret)
     }
     fn is_multiconnect(&self) -> bool { false }
 }
@@ -302,16 +319,6 @@ impl PeerConstructor {
             },
         }
     }
-}
-
-pub struct Mirror;
-impl Specifier for Mirror {
-    fn construct(&self, _:&Handle, _: &mut ProgramState) -> PeerConstructor {
-        let ret;
-        ret = mirror::get_mirror_peer();
-        once(ret)
-    }
-    fn is_multiconnect(&self) -> bool { false }
 }
 
 pub fn once(x:BoxedNewPeerFuture) -> PeerConstructor {
@@ -483,20 +490,22 @@ impl Session {
         let f1 = my_copy::copy(self.0.from, self.0.to, true);
         let f2 = my_copy::copy(self.1.from, self.1.to, true);
         let f1 = f1.map(|(_,r,mut w)|{
-            debug!("Forward finished");
+            info!("Forward finished");
             let _ = w.shutdown();
             std::mem::drop(r);
             std::mem::drop(w); 
         });
         let f2 = f2.map(|(_,r,mut w)|{ 
-            debug!("Reverse finished");
+            info!("Reverse finished");
             let _ = w.shutdown();
             std::mem::drop(r);
             std::mem::drop(w); 
         });
         Box::new(
             f1.join(f2)
-            .map(|(_,_)|())
+            .map(|(_,_)|{
+                info!("Finished");
+            })
             .map_err(|x|  Box::new(x) as Box<std::error::Error> )
         ) as Box<Future<Item=(),Error=Box<std::error::Error>>>
     }
@@ -514,10 +523,11 @@ impl Session {
     }
 }
 
-pub fn serve<S1, S2, OE>(h: Handle, s1: S1, s2 : S2, _options: Options, onerror: std::rc::Rc<OE>) 
+pub fn serve<S1, S2, OE>(h: Handle, s1: S1, s2 : S2, opts: Options, onerror: std::rc::Rc<OE>) 
     -> Box<Future<Item=(), Error=()>>
     where S1 : Specifier + 'static, S2: Specifier + 'static, OE : Fn(Box<std::error::Error>) -> () + 'static
 {
+    info!("Serving {:?} to {:?} with options {:?}", s1, s2, opts);
     let mut ps = ProgramState::default();
 
     use PeerConstructor::{ServeMultipleTimes, ServeOnce};

@@ -18,14 +18,15 @@ use futures::Stream;
 fn get_stdio_peer_impl(s: &mut GlobalState, handle: &Handle) -> Result<Peer> {
     let si;
     let so;
-    
     {
         if !UnixFile::raw_new(std::io::stdin()).get_nonblocking()? {
+            info!("Setting stdin to nonblocking mode");
             s.need_to_restore_stdin_blocking_status = true;
         }
         let stdin  = self::UnixFile::new_nb(std::io::stdin())?;
         
         if !UnixFile::raw_new(std::io::stdout()).get_nonblocking()? {
+            info!("Setting stdout to nonblocking mode");
             s.need_to_restore_stdout_blocking_status = true;
         }
         let stdout = self::UnixFile::new_nb(std::io::stdout())?;
@@ -37,6 +38,7 @@ fn get_stdio_peer_impl(s: &mut GlobalState, handle: &Handle) -> Result<Peer> {
         
         #[cfg(all(unix,feature="signal_handler"))]
         {
+            info!("Installing signal handler");
             let ctrl_c = tokio_signal::ctrl_c(&handle).flatten_stream();
             let prog = ctrl_c.for_each(move |()| {
                 restore_blocking_status(&s_clone);
@@ -51,6 +53,7 @@ fn get_stdio_peer_impl(s: &mut GlobalState, handle: &Handle) -> Result<Peer> {
 }
 
 pub fn get_stdio_peer(s: &mut GlobalState, handle: &Handle) -> BoxedNewPeerFuture {
+    info!("get_stdio_peer (async)");
     Box::new(futures::future::result(get_stdio_peer_impl(s, handle))) as BoxedNewPeerFuture
 }
 
@@ -68,10 +71,13 @@ impl Drop for GlobalState {
 
 fn restore_blocking_status(s : &GlobalState) {
     {
+        debug!("restore_blocking_status");
         if s.need_to_restore_stdin_blocking_status {
+            info!("Restoring blocking status for stdin");
             let _ = UnixFile::raw_new(std::io::stdin()).set_nonblocking(false);
         }
         if s.need_to_restore_stdout_blocking_status {
+            info!("Restoring blocking status for stdout");
             let _ = UnixFile::raw_new(std::io::stdout()).set_nonblocking(false);
         }
     }

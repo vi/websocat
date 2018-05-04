@@ -97,6 +97,7 @@ impl Write for  MirrorWrite {
 
 impl Drop for MirrorWrite {
     fn drop(&mut self) {
+        info!("MirrorWrite drop");
         let _ = self.0.start_send(vec![])
             .map_err(|_|())
             .map(|_|());

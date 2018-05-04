@@ -20,10 +20,11 @@ fn get_ws_client_peer_impl<S,F>(uri: &Url, f: F) -> BoxedNewPeerFuture
 {
     let stage1 = ClientBuilder::from_url(uri);
     let before_connect = stage1
-        .add_protocol("rust-websocket");
+        .add_protocol("rust-websocket"); // TODO: customizable protocol
     let after_connect = f(before_connect);
     Box::new(after_connect
         .map(|(duplex, _)| {
+            info!("Connected to ws",);
             let (sink, stream) = duplex.split();
             let mpsink = Rc::new(RefCell::new(sink));
             
@@ -42,6 +43,7 @@ fn get_ws_client_peer_impl<S,F>(uri: &Url, f: F) -> BoxedNewPeerFuture
 }
 
 pub fn get_ws_client_peer(handle: &Handle, uri: &Url) -> BoxedNewPeerFuture {
+    info!("get_ws_client_peer");
     get_ws_client_peer_impl(uri, |before_connect| {
         #[cfg(feature="ssl")]
         let after_connect = before_connect
@@ -58,6 +60,7 @@ unsafe impl Send for PeerForWs {
 }
 
 pub fn get_ws_client_peer_wrapped(uri: &Url, inner: Peer) -> BoxedNewPeerFuture {
+    info!("get_ws_client_peer_wrapped");
     get_ws_client_peer_impl(uri, |before_connect| {
         let after_connect = before_connect
             .async_connect_on(PeerForWs(inner));
