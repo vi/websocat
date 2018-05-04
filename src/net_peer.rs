@@ -49,7 +49,7 @@ impl<W> Write for RcWriteProxy<W> where for<'a> &'a W : AsyncWrite {
 
 // based on https://github.com/tokio-rs/tokio-core/blob/master/examples/proxy.rs
 #[derive(Clone)]
-struct MyTcpStream(Rc<TcpStream>);
+struct MyTcpStream(Rc<TcpStream>, bool);
 
 impl Read for MyTcpStream {
     fn read(&mut self, buf: &mut [u8]) -> IoResult<usize> {
@@ -76,11 +76,20 @@ impl AsyncWrite for MyTcpStream {
     }
 }
 
+impl Drop for MyTcpStream {
+    fn drop(&mut self) {
+        let i_am_read_part = self.1;
+        if i_am_read_part {
+            let _ = self.0.shutdown(std::net::Shutdown::Read);
+        }
+    }
+}
+
 pub fn tcp_connect_peer(handle: &Handle, addr: &SocketAddr) -> BoxedNewPeerFuture {
     Box::new(
         TcpStream::connect(&addr, handle).map(|x| {
             let x = Rc::new(x);
-            Peer::new(MyTcpStream(x.clone()), MyTcpStream(x.clone()))
+            Peer::new(MyTcpStream(x.clone(), true), MyTcpStream(x.clone(), false))
         }).map_err(box_up_err)
     ) as BoxedNewPeerFuture
 }
@@ -95,7 +104,7 @@ pub fn tcp_listen_peer(handle: &Handle, addr: &SocketAddr) -> BoxedNewPeerStream
         .incoming()
         .map(|(x, _addr)| {
             let x = Rc::new(x);
-            Peer::new(MyTcpStream(x.clone()), MyTcpStream(x.clone()))
+            Peer::new(MyTcpStream(x.clone(), true), MyTcpStream(x.clone(), false))
         })
         .map_err(|e|box_up_err(e))
     ) as BoxedNewPeerStream
