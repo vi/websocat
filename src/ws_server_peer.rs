@@ -18,8 +18,12 @@ pub fn ws_upgrade_peer(inner_peer : Peer) -> BoxedNewPeerFuture {
     let step3 = step2
         .map_err(|(_,_,_,e)| WebSocketError::IoError(io_other_error(e)) )
         .and_then(|x| {
-            x.accept().map(|(y,_)| {
-                info!("Incoming websocket connection");
+            info!("Incoming connection to websocket: {}",x.request.subject.1);
+            debug!("{:?}", x.request);
+            debug!("{:?}", x.headers);
+            x.accept().map(|(y,headers)| {
+                debug!("{:?}", headers);
+                info!("Upgraded");
                 let (sink, stream) = y.split();
                 let mpsink = Rc::new(RefCell::new(sink));
             
