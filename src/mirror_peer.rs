@@ -16,6 +16,32 @@ use futures::sync::mpsc;
 use tokio_io::{AsyncRead,AsyncWrite};
 
 use super::ReadDebt;
+use super::{once,Specifier,ProgramState,Handle,PeerConstructor};
+
+
+#[derive(Debug)]
+pub struct Mirror;
+impl Specifier for Mirror {
+    fn construct(&self, _:&Handle, _: &mut ProgramState) -> PeerConstructor {
+        once(get_mirror_peer())
+    }
+    fn is_multiconnect(&self) -> bool { false }
+}
+
+
+pub struct LiteralReply(pub Vec<u8>);
+impl Specifier for LiteralReply {
+    fn construct(&self, _:&Handle, _: &mut ProgramState) -> PeerConstructor {
+        once(get_literal_reply_peer(self.0.clone()))
+    }
+    fn is_multiconnect(&self) -> bool { false }
+}
+impl std::fmt::Debug for LiteralReply{fn fmt(&self, f:&mut std::fmt::Formatter) -> std::result::Result<(), std::fmt::Error> { write!(f, "LiteralReply") }  }
+
+
+
+
+
 
 struct MirrorWrite(mpsc::Sender<Vec<u8>>);
 struct MirrorRead {
@@ -32,7 +58,7 @@ pub fn get_mirror_peer() -> BoxedNewPeerFuture {
 }
 pub fn get_literal_reply_peer(content: Vec<u8>) -> BoxedNewPeerFuture {
     let (sender, receiver) = mpsc::channel::<()>(0);
-    let r = LiteralReply{debt:Default::default(), ch:receiver, content};
+    let r = LiteralReplyRead{debt:Default::default(), ch:receiver, content};
     let w = LiteralReplyHandle(sender);
     let p = Peer::new(r,w);
     Box::new(futures::future::ok(p)) as BoxedNewPeerFuture
@@ -105,7 +131,7 @@ impl Drop for MirrorWrite {
 
 ////
 struct LiteralReplyHandle(mpsc::Sender<()>);
-struct LiteralReply {
+struct LiteralReplyRead {
     debt: ReadDebt,
     ch: mpsc::Receiver<()>,
     content: Vec<u8>,
@@ -140,9 +166,9 @@ impl Write for  LiteralReplyHandle {
         }
     }
 }
-impl AsyncRead for LiteralReply
+impl AsyncRead for LiteralReplyRead
 {}
-impl Read for LiteralReply
+impl Read for LiteralReplyRead
 {
     fn read(&mut self, buf: &mut [u8]) -> std::result::Result<usize, std::io::Error> {
         if let Some(ret) = self.debt.check_debt(buf) {

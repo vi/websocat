@@ -2,6 +2,19 @@ extern crate tokio_stdin_stdout;
 
 use super::{Peer, BoxedNewPeerFuture};
 
+use super::{once,Specifier,Handle,ProgramState,PeerConstructor,StdioUsageStatus};
+
+#[derive(Debug)]
+pub struct ThreadedStdio;
+impl Specifier for ThreadedStdio {
+    fn construct(&self, _:&Handle, _: &mut ProgramState) -> PeerConstructor {
+        once(get_stdio_peer())
+    }
+    fn stdio_usage_status(&self) -> StdioUsageStatus { StdioUsageStatus::IsItself }
+    fn is_multiconnect(&self) -> bool { false }
+}
+
+
 pub fn get_stdio_peer() -> BoxedNewPeerFuture {
     info!("get_stdio_peer (threaded)");
     Box::new(

@@ -21,32 +21,26 @@ use tokio_io::{AsyncRead,AsyncWrite};
 
 use futures::Stream;
 
-use websocket::client::Url;
-use std::net::SocketAddr;
 
-use std::str::FromStr;
 use std::any::Any;
 
 
 
 mod my_copy;
 
-pub mod ws_peer;
-
-pub mod ws_server_peer;
-pub mod ws_client_peer;
-
-pub mod net_peer;
-
 #[cfg(all(unix,not(feature="no_unix_stdio")))]
 pub mod stdio_peer;
 
+pub mod ws_peer;
+pub mod ws_server_peer;
+pub mod ws_client_peer;
+pub mod net_peer;
 pub mod stdio_threaded_peer;
-
 pub mod connection_reuse_peer;
+pub mod mirror_peer;
+pub mod trivial_peer;
 
-pub mod mirror;
-pub mod trivial;
+pub mod specparse;
 
 type Result<T> = std::result::Result<T, Box<std::error::Error>>;
 
@@ -107,7 +101,7 @@ impl WebsocatConfiguration {
     
     pub fn auto_install_reuser(self) -> Self {
         let WebsocatConfiguration { opts, s1, s2 } = self;
-        WebsocatConfiguration { opts, s1, s2: Box::new(Reuser(s2)) }
+        WebsocatConfiguration { opts, s1, s2: Box::new(connection_reuse_peer::Reuser(s2)) }
     }
 }
 
@@ -198,163 +192,6 @@ impl Specifier for Box<Specifier> {
     fn stdio_usage_status(&self) -> StdioUsageStatus { (**self).stdio_usage_status() }
     fn is_multiconnect(&self) -> bool { (**self).is_multiconnect() }
     fn is_reuser_itself(&self) -> bool { (**self).is_reuser_itself() }
-}
-
-#[derive(Clone,Debug)]
-pub struct Stdio;
-impl Specifier for Stdio {
-    fn construct(&self, h:&Handle, ps: &mut ProgramState) -> PeerConstructor {
-        let ret;
-        #[cfg(all(unix,not(feature="no_unix_stdio")))]
-        {
-            ret = stdio_peer::get_stdio_peer(&mut ps.stdio, h)
-        }
-        #[cfg(any(not(unix),feature="no_unix_stdio"))]
-        {
-            ret = stdio_threaded_peer::get_stdio_peer()
-        }
-        once(ret)
-    }
-    fn stdio_usage_status(&self) -> StdioUsageStatus { StdioUsageStatus::IsItself }
-    fn is_multiconnect(&self) -> bool { false }
-}
-
-#[derive(Debug)]
-pub struct ThreadedStdio;
-impl Specifier for ThreadedStdio {
-    fn construct(&self, _:&Handle, _: &mut ProgramState) -> PeerConstructor {
-        let ret;
-        ret = stdio_threaded_peer::get_stdio_peer();
-        once(ret)
-    }
-    fn stdio_usage_status(&self) -> StdioUsageStatus { StdioUsageStatus::IsItself }
-    fn is_multiconnect(&self) -> bool { false }
-}
-
-#[derive(Debug)]
-pub struct WsConnect<T:Specifier>(pub Url,pub T);
-impl<T:Specifier> Specifier for WsConnect<T> {
-    fn construct(&self, h:&Handle, ps: &mut ProgramState) -> PeerConstructor {
-        let inner = self.1.construct(h, ps);
-        
-        let url = self.0.clone();
-        
-        inner.map(move |q| {
-            ws_client_peer::get_ws_client_peer_wrapped(&url, q)
-        })
-    }
-    fn use_child_specifier(&self, mut f: SpecifierInspector) -> Option<Box<Any>> {
-        Some(f(&self.1))
-    }
-    fn is_multiconnect(&self) -> bool { self.1.is_multiconnect() }
-}
-
-#[derive(Debug)]
-pub struct WsUpgrade<T:Specifier>(pub T);
-impl<T:Specifier> Specifier for WsUpgrade<T> {
-    fn construct(&self, h:&Handle, ps: &mut ProgramState) -> PeerConstructor {
-        let inner = self.0.construct(h, ps);
-        inner.map(ws_server_peer::ws_upgrade_peer)
-    }
-    fn use_child_specifier(&self, mut f: SpecifierInspector) -> Option<Box<Any>> {
-        Some(f(&self.0))
-    }
-    fn is_multiconnect(&self) -> bool { self.0.is_multiconnect() }
-}
-
-#[derive(Debug)]
-pub struct WsClient(pub Url);
-impl Specifier for WsClient {
-    fn construct(&self, h:&Handle, _: &mut ProgramState) -> PeerConstructor {
-        let url = self.0.clone();
-        once(ws_client_peer::get_ws_client_peer(h, &url))
-    }
-    fn is_multiconnect(&self) -> bool { false }
-}
-
-#[derive(Debug)]
-pub struct TcpConnect(pub SocketAddr);
-impl Specifier for TcpConnect {
-    fn construct(&self, h:&Handle, _: &mut ProgramState) -> PeerConstructor {
-        once(net_peer::tcp_connect_peer(h, &self.0))
-    }
-    fn is_multiconnect(&self) -> bool { false }
-}
-
-#[derive(Debug)]
-pub struct TcpListen(pub SocketAddr);
-impl Specifier for TcpListen {
-    fn construct(&self, h:&Handle, _: &mut ProgramState) -> PeerConstructor {
-        multi(net_peer::tcp_listen_peer(h, &self.0))
-    }
-    fn is_multiconnect(&self) -> bool { true }
-}
-
-#[derive(Debug)]
-pub struct Reuser<T:Specifier>(pub T);
-impl<T:Specifier> Specifier for Reuser<T> {
-    fn construct(&self, h:&Handle, ps: &mut ProgramState) -> PeerConstructor {
-        let mut reuser = ps.reuser.clone();
-        let inner = self.0.construct(h, ps).get_only_first_conn();
-        once(connection_reuse_peer::connection_reuser(&mut reuser, inner))
-    }
-    fn use_child_specifier(&self, mut f: SpecifierInspector) -> Option<Box<Any>> {
-        Some(f(&self.0))
-    }
-    fn stdio_usage_status(&self) -> StdioUsageStatus {
-        let ss = self.0.stdio_usage_status();
-        if ss > StdioUsageStatus::Indirectly {
-            return StdioUsageStatus::WithReuser;
-        }
-        ss
-    }
-    fn is_multiconnect(&self) -> bool { false }
-    fn is_reuser_itself(&self) -> bool { true }
-}
-
-#[derive(Debug)]
-pub struct Mirror;
-impl Specifier for Mirror {
-    fn construct(&self, _:&Handle, _: &mut ProgramState) -> PeerConstructor {
-        once(mirror::get_mirror_peer())
-    }
-    fn is_multiconnect(&self) -> bool { false }
-}
-
-pub struct Literal(pub Vec<u8>);
-impl Specifier for Literal {
-    fn construct(&self, _:&Handle, _: &mut ProgramState) -> PeerConstructor {
-        once(trivial::get_literal_peer(self.0.clone()))
-    }
-    fn is_multiconnect(&self) -> bool { false }
-}
-impl std::fmt::Debug for Literal{fn fmt(&self, f:&mut std::fmt::Formatter) -> std::result::Result<(), std::fmt::Error> { write!(f, "Literal") }  }
-
-pub struct LiteralReply(pub Vec<u8>);
-impl Specifier for LiteralReply {
-    fn construct(&self, _:&Handle, _: &mut ProgramState) -> PeerConstructor {
-        once(mirror::get_literal_reply_peer(self.0.clone()))
-    }
-    fn is_multiconnect(&self) -> bool { false }
-}
-impl std::fmt::Debug for LiteralReply{fn fmt(&self, f:&mut std::fmt::Formatter) -> std::result::Result<(), std::fmt::Error> { write!(f, "LiteralReply") }  }
-
-pub struct Assert(pub Vec<u8>);
-impl Specifier for Assert {
-    fn construct(&self, _:&Handle, _: &mut ProgramState) -> PeerConstructor {
-        once(trivial::get_assert_peer(self.0.clone()))
-    }
-    fn is_multiconnect(&self) -> bool { false }
-}
-impl std::fmt::Debug for Assert{fn fmt(&self, f:&mut std::fmt::Formatter) -> std::result::Result<(), std::fmt::Error> { write!(f, "Assert") }  }
-
-#[derive(Debug)]
-pub struct Constipated;
-impl Specifier for Constipated {
-    fn construct(&self, _:&Handle, _: &mut ProgramState) -> PeerConstructor {
-        once(trivial::get_constipated_peer())
-    }
-    fn is_multiconnect(&self) -> bool { false }
 }
 
 
@@ -457,130 +294,9 @@ impl Peer {
     }
 }
 
-pub fn ws_l_prefix(s:&str) -> Option<&str> {
-    if    s.starts_with("ws-l:") 
-       || s.starts_with("l-ws:")
-    {
-        Some(&s[5..])
-    }
-    else if  s.starts_with("ws-listen:")
-          || s.starts_with("listen-ws:")
-    {
-        Some(&s[10..])
-    } else {
-        None
-    }
-}
+pub use specparse::boxup;
+pub use specparse::spec;
 
-pub fn ws_c_prefix(s:&str) -> Option<&str> {
-    if    s.starts_with("ws-c:") 
-       || s.starts_with("c-ws:")
-    {
-        Some(&s[5..])
-    }
-    else if  s.starts_with("ws-connect:")
-          || s.starts_with("connect-ws:")
-    {
-        Some(&s[11..])
-    } else {
-        None
-    }
-}
-
-pub fn reuser_prefix(s:&str) -> Option<&str> {
-    if s.starts_with("reuse:") {
-        Some(&s[6..])
-    } else {
-        None
-    }
-}
-
-pub fn ws_url_prefix(s:&str) -> Option<&str> {
-    if s.starts_with("ws://") {
-        Some(s)
-    } else
-    if s.starts_with("wss://") {
-        Some(s)
-    } else {
-        None
-    }
-}
-
-fn boxup<T:Specifier+'static>(x:T) -> Result<Box<Specifier>> {
-    Ok(Box::new(x))
-}
-
-pub fn spec(s : &str) -> Result<Box<Specifier>>  {
-    FromStr::from_str(s)
-}
-
-impl FromStr for Box<Specifier> {
-    type Err = Box<std::error::Error>;
-    
-    fn from_str(s: &str) -> Result<Box<Specifier>> {
-            if s == "-" || s == "inetd:" {
-            boxup(Stdio)
-        } else 
-        if s == "threadedstdio:" {
-            boxup(ThreadedStdio)
-        } else
-        if s == "mirror:" {
-            boxup(Mirror)
-        } else
-        if s == "constipated:" {
-            boxup(Constipated)
-        } else
-        if s.starts_with("literal:"){
-            boxup(Literal(s[8..].as_bytes().to_vec()))
-        } else
-        if s.starts_with("literalreply:"){
-            boxup(LiteralReply(s[13..].as_bytes().to_vec()))
-        } else
-        if s.starts_with("assert:"){
-            boxup(Assert(s[7..].as_bytes().to_vec()))
-        } else
-        if s.starts_with("tcp:") {
-            boxup(TcpConnect(s[4..].parse()?))
-        } else 
-        if s.starts_with("tcp-connect:") {
-            boxup(TcpConnect(s[12..].parse()?))
-        } else 
-        if s.starts_with("tcp-l:") {
-            boxup(TcpListen(s[6..].parse()?))
-        } else 
-        if s.starts_with("l-tcp:") {
-            boxup(TcpListen(s[6..].parse()?))
-        } else 
-        if s.starts_with("tcp-listen:") {
-            boxup(TcpListen(s[11..].parse()?))
-        } else
-        if let Some(x) = ws_l_prefix(s) {
-            if x == "" {
-                Err("Specify underlying protocol for ws-l:")?;
-            }
-            if let Some(c) = x.chars().next() {
-                if c.is_numeric() || c == '[' {
-                    // Assuming user uses old format like ws-l:127.0.0.1:8080
-                    return spec(&("ws-l:tcp-l:".to_owned() + x));
-                }
-            }
-            boxup(WsUpgrade(spec(x)?))
-        } else
-        if let Some(x) = ws_c_prefix(s) {
-            boxup(WsConnect(Url::parse("ws://0.0.0.0/").unwrap(), spec(x)?))
-        } else
-        if let Some(x) = reuser_prefix(s) {
-            boxup(Reuser(spec(x)?))
-        } else
-        if let Some(url_s) = ws_url_prefix(s) {
-            let url : Url = url_s.parse()?;
-            boxup(WsClient(url))
-        } else {
-            error!("Invalid specifier string `{}`", s);
-            Err("Wrong specifier")?
-        }
-    }
-}
 
 pub fn peer_from_str(ps: &mut ProgramState, handle: &Handle, s: &str) -> PeerConstructor {
     let spec = match spec(s) {

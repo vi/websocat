@@ -15,6 +15,23 @@ use self::tokio_file_unix::{File as UnixFile};
 use super::{Peer, BoxedNewPeerFuture, Result};
 use futures::Stream;
 
+
+use super::{once,Specifier,ProgramState,PeerConstructor,StdioUsageStatus};
+
+#[derive(Clone,Debug)]
+pub struct Stdio;
+impl Specifier for Stdio {
+    fn construct(&self, h:&Handle, ps: &mut ProgramState) -> PeerConstructor {
+        let ret;
+        ret = get_stdio_peer(&mut ps.stdio, h);
+        once(ret)
+    }
+    fn stdio_usage_status(&self) -> StdioUsageStatus { StdioUsageStatus::IsItself }
+    fn is_multiconnect(&self) -> bool { false }
+}
+
+
+
 fn get_stdio_peer_impl(s: &mut GlobalState, handle: &Handle) -> Result<Peer> {
     let si;
     let so;

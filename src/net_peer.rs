@@ -19,6 +19,27 @@ use futures::Async::{Ready, NotReady};
 use tokio_core::net::{TcpStream, TcpListener, UdpSocket};
 
 use super::{Peer, io_other_error, brokenpipe, wouldblock, BoxedNewPeerFuture, BoxedNewPeerStream, peer_err, peer_err_s, box_up_err};
+use super::{once,multi,Specifier,ProgramState,PeerConstructor,StdioUsageStatus};
+
+
+
+#[derive(Debug)]
+pub struct TcpConnect(pub SocketAddr);
+impl Specifier for TcpConnect {
+    fn construct(&self, h:&Handle, _: &mut ProgramState) -> PeerConstructor {
+        once(tcp_connect_peer(h, &self.0))
+    }
+    fn is_multiconnect(&self) -> bool { false }
+}
+
+#[derive(Debug)]
+pub struct TcpListen(pub SocketAddr);
+impl Specifier for TcpListen {
+    fn construct(&self, h:&Handle, _: &mut ProgramState) -> PeerConstructor {
+        multi(tcp_listen_peer(h, &self.0))
+    }
+    fn is_multiconnect(&self) -> bool { true }
+}
 
 /*
 struct RcReadProxy<R>(Rc<R>) where for<'a> &'a R : AsyncRead;

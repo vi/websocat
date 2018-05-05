@@ -13,36 +13,72 @@ use tokio_io::{AsyncRead,AsyncWrite};
 use super::ReadDebt;
 use super::wouldblock;
 
-struct Literal {
+use super::{once,Specifier,Handle,ProgramState,PeerConstructor};
+
+
+pub struct Literal(pub Vec<u8>);
+impl Specifier for Literal {
+    fn construct(&self, _:&Handle, _: &mut ProgramState) -> PeerConstructor {
+        once(get_literal_peer(self.0.clone()))
+    }
+    fn is_multiconnect(&self) -> bool { false }
+}
+impl std::fmt::Debug for Literal{fn fmt(&self, f:&mut std::fmt::Formatter) -> std::result::Result<(), std::fmt::Error> { write!(f, "Literal") }  }
+
+
+pub struct Assert(pub Vec<u8>);
+impl Specifier for Assert {
+    fn construct(&self, _:&Handle, _: &mut ProgramState) -> PeerConstructor {
+        once(get_assert_peer(self.0.clone()))
+    }
+    fn is_multiconnect(&self) -> bool { false }
+}
+impl std::fmt::Debug for Assert{fn fmt(&self, f:&mut std::fmt::Formatter) -> std::result::Result<(), std::fmt::Error> { write!(f, "Assert") }  }
+
+#[derive(Debug)]
+pub struct Constipated;
+impl Specifier for Constipated {
+    fn construct(&self, _:&Handle, _: &mut ProgramState) -> PeerConstructor {
+        once(get_constipated_peer())
+    }
+    fn is_multiconnect(&self) -> bool { false }
+}
+
+
+
+
+
+
+struct LiteralPeer {
     debt: ReadDebt,
 }
 
 pub fn get_literal_peer(b:Vec<u8>) -> BoxedNewPeerFuture {
-    let r = Literal{debt: ReadDebt(Some(b))};
+    let r = LiteralPeer{debt: ReadDebt(Some(b))};
     let w = DevNull;
     let p = Peer::new(r,w);
     Box::new(futures::future::ok(p)) as BoxedNewPeerFuture
 }
 pub fn get_assert_peer(b:Vec<u8>) -> BoxedNewPeerFuture {
     let r = DevNull;
-    let w = Assert(vec![], b);
+    let w = AssertPeer(vec![], b);
     let p = Peer::new(r,w);
     Box::new(futures::future::ok(p)) as BoxedNewPeerFuture
 }
 /// A special peer that returns NotReady without registering for any wakeup, deliberately hanging all connections forever.
 pub fn get_constipated_peer() -> BoxedNewPeerFuture {
-    let r = Constipated;
-    let w = Constipated;
+    let r = ConstipatedPeer;
+    let w = ConstipatedPeer;
     let p = Peer::new(r,w);
     Box::new(futures::future::ok(p)) as BoxedNewPeerFuture
 }
 
 
-impl AsyncRead for Literal
+impl AsyncRead for LiteralPeer
 {}
 
 
-impl Read for Literal
+impl Read for LiteralPeer
 {
     fn read(&mut self, buf: &mut [u8]) -> std::result::Result<usize, std::io::Error> {
         if let Some(ret) = self.debt.check_debt(buf) {
@@ -79,8 +115,8 @@ impl Read for DevNull
 }
 
 
-struct Assert(Vec<u8>, Vec<u8>);
-impl AsyncWrite for Assert {
+struct AssertPeer(Vec<u8>, Vec<u8>);
+impl AsyncWrite for AssertPeer {
     fn shutdown(&mut self) -> futures::Poll<(),std::io::Error> {
         assert_eq!(self.0, self.1);
         info!("Assertion succeed");
@@ -88,7 +124,7 @@ impl AsyncWrite for Assert {
     }
 }
 
-impl Write for Assert {
+impl Write for AssertPeer {
     fn write(&mut self, buf: &[u8]) -> IoResult<usize> {
         self.0.extend_from_slice(buf);
         Ok(buf.len())
@@ -98,13 +134,13 @@ impl Write for Assert {
     }
 }
 
-struct Constipated;
-impl AsyncWrite for Constipated {
+struct ConstipatedPeer;
+impl AsyncWrite for ConstipatedPeer {
     fn shutdown(&mut self) -> futures::Poll<(),std::io::Error> {
         wouldblock()
     }
 }
-impl Write for Constipated {
+impl Write for ConstipatedPeer {
     fn write(&mut self, _buf: &[u8]) -> IoResult<usize> {
         wouldblock()
     }
@@ -112,9 +148,9 @@ impl Write for Constipated {
         wouldblock()
     }
 }
-impl AsyncRead for Constipated
+impl AsyncRead for ConstipatedPeer
 {}
-impl Read for Constipated
+impl Read for ConstipatedPeer
 {
     fn read(&mut self, _buf: &mut [u8]) -> std::result::Result<usize, std::io::Error> {
         wouldblock()

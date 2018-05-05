@@ -14,6 +14,37 @@ use self::websocket::client::Url;
 use super::{Peer, BoxedNewPeerFuture, box_up_err};
 
 use super::ws_peer::{WsReadWrapper, WsWriteWrapper, PeerForWs};
+use super::{once,Specifier,ProgramState,SpecifierInspector,Any,PeerConstructor};
+
+#[derive(Debug)]
+pub struct WsClient(pub Url);
+impl Specifier for WsClient {
+    fn construct(&self, h:&Handle, _: &mut ProgramState) -> PeerConstructor {
+        let url = self.0.clone();
+        once(get_ws_client_peer(h, &url))
+    }
+    fn is_multiconnect(&self) -> bool { false }
+}
+
+#[derive(Debug)]
+pub struct WsConnect<T:Specifier>(pub Url,pub T);
+impl<T:Specifier> Specifier for WsConnect<T> {
+    fn construct(&self, h:&Handle, ps: &mut ProgramState) -> PeerConstructor {
+        let inner = self.1.construct(h, ps);
+        
+        let url = self.0.clone();
+        
+        inner.map(move |q| {
+            get_ws_client_peer_wrapped(&url, q)
+        })
+    }
+    fn use_child_specifier(&self, mut f: SpecifierInspector) -> Option<Box<Any>> {
+        Some(f(&self.1))
+    }
+    fn is_multiconnect(&self) -> bool { self.1.is_multiconnect() }
+}
+
+
 
 fn get_ws_client_peer_impl<S,F>(uri: &Url, f: F) -> BoxedNewPeerFuture 
     where S:WsStream+Send+'static, F : FnOnce(ClientBuilder)->ClientNew<S>
