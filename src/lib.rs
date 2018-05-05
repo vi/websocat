@@ -616,7 +616,7 @@ pub fn serve<S1, S2, OE>(h: Handle, s1: S1, s2 : S2, opts: Options, onerror: std
     -> Box<Future<Item=(), Error=()>>
     where S1 : Specifier + 'static, S2: Specifier + 'static, OE : Fn(Box<std::error::Error>) -> () + 'static
 {
-    info!("Serving {:?} to {:?} with options {:?}", s1, s2, opts);
+    info!("Serving {:?} to {:?} with {:?}", s1, s2, opts);
     let mut ps = ProgramState::default();
 
     use PeerConstructor::{ServeMultipleTimes, ServeOnce};
