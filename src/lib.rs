@@ -66,6 +66,7 @@ pub enum ConfigurationConcern {
     StdinToStdout,
     StdioConflict,
     NeedsStdioReuser,
+    MultipleReusers,
 }
 
 pub struct WebsocatConfiguration {
@@ -96,6 +97,10 @@ impl WebsocatConfiguration {
         
         if self.s1.is_multiconnect() && self.s2.stdio_usage_status() > WithReuser {
             return Some(NeedsStdioReuser);
+        }
+        
+        if self.s1.reuser_count() + self.s2.reuser_count() > 1 {
+            return Some(MultipleReusers);
         }
         None
     }
@@ -167,6 +172,22 @@ pub trait Specifier : std::fmt::Debug {
         None
     }
     
+    fn is_reuser_itself(&self) -> bool { false }
+    fn reuser_count(&self) -> usize {
+        let nested =
+        if let Some(status) = self.use_child_specifier(Box::new(|child : &Specifier| {
+                Box::new(child.reuser_count()) as Box<Any>
+            }))
+        {
+            let ss : usize = *status.downcast().unwrap();
+            ss
+        } else {
+            0
+        };
+        let direct = if self.is_reuser_itself() { 1 } else { 0 };
+        //warn!("{:?} nested={} direct={}", self, nested, direct);
+        nested + direct
+    }
 }
 
 impl Specifier for Box<Specifier> {
@@ -176,6 +197,7 @@ impl Specifier for Box<Specifier> {
     fn use_child_specifier(&self, f: SpecifierInspector) -> Option<Box<Any>> { (**self).use_child_specifier(f) }
     fn stdio_usage_status(&self) -> StdioUsageStatus { (**self).stdio_usage_status() }
     fn is_multiconnect(&self) -> bool { (**self).is_multiconnect() }
+    fn is_reuser_itself(&self) -> bool { (**self).is_reuser_itself() }
 }
 
 #[derive(Clone,Debug)]
@@ -287,6 +309,7 @@ impl<T:Specifier> Specifier for Reuser<T> {
         ss
     }
     fn is_multiconnect(&self) -> bool { false }
+    fn is_reuser_itself(&self) -> bool { true }
 }
 
 #[derive(Debug)]

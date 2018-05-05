@@ -34,7 +34,7 @@ Wacky mode:
     
     let mut websocat = WebsocatConfiguration { opts, s1, s2 };
     
-    if let Some(concern) = websocat.get_concern() {
+    while let Some(concern) = websocat.get_concern() {
         use websocat::ConfigurationConcern::*;
         if concern == StdinToStdout {
             // Degenerate mode: just copy stdin to stdout and call it a day
@@ -50,7 +50,14 @@ Wacky mode:
             //Err("Stdin/stdout is used without a `reuse:` overlay.")?;
             eprintln!("Warning: replies on stdio get directed at random connected client");
             websocat = websocat.auto_install_reuser();
+            continue;
         }
+        
+        if concern == MultipleReusers {
+            eprintln!("Specifier dump: {:?} {:?}", websocat.s1, websocat.s2);
+            Err("Multiple reusers is not allowed")?;
+        }
+        break;
     }
 
     let mut core = Core::new()?;
