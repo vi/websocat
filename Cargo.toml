@@ -30,6 +30,9 @@ no_unix_stdio = []
 ssl = ["websocket/async-ssl"]
 signal_handler = ["tokio-signal"]
 
+[dev-dependencies]
+tokio-timer = "=0.1.2"
+
 [profile.release]
 opt-level = "s"
 debug = false
