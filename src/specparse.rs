@@ -121,7 +121,7 @@ impl FromStr for Box<Specifier> {
             boxup(super::ws_server_peer::WsUpgrade(spec(x)?))
         } else
         if let Some(x) = ws_c_prefix(s) {
-            boxup(super::ws_client_peer::WsConnect(Url::parse("ws://0.0.0.0/").unwrap(), spec(x)?))
+            boxup(super::ws_client_peer::WsConnect(spec(x)?, Url::parse("ws://0.0.0.0/").unwrap()))
         } else
         if let Some(x) = reuser_prefix(s) {
             boxup(super::connection_reuse_peer::Reuser(spec(x)?))

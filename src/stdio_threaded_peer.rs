@@ -11,7 +11,7 @@ impl Specifier for ThreadedStdio {
         once(get_stdio_peer())
     }
     fn stdio_usage_status(&self) -> StdioUsageStatus { StdioUsageStatus::IsItself }
-    fn is_multiconnect(&self) -> bool { false }
+    specifier_boilerplate!(singleconnect, Stdio);
 }
 
 

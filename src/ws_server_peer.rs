@@ -11,7 +11,7 @@ use self::websocket::server::upgrade::async::IntoWs;
 
 use super::{Peer, io_other_error, BoxedNewPeerFuture, box_up_err};
 use super::ws_peer::{WsReadWrapper, WsWriteWrapper, PeerForWs};
-use super::{Specifier,ProgramState,Handle,SpecifierInspector,Any,PeerConstructor};
+use super::{Specifier,ProgramState,Handle,PeerConstructor};
 
 #[derive(Debug)]
 pub struct WsUpgrade<T:Specifier>(pub T);
@@ -20,10 +20,10 @@ impl<T:Specifier> Specifier for WsUpgrade<T> {
         let inner = self.0.construct(h, ps);
         inner.map(ws_upgrade_peer)
     }
-    fn use_child_specifier(&self, mut f: SpecifierInspector) -> Option<Box<Any>> {
-        Some(f(&self.0))
-    }
-    fn is_multiconnect(&self) -> bool { self.0.is_multiconnect() }
+    self_0_is_subspecifier!(proxy_is_multiconnect);
+    specifier_boilerplate!(..., Other);
+    
+    
 }
 
 

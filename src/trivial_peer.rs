@@ -21,7 +21,7 @@ impl Specifier for Literal {
     fn construct(&self, _:&Handle, _: &mut ProgramState) -> PeerConstructor {
         once(get_literal_peer(self.0.clone()))
     }
-    fn is_multiconnect(&self) -> bool { false }
+    specifier_boilerplate!(singleconnect, Other);
 }
 impl std::fmt::Debug for Literal{fn fmt(&self, f:&mut std::fmt::Formatter) -> std::result::Result<(), std::fmt::Error> { write!(f, "Literal") }  }
 
@@ -31,7 +31,7 @@ impl Specifier for Assert {
     fn construct(&self, _:&Handle, _: &mut ProgramState) -> PeerConstructor {
         once(get_assert_peer(self.0.clone()))
     }
-    fn is_multiconnect(&self) -> bool { false }
+    specifier_boilerplate!(singleconnect, Other);
 }
 impl std::fmt::Debug for Assert{fn fmt(&self, f:&mut std::fmt::Formatter) -> std::result::Result<(), std::fmt::Error> { write!(f, "Assert") }  }
 
@@ -41,7 +41,7 @@ impl Specifier for Constipated {
     fn construct(&self, _:&Handle, _: &mut ProgramState) -> PeerConstructor {
         once(get_constipated_peer())
     }
-    fn is_multiconnect(&self) -> bool { false }
+    specifier_boilerplate!(singleconnect, Other);
 }
 
 

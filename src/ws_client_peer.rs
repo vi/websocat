@@ -14,7 +14,7 @@ use self::websocket::client::Url;
 use super::{Peer, BoxedNewPeerFuture, box_up_err};
 
 use super::ws_peer::{WsReadWrapper, WsWriteWrapper, PeerForWs};
-use super::{once,Specifier,ProgramState,SpecifierInspector,Any,PeerConstructor};
+use super::{once,Specifier,ProgramState,PeerConstructor};
 
 #[derive(Debug)]
 pub struct WsClient(pub Url);
@@ -23,25 +23,23 @@ impl Specifier for WsClient {
         let url = self.0.clone();
         once(get_ws_client_peer(h, &url))
     }
-    fn is_multiconnect(&self) -> bool { false }
+    specifier_boilerplate!(singleconnect, Other);
 }
 
 #[derive(Debug)]
-pub struct WsConnect<T:Specifier>(pub Url,pub T);
+pub struct WsConnect<T:Specifier>(pub T,pub Url);
 impl<T:Specifier> Specifier for WsConnect<T> {
     fn construct(&self, h:&Handle, ps: &mut ProgramState) -> PeerConstructor {
-        let inner = self.1.construct(h, ps);
+        let inner = self.0.construct(h, ps);
         
-        let url = self.0.clone();
+        let url = self.1.clone();
         
         inner.map(move |q| {
             get_ws_client_peer_wrapped(&url, q)
         })
     }
-    fn use_child_specifier(&self, mut f: SpecifierInspector) -> Option<Box<Any>> {
-        Some(f(&self.1))
-    }
-    fn is_multiconnect(&self) -> bool { self.1.is_multiconnect() }
+    self_0_is_subspecifier!(proxy_is_multiconnect);
+    specifier_boilerplate!(..., Other);
 }
 
 

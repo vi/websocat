@@ -23,24 +23,8 @@ use futures::Stream;
 
 
 use std::any::Any;
+use std::rc::Rc;
 
-
-
-mod my_copy;
-
-#[cfg(all(unix,not(feature="no_unix_stdio")))]
-pub mod stdio_peer;
-
-pub mod ws_peer;
-pub mod ws_server_peer;
-pub mod ws_client_peer;
-pub mod net_peer;
-pub mod stdio_threaded_peer;
-pub mod connection_reuse_peer;
-pub mod mirror_peer;
-pub mod trivial_peer;
-
-pub mod specparse;
 
 type Result<T> = std::result::Result<T, Box<std::error::Error>>;
 
@@ -136,7 +120,15 @@ pub enum StdioUsageStatus {
 }
 
 /// He wants to peek into a Specifier. `FnMut` wants to be `FnOnce` actually.
-pub type SpecifierInspector = Box<FnMut(&Specifier)-> Box<Any>>;
+pub type SpecifierInspector = Rc<Fn(&Specifier)-> Box<Any>>;
+
+/// For checking specifier combinations for problems
+#[derive(Eq,PartialEq)]
+pub enum SpecifierType {
+    Stdio,
+    Reuser,
+    Other,
+}
 
 /// A parsed command line argument.
 /// For example, `ws-listen:tcp-l:127.0.0.1:8080` gets parsed into
@@ -147,7 +139,7 @@ pub trait Specifier : std::fmt::Debug {
     /// A server (multiconnect) or a client (single connect)?
     fn is_multiconnect(&self) -> bool;
     fn stdio_usage_status(&self) -> StdioUsageStatus {
-        if let Some(status) = self.use_child_specifier(Box::new(|child : &Specifier| {
+        if let Some(status) = self.use_child_specifier(Rc::new(|child : &Specifier| {
                 Box::new(child.stdio_usage_status()) as Box<Any>
             }))
         {
@@ -166,10 +158,17 @@ pub trait Specifier : std::fmt::Debug {
         None
     }
     
-    fn is_reuser_itself(&self) -> bool { false }
+    fn visit_myself(&self, f: SpecifierInspector) -> Box<Any>;
+    fn get_type(&self) -> SpecifierType;
+    fn visit_hierarchy(&self, f: SpecifierInspector) -> Vec<Box<Any>> {
+        let mut rets = vec![];
+        rets.push (self.visit_myself(f));
+        rets
+    }
+    
     fn reuser_count(&self) -> usize {
         let nested =
-        if let Some(status) = self.use_child_specifier(Box::new(|child : &Specifier| {
+        if let Some(status) = self.use_child_specifier(Rc::new(|child : &Specifier| {
                 Box::new(child.reuser_count()) as Box<Any>
             }))
         {
@@ -178,7 +177,7 @@ pub trait Specifier : std::fmt::Debug {
         } else {
             0
         };
-        let direct = if self.is_reuser_itself() { 1 } else { 0 };
+        let direct = if self.get_type() == SpecifierType::Reuser { 1 } else { 0 };
         //warn!("{:?} nested={} direct={}", self, nested, direct);
         nested + direct
     }
@@ -191,8 +190,66 @@ impl Specifier for Box<Specifier> {
     fn use_child_specifier(&self, f: SpecifierInspector) -> Option<Box<Any>> { (**self).use_child_specifier(f) }
     fn stdio_usage_status(&self) -> StdioUsageStatus { (**self).stdio_usage_status() }
     fn is_multiconnect(&self) -> bool { (**self).is_multiconnect() }
-    fn is_reuser_itself(&self) -> bool { (**self).is_reuser_itself() }
+    
+    fn visit_myself(&self, f: SpecifierInspector) -> Box<Any> { (**self).visit_myself(f) }
+    fn get_type(&self) -> SpecifierType { (**self).get_type() }
 }
+
+macro_rules! specifier_boilerplate {
+    (singleconnect, $tn:ident) => {
+        specifier_boilerplate!(mc false, $tn);
+    };
+    (multiconnect, $tn:ident) => {
+        specifier_boilerplate!(mc true, $tn);
+    };    
+    (..., $tn:ident) => {
+        fn get_type(&self) -> $crate::SpecifierType { $crate::SpecifierType::$tn }
+        fn visit_myself(&self, f: $crate::SpecifierInspector) -> Box<::std::any::Any> { f(self) }
+    };
+    (mc $mcval:ident, $tn:ident) => {
+        specifier_boilerplate!(..., $tn);
+        fn is_multiconnect(&self) -> bool { $mcval }
+    };
+}
+
+macro_rules! self_0_is_subspecifier {
+    (...) => {
+        fn use_child_specifier(&self, f: $crate::SpecifierInspector) -> Option<Box<::std::any::Any>> {
+            Some(f(&self.0))
+        }
+        fn visit_hierarchy(&self, f: $crate::SpecifierInspector) -> Vec<Box<::std::any::Any>> {
+            let mut rets = vec![];
+            let ff = f.clone();
+            rets.push (self.visit_myself(f));
+            rets.append(&mut self.0.visit_hierarchy(ff));
+            rets
+        }
+    };
+    (proxy_is_multiconnect) => {
+        self_0_is_subspecifier!(...);
+        fn is_multiconnect(&self) -> bool { self.0.is_multiconnect() }
+    };
+}
+
+
+
+
+mod my_copy;
+
+#[cfg(all(unix,not(feature="no_unix_stdio")))]
+pub mod stdio_peer;
+
+pub mod ws_peer;
+pub mod ws_server_peer;
+pub mod ws_client_peer;
+pub mod net_peer;
+pub mod stdio_threaded_peer;
+pub mod connection_reuse_peer;
+pub mod mirror_peer;
+pub mod trivial_peer;
+
+pub mod specparse;
+
 
 
 pub enum PeerConstructor {

@@ -12,7 +12,7 @@ use std::io::{Read, Write, Error as IoError};
 
 use std::ops::DerefMut;
 use futures::Future;
-use super::{once,Specifier,Handle,SpecifierInspector,Any,ProgramState,PeerConstructor,StdioUsageStatus};
+use super::{once,Specifier,Handle,ProgramState,PeerConstructor,StdioUsageStatus};
 
 
 #[derive(Debug)]
@@ -23,9 +23,6 @@ impl<T:Specifier> Specifier for Reuser<T> {
         let inner = self.0.construct(h, ps).get_only_first_conn();
         once(connection_reuser(&mut reuser, inner))
     }
-    fn use_child_specifier(&self, mut f: SpecifierInspector) -> Option<Box<Any>> {
-        Some(f(&self.0))
-    }
     fn stdio_usage_status(&self) -> StdioUsageStatus {
         let ss = self.0.stdio_usage_status();
         if ss > StdioUsageStatus::Indirectly {
@@ -33,8 +30,8 @@ impl<T:Specifier> Specifier for Reuser<T> {
         }
         ss
     }
-    fn is_multiconnect(&self) -> bool { false }
-    fn is_reuser_itself(&self) -> bool { true }
+    self_0_is_subspecifier!(...);
+    specifier_boilerplate!(singleconnect, Reuser);
 }
 
 
