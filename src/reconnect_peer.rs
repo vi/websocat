@@ -13,6 +13,9 @@ use std::io::{Read, Write, Error as IoError};
 use futures::{Future,Poll,Async};
 use super::{once,Specifier,Handle,ProgramState,PeerConstructor,wouldblock};
 
+// TODO: shutdown write part if out writing part is shut down
+// TODO: stop if writing part and reading parts are closed (shutdown)?
+
 
 #[derive(Debug)]
 pub struct AutoReconnect(pub Rc<Specifier>);
@@ -39,11 +42,17 @@ impl Specifier for AutoReconnect {
     self_0_is_subspecifier!(...);
 }
 
+#[derive(Default)]
+struct State2 {
+    already_warned : bool,
+}
+
 struct State {
     s : Rc<Specifier>,
     p : Option<Peer>,
     n : Option<BoxedNewPeerFuture>,
     h : Handle,
+    aux : State2,
 }
 
 /// This implementation's poll is to be reused many times, both after returning item and error
@@ -54,6 +63,8 @@ impl /*Future for */ State {
     fn poll(&mut self) -> Poll<&mut Peer, Box<::std::error::Error>> {
         let pp = &mut self.p;
         let nn = &mut self.n;
+        
+        let aux = &mut self.aux;
         
         loop {
             if let Some(ref mut p) = pp {
@@ -70,7 +81,18 @@ impl /*Future for */ State {
                         continue;
                     },
                     Ok(Async::NotReady) => return Ok(Async::NotReady),
-                    Err(x) => return Err(x),
+                    Err(_x) => {
+                        // Stop on error:
+                        //return Err(_x);
+                        
+                        // Just reconnect again on error:
+                        *nn = None;
+                        
+                        if ! aux.already_warned {
+                            aux.already_warned = true;
+                            error!("Reconnecting failed. Trying again in tight endless loop.");
+                        }
+                    },
                 }
             }
             
@@ -180,7 +202,14 @@ impl AsyncWrite for PeerHandle {
 
 pub fn autoreconnector(h: Handle, s: Rc<Specifier>) -> BoxedNewPeerFuture
 {
-    let s = Rc::new(RefCell::new(State{h, s, p : None, n: None}));
+    let s = Rc::new(RefCell::new(
+        State{
+            h,
+            s, 
+            p : None, 
+            n: None,
+            aux: Default::default(),
+    }));
     let ph1 = PeerHandle(s.clone());
     let ph2 = PeerHandle(s);
     let peer = Peer::new(ph1, ph2);
