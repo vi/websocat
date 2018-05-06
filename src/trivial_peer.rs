@@ -15,33 +15,33 @@ use super::wouldblock;
 
 use super::{once,Specifier,Handle,ProgramState,PeerConstructor};
 
-
+#[derive(Clone)]
 pub struct Literal(pub Vec<u8>);
 impl Specifier for Literal {
     fn construct(&self, _:&Handle, _: &mut ProgramState) -> PeerConstructor {
         once(get_literal_peer(self.0.clone()))
     }
-    specifier_boilerplate!(singleconnect, Other);
+    specifier_boilerplate!(singleconnect, no_subspec, Other);
 }
 impl std::fmt::Debug for Literal{fn fmt(&self, f:&mut std::fmt::Formatter) -> std::result::Result<(), std::fmt::Error> { write!(f, "Literal") }  }
 
-
+#[derive(Clone)]
 pub struct Assert(pub Vec<u8>);
 impl Specifier for Assert {
     fn construct(&self, _:&Handle, _: &mut ProgramState) -> PeerConstructor {
         once(get_assert_peer(self.0.clone()))
     }
-    specifier_boilerplate!(singleconnect, Other);
+    specifier_boilerplate!(singleconnect, no_subspec, Other);
 }
 impl std::fmt::Debug for Assert{fn fmt(&self, f:&mut std::fmt::Formatter) -> std::result::Result<(), std::fmt::Error> { write!(f, "Assert") }  }
 
-#[derive(Debug)]
+#[derive(Debug,Clone)]
 pub struct Constipated;
 impl Specifier for Constipated {
     fn construct(&self, _:&Handle, _: &mut ProgramState) -> PeerConstructor {
         once(get_constipated_peer())
     }
-    specifier_boilerplate!(singleconnect, Other);
+    specifier_boilerplate!(singleconnect, no_subspec, Other);
 }
 
 

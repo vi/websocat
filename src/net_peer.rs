@@ -23,22 +23,22 @@ use super::{once,multi,Specifier,ProgramState,PeerConstructor};
 
 
 
-#[derive(Debug)]
+#[derive(Debug,Clone)]
 pub struct TcpConnect(pub SocketAddr);
 impl Specifier for TcpConnect {
     fn construct(&self, h:&Handle, _: &mut ProgramState) -> PeerConstructor {
         once(tcp_connect_peer(h, &self.0))
     }
-    specifier_boilerplate!(singleconnect, Other);
+    specifier_boilerplate!(singleconnect, no_subspec, Other);
 }
 
-#[derive(Debug)]
+#[derive(Debug,Clone)]
 pub struct TcpListen(pub SocketAddr);
 impl Specifier for TcpListen {
     fn construct(&self, h:&Handle, _: &mut ProgramState) -> PeerConstructor {
         multi(tcp_listen_peer(h, &self.0))
     }
-    specifier_boilerplate!(multiconnect, Other);
+    specifier_boilerplate!(multiconnect, no_subspec, Other);
 }
 
 /*

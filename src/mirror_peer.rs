@@ -18,22 +18,22 @@ use tokio_io::{AsyncRead,AsyncWrite};
 use super::ReadDebt;
 use super::{once,Specifier,ProgramState,Handle,PeerConstructor};
 
-#[derive(Debug)]
+#[derive(Debug,Clone)]
 pub struct Mirror;
 impl Specifier for Mirror {
     fn construct(&self, _:&Handle, _: &mut ProgramState) -> PeerConstructor {
         once(get_mirror_peer())
     }
-    specifier_boilerplate!(singleconnect, Other);
+    specifier_boilerplate!(singleconnect, no_subspec, Other);
 }
 
-
+#[derive(Clone)]
 pub struct LiteralReply(pub Vec<u8>);
 impl Specifier for LiteralReply {
     fn construct(&self, _:&Handle, _: &mut ProgramState) -> PeerConstructor {
         once(get_literal_reply_peer(self.0.clone()))
     }
-    specifier_boilerplate!(singleconnect, Other);
+    specifier_boilerplate!(singleconnect, no_subspec, Other);
 }
 impl std::fmt::Debug for LiteralReply{fn fmt(&self, f:&mut std::fmt::Formatter) -> std::result::Result<(), std::fmt::Error> { write!(f, "LiteralReply") }  }
 

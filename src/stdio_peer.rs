@@ -26,7 +26,7 @@ impl Specifier for Stdio {
         ret = get_stdio_peer(&mut ps.stdio, h);
         once(ret)
     }
-    specifier_boilerplate!(singleconnect, Stdio);
+    specifier_boilerplate!(singleconnect, no_subspec, Stdio);
 }
 
 

@@ -4,13 +4,13 @@ use super::{Peer, BoxedNewPeerFuture};
 
 use super::{once,Specifier,Handle,ProgramState,PeerConstructor};
 
-#[derive(Debug)]
+#[derive(Debug,Clone)]
 pub struct ThreadedStdio;
 impl Specifier for ThreadedStdio {
     fn construct(&self, _:&Handle, _: &mut ProgramState) -> PeerConstructor {
         once(get_stdio_peer())
     }
-    specifier_boilerplate!(singleconnect, Stdio);
+    specifier_boilerplate!(singleconnect, no_subspec, Stdio);
 }
 
 

@@ -96,14 +96,18 @@ pub trait Specifier : std::fmt::Debug {
     /// A server (multiconnect) or a client (single connect)?
     fn is_multiconnect(&self) -> bool;
     
+    // Specified by `specifier_boilerplate!`:
     fn visit_myself(&self, f: SpecifierInspector) -> Box<Any>;
     fn get_type(&self) -> SpecifierType;
+    fn clone(&self) -> Box<Specifier>;
     
+    // May be overridden by `self_0_is_subspecifier`:
     fn visit_hierarchy(&self, f: SpecifierInspector) -> Vec<Box<Any>> {
         let mut rets = vec![];
         rets.push (self.visit_myself(f));
         rets
     }
+    
 }
 
 impl Specifier for Box<Specifier> {
@@ -114,21 +118,26 @@ impl Specifier for Box<Specifier> {
     fn visit_myself(&self, f: SpecifierInspector) -> Box<Any> { (**self).visit_myself(f) }
     fn visit_hierarchy(&self, f: SpecifierInspector) -> Vec<Box<Any>>  { (**self).visit_hierarchy(f) }
     fn get_type(&self) -> SpecifierType { (**self).get_type() }
+    fn clone(&self) -> Box<Specifier> { (**self).clone() }
 }
 
 macro_rules! specifier_boilerplate {
-    (singleconnect, $tn:ident) => {
-        specifier_boilerplate!(mc false, $tn);
+    (singleconnect, $hiert:ident, $tn:ident) => {
+        specifier_boilerplate!(mc false, $hiert, $tn);
     };
-    (multiconnect, $tn:ident) => {
-        specifier_boilerplate!(mc true, $tn);
+    (multiconnect, $hiert:ident, $tn:ident) => {
+        specifier_boilerplate!(mc true, $hiert, $tn);
     };    
-    (..., $tn:ident) => {
+    (..., no_subspec, $tn:ident) => {
+        specifier_boilerplate!(..., has_subspec, $tn);
+        fn clone(&self) -> Box<Specifier> { Box::new(::std::clone::Clone::clone(self)) }
+    };
+    (..., has_subspec, $tn:ident) => {
         fn get_type(&self) -> $crate::SpecifierType { $crate::SpecifierType::$tn }
         fn visit_myself(&self, f: $crate::SpecifierInspector) -> Box<::std::any::Any> { f(self) }
     };
-    (mc $mcval:ident, $tn:ident) => {
-        specifier_boilerplate!(..., $tn);
+    (mc $mcval:ident, $hiert:ident, $tn:ident) => {
+        specifier_boilerplate!(..., $hiert, $tn);
         fn is_multiconnect(&self) -> bool { $mcval }
     };
 }
@@ -142,6 +151,7 @@ macro_rules! self_0_is_subspecifier {
             rets.append(&mut self.0.visit_hierarchy(ff));
             rets
         }
+        //fn clone(&self) -> Box<Specifier> { unimplemented!() }
     };
     (proxy_is_multiconnect) => {
         self_0_is_subspecifier!(...);
@@ -163,6 +173,7 @@ pub mod stdio_threaded_peer;
 pub mod connection_reuse_peer;
 pub mod mirror_peer;
 pub mod trivial_peer;
+pub mod reconnect_peer;
 
 pub mod specparse;
 

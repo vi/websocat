@@ -23,8 +23,9 @@ impl<T:Specifier> Specifier for Reuser<T> {
         let inner = self.0.construct(h, ps).get_only_first_conn();
         once(connection_reuser(&mut reuser, inner))
     }
+    specifier_boilerplate!(singleconnect, has_subspec, Reuser);
     self_0_is_subspecifier!(...);
-    specifier_boilerplate!(singleconnect, Reuser);
+    fn clone(&self) -> Box<Specifier> { Box::new(Reuser(self.0.clone())) }
 }
 
 

@@ -16,14 +16,14 @@ use super::{Peer, BoxedNewPeerFuture, box_up_err};
 use super::ws_peer::{WsReadWrapper, WsWriteWrapper, PeerForWs};
 use super::{once,Specifier,ProgramState,PeerConstructor};
 
-#[derive(Debug)]
+#[derive(Debug,Clone)]
 pub struct WsClient(pub Url);
 impl Specifier for WsClient {
     fn construct(&self, h:&Handle, _: &mut ProgramState) -> PeerConstructor {
         let url = self.0.clone();
         once(get_ws_client_peer(h, &url))
     }
-    specifier_boilerplate!(singleconnect, Other);
+    specifier_boilerplate!(singleconnect, no_subspec, Other);
 }
 
 #[derive(Debug)]
@@ -38,8 +38,9 @@ impl<T:Specifier> Specifier for WsConnect<T> {
             get_ws_client_peer_wrapped(&url, q)
         })
     }
+    specifier_boilerplate!(..., has_subspec, Other);
     self_0_is_subspecifier!(proxy_is_multiconnect);
-    specifier_boilerplate!(..., Other);
+    fn clone(&self) -> Box<Specifier> { Box::new(WsConnect(self.0.clone(), self.1.clone())) }
 }
 
 
