@@ -25,7 +25,6 @@ impl<T:Specifier> Specifier for Reuser<T> {
     }
     specifier_boilerplate!(singleconnect has_subspec typ=Reuser globalstate);
     self_0_is_subspecifier!(...);
-    fn clone(&self) -> Box<Specifier> { Box::new(Reuser(self.0.clone())) }
 }
 
 

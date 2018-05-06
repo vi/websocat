@@ -18,8 +18,8 @@ use super::{once,Specifier,Handle,ProgramState,PeerConstructor};
 
 
 #[derive(Debug)]
-pub struct AutoReconnect<T:Specifier>(pub T);
-impl<T:Specifier> Specifier for AutoReconnect<T> {
+pub struct AutoReconnect(pub Rc<Specifier>);
+impl Specifier for AutoReconnect {
     fn construct(&self, h:&Handle, ps: &mut ProgramState) -> PeerConstructor {
         if self.0.uses_global_state() {
             let e : Box<::std::error::Error> 
@@ -32,11 +32,10 @@ impl<T:Specifier> Specifier for AutoReconnect<T> {
     }
     specifier_boilerplate!(singleconnect noglobalstate has_subspec typ=Other);
     self_0_is_subspecifier!(...);
-    fn clone(&self) -> Box<Specifier> { Box::new(AutoReconnect(self.0.clone())) }
 }
 
 struct State {
-    s : Box<Specifier>,
+    s : Rc<Specifier>,
     p : RefCell<Option<Peer>>,
 }
 
@@ -66,7 +65,7 @@ impl AsyncWrite for PeerHandle {
 }
 
 
-pub fn autoreconnector(h: Handle, s: Box<Specifier>) -> BoxedNewPeerFuture
+pub fn autoreconnector(h: Handle, s: Rc<Specifier>) -> BoxedNewPeerFuture
 {
     let s = Rc::new(State{s, p : RefCell::new(None)});
     let ph1 = PeerHandle(s.clone());

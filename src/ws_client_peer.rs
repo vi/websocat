@@ -40,7 +40,6 @@ impl<T:Specifier> Specifier for WsConnect<T> {
     }
     specifier_boilerplate!(noglobalstate has_subspec typ=Other);
     self_0_is_subspecifier!(proxy_is_multiconnect);
-    fn clone(&self) -> Box<Specifier> { Box::new(WsConnect(self.0.clone(), self.1.clone())) }
 }
 
 

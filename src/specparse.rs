@@ -1,8 +1,6 @@
-use std::str::FromStr;
-use std;
-
 use websocket::client::Url;
 use super::{Specifier,Result};
+use std::rc::Rc;
 
 pub fn ws_l_prefix(s:&str) -> Option<&str> {
     if    s.starts_with("ws-l:") 
@@ -53,18 +51,19 @@ pub fn ws_url_prefix(s:&str) -> Option<&str> {
     }
 }
 
-pub fn boxup<T:Specifier+'static>(x:T) -> Result<Box<Specifier>> {
-    Ok(Box::new(x))
+pub fn boxup<T:Specifier+'static>(x:T) -> Result<Rc<Specifier>> {
+    Ok(Rc::new(x))
 }
 
-pub fn spec(s : &str) -> Result<Box<Specifier>>  {
-    FromStr::from_str(s)
+pub fn spec(s : &str) -> Result<Rc<Specifier>>  {
+    Specifier::from_str(s)
 }
 
-impl FromStr for Box<Specifier> {
-    type Err = Box<std::error::Error>;
+// FromStr for Rc<Specifier>
+impl Specifier {
+    //type Err = Box<std::error::Error>;
     
-    fn from_str(s: &str) -> Result<Box<Specifier>> {
+    fn from_str(s: &str) -> Result<Rc<Specifier>> {
         if s == "-" || s == "inetd:" || s == "stdio:" {
             #[cfg(all(unix,not(feature="no_unix_stdio")))]
             {

@@ -22,7 +22,6 @@ impl<T:Specifier> Specifier for WsUpgrade<T> {
     }
     specifier_boilerplate!(typ=Other noglobalstate has_subspec);
     self_0_is_subspecifier!(proxy_is_multiconnect);
-    fn clone(&self) -> Box<Specifier> { Box::new(WsUpgrade(self.0.clone())) }
 }
 
 

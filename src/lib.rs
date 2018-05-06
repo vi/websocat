@@ -45,8 +45,8 @@ pub use lints::ConfigurationConcern;
 
 pub struct WebsocatConfiguration {
     pub opts : Options,
-    pub s1 : Box<Specifier>,
-    pub s2: Box<Specifier>,
+    pub s1 : Rc<Specifier>,
+    pub s2: Rc<Specifier>,
 }
 
 impl WebsocatConfiguration {
@@ -108,7 +108,6 @@ pub trait Specifier : std::fmt::Debug {
     fn uses_global_state(&self) -> bool;
     fn visit_myself(&self, f: SpecifierInspector) -> Box<Any>;
     fn get_type(&self) -> SpecifierType;
-    fn clone(&self) -> Box<Specifier>;
     
     // May be overridden by `self_0_is_subspecifier`:
     fn visit_hierarchy(&self, f: SpecifierInspector) -> Vec<Box<Any>> {
@@ -131,20 +130,6 @@ pub trait Specifier : std::fmt::Debug {
     }
 }
 
-impl Specifier for Box<Specifier> {
-    fn construct(&self, h:&Handle, ps: &mut ProgramState) -> PeerConstructor {
-        (**self).construct(h, ps)
-    }
-    fn is_multiconnect(&self) -> bool { (**self).is_multiconnect() }
-    fn visit_myself(&self, f: SpecifierInspector) -> Box<Any> { (**self).visit_myself(f) }
-    fn visit_hierarchy(&self, f: SpecifierInspector) -> Vec<Box<Any>>  { (**self).visit_hierarchy(f) }
-    fn get_type(&self) -> SpecifierType { (**self).get_type() }
-    fn clone(&self) -> Box<Specifier> { (**self).clone() }
-    fn uses_global_state(&self) -> bool { (**self).uses_global_state() }
-    fn get_info_without_subspecs(&self) -> SpecifierInfo { (**self).get_info_without_subspecs() }
-    fn get_info(&self) -> SpecifierInfo { (**self).get_info() }
-}
-
 impl Specifier for Rc<Specifier> {
     fn construct(&self, h:&Handle, ps: &mut ProgramState) -> PeerConstructor {
         (**self).construct(h, ps)
@@ -153,7 +138,6 @@ impl Specifier for Rc<Specifier> {
     fn visit_myself(&self, f: SpecifierInspector) -> Box<Any> { (**self).visit_myself(f) }
     fn visit_hierarchy(&self, f: SpecifierInspector) -> Vec<Box<Any>>  { (**self).visit_hierarchy(f) }
     fn get_type(&self) -> SpecifierType { (**self).get_type() }
-    fn clone(&self) -> Box<Specifier> { (**self).clone() }
     fn uses_global_state(&self) -> bool { (**self).uses_global_state() }
     fn get_info_without_subspecs(&self) -> SpecifierInfo { (**self).get_info_without_subspecs() }
     fn get_info(&self) -> SpecifierInfo { (**self).get_info() }
@@ -170,7 +154,6 @@ macro_rules! specifier_boilerplate {
     };    
     (no_subspec $($e:tt)*) => {
         specifier_boilerplate!($($e)*);
-        fn clone(&self) -> Box<Specifier> { Box::new(::std::clone::Clone::clone(self)) }
     };
     (has_subspec $($e:tt)*) => {
         specifier_boilerplate!($($e)*);
@@ -206,7 +189,6 @@ macro_rules! self_0_is_subspecifier {
             r.subspecifier = Some(Box::new(self.0.get_info()));
             r
         }
-        //fn clone(&self) -> Box<Specifier> { unimplemented!() }
     };
     (proxy_is_multiconnect) => {
         self_0_is_subspecifier!(...);

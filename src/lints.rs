@@ -99,6 +99,6 @@ impl WebsocatConfiguration {
     
     pub fn auto_install_reuser(self) -> Self {
         let WebsocatConfiguration { opts, s1, s2 } = self;
-        WebsocatConfiguration { opts, s1, s2: Box::new(connection_reuse_peer::Reuser(s2)) }
+        WebsocatConfiguration { opts, s1, s2: Rc::new(connection_reuse_peer::Reuser(s2)) }
     }
 }
