@@ -25,7 +25,6 @@ use tokio_io::{AsyncRead,AsyncWrite};
 use futures::Stream;
 
 
-use std::any::Any;
 use std::rc::Rc;
 
 
@@ -76,9 +75,6 @@ pub struct Peer(Box<AsyncRead>, Box<AsyncWrite>);
 pub type BoxedNewPeerFuture = Box<Future<Item=Peer, Error=Box<std::error::Error>>>;
 pub type BoxedNewPeerStream = Box<Stream<Item=Peer, Error=Box<std::error::Error>>>;
 
-/// He wants to peek into a Specifier. `FnMut` wants to be `FnOnce` actually.
-pub type SpecifierInspector = Rc<Fn(&Specifier)-> Box<Any>>;
-
 /// For checking specifier combinations for problems
 #[derive(Eq,PartialEq,Debug,Clone,Copy)]
 pub enum SpecifierType {
@@ -121,19 +117,12 @@ pub trait Specifier : std::fmt::Debug {
     /// Apply the specifier for constructing a "socket" or other connecting device.
     fn construct(&self, h:&Handle, ps: &mut ProgramState) -> PeerConstructor;
     
-    
     // Specified by `specifier_boilerplate!`:
     fn is_multiconnect(&self) -> bool;
     fn uses_global_state(&self) -> bool;
-    fn visit_myself(&self, f: SpecifierInspector) -> Box<Any>;
     fn get_type(&self) -> SpecifierType;
     
     // May be overridden by `self_0_is_subspecifier`:
-    fn visit_hierarchy(&self, f: SpecifierInspector) -> Vec<Box<Any>> {
-        let mut rets = vec![];
-        rets.push (self.visit_myself(f));
-        rets
-    }
     fn get_info(&self) -> SpecifierInfo {
         SpecifierInfo {
             this: self.get_info_without_subspecs(),
@@ -155,11 +144,11 @@ impl Specifier for Rc<Specifier> {
     fn construct(&self, h:&Handle, ps: &mut ProgramState) -> PeerConstructor {
         (**self).construct(h, ps)
     }
+    
     fn is_multiconnect(&self) -> bool { (**self).is_multiconnect() }
-    fn visit_myself(&self, f: SpecifierInspector) -> Box<Any> { (**self).visit_myself(f) }
-    fn visit_hierarchy(&self, f: SpecifierInspector) -> Vec<Box<Any>>  { (**self).visit_hierarchy(f) }
     fn get_type(&self) -> SpecifierType { (**self).get_type() }
     fn uses_global_state(&self) -> bool { (**self).uses_global_state() }
+    
     fn get_info_without_subspecs(&self) -> OneSpecifierInfo { (**self).get_info_without_subspecs() }
     fn get_info(&self) -> SpecifierInfo { (**self).get_info() }
 }
@@ -184,7 +173,6 @@ macro_rules! specifier_boilerplate {
         specifier_boilerplate!($($e)*);
     };
     () => {
-        fn visit_myself(&self, f: $crate::SpecifierInspector) -> Box<::std::any::Any> { f(self) }
     };
     (globalstate $($e:tt)*) => {
         fn uses_global_state(&self) -> bool { true }
@@ -198,13 +186,6 @@ macro_rules! specifier_boilerplate {
 
 macro_rules! self_0_is_subspecifier {
     (...) => {
-        fn visit_hierarchy(&self, f: $crate::SpecifierInspector) -> Vec<Box<::std::any::Any>> {
-            let mut rets = vec![];
-            let ff = f.clone();
-            rets.push (self.visit_myself(f));
-            rets.append(&mut self.0.visit_hierarchy(ff));
-            rets
-        }
         fn get_info(&self) -> $crate::SpecifierInfo {
             $crate::SpecifierInfo {
                 this: self.get_info_without_subspecs(),
