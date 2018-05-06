@@ -80,11 +80,19 @@ pub type BoxedNewPeerStream = Box<Stream<Item=Peer, Error=Box<std::error::Error>
 pub type SpecifierInspector = Rc<Fn(&Specifier)-> Box<Any>>;
 
 /// For checking specifier combinations for problems
-#[derive(Eq,PartialEq)]
+#[derive(Eq,PartialEq,Debug)]
 pub enum SpecifierType {
     Stdio,
     Reuser,
     Other,
+}
+
+#[derive(Debug)]
+pub struct SpecifierInfo {
+    pub multiconnect: bool,
+    pub uses_global_state: bool,
+    pub typ: SpecifierType,
+    pub subspecifier: Option<Box<SpecifierInfo>>,
 }
 
 /// A parsed command line argument.
@@ -108,7 +116,19 @@ pub trait Specifier : std::fmt::Debug {
         rets.push (self.visit_myself(f));
         rets
     }
+    fn get_info(&self) -> SpecifierInfo {
+        self.get_info_without_subspecs()
+    }
     
+    // Provided:
+    fn get_info_without_subspecs(&self) -> SpecifierInfo {
+        SpecifierInfo {
+            multiconnect: self.is_multiconnect(),
+            uses_global_state: self.uses_global_state(),
+            typ: self.get_type(),
+            subspecifier: None,
+        }
+    }
 }
 
 impl Specifier for Box<Specifier> {
@@ -121,6 +141,22 @@ impl Specifier for Box<Specifier> {
     fn get_type(&self) -> SpecifierType { (**self).get_type() }
     fn clone(&self) -> Box<Specifier> { (**self).clone() }
     fn uses_global_state(&self) -> bool { (**self).uses_global_state() }
+    fn get_info_without_subspecs(&self) -> SpecifierInfo { (**self).get_info_without_subspecs() }
+    fn get_info(&self) -> SpecifierInfo { (**self).get_info() }
+}
+
+impl Specifier for Rc<Specifier> {
+    fn construct(&self, h:&Handle, ps: &mut ProgramState) -> PeerConstructor {
+        (**self).construct(h, ps)
+    }
+    fn is_multiconnect(&self) -> bool { (**self).is_multiconnect() }
+    fn visit_myself(&self, f: SpecifierInspector) -> Box<Any> { (**self).visit_myself(f) }
+    fn visit_hierarchy(&self, f: SpecifierInspector) -> Vec<Box<Any>>  { (**self).visit_hierarchy(f) }
+    fn get_type(&self) -> SpecifierType { (**self).get_type() }
+    fn clone(&self) -> Box<Specifier> { (**self).clone() }
+    fn uses_global_state(&self) -> bool { (**self).uses_global_state() }
+    fn get_info_without_subspecs(&self) -> SpecifierInfo { (**self).get_info_without_subspecs() }
+    fn get_info(&self) -> SpecifierInfo { (**self).get_info() }
 }
 
 macro_rules! specifier_boilerplate {
@@ -164,6 +200,11 @@ macro_rules! self_0_is_subspecifier {
             rets.push (self.visit_myself(f));
             rets.append(&mut self.0.visit_hierarchy(ff));
             rets
+        }
+        fn get_info(&self) -> $crate::SpecifierInfo {
+            let mut r = self.get_info_without_subspecs();
+            r.subspecifier = Some(Box::new(self.0.get_info()));
+            r
         }
         //fn clone(&self) -> Box<Specifier> { unimplemented!() }
     };
