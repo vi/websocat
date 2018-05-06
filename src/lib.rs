@@ -80,19 +80,38 @@ pub type BoxedNewPeerStream = Box<Stream<Item=Peer, Error=Box<std::error::Error>
 pub type SpecifierInspector = Rc<Fn(&Specifier)-> Box<Any>>;
 
 /// For checking specifier combinations for problems
-#[derive(Eq,PartialEq,Debug)]
+#[derive(Eq,PartialEq,Debug,Clone,Copy)]
 pub enum SpecifierType {
     Stdio,
     Reuser,
     Other,
 }
 
-#[derive(Debug)]
-pub struct SpecifierInfo {
+#[derive(Debug,Clone,Copy)]
+pub struct OneSpecifierInfo {
     pub multiconnect: bool,
     pub uses_global_state: bool,
     pub typ: SpecifierType,
+}
+
+
+#[derive(Debug,Clone)]
+pub struct SpecifierInfo {
+    pub this: OneSpecifierInfo,
     pub subspecifier: Option<Box<SpecifierInfo>>,
+}
+
+impl SpecifierInfo {
+    fn collect(&self) -> Vec<OneSpecifierInfo> {
+        let mut r = vec![];
+        r.push(self.this);
+        let mut ss = &self.subspecifier;
+        while let Some(sub) = ss {
+            r.push(sub.this);
+            ss = &sub.subspecifier;
+        }
+        r
+    }
 }
 
 /// A parsed command line argument.
@@ -116,16 +135,18 @@ pub trait Specifier : std::fmt::Debug {
         rets
     }
     fn get_info(&self) -> SpecifierInfo {
-        self.get_info_without_subspecs()
+        SpecifierInfo {
+            this: self.get_info_without_subspecs(),
+            subspecifier: None,
+        }
     }
     
     // Provided:
-    fn get_info_without_subspecs(&self) -> SpecifierInfo {
-        SpecifierInfo {
+    fn get_info_without_subspecs(&self) -> OneSpecifierInfo {
+        OneSpecifierInfo {
             multiconnect: self.is_multiconnect(),
             uses_global_state: self.uses_global_state(),
             typ: self.get_type(),
-            subspecifier: None,
         }
     }
 }
@@ -139,7 +160,7 @@ impl Specifier for Rc<Specifier> {
     fn visit_hierarchy(&self, f: SpecifierInspector) -> Vec<Box<Any>>  { (**self).visit_hierarchy(f) }
     fn get_type(&self) -> SpecifierType { (**self).get_type() }
     fn uses_global_state(&self) -> bool { (**self).uses_global_state() }
-    fn get_info_without_subspecs(&self) -> SpecifierInfo { (**self).get_info_without_subspecs() }
+    fn get_info_without_subspecs(&self) -> OneSpecifierInfo { (**self).get_info_without_subspecs() }
     fn get_info(&self) -> SpecifierInfo { (**self).get_info() }
 }
 
@@ -185,9 +206,10 @@ macro_rules! self_0_is_subspecifier {
             rets
         }
         fn get_info(&self) -> $crate::SpecifierInfo {
-            let mut r = self.get_info_without_subspecs();
-            r.subspecifier = Some(Box::new(self.0.get_info()));
-            r
+            $crate::SpecifierInfo {
+                this: self.get_info_without_subspecs(),
+                subspecifier: Some(Box::new(self.0.get_info())),
+            }
         }
     };
     (proxy_is_multiconnect) => {

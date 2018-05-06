@@ -1,7 +1,6 @@
 
 use super::{Specifier,SpecifierType,WebsocatConfiguration,connection_reuse_peer};
 use std::rc::Rc;
-use std::any::Any;
 
 /// Diagnostics for specifiers and options combinations
 #[derive(PartialEq,Eq)]
@@ -26,29 +25,17 @@ pub enum StdioUsageStatus {
 }
 
 trait SpecifierExt {
-    fn types_path(&self) -> Vec<SpecifierType>;
     fn stdio_usage_status(&self) -> StdioUsageStatus;
     fn reuser_count(&self) -> usize;
 }
 
 impl<T:Specifier> SpecifierExt for T {
-    fn types_path(&self) -> Vec<SpecifierType> {
-        let mut rr = vec![];
-        for x in self.visit_hierarchy(Rc::new(|y:&Specifier| {
-            let c : SpecifierType = y.get_type();
-            Box::new(c) as Box<Any>
-        })) {
-            let c : SpecifierType = *x.downcast().unwrap();
-            rr.push(c);
-        }
-        return rr;
-    }
     fn stdio_usage_status(&self) -> StdioUsageStatus {
         use self::StdioUsageStatus::*;
         let mut sus : StdioUsageStatus = None;
         
-        for i in self.types_path().iter().rev() {
-            match i {
+        for i in self.get_info().collect().iter().rev() {
+            match i.typ {
                 SpecifierType::Stdio => {
                     sus = IsItself;
                 },
@@ -67,9 +54,14 @@ impl<T:Specifier> SpecifierExt for T {
         sus
     }
     fn reuser_count(&self) -> usize {
-        self.types_path().iter().map(
-            |x|if *x == SpecifierType::Reuser { 1 } else { 0 }
-        ).sum()
+        let mut count = 0;
+        
+        for i in self.get_info().collect() {
+            if i.typ == SpecifierType::Reuser {
+                count += 1;
+            }
+        }
+        count
     }
 }
 
