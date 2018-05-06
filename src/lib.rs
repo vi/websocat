@@ -1,10 +1,13 @@
 //! Note: library usage is not semver/API-stable
 //!
-//! Abstract type evolution of an endpoint:
+//! Type evolution of a websocat run:
+//!
 //! 1. `&str` - string as passed to command line
 //! 2. `Specifier` - more organized representation, maybe nested
 //! 3. `PeerConstructor` - a future or stream that returns one or more connections
 //! 4. `Peer` - one active connection
+//! 5. `Transfer` - two peers recombine into two (if bidirectional) transfers
+//! 6. `Session` - a running websocat connection from one specifier to another
 
 extern crate futures;
 extern crate tokio_core;
@@ -38,14 +41,7 @@ fn io_other_error<E : std::error::Error + Send + Sync + 'static>(e:E) -> std::io
     std::io::Error::new(std::io::ErrorKind::Other,e)
 }
 
-/// Diagnostics for specifiers and options combinations
-#[derive(PartialEq,Eq)]
-pub enum ConfigurationConcern {
-    StdinToStdout,
-    StdioConflict,
-    NeedsStdioReuser,
-    MultipleReusers,
-}
+pub use lints::ConfigurationConcern;
 
 pub struct WebsocatConfiguration {
     pub opts : Options,
@@ -59,33 +55,6 @@ impl WebsocatConfiguration {
         where OE : Fn(Box<std::error::Error>) -> () + 'static
     {
         serve(h, self.s1,self.s2, self.opts, onerror)
-    }
-    
-    pub fn get_concern(&self) -> Option<ConfigurationConcern> {
-        use ConfigurationConcern::*;
-        use StdioUsageStatus::{IsItself,WithReuser};
-    
-        if self.s1.stdio_usage_status() == IsItself && self.s2.stdio_usage_status() == IsItself {
-            return Some(StdinToStdout);
-        }
-        
-        if self.s1.stdio_usage_status() >= WithReuser && self.s2.stdio_usage_status() >= WithReuser {
-            return Some(StdioConflict);
-        }
-        
-        if self.s1.is_multiconnect() && self.s2.stdio_usage_status() > WithReuser {
-            return Some(NeedsStdioReuser);
-        }
-        
-        if self.s1.reuser_count() + self.s2.reuser_count() > 1 {
-            return Some(MultipleReusers);
-        }
-        None
-    }
-    
-    pub fn auto_install_reuser(self) -> Self {
-        let WebsocatConfiguration { opts, s1, s2 } = self;
-        WebsocatConfiguration { opts, s1, s2: Box::new(connection_reuse_peer::Reuser(s2)) }
     }
 }
 
@@ -107,18 +76,6 @@ pub struct Peer(Box<AsyncRead>, Box<AsyncWrite>);
 pub type BoxedNewPeerFuture = Box<Future<Item=Peer, Error=Box<std::error::Error>>>;
 pub type BoxedNewPeerStream = Box<Stream<Item=Peer, Error=Box<std::error::Error>>>;
 
-#[derive(Ord,PartialOrd,Eq,PartialEq,Copy,Clone)]
-pub enum StdioUsageStatus {
-    /// Does not use standard input or output at all
-    None,
-    /// Uses a reuser for connecting multiple peers at stdio, not distinguishing between IsItself and Indirectly
-    WithReuser,
-    /// Stdio wrapped into something (but not the reuser)
-    Indirectly,
-    /// Is the `-` or `stdio:` or `threadedstdio:` itself.
-    IsItself,
-}
-
 /// He wants to peek into a Specifier. `FnMut` wants to be `FnOnce` actually.
 pub type SpecifierInspector = Rc<Fn(&Specifier)-> Box<Any>>;
 
@@ -138,48 +95,14 @@ pub trait Specifier : std::fmt::Debug {
     fn construct(&self, h:&Handle, ps: &mut ProgramState) -> PeerConstructor;
     /// A server (multiconnect) or a client (single connect)?
     fn is_multiconnect(&self) -> bool;
-    fn stdio_usage_status(&self) -> StdioUsageStatus {
-        if let Some(status) = self.use_child_specifier(Rc::new(|child : &Specifier| {
-                Box::new(child.stdio_usage_status()) as Box<Any>
-            }))
-        {
-            let ss = *status.downcast().unwrap();
-            if ss == StdioUsageStatus::IsItself {
-                return StdioUsageStatus::Indirectly
-            }
-            ss
-        } else {
-            StdioUsageStatus::None
-        }
-    }
-    /// In case of being a wrapper, run the function on the inner specifier
-    fn use_child_specifier(&self, _f: SpecifierInspector) -> Option<Box<Any>> { 
-        // Nothing to do for non-wrappers.
-        None
-    }
     
     fn visit_myself(&self, f: SpecifierInspector) -> Box<Any>;
     fn get_type(&self) -> SpecifierType;
+    
     fn visit_hierarchy(&self, f: SpecifierInspector) -> Vec<Box<Any>> {
         let mut rets = vec![];
         rets.push (self.visit_myself(f));
         rets
-    }
-    
-    fn reuser_count(&self) -> usize {
-        let nested =
-        if let Some(status) = self.use_child_specifier(Rc::new(|child : &Specifier| {
-                Box::new(child.reuser_count()) as Box<Any>
-            }))
-        {
-            let ss : usize = *status.downcast().unwrap();
-            ss
-        } else {
-            0
-        };
-        let direct = if self.get_type() == SpecifierType::Reuser { 1 } else { 0 };
-        //warn!("{:?} nested={} direct={}", self, nested, direct);
-        nested + direct
     }
 }
 
@@ -187,11 +110,9 @@ impl Specifier for Box<Specifier> {
     fn construct(&self, h:&Handle, ps: &mut ProgramState) -> PeerConstructor {
         (**self).construct(h, ps)
     }
-    fn use_child_specifier(&self, f: SpecifierInspector) -> Option<Box<Any>> { (**self).use_child_specifier(f) }
-    fn stdio_usage_status(&self) -> StdioUsageStatus { (**self).stdio_usage_status() }
     fn is_multiconnect(&self) -> bool { (**self).is_multiconnect() }
-    
     fn visit_myself(&self, f: SpecifierInspector) -> Box<Any> { (**self).visit_myself(f) }
+    fn visit_hierarchy(&self, f: SpecifierInspector) -> Vec<Box<Any>>  { (**self).visit_hierarchy(f) }
     fn get_type(&self) -> SpecifierType { (**self).get_type() }
 }
 
@@ -214,9 +135,6 @@ macro_rules! specifier_boilerplate {
 
 macro_rules! self_0_is_subspecifier {
     (...) => {
-        fn use_child_specifier(&self, f: $crate::SpecifierInspector) -> Option<Box<::std::any::Any>> {
-            Some(f(&self.0))
-        }
         fn visit_hierarchy(&self, f: $crate::SpecifierInspector) -> Vec<Box<::std::any::Any>> {
             let mut rets = vec![];
             let ff = f.clone();
@@ -231,10 +149,8 @@ macro_rules! self_0_is_subspecifier {
     };
 }
 
-
-
-
 mod my_copy;
+pub mod lints;
 
 #[cfg(all(unix,not(feature="no_unix_stdio")))]
 pub mod stdio_peer;

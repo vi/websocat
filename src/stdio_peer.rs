@@ -16,7 +16,7 @@ use super::{Peer, BoxedNewPeerFuture, Result};
 use futures::Stream;
 
 
-use super::{once,Specifier,ProgramState,PeerConstructor,StdioUsageStatus};
+use super::{once,Specifier,ProgramState,PeerConstructor};
 
 #[derive(Clone,Debug)]
 pub struct Stdio;
@@ -26,7 +26,6 @@ impl Specifier for Stdio {
         ret = get_stdio_peer(&mut ps.stdio, h);
         once(ret)
     }
-    fn stdio_usage_status(&self) -> StdioUsageStatus { StdioUsageStatus::IsItself }
     specifier_boilerplate!(singleconnect, Stdio);
 }
 

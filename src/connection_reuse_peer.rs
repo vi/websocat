@@ -12,7 +12,7 @@ use std::io::{Read, Write, Error as IoError};
 
 use std::ops::DerefMut;
 use futures::Future;
-use super::{once,Specifier,Handle,ProgramState,PeerConstructor,StdioUsageStatus};
+use super::{once,Specifier,Handle,ProgramState,PeerConstructor};
 
 
 #[derive(Debug)]
@@ -22,13 +22,6 @@ impl<T:Specifier> Specifier for Reuser<T> {
         let mut reuser = ps.reuser.clone();
         let inner = self.0.construct(h, ps).get_only_first_conn();
         once(connection_reuser(&mut reuser, inner))
-    }
-    fn stdio_usage_status(&self) -> StdioUsageStatus {
-        let ss = self.0.stdio_usage_status();
-        if ss > StdioUsageStatus::Indirectly {
-            return StdioUsageStatus::WithReuser;
-        }
-        ss
     }
     self_0_is_subspecifier!(...);
     specifier_boilerplate!(singleconnect, Reuser);

@@ -19,7 +19,7 @@ use futures::Async::{Ready, NotReady};
 use tokio_core::net::{TcpStream, TcpListener, UdpSocket};
 
 use super::{Peer, io_other_error, brokenpipe, wouldblock, BoxedNewPeerFuture, BoxedNewPeerStream, peer_err, peer_err_s, box_up_err};
-use super::{once,multi,Specifier,ProgramState,PeerConstructor,StdioUsageStatus};
+use super::{once,multi,Specifier,ProgramState,PeerConstructor};
 
 
 
