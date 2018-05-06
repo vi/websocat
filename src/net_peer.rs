@@ -29,7 +29,7 @@ impl Specifier for TcpConnect {
     fn construct(&self, h:&Handle, _: &mut ProgramState) -> PeerConstructor {
         once(tcp_connect_peer(h, &self.0))
     }
-    specifier_boilerplate!(singleconnect, no_subspec, Other);
+    specifier_boilerplate!(noglobalstate singleconnect no_subspec typ=Other);
 }
 
 #[derive(Debug,Clone)]
@@ -38,7 +38,7 @@ impl Specifier for TcpListen {
     fn construct(&self, h:&Handle, _: &mut ProgramState) -> PeerConstructor {
         multi(tcp_listen_peer(h, &self.0))
     }
-    specifier_boilerplate!(multiconnect, no_subspec, Other);
+    specifier_boilerplate!(noglobalstate multiconnect no_subspec typ=Other);
 }
 
 /*

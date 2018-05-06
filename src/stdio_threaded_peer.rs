@@ -10,7 +10,7 @@ impl Specifier for ThreadedStdio {
     fn construct(&self, _:&Handle, _: &mut ProgramState) -> PeerConstructor {
         once(get_stdio_peer())
     }
-    specifier_boilerplate!(singleconnect, no_subspec, Stdio);
+    specifier_boilerplate!(globalstate singleconnect no_subspec typ=Stdio);
 }
 
 

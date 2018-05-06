@@ -23,7 +23,7 @@ impl Specifier for WsClient {
         let url = self.0.clone();
         once(get_ws_client_peer(h, &url))
     }
-    specifier_boilerplate!(singleconnect, no_subspec, Other);
+    specifier_boilerplate!(noglobalstate singleconnect no_subspec typ=Other);
 }
 
 #[derive(Debug)]
@@ -38,7 +38,7 @@ impl<T:Specifier> Specifier for WsConnect<T> {
             get_ws_client_peer_wrapped(&url, q)
         })
     }
-    specifier_boilerplate!(..., has_subspec, Other);
+    specifier_boilerplate!(noglobalstate has_subspec typ=Other);
     self_0_is_subspecifier!(proxy_is_multiconnect);
     fn clone(&self) -> Box<Specifier> { Box::new(WsConnect(self.0.clone(), self.1.clone())) }
 }

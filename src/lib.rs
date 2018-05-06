@@ -93,10 +93,11 @@ pub enum SpecifierType {
 pub trait Specifier : std::fmt::Debug {
     /// Apply the specifier for constructing a "socket" or other connecting device.
     fn construct(&self, h:&Handle, ps: &mut ProgramState) -> PeerConstructor;
-    /// A server (multiconnect) or a client (single connect)?
-    fn is_multiconnect(&self) -> bool;
+    
     
     // Specified by `specifier_boilerplate!`:
+    fn is_multiconnect(&self) -> bool;
+    fn uses_global_state(&self) -> bool;
     fn visit_myself(&self, f: SpecifierInspector) -> Box<Any>;
     fn get_type(&self) -> SpecifierType;
     fn clone(&self) -> Box<Specifier>;
@@ -119,26 +120,39 @@ impl Specifier for Box<Specifier> {
     fn visit_hierarchy(&self, f: SpecifierInspector) -> Vec<Box<Any>>  { (**self).visit_hierarchy(f) }
     fn get_type(&self) -> SpecifierType { (**self).get_type() }
     fn clone(&self) -> Box<Specifier> { (**self).clone() }
+    fn uses_global_state(&self) -> bool { (**self).uses_global_state() }
 }
 
 macro_rules! specifier_boilerplate {
-    (singleconnect, $hiert:ident, $tn:ident) => {
-        specifier_boilerplate!(mc false, $hiert, $tn);
+    (singleconnect $($e:tt)*) => {
+        fn is_multiconnect(&self) -> bool { false }
+        specifier_boilerplate!($($e)*);
     };
-    (multiconnect, $hiert:ident, $tn:ident) => {
-        specifier_boilerplate!(mc true, $hiert, $tn);
+    (multiconnect $($e:tt)*) => {
+        fn is_multiconnect(&self) -> bool { true }
+        specifier_boilerplate!($($e)*);
     };    
-    (..., no_subspec, $tn:ident) => {
-        specifier_boilerplate!(..., has_subspec, $tn);
+    (no_subspec $($e:tt)*) => {
+        specifier_boilerplate!($($e)*);
         fn clone(&self) -> Box<Specifier> { Box::new(::std::clone::Clone::clone(self)) }
     };
-    (..., has_subspec, $tn:ident) => {
+    (has_subspec $($e:tt)*) => {
+        specifier_boilerplate!($($e)*);
+    };
+    (typ=$tn:ident $($e:tt)*) => {
         fn get_type(&self) -> $crate::SpecifierType { $crate::SpecifierType::$tn }
+        specifier_boilerplate!($($e)*);
+    };
+    () => {
         fn visit_myself(&self, f: $crate::SpecifierInspector) -> Box<::std::any::Any> { f(self) }
     };
-    (mc $mcval:ident, $hiert:ident, $tn:ident) => {
-        specifier_boilerplate!(..., $hiert, $tn);
-        fn is_multiconnect(&self) -> bool { $mcval }
+    (globalstate $($e:tt)*) => {
+        fn uses_global_state(&self) -> bool { true }
+        specifier_boilerplate!($($e)*);
+    };
+    (noglobalstate $($e:tt)*) => {
+        fn uses_global_state(&self) -> bool { false }
+        specifier_boilerplate!($($e)*);
     };
 }
 
