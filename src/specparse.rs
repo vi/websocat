@@ -128,6 +128,9 @@ impl Specifier {
         if let Some(url_s) = ws_url_prefix(s) {
             let url : Url = url_s.parse()?;
             boxup(super::ws_client_peer::WsClient(url))
+        } else 
+        if s.starts_with("autoreconnect:") {
+            boxup(super::reconnect_peer::AutoReconnect(spec(&s[14..])?))
         } else {
             error!("Invalid specifier string `{}`", s);
             Err("Wrong specifier")?
