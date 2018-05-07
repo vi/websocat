@@ -86,6 +86,11 @@ impl WebsocatConfiguration {
         if self.s1.reuser_count() + self.s2.reuser_count() > 1 {
             return Some(MultipleReusers);
         }
+        
+        // TODO: listener at right
+        // TODO: UDP connect oneshot mode
+        // TODO: early fail for reuse:
+        
         None
     }
     

@@ -62,6 +62,7 @@ impl WebsocatConfiguration {
 pub struct Options {
     pub websocket_text_mode: bool,
     pub websocket_protocol: Option<String>,
+    pub udp_oneshot_mode: bool,
 }
 
 #[derive(Default)]

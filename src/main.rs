@@ -57,6 +57,9 @@ struct Opt {
     
     #[structopt(long="protocol", help="Specify Sec-WebSocket-Protocol: header")]
     websocket_protocol: Option<String>,
+    
+    #[structopt(long="udp-oneshot", help="udp-listen: replies only one packet per client")]
+    udp_oneshot_mode: bool,
 }
 
 fn longhelp() {
@@ -213,6 +216,7 @@ fn run() -> Result<()> {
         opts!(
             websocket_text_mode
             websocket_protocol
+            udp_oneshot_mode
         )
     };
     

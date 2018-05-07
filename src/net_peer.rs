@@ -40,8 +40,8 @@ impl Specifier for TcpListen {
 #[derive(Debug,Clone)]
 pub struct UdpConnect(pub SocketAddr);
 impl Specifier for UdpConnect {
-    fn construct(&self, h:&Handle, _: &mut ProgramState, _opts: &Options) -> PeerConstructor {
-        once(udp_connect_peer(h, &self.0))
+    fn construct(&self, h:&Handle, _: &mut ProgramState, opts: &Options) -> PeerConstructor {
+        once(udp_connect_peer(h, &self.0, opts))
     }
     specifier_boilerplate!(noglobalstate singleconnect no_subspec typ=Other);
 }
@@ -49,8 +49,8 @@ impl Specifier for UdpConnect {
 #[derive(Debug,Clone)]
 pub struct UdpListen(pub SocketAddr);
 impl Specifier for UdpListen {
-    fn construct(&self, h:&Handle, _: &mut ProgramState, _opts: &Options) -> PeerConstructor {
-        once(udp_listen_peer(h, &self.0))
+    fn construct(&self, h:&Handle, _: &mut ProgramState, opts: &Options) -> PeerConstructor {
+        once(udp_listen_peer(h, &self.0, opts))
     }
     specifier_boilerplate!(noglobalstate singleconnect no_subspec typ=Other);
 }
@@ -157,6 +157,7 @@ enum UdpPeerState {
 struct UdpPeer {
     s : UdpSocket,
     state: Option<UdpPeerState>,
+    oneshot_mode: bool,
 }
 
 #[derive(Clone)]
@@ -171,7 +172,7 @@ fn get_zero_address(addr:&SocketAddr) -> SocketAddr {
     SocketAddr::new(ip, 0)
 }
 
-pub fn udp_connect_peer(handle: &Handle, addr: &SocketAddr) -> BoxedNewPeerFuture {
+pub fn udp_connect_peer(handle: &Handle, addr: &SocketAddr, opts: &Options) -> BoxedNewPeerFuture {
     let za = get_zero_address(addr);
     
     Box::new(
@@ -183,6 +184,7 @@ pub fn udp_connect_peer(handle: &Handle, addr: &SocketAddr) -> BoxedNewPeerFutur
                 UdpPeer {
                     s: x,
                     state: Some(UdpPeerState::ConnectMode),
+                    oneshot_mode: opts.udp_oneshot_mode,
                 })));
                 let h2 = h1.clone();
                 Ok(Peer::new(h1, h2))
@@ -191,7 +193,7 @@ pub fn udp_connect_peer(handle: &Handle, addr: &SocketAddr) -> BoxedNewPeerFutur
     ) as BoxedNewPeerFuture
 }
 
-pub fn udp_listen_peer(handle: &Handle, addr: &SocketAddr) -> BoxedNewPeerFuture {
+pub fn udp_listen_peer(handle: &Handle, addr: &SocketAddr, opts: &Options) -> BoxedNewPeerFuture {
     Box::new(
         futures::future::result(
             UdpSocket::bind(addr, handle).and_then(|x| {
@@ -199,6 +201,7 @@ pub fn udp_listen_peer(handle: &Handle, addr: &SocketAddr) -> BoxedNewPeerFuture
                 UdpPeer {
                     s: x,
                     state: Some(UdpPeerState::WaitingForAddress(channel())),
+                    oneshot_mode: opts.udp_oneshot_mode,
                 })));
                 let h2 = h1.clone();
                 Ok(Peer::new(h1, h2))
@@ -210,7 +213,6 @@ pub fn udp_listen_peer(handle: &Handle, addr: &SocketAddr) -> BoxedNewPeerFuture
 impl Read for UdpPeerHandle {
     fn read(&mut self, buf: &mut [u8]) -> IoResult<usize> {
         let mut p = self.0.borrow_mut();
-        eprintln!("read {:?}", p.state);
         match p.state.take().expect("Assertion failed 193912") {
             UdpPeerState::ConnectMode => {
                 p.state = Some(UdpPeerState::ConnectMode);
@@ -244,14 +246,17 @@ impl Read for UdpPeerHandle {
 impl Write for UdpPeerHandle {
     fn write(&mut self, buf: &[u8]) -> IoResult<usize> {
         let mut p = self.0.borrow_mut();
-        eprintln!("write {:?}", p.state);
         match p.state.take().expect("Assertion failed 193913") {
             UdpPeerState::ConnectMode => {
                 p.state = Some(UdpPeerState::ConnectMode);
                 p.s.send(buf)
             },
             UdpPeerState::HasAddress(a) => {
-                p.state = Some(UdpPeerState::HasAddress(a));
+                if p.oneshot_mode {
+                    p.state = Some(UdpPeerState::WaitingForAddress(channel()));
+                } else {
+                    p.state = Some(UdpPeerState::HasAddress(a));
+                }
                 p.s.send_to(buf, &a)
             },
             UdpPeerState::WaitingForAddress((cmpl,mut pollster)) => {
