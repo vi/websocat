@@ -10,15 +10,15 @@ exclude = ["autorelease.sh"]
 
 
 [dependencies]
-websocket = { version = "0.20", default-features = false, features=["async"] }
-env_logger = {version="0.5", default-features = false }
-log = {version="0.4", default-features = false}
+websocket = { version = "0.20.2", default-features = false, features=["async"] }
+env_logger = {version="0.5.9", default-features = false }
+log = {version="0.4.1", default-features = false}
 #url = { version="*" }
 #clap = { version = "*", default-features = false }
 futures = {version = "=0.1.17" }
 tokio-core =  { version = "=0.1.12" }
 tokio-io = "=0.1.5"
-tokio-stdin-stdout = "0.1"
+tokio-stdin-stdout = "0.1.1"
 
 [target.'cfg(unix)'.dependencies]
 tokio-file-unix = "^0.4.2"
