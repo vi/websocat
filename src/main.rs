@@ -54,6 +54,9 @@ struct Opt {
     
     #[structopt(long="dump-spec", help="Instead of running, dump the specifiers representation to stdout")]
     dumpspec: bool,
+    
+    #[structopt(long="protocol", help="Specify Sec-WebSocket-Protocol: header")]
+    websocket_protocol: Option<String>,
 }
 
 fn longhelp() {
@@ -195,6 +198,7 @@ fn run() -> Result<()> {
         }
         opts!(
             websocket_text_mode
+            websocket_protocol
         )
     };
     

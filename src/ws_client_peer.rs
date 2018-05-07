@@ -20,9 +20,8 @@ use super::{once,Specifier,ProgramState,PeerConstructor,Options};
 pub struct WsClient(pub Url);
 impl Specifier for WsClient {
     fn construct(&self, h:&Handle, _: &mut ProgramState, opts: &Options) -> PeerConstructor {
-        let mode1 = if opts.websocket_text_mode { Mode1::Text } else {Mode1::Binary};
         let url = self.0.clone();
-        once(get_ws_client_peer(h, &url, mode1))
+        once(get_ws_client_peer(h, &url, opts))
     }
     specifier_boilerplate!(noglobalstate singleconnect no_subspec typ=Other);
 }
@@ -35,10 +34,10 @@ impl<T:Specifier> Specifier for WsConnect<T> {
         
         let url = self.1.clone();
         
-        let mode1 = if opts.websocket_text_mode { Mode1::Text } else {Mode1::Binary};
+        let opts = opts.clone();
         
         inner.map(move |q| {
-            get_ws_client_peer_wrapped(&url, q, mode1)
+            get_ws_client_peer_wrapped(&url, q, &opts)
         })
     }
     specifier_boilerplate!(noglobalstate has_subspec typ=Other);
@@ -47,12 +46,18 @@ impl<T:Specifier> Specifier for WsConnect<T> {
 
 
 
-fn get_ws_client_peer_impl<S,F>(uri: &Url, mode1: Mode1, f: F) -> BoxedNewPeerFuture 
+fn get_ws_client_peer_impl<S,F>(uri: &Url, opts: &Options, f: F) -> BoxedNewPeerFuture 
     where S:WsStream+Send+'static, F : FnOnce(ClientBuilder)->ClientNew<S>
 {
+    let mode1 = if opts.websocket_text_mode { Mode1::Text } else {Mode1::Binary};
+    
     let stage1 = ClientBuilder::from_url(uri);
-    let before_connect = stage1
-        .add_protocol("rust-websocket"); // TODO: customizable protocol
+    let before_connect = 
+    if let Some(ref p) = opts.websocket_protocol {
+        stage1.add_protocol(p.to_owned())
+    } else {
+        stage1
+    };
     let after_connect = f(before_connect);
     Box::new(after_connect
         .map(move |(duplex, _)| {
@@ -74,9 +79,9 @@ fn get_ws_client_peer_impl<S,F>(uri: &Url, mode1: Mode1, f: F) -> BoxedNewPeerFu
     ) as BoxedNewPeerFuture
 }
 
-pub fn get_ws_client_peer(handle: &Handle, uri: &Url, mode1: Mode1) -> BoxedNewPeerFuture {
+pub fn get_ws_client_peer(handle: &Handle, uri: &Url, opts: &Options) -> BoxedNewPeerFuture {
     info!("get_ws_client_peer");
-    get_ws_client_peer_impl(uri, mode1, |before_connect| {
+    get_ws_client_peer_impl(uri, opts, |before_connect| {
         #[cfg(feature="ssl")]
         let after_connect = before_connect
             .async_connect(None, handle);
@@ -91,9 +96,9 @@ unsafe impl Send for PeerForWs {
     //! https://github.com/cyderize/rust-websocket/issues/168
 }
 
-pub fn get_ws_client_peer_wrapped(uri: &Url, inner: Peer, mode1: Mode1) -> BoxedNewPeerFuture {
+pub fn get_ws_client_peer_wrapped(uri: &Url, inner: Peer, opts: &Options) -> BoxedNewPeerFuture {
     info!("get_ws_client_peer_wrapped");
-    get_ws_client_peer_impl(uri, mode1, |before_connect| {
+    get_ws_client_peer_impl(uri, opts, |before_connect| {
         let after_connect = before_connect
             .async_connect_on(PeerForWs(inner));
         after_connect

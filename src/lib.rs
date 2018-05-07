@@ -58,9 +58,10 @@ impl WebsocatConfiguration {
 }
 
 
-#[derive(Default,Debug,Clone,Copy)]
+#[derive(Default,Debug,Clone)]
 pub struct Options {
     pub websocket_text_mode: bool,
+    pub websocket_protocol: Option<String>,
 }
 
 #[derive(Default)]
