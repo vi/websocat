@@ -30,7 +30,7 @@ Basic examples:
 Short list of specifiers (see --long-help):
   ws:// wss:// - inetd: ws-listen: inetd-ws: tcp: tcp-l: ws-c:
   autoreconnect: reuse: mirror: threadedstdio: clogged:
-  literal: literalreply: assert:
+  literal: literalreply: assert: udp-connect:
 ")]
 struct Opt {
     /// First, listening/connecting specifier. See --long-help for info about specifiers.
@@ -110,6 +110,9 @@ Full list of specifiers:
     
     Example: echo server
       websocat tcp-l:0.0.0.0:1441 mirror:
+      
+  `udp:<hostport>` - send and receive packets to specified UDP socket
+    Aliases: `udp-connect:`
   
   `ws-connect:<spec>` - low-level WebSocket connector
     A combining specifier. Underlying specifier is should be after the colon.

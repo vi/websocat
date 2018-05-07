@@ -116,6 +116,12 @@ impl Specifier {
         if s.starts_with("listen-tcp:") {
             boxup(super::net_peer::TcpListen(s[11..].parse()?))
         } else
+        if s.starts_with("udp:") {
+            boxup(super::net_peer::UdpConnect(s[4..].parse()?))
+        } else
+        if s.starts_with("udp-connect:") {
+            boxup(super::net_peer::UdpConnect(s[4..].parse()?))
+        } else
         if let Some(x) = ws_l_prefix(s) {
             if x == "" {
                 Err("Specify underlying protocol for ws-l:")?;

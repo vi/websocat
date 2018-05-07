@@ -41,6 +41,15 @@ impl Specifier for TcpListen {
     specifier_boilerplate!(noglobalstate multiconnect no_subspec typ=Other);
 }
 
+#[derive(Debug,Clone)]
+pub struct UdpConnect(pub SocketAddr);
+impl Specifier for UdpConnect {
+    fn construct(&self, h:&Handle, _: &mut ProgramState, _opts: &Options) -> PeerConstructor {
+        once(udp_connect_peer(h, &self.0))
+    }
+    specifier_boilerplate!(noglobalstate singleconnect no_subspec typ=Other);
+}
+
 /*
 struct RcReadProxy<R>(Rc<R>) where for<'a> &'a R : AsyncRead;
 
@@ -133,4 +142,79 @@ pub fn tcp_listen_peer(handle: &Handle, addr: &SocketAddr) -> BoxedNewPeerStream
     ) as BoxedNewPeerStream
 }
 
+
+struct UdpPeer {
+    s : UdpSocket,
+    a : SocketAddr,
+    connect_mode: bool,
+}
+
+#[derive(Clone)]
+struct UdpPeerHandle(Rc<RefCell<UdpPeer>>);
+
+fn get_zero_address(addr:&SocketAddr) -> SocketAddr {
+    use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
+    let ip = match addr.ip() {
+        IpAddr::V4(_) => IpAddr::V4(Ipv4Addr::new(0,0,0,0)),
+        IpAddr::V6(_) => IpAddr::V6(Ipv6Addr::new(0,0,0,0,0,0,0,0)),
+    };
+    SocketAddr::new(ip, 0)
+}
+
+pub fn udp_connect_peer(handle: &Handle, addr: &SocketAddr) -> BoxedNewPeerFuture {
+    let za = get_zero_address(addr);
+    
+    Box::new(
+        futures::future::result(
+            UdpSocket::bind(&za, handle).and_then(|x| {
+                x.connect(addr)?;
+            
+                let h1 = UdpPeerHandle(Rc::new(RefCell::new(
+                UdpPeer {
+                    a: addr.clone(),
+                    s: x,
+                    connect_mode: true,
+                })));
+                let h2 = h1.clone();
+                Ok(Peer::new(h1, h2))
+            }).map_err(box_up_err)
+        )
+    ) as BoxedNewPeerFuture
+}
+
+impl Read for UdpPeerHandle {
+    fn read(&mut self, buf: &mut [u8]) -> IoResult<usize> {
+        let mut p = self.0.borrow_mut();
+        if p.connect_mode {
+            p.s.recv(buf)
+        } else {
+            unimplemented!()
+        }
+    }
+}
+
+impl Write for UdpPeerHandle {
+    fn write(&mut self, buf: &[u8]) -> IoResult<usize> {
+        let mut p = self.0.borrow_mut();
+        if p.connect_mode {
+            p.s.send(buf)
+        } else {
+            //p.s.send_to(buf, &p.a)
+            // may need to wait until we actually have the address
+            unimplemented!()
+        }
+    }
+
+    fn flush(&mut self) -> IoResult<()> {
+        Ok(())
+    }
+}
+
+impl AsyncRead for UdpPeerHandle {}
+
+impl AsyncWrite for UdpPeerHandle {
+    fn shutdown(&mut self) -> futures::Poll<(), std::io::Error> {
+        Ok(().into())
+    }
+}
 
