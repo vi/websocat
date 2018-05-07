@@ -98,6 +98,15 @@ impl Specifier {
         if s.starts_with("tcp-connect:") {
             boxup(super::net_peer::TcpConnect(s[12..].parse()?))
         } else 
+        if s.starts_with("connect-tcp:") {
+            boxup(super::net_peer::TcpConnect(s[12..].parse()?))
+        } else 
+        if s.starts_with("c-tcp:") {
+            boxup(super::net_peer::TcpConnect(s[6..].parse()?))
+        } else 
+        if s.starts_with("tcp-c:") {
+            boxup(super::net_peer::TcpConnect(s[6..].parse()?))
+        } else 
         if s.starts_with("tcp-l:") {
             boxup(super::net_peer::TcpListen(s[6..].parse()?))
         } else 
@@ -105,6 +114,9 @@ impl Specifier {
             boxup(super::net_peer::TcpListen(s[6..].parse()?))
         } else 
         if s.starts_with("tcp-listen:") {
+            boxup(super::net_peer::TcpListen(s[11..].parse()?))
+        } else
+        if s.starts_with("listen-tcp:") {
             boxup(super::net_peer::TcpListen(s[11..].parse()?))
         } else
         if let Some(x) = ws_l_prefix(s) {
@@ -131,6 +143,9 @@ impl Specifier {
         } else 
         if s.starts_with("autoreconnect:") {
             boxup(super::reconnect_peer::AutoReconnect(spec(&s[14..])?))
+        } else 
+        if s == "inetd-ws:" {
+            return spec("ws-l:inetd:");
         } else {
             error!("Invalid specifier string `{}`", s);
             Err("Wrong specifier")?
