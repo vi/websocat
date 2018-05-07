@@ -59,10 +59,7 @@ pub fn spec(s : &str) -> Result<Rc<Specifier>>  {
     Specifier::from_str(s)
 }
 
-// FromStr for Rc<Specifier>
 impl Specifier {
-    //type Err = Box<std::error::Error>;
-    
     fn from_str(s: &str) -> Result<Rc<Specifier>> {
         if s == "-" || s == "inetd:" || s == "stdio:" {
             #[cfg(all(unix,not(feature="no_unix_stdio")))]

@@ -11,9 +11,8 @@ extern crate structopt;
 
 use structopt::StructOpt;
 
-
 use tokio_core::reactor::{Core};
-use websocat::{spec, WebsocatConfiguration};
+use websocat::{spec, WebsocatConfiguration, Options};
 
 type Result<T> = std::result::Result<T, Box<std::error::Error>>;
 
@@ -45,7 +44,7 @@ struct Opt {
     unidirectional_reverse: bool,
     
     #[structopt(short = "t", long = "text", help="Send text WebSocket messages instead of binary")]
-    text_mode: bool,
+    websocket_text_mode: bool,
     
     #[structopt(long="oneshot", help="Serve only once")]
     oneshot: bool,
@@ -177,14 +176,24 @@ fn run() -> Result<()> {
     }
     
     if false 
-        || cmd.text_mode 
         || cmd.unidirectional
         || cmd.unidirectional_reverse 
         || cmd.oneshot {
         Err("This mode is not implemented")?
     }
     
-    let opts = Default::default();
+    let opts = {
+        macro_rules! opts {
+            ($($o:ident)*) => {
+                Options {
+                    $($o : cmd.$o,)*
+                }
+            }
+        }
+        opts!(
+            websocket_text_mode
+        )
+    };
     
     let s1 = spec(&cmd.s1)?;
     let s2 = spec(&cmd.s2)?;

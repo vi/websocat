@@ -11,7 +11,7 @@ use tokio_io::{AsyncRead,AsyncWrite};
 use std::io::{Read, Write, Error as IoError};
 
 use futures::{Future,Poll,Async};
-use super::{once,Specifier,Handle,ProgramState,PeerConstructor,wouldblock};
+use super::{once,Specifier,Handle,ProgramState,PeerConstructor,wouldblock,Options};
 
 // TODO: shutdown write part if out writing part is shut down
 // TODO: stop if writing part and reading parts are closed (shutdown)?
@@ -20,8 +20,9 @@ use super::{once,Specifier,Handle,ProgramState,PeerConstructor,wouldblock};
 #[derive(Debug)]
 pub struct AutoReconnect(pub Rc<Specifier>);
 impl Specifier for AutoReconnect {
-    fn construct(&self, h:&Handle, _ps: &mut ProgramState) -> PeerConstructor {
+    fn construct(&self, h:&Handle, _ps: &mut ProgramState, opts: &Options) -> PeerConstructor {
         let mut subspec_globalstate = false;
+        let opts = opts.clone();
         
         for i in self.0.get_info().collect() {
             if i.uses_global_state { 
@@ -35,7 +36,7 @@ impl Specifier for AutoReconnect {
             once(Box::new(::futures::future::err(e)) as BoxedNewPeerFuture)
         } else {
             //let inner = self.0.construct(h, ps).get_only_first_conn();
-            once(autoreconnector(h.clone(), self.0.clone()))
+            once(autoreconnector(h.clone(), self.0.clone(), opts))
         }
     }
     specifier_boilerplate!(singleconnect noglobalstate has_subspec typ=Other);
@@ -52,6 +53,7 @@ struct State {
     p : Option<Peer>,
     n : Option<BoxedNewPeerFuture>,
     h : Handle,
+    opts: Options,
     aux : State2,
 }
 
@@ -65,6 +67,7 @@ impl /*Future for */ State {
         let nn = &mut self.n;
         
         let aux = &mut self.aux;
+        let opts = &self.opts;
         
         loop {
             if let Some(ref mut p) = pp {
@@ -97,7 +100,7 @@ impl /*Future for */ State {
             }
             
             let mut fake_ps : ProgramState = Default::default();
-            let pc : PeerConstructor = self.s.construct(&self.h, &mut fake_ps);
+            let pc : PeerConstructor = self.s.construct(&self.h, &mut fake_ps, opts);
             *nn = Some(pc.get_only_first_conn());
         }
     }
@@ -200,7 +203,7 @@ impl AsyncWrite for PeerHandle {
 }
 
 
-pub fn autoreconnector(h: Handle, s: Rc<Specifier>) -> BoxedNewPeerFuture
+pub fn autoreconnector(h: Handle, s: Rc<Specifier>, opts: Options) -> BoxedNewPeerFuture
 {
     let s = Rc::new(RefCell::new(
         State{
@@ -209,6 +212,7 @@ pub fn autoreconnector(h: Handle, s: Rc<Specifier>) -> BoxedNewPeerFuture
             p : None, 
             n: None,
             aux: Default::default(),
+            opts,
     }));
     let ph1 = PeerHandle(s.clone());
     let ph2 = PeerHandle(s);

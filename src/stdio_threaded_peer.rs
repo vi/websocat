@@ -2,12 +2,12 @@ extern crate tokio_stdin_stdout;
 
 use super::{Peer, BoxedNewPeerFuture};
 
-use super::{once,Specifier,Handle,ProgramState,PeerConstructor};
+use super::{once,Specifier,Handle,ProgramState,PeerConstructor,Options};
 
 #[derive(Debug,Clone)]
 pub struct ThreadedStdio;
 impl Specifier for ThreadedStdio {
-    fn construct(&self, _:&Handle, _: &mut ProgramState) -> PeerConstructor {
+    fn construct(&self, _:&Handle, _: &mut ProgramState, _opts: &Options) -> PeerConstructor {
         once(get_stdio_peer())
     }
     specifier_boilerplate!(globalstate singleconnect no_subspec typ=Stdio);

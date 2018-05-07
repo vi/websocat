@@ -85,7 +85,13 @@ impl<T:WsStream+'static>  Read for WsReadWrapper<T>
     }
 }
 
-pub struct WsWriteWrapper<T:WsStream+'static>(pub MultiProducerWsSink<T>);
+#[derive(Debug,Copy,Clone)]
+pub enum Mode1 {
+    Text,
+    Binary,
+}
+
+pub struct WsWriteWrapper<T:WsStream+'static>(pub MultiProducerWsSink<T>,pub Mode1);
 
 impl<T:WsStream+'static> AsyncWrite for WsWriteWrapper<T> {
     fn shutdown(&mut self) -> futures::Poll<(),std::io::Error> {
@@ -96,7 +102,22 @@ impl<T:WsStream+'static> AsyncWrite for WsWriteWrapper<T> {
 
 impl<T:WsStream+'static> Write for WsWriteWrapper<T> {
     fn write(&mut self, buf: &[u8]) -> IoResult<usize> {
-        let om = OwnedMessage::Binary(buf.to_vec());
+        let om = match self.1 {
+            Mode1::Binary => OwnedMessage::Binary(buf.to_vec()),
+            Mode1::Text => {
+                let text_tmp;
+                let text = match ::std::str::from_utf8(buf) {
+                    Ok(x) => x,
+                    Err(_) => {
+                        error!("Invalid UTF-8 in --text mode. Sending lossy data. May be \
+                                caused by unlucky buffer splits.");
+                        text_tmp = String::from_utf8_lossy(buf);
+                        text_tmp.as_ref()
+                    }
+                };
+                OwnedMessage::Text(text.to_string())
+            },
+        };
         match self.0.borrow_mut().start_send(om).map_err(io_other_error)? {
             futures::AsyncSink::NotReady(_) => {
                 wouldblock()

@@ -19,14 +19,14 @@ use futures::Async::{Ready, NotReady};
 use tokio_core::net::{TcpStream, TcpListener, UdpSocket};
 
 use super::{Peer, io_other_error, brokenpipe, wouldblock, BoxedNewPeerFuture, BoxedNewPeerStream, peer_err, peer_err_s, box_up_err};
-use super::{once,multi,Specifier,ProgramState,PeerConstructor};
+use super::{once,multi,Specifier,ProgramState,PeerConstructor,Options};
 
 
 
 #[derive(Debug,Clone)]
 pub struct TcpConnect(pub SocketAddr);
 impl Specifier for TcpConnect {
-    fn construct(&self, h:&Handle, _: &mut ProgramState) -> PeerConstructor {
+    fn construct(&self, h:&Handle, _: &mut ProgramState, _opts: &Options) -> PeerConstructor {
         once(tcp_connect_peer(h, &self.0))
     }
     specifier_boilerplate!(noglobalstate singleconnect no_subspec typ=Other);
@@ -35,7 +35,7 @@ impl Specifier for TcpConnect {
 #[derive(Debug,Clone)]
 pub struct TcpListen(pub SocketAddr);
 impl Specifier for TcpListen {
-    fn construct(&self, h:&Handle, _: &mut ProgramState) -> PeerConstructor {
+    fn construct(&self, h:&Handle, _: &mut ProgramState, _opts: &Options) -> PeerConstructor {
         multi(tcp_listen_peer(h, &self.0))
     }
     specifier_boilerplate!(noglobalstate multiconnect no_subspec typ=Other);

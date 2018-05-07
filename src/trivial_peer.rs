@@ -13,12 +13,12 @@ use tokio_io::{AsyncRead,AsyncWrite};
 use super::ReadDebt;
 use super::wouldblock;
 
-use super::{once,Specifier,Handle,ProgramState,PeerConstructor};
+use super::{once,Specifier,Handle,ProgramState,PeerConstructor,Options};
 
 #[derive(Clone)]
 pub struct Literal(pub Vec<u8>);
 impl Specifier for Literal {
-    fn construct(&self, _:&Handle, _: &mut ProgramState) -> PeerConstructor {
+    fn construct(&self, _:&Handle, _: &mut ProgramState, _opts: &Options) -> PeerConstructor {
         once(get_literal_peer(self.0.clone()))
     }
     specifier_boilerplate!(singleconnect no_subspec noglobalstate typ=Other);
@@ -28,7 +28,7 @@ impl std::fmt::Debug for Literal{fn fmt(&self, f:&mut std::fmt::Formatter) -> st
 #[derive(Clone)]
 pub struct Assert(pub Vec<u8>);
 impl Specifier for Assert {
-    fn construct(&self, _:&Handle, _: &mut ProgramState) -> PeerConstructor {
+    fn construct(&self, _:&Handle, _: &mut ProgramState, _opts: &Options) -> PeerConstructor {
         once(get_assert_peer(self.0.clone()))
     }
     specifier_boilerplate!(noglobalstate singleconnect no_subspec typ=Other);
@@ -38,7 +38,7 @@ impl std::fmt::Debug for Assert{fn fmt(&self, f:&mut std::fmt::Formatter) -> std
 #[derive(Debug,Clone)]
 pub struct Clogged;
 impl Specifier for Clogged {
-    fn construct(&self, _:&Handle, _: &mut ProgramState) -> PeerConstructor {
+    fn construct(&self, _:&Handle, _: &mut ProgramState, _opts: &Options) -> PeerConstructor {
         once(get_clogged_peer())
     }
     specifier_boilerplate!(noglobalstate singleconnect no_subspec typ=Other);

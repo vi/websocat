@@ -16,12 +16,12 @@ use super::{Peer, BoxedNewPeerFuture, Result};
 use futures::Stream;
 
 
-use super::{once,Specifier,ProgramState,PeerConstructor};
+use super::{once,Specifier,ProgramState,PeerConstructor,Options};
 
 #[derive(Clone,Debug)]
 pub struct Stdio;
 impl Specifier for Stdio {
-    fn construct(&self, h:&Handle, ps: &mut ProgramState) -> PeerConstructor {
+    fn construct(&self, h:&Handle, ps: &mut ProgramState, _opts: &Options) -> PeerConstructor {
         let ret;
         ret = get_stdio_peer(&mut ps.stdio, h);
         once(ret)
