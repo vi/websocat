@@ -117,6 +117,9 @@ Full list of specifiers:
   `assert:<string>` - Check the input.
     Read entire input and panic the program if the input is not equal
     to the specified string.
+    
+  TODO:
+  `exec:`, `unix-l:`
   
 More examples:
   Wacky mode:
