@@ -4,6 +4,8 @@ use std;
 use tokio_core::reactor::{Handle};
 use futures;
 use futures::future::Future;
+use futures::{oneshot,Complete,Oneshot};
+use futures::unsync::oneshot::{Receiver,Sender,channel};
 use futures::sink::Sink;
 use futures::stream::Stream;
 use tokio_io::{self,AsyncRead,AsyncWrite};
@@ -46,6 +48,15 @@ pub struct UdpConnect(pub SocketAddr);
 impl Specifier for UdpConnect {
     fn construct(&self, h:&Handle, _: &mut ProgramState, _opts: &Options) -> PeerConstructor {
         once(udp_connect_peer(h, &self.0))
+    }
+    specifier_boilerplate!(noglobalstate singleconnect no_subspec typ=Other);
+}
+
+#[derive(Debug,Clone)]
+pub struct UdpListen(pub SocketAddr);
+impl Specifier for UdpListen {
+    fn construct(&self, h:&Handle, _: &mut ProgramState, _opts: &Options) -> PeerConstructor {
+        once(udp_listen_peer(h, &self.0))
     }
     specifier_boilerplate!(noglobalstate singleconnect no_subspec typ=Other);
 }
@@ -142,11 +153,16 @@ pub fn tcp_listen_peer(handle: &Handle, addr: &SocketAddr) -> BoxedNewPeerStream
     ) as BoxedNewPeerStream
 }
 
+#[derive(Debug)]
+enum UdpPeerState {
+    ConnectMode,
+    WaitingForAddress((Sender<()>,Receiver<()>)),
+    HasAddress(SocketAddr),
+}
 
 struct UdpPeer {
     s : UdpSocket,
-    a : SocketAddr,
-    connect_mode: bool,
+    state: Option<UdpPeerState>,
 }
 
 #[derive(Clone)]
@@ -171,9 +187,24 @@ pub fn udp_connect_peer(handle: &Handle, addr: &SocketAddr) -> BoxedNewPeerFutur
             
                 let h1 = UdpPeerHandle(Rc::new(RefCell::new(
                 UdpPeer {
-                    a: addr.clone(),
                     s: x,
-                    connect_mode: true,
+                    state: Some(UdpPeerState::ConnectMode),
+                })));
+                let h2 = h1.clone();
+                Ok(Peer::new(h1, h2))
+            }).map_err(box_up_err)
+        )
+    ) as BoxedNewPeerFuture
+}
+
+pub fn udp_listen_peer(handle: &Handle, addr: &SocketAddr) -> BoxedNewPeerFuture {
+    Box::new(
+        futures::future::result(
+            UdpSocket::bind(addr, handle).and_then(|x| {
+                let h1 = UdpPeerHandle(Rc::new(RefCell::new(
+                UdpPeer {
+                    s: x,
+                    state: Some(UdpPeerState::WaitingForAddress(channel())),
                 })));
                 let h2 = h1.clone();
                 Ok(Peer::new(h1, h2))
@@ -185,10 +216,33 @@ pub fn udp_connect_peer(handle: &Handle, addr: &SocketAddr) -> BoxedNewPeerFutur
 impl Read for UdpPeerHandle {
     fn read(&mut self, buf: &mut [u8]) -> IoResult<usize> {
         let mut p = self.0.borrow_mut();
-        if p.connect_mode {
-            p.s.recv(buf)
-        } else {
-            unimplemented!()
+        eprintln!("read {:?}", p.state);
+        match p.state.take().expect("Assertion failed 193912") {
+            UdpPeerState::ConnectMode => {
+                p.state = Some(UdpPeerState::ConnectMode);
+                p.s.recv(buf)
+            },
+            UdpPeerState::HasAddress(oldaddr) => p.s.recv_from(buf).map(|(ret,addr)| {
+                warn!("New client for the same listening UDP socket");
+                p.state = Some(UdpPeerState::HasAddress(addr));
+                ret
+            }).map_err(|e| {
+                p.state = Some(UdpPeerState::HasAddress(oldaddr));
+                e
+            }),
+            UdpPeerState::WaitingForAddress((cmpl,pollster)) =>
+                match p.s.recv_from(buf) 
+                {
+                    Ok((ret,addr)) => {
+                        p.state = Some(UdpPeerState::HasAddress(addr));
+                        cmpl.send(());
+                        Ok(ret)
+                    },
+                    Err(e) => {
+                        p.state = Some(UdpPeerState::WaitingForAddress((cmpl,pollster)));
+                        Err(e)
+                    },
+                },
         }
     }
 }
@@ -196,12 +250,21 @@ impl Read for UdpPeerHandle {
 impl Write for UdpPeerHandle {
     fn write(&mut self, buf: &[u8]) -> IoResult<usize> {
         let mut p = self.0.borrow_mut();
-        if p.connect_mode {
-            p.s.send(buf)
-        } else {
-            //p.s.send_to(buf, &p.a)
-            // may need to wait until we actually have the address
-            unimplemented!()
+        eprintln!("write {:?}", p.state);
+        match p.state.take().expect("Assertion failed 193913") {
+            UdpPeerState::ConnectMode => {
+                p.state = Some(UdpPeerState::ConnectMode);
+                p.s.send(buf)
+            },
+            UdpPeerState::HasAddress(a) => {
+                p.state = Some(UdpPeerState::HasAddress(a));
+                p.s.send_to(buf, &a)
+            },
+            UdpPeerState::WaitingForAddress((cmpl,mut pollster)) => {
+                pollster.poll(); // register wakeup
+                p.state = Some(UdpPeerState::WaitingForAddress((cmpl,pollster)));
+                wouldblock()
+            },
         }
     }
 

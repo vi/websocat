@@ -112,7 +112,18 @@ Full list of specifiers:
       websocat tcp-l:0.0.0.0:1441 mirror:
       
   `udp:<hostport>` - send and receive packets to specified UDP socket
-    Aliases: `udp-connect:`
+    Aliases: `udp-connect:` `connect-udp:` `c-udp:` `udp-c:`
+    
+  `udp-listen:<hostport>` - bind to socket on host and port
+    Aliasses: `udp-l:`, `l-udp:`, `listen-udp:`
+    
+    Note that it is not a multiconnect specifier: entire lifecycle
+    of the UDP socket is the same connection.
+    
+    Packets get sent to the most recent seen peer.
+    If no peers are seen yet, it waits for the first packet.
+    
+    File a feature request on Github if you want proper DNS-like request-reply UDP mode here.
   
   `ws-connect:<spec>` - low-level WebSocket connector
     A combining specifier. Underlying specifier is should be after the colon.

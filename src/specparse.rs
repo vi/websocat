@@ -120,7 +120,28 @@ impl Specifier {
             boxup(super::net_peer::UdpConnect(s[4..].parse()?))
         } else
         if s.starts_with("udp-connect:") {
-            boxup(super::net_peer::UdpConnect(s[4..].parse()?))
+            boxup(super::net_peer::UdpConnect(s[12..].parse()?))
+        } else
+        if s.starts_with("connect-udp:") {
+            boxup(super::net_peer::UdpConnect(s[12..].parse()?))
+        } else
+        if s.starts_with("udp-c:") {
+            boxup(super::net_peer::UdpConnect(s[6..].parse()?))
+        } else
+        if s.starts_with("c-udp:") {
+            boxup(super::net_peer::UdpConnect(s[6..].parse()?))
+        } else
+        if s.starts_with("udp-listen:") {
+            boxup(super::net_peer::UdpListen(s[11..].parse()?))
+        } else
+        if s.starts_with("listen-udp:") {
+            boxup(super::net_peer::UdpListen(s[11..].parse()?))
+        } else
+        if s.starts_with("udp-l:") {
+            boxup(super::net_peer::UdpListen(s[6..].parse()?))
+        } else
+        if s.starts_with("l-udp:") {
+            boxup(super::net_peer::UdpListen(s[6..].parse()?))
         } else
         if let Some(x) = ws_l_prefix(s) {
             if x == "" {
