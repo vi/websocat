@@ -51,6 +51,9 @@ struct Opt {
     
     #[structopt(long="long-help", help="Show full help aboput specifiers and examples")]
     longhelp: bool,
+    
+    #[structopt(long="dump-spec", help="Instead of running, dump the specifiers representation to stdout")]
+    dumpspec: bool,
 }
 
 fn longhelp() {
@@ -203,6 +206,10 @@ fn run() -> Result<()> {
     while let Some(concern) = websocat.get_concern() {
         use websocat::ConfigurationConcern::*;
         if concern == StdinToStdout {
+            if cmd.dumpspec {
+                println!("cat mode");
+                return Ok(())
+            }
             // Degenerate mode: just copy stdin to stdout and call it a day
             ::std::io::copy(&mut ::std::io::stdin(), &mut ::std::io::stdout())?;
             return Ok(())
@@ -224,6 +231,13 @@ fn run() -> Result<()> {
             Err("Multiple reusers is not allowed")?;
         }
         break;
+    }
+    
+    if cmd.dumpspec {
+        println!("{:?}", websocat.s1);
+        println!("{:?}", websocat.s2);
+        println!("{:?}", websocat.opts);
+        return Ok(())
     }
 
     let mut core = Core::new()?;
