@@ -80,8 +80,8 @@ impl Specifier {
         if s == "mirror:" {
             boxup(super::mirror_peer::Mirror)
         } else
-        if s == "constipated:" {
-            boxup(super::trivial_peer::Constipated)
+        if s == "clogged:" {
+            boxup(super::trivial_peer::Clogged)
         } else
         if s.starts_with("literal:"){
             boxup(super::trivial_peer::Literal(s[8..].as_bytes().to_vec()))

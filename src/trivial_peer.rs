@@ -36,10 +36,10 @@ impl Specifier for Assert {
 impl std::fmt::Debug for Assert{fn fmt(&self, f:&mut std::fmt::Formatter) -> std::result::Result<(), std::fmt::Error> { write!(f, "Assert") }  }
 
 #[derive(Debug,Clone)]
-pub struct Constipated;
-impl Specifier for Constipated {
+pub struct Clogged;
+impl Specifier for Clogged {
     fn construct(&self, _:&Handle, _: &mut ProgramState) -> PeerConstructor {
-        once(get_constipated_peer())
+        once(get_clogged_peer())
     }
     specifier_boilerplate!(noglobalstate singleconnect no_subspec typ=Other);
 }
@@ -66,9 +66,9 @@ pub fn get_assert_peer(b:Vec<u8>) -> BoxedNewPeerFuture {
     Box::new(futures::future::ok(p)) as BoxedNewPeerFuture
 }
 /// A special peer that returns NotReady without registering for any wakeup, deliberately hanging all connections forever.
-pub fn get_constipated_peer() -> BoxedNewPeerFuture {
-    let r = ConstipatedPeer;
-    let w = ConstipatedPeer;
+pub fn get_clogged_peer() -> BoxedNewPeerFuture {
+    let r = CloggedPeer;
+    let w = CloggedPeer;
     let p = Peer::new(r,w);
     Box::new(futures::future::ok(p)) as BoxedNewPeerFuture
 }
@@ -134,13 +134,13 @@ impl Write for AssertPeer {
     }
 }
 
-struct ConstipatedPeer;
-impl AsyncWrite for ConstipatedPeer {
+struct CloggedPeer;
+impl AsyncWrite for CloggedPeer {
     fn shutdown(&mut self) -> futures::Poll<(),std::io::Error> {
         wouldblock()
     }
 }
-impl Write for ConstipatedPeer {
+impl Write for CloggedPeer {
     fn write(&mut self, _buf: &[u8]) -> IoResult<usize> {
         wouldblock()
     }
@@ -148,9 +148,9 @@ impl Write for ConstipatedPeer {
         wouldblock()
     }
 }
-impl AsyncRead for ConstipatedPeer
+impl AsyncRead for CloggedPeer
 {}
-impl Read for ConstipatedPeer
+impl Read for CloggedPeer
 {
     fn read(&mut self, _buf: &mut [u8]) -> std::result::Result<usize, std::io::Error> {
         wouldblock()
