@@ -19,15 +19,44 @@ type Result<T> = std::result::Result<T, Box<std::error::Error>>;
 
 #[derive(StructOpt, Debug)]
 #[structopt(after_help = "
-Some examples:
+Basic examples:
   Connect stdin/stdout to a websocket:
     websocat - ws://echo.websocket.org/
     
   Listen websocket and redirect it to a TCP port:
     websocat ws-l:127.0.0.1:8080 tcp:127.0.0.1:5678
     
-  See more examples at the bottom
+  See more examples with the --long-help option
   
+Short list of specifiers (see --long-help):
+  ws:// wss:// - inetd: ws-listen: inetd-ws: tcp: tcp-l: ws-c:
+  autoreconnect: reuse: mirror: threadedstdio: clogged:
+  literal: literalreply: assert:
+")]
+struct Opt {
+    /// First, listening/connecting specifier. See --long-help for info about specifiers.
+    s1: String,
+    /// Second, connecting specifier
+    s2: String,
+    
+    #[structopt(short = "u", long = "unidirectional")]
+    unidirectional: bool,
+    #[structopt(short = "U", long = "unidirectional-reverse")]
+    unidirectional_reverse: bool,
+    
+    #[structopt(short = "t", long = "text", help="Send text WebSocket messages instead of binary")]
+    text_mode: bool,
+    
+    #[structopt(long="oneshot", help="Serve only once")]
+    oneshot: bool,
+    
+    #[structopt(long="long-help", help="Show full help aboput specifiers and examples")]
+    longhelp: bool,
+}
+
+fn longhelp() {
+    println!("(see also usual --help message)
+    
 Full list of specifiers:
   `-` -- Stdin/stdout
     Read input from console, print to console.
@@ -131,28 +160,21 @@ More examples:
     then forward resulting connection to the TCP port.
     
     (Excercise to the reader: manage to actually connect to it).
-")]
-struct Opt {
-    /// First, "listening" specifier
-    s1: String,
-    /// Second, "connecting" specifier
-    s2: String,
-    
-    #[structopt(short = "u", long = "unidirectional")]
-    unidirectional: bool,
-    #[structopt(short = "U", long = "unidirectional-reverse")]
-    unidirectional_reverse: bool,
-    
-    #[structopt(short = "t", long = "text", help="Send text WebSocket messages instead of binary")]
-    text_mode: bool,
-    
-    #[structopt(long="oneshot", help="Serve only once")]
-    oneshot: bool,
+");
 }
 
-
 fn run() -> Result<()> {
+    if std::env::args().nth(1).unwrap_or_default() == "--long-help" {
+        longhelp();
+        return Ok(());
+    }
+
     let cmd = Opt::from_args();
+    
+    if cmd.longhelp {
+        longhelp();
+        return Ok(());
+    }
     
     if false 
         || cmd.text_mode 
