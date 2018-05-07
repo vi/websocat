@@ -1,14 +1,10 @@
-#![allow(unused)]
-
 use std;
 use tokio_core::reactor::{Handle};
 use futures;
 use futures::future::Future;
-use futures::{oneshot,Complete,Oneshot};
 use futures::unsync::oneshot::{Receiver,Sender,channel};
-use futures::sink::Sink;
 use futures::stream::Stream;
-use tokio_io::{self,AsyncRead,AsyncWrite};
+use tokio_io::{AsyncRead,AsyncWrite};
 use std::io::{Read,Write};
 use std::io::Result as IoResult;
 use std::net::SocketAddr;
@@ -16,11 +12,9 @@ use std::net::SocketAddr;
 use std::rc::Rc;
 use std::cell::RefCell;
 
-use futures::Async::{Ready, NotReady};
-
 use tokio_core::net::{TcpStream, TcpListener, UdpSocket};
 
-use super::{Peer, io_other_error, brokenpipe, wouldblock, BoxedNewPeerFuture, BoxedNewPeerStream, peer_err, peer_err_s, box_up_err};
+use super::{Peer, wouldblock, BoxedNewPeerFuture, BoxedNewPeerStream, peer_err_s, box_up_err};
 use super::{once,multi,Specifier,ProgramState,PeerConstructor,Options};
 
 
@@ -235,7 +229,7 @@ impl Read for UdpPeerHandle {
                 {
                     Ok((ret,addr)) => {
                         p.state = Some(UdpPeerState::HasAddress(addr));
-                        cmpl.send(());
+                        let _ = cmpl.send(());
                         Ok(ret)
                     },
                     Err(e) => {
@@ -261,7 +255,7 @@ impl Write for UdpPeerHandle {
                 p.s.send_to(buf, &a)
             },
             UdpPeerState::WaitingForAddress((cmpl,mut pollster)) => {
-                pollster.poll(); // register wakeup
+                let _ = pollster.poll(); // register wakeup
                 p.state = Some(UdpPeerState::WaitingForAddress((cmpl,pollster)));
                 wouldblock()
             },
