@@ -137,11 +137,30 @@ struct Opt {
     s1: String,
     /// Second, "connecting" specifier
     s2: String,
+    
+    #[structopt(short = "u", long = "unidirectional")]
+    unidirectional: bool,
+    #[structopt(short = "U", long = "unidirectional-reverse")]
+    unidirectional_reverse: bool,
+    
+    #[structopt(short = "t", long = "text", help="Send text WebSocket messages instead of binary")]
+    text_mode: bool,
+    
+    #[structopt(long="oneshot", help="Serve only once")]
+    oneshot: bool,
 }
 
 
 fn run() -> Result<()> {
     let cmd = Opt::from_args();
+    
+    if false 
+        || cmd.text_mode 
+        || cmd.unidirectional
+        || cmd.unidirectional_reverse 
+        || cmd.oneshot {
+        Err("This mode is not implemented")?
+    }
     
     let opts = Default::default();
     
