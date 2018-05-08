@@ -32,7 +32,7 @@ Short list of specifiers (see --long-help):
   autoreconnect: reuse: mirror: threadedstdio: clogged:
   literal: literalreply: assert: udp-connect: open-async:
   readfile: writefile: open-fd: unix-connect: unix-listen:
-  unix-dgram: abstract-connect: abstract-listen: abstract-dgram:
+  unix-dgram: abstract-connect: abstract-listen:
 ")]
 struct Opt {
     /// First, listening/connecting specifier. See --long-help for info about specifiers.
@@ -120,7 +120,7 @@ Full list of specifiers:
     Aliases: `udp-connect:` `connect-udp:` `c-udp:` `udp-c:`
     
   `udp-listen:<hostport>` - bind to socket on host and port
-    Aliasses: `udp-l:`, `l-udp:`, `listen-udp:`
+    Aliases: `udp-l:`, `l-udp:`, `listen-udp:`
     
     Note that it is not a multiconnect specifier: entire lifecycle
     of the UDP socket is the same connection.
@@ -166,7 +166,21 @@ Full list of specifiers:
       websocat - open-async:/dev/null
       
   `open-fd:<number>` - Use specified file descriptor like a socket
+  
+  `unix-connect:<path>` - Connect to UNIX socket
+    Aliases: `unix:`, `connect-unix:`, `unix-c:`, `c-unix:`
+    
+  `unix-listen:<path>` - Listen for connections on a UNIX socket
+    Aliases: `unix-l:`, `listen-unix:`, `l-unix:`
+    
+  `unix-dgram:<path>:<path>` - Send packets to one path, receive from the other  
+    
+  `abstract-connect:<string>` - Connect to Linux abstract-namespaced socket
+    Aliases: `abstract-c:`, `connect-abstract:`, `c-abstract:`, `abstract:`
 
+  `abstract-listen:<path>` - Listen for connections on Linux abstract-namespaced socket
+    Aliases: `abstract-l:`, `listen-abstract:`, `l-abstract:`
+    
   `readfile:<path>` - synchronously read files
     Blocking on operations with the file pauses the whole process
     

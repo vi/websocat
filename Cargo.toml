@@ -28,7 +28,7 @@ tokio-uds = "0.1"
 libc = { version = "0.2", optional = true }
 
 [features]
-default = ["signal_handler", "workaround1"]
+default = ["signal_handler"]
 no_unix_stdio = []
 ssl = ["websocket/async-ssl"]
 signal_handler = ["tokio-signal"]
