@@ -9,6 +9,7 @@ pub enum ConfigurationConcern {
     StdioConflict,
     NeedsStdioReuser,
     MultipleReusers,
+    DegenerateMode,
 }
 
 
@@ -72,6 +73,9 @@ impl WebsocatConfiguration {
         use self::StdioUsageStatus::{IsItself,WithReuser};
     
         if self.s1.stdio_usage_status() == IsItself && self.s2.stdio_usage_status() == IsItself {
+            if self.opts.unidirectional && self.opts.unidirectional_reverse {
+                return Some(DegenerateMode);
+            }
             return Some(StdinToStdout);
         }
         

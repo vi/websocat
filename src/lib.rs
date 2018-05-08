@@ -63,6 +63,8 @@ pub struct Options {
     pub websocket_text_mode: bool,
     pub websocket_protocol: Option<String>,
     pub udp_oneshot_mode: bool,
+    pub unidirectional: bool,
+    pub unidirectional_reverse: bool,
 }
 
 #[derive(Default)]
@@ -338,7 +340,7 @@ pub struct Transfer {
     from: Box<AsyncRead>,
     to:   Box<AsyncWrite>,
 }
-pub struct Session(Transfer,Transfer);
+pub struct Session(Transfer,Transfer,Options);
 
 
 impl Session {
@@ -357,15 +359,33 @@ impl Session {
             std::mem::drop(r);
             std::mem::drop(w); 
         });
-        Box::new(
-            f1.join(f2)
-            .map(|(_,_)|{
-                info!("Finished");
-            })
-            .map_err(|x|  Box::new(x) as Box<std::error::Error> )
-        ) as Box<Future<Item=(),Error=Box<std::error::Error>>>
+        let (unif,unir) = (self.2.unidirectional, self.2.unidirectional_reverse);
+        type Ret = Box<Future<Item=(),Error=Box<std::error::Error>>>;
+        match (unif, unir) {
+            (false, false) => Box::new(
+                    f1.join(f2)
+                    .map(|(_,_)|{
+                        info!("Finished");
+                    })
+                    .map_err(|x|  Box::new(x) as Box<std::error::Error> )
+                ) as Ret,
+            (true, false) => Box::new({
+                    ::std::mem::drop(f2);
+                    f1.map_err(|x|  Box::new(x) as Box<std::error::Error> )
+                }) as Ret,
+            (false, true) => Box::new({
+                    ::std::mem::drop(f1);
+                    f2.map_err(|x|  Box::new(x) as Box<std::error::Error> )
+                }) as Ret,
+            (true, true) => Box::new({
+                    // Just open connection and close it.
+                    ::std::mem::drop(f1);
+                    ::std::mem::drop(f2);
+                    futures::future::ok(())
+                }) as Ret,
+        }
     }
-    pub fn new(peer1: Peer, peer2: Peer) -> Self {
+    pub fn new(peer1: Peer, peer2: Peer, opts:Options) -> Self {
         Session (
             Transfer {
                 from: peer1.0,
@@ -375,6 +395,7 @@ impl Session {
                 from: peer2.0,
                 to: peer1.1,
             },
+            opts,
         )
     }
 }
@@ -394,18 +415,19 @@ pub fn serve<S1, S2, OE>(h: Handle, s1: S1, s2 : S2, opts: Options, onerror: std
     let e1 = onerror.clone();
     let e2 = onerror.clone();
     let e3 = onerror.clone();
-
+    
     let left = s1.construct(&h, &mut ps, &opts);
     let prog = match left {
         ServeMultipleTimes(stream) => {
             let runner = stream
             .map(move |peer1| {
+                let optsc1 = opts.clone();
                 let e1_1 = e1.clone();
                 h1.spawn(
                     s2.construct(&h1, &mut ps, &opts)
                     .get_only_first_conn()
                     .and_then(move |peer2| {
-                        let s = Session::new(peer1,peer2);
+                        let s = Session::new(peer1,peer2, optsc1);
                         s.run()
                     })
                     .map_err(move|e|e1_1(e))
@@ -419,7 +441,7 @@ pub fn serve<S1, S2, OE>(h: Handle, s1: S1, s2 : S2, opts: Options, onerror: std
                 let right = s2.construct(&h2, &mut ps, &opts);
                 let fut = right.get_only_first_conn();
                 fut.and_then(move |peer2| {
-                    let s = Session::new(peer1,peer2);
+                    let s = Session::new(peer1,peer2,opts.clone());
                     s.run().map(|()| {
                         ::std::mem::drop(ps) 
                         // otherwise ps will be dropped sooner

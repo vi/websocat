@@ -39,9 +39,9 @@ struct Opt {
     /// Second, connecting specifier
     s2: String,
     
-    #[structopt(short = "u", long = "unidirectional")]
+    #[structopt(short = "u", long = "unidirectional", help="Inhibit copying data from right specifier to left")]
     unidirectional: bool,
-    #[structopt(short = "U", long = "unidirectional-reverse")]
+    #[structopt(short = "U", long = "unidirectional-reverse", help="Inhibit copying data from left specifier to right")]
     unidirectional_reverse: bool,
     
     #[structopt(short = "t", long = "text", help="Send text WebSocket messages instead of binary")]
@@ -221,9 +221,8 @@ fn run() -> Result<()> {
     }
     
     if false 
-        || cmd.unidirectional
-        || cmd.unidirectional_reverse 
-        || cmd.oneshot {
+        || cmd.oneshot
+    {
         Err("This mode is not implemented")?
     }
     
@@ -239,6 +238,8 @@ fn run() -> Result<()> {
             websocket_text_mode
             websocket_protocol
             udp_oneshot_mode
+            unidirectional
+            unidirectional_reverse
         )
     };
     
@@ -254,8 +255,16 @@ fn run() -> Result<()> {
                 println!("cat mode");
                 return Ok(())
             }
+            
             // Degenerate mode: just copy stdin to stdout and call it a day
             ::std::io::copy(&mut ::std::io::stdin(), &mut ::std::io::stdout())?;
+            return Ok(())
+        }
+        
+        if concern == DegenerateMode {
+            if cmd.dumpspec {
+                println!("noop");
+            }
             return Ok(())
         }
         
