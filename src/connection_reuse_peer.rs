@@ -16,11 +16,11 @@ use super::{once,Specifier,Handle,ProgramState,PeerConstructor,Options};
 
 
 #[derive(Debug)]
-pub struct Reuser<T:Specifier>(pub T);
-impl<T:Specifier> Specifier for Reuser<T> {
+pub struct Reuser(pub Rc<Specifier>);
+impl Specifier for Reuser {
     fn construct(&self, h:&Handle, ps: &mut ProgramState, opts: &Options) -> PeerConstructor {
         let mut reuser = ps.reuser.clone();
-        let inner = self.0.construct(h, ps, opts).get_only_first_conn();
+        let inner = ||self.0.construct(h, ps, opts).get_only_first_conn();
         once(connection_reuser(&mut reuser, inner))
     }
     specifier_boilerplate!(singleconnect has_subspec typ=Reuser globalstate);
@@ -75,14 +75,15 @@ impl AsyncWrite for PeerHandle {
 }
 
 
-pub fn connection_reuser(s: &mut GlobalState, inner_peer : BoxedNewPeerFuture) -> BoxedNewPeerFuture
+pub fn connection_reuser<F:FnOnce()->BoxedNewPeerFuture>(s: &mut GlobalState, inner_peer : F) -> BoxedNewPeerFuture
 {
     let need_init = s.0.borrow().is_none();
     
     let rc = s.0.clone();
     
     if need_init {
-        Box::new(inner_peer.and_then(move |inner| {
+        info!("Initializing");
+        Box::new(inner_peer().and_then(move |inner| {
             {
                 let mut b = rc.borrow_mut();
                 let x : &mut Option<Peer> = b.deref_mut();
@@ -97,6 +98,7 @@ pub fn connection_reuser(s: &mut GlobalState, inner_peer : BoxedNewPeerFuture) -
             ok(peer)
         })) as BoxedNewPeerFuture
     } else {
+        info!("Reusing");
         let ps : PeerSlot = rc.clone();
     
         let ph1 = PeerHandle(ps);
