@@ -31,7 +31,7 @@ Short list of specifiers (see --long-help):
   ws:// wss:// - inetd: ws-listen: inetd-ws: tcp: tcp-l: ws-c:
   autoreconnect: reuse: mirror: threadedstdio: clogged:
   literal: literalreply: assert: udp-connect: open-async:
-  readfile: writefile:
+  readfile: writefile: open-fd:
 ")]
 struct Opt {
     /// First, listening/connecting specifier. See --long-help for info about specifiers.
@@ -164,6 +164,8 @@ Full list of specifiers:
     Example:
       websocat - open-async:/dev/null
       
+  `open-fd:<number>` - Use specified file descriptor like a socket
+
   `readfile:<path>` - synchronously read files
     Blocking on operations with the file pauses the whole process
     

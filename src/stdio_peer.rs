@@ -17,7 +17,7 @@ use std::io::Result as IoResult;
 
 #[cfg(unix)]
 use self::tokio_file_unix::{File as UnixFile};
-use ::std::fs::{OpenOptions};
+use ::std::fs::{File as FsFile, OpenOptions};
 
 use super::{Peer, BoxedNewPeerFuture, Result};
 use futures::Stream;
@@ -46,6 +46,18 @@ impl Specifier for OpenAsync {
     }
     specifier_boilerplate!(typ=Other noglobalstate singleconnect no_subspec);
 }
+
+#[derive(Clone,Debug)]
+pub struct OpenFdAsync(pub i32);
+impl Specifier for OpenFdAsync {
+    fn construct(&self, h:&Handle, _ps: &mut ProgramState, _opts: &Options) -> PeerConstructor {
+        let ret;
+        ret = get_fd_peer(self.0, h);
+        once(ret)
+    }
+    specifier_boilerplate!(typ=Other noglobalstate singleconnect no_subspec);
+}
+
 
 
 
@@ -161,4 +173,20 @@ fn get_file_peer_impl(p: &Path, handle: &Handle) -> Result<Peer> {
 pub fn get_file_peer(p: &Path, handle: &Handle) -> BoxedNewPeerFuture {
    info!("get_file_peer");
     Box::new(futures::future::result(get_file_peer_impl(p, handle))) as BoxedNewPeerFuture
+}
+
+
+fn get_fd_peer_impl(fd: i32, handle: &Handle) -> Result<Peer> {
+    let ff : FsFile = unsafe { std::os::unix::io::FromRawFd::from_raw_fd(fd) };
+    let f = self::UnixFile::new_nb(ff)?;
+
+    let s = f.into_io(&handle)?;
+    let ss = FileWrapper(Rc::new(RefCell::new(s)));
+    Ok(Peer::new(ss.clone(), ss))
+}
+
+
+pub fn get_fd_peer(fd: i32, handle: &Handle) -> BoxedNewPeerFuture {
+   info!("get_fd_peer");
+    Box::new(futures::future::result(get_fd_peer_impl(fd, handle))) as BoxedNewPeerFuture
 }

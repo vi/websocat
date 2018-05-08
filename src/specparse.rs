@@ -182,6 +182,16 @@ impl Specifier {
                 Err("`open-async:` is not supported in this Websocat build")?;
             }
         } else
+        if s.starts_with("open-fd:") {
+            #[cfg(all(unix,not(feature="no_unix_stdio")))]
+            {
+                boxup(super::stdio_peer::OpenFdAsync(s[8..].parse()?))
+            }
+            #[cfg(any(not(unix),feature="no_unix_stdio"))]
+            {
+                Err("`open-fd:` is not supported in this Websocat build")?;
+            }
+        } else
         if s.starts_with("readfile:") {
             boxup(super::file::ReadFile(s[9..].into()))
         } else
