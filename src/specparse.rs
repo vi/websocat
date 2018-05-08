@@ -56,7 +56,8 @@ pub fn unix_specific_prefix(s:&str) -> Option<&str> {
         Some(s)
     } else 
     if s.starts_with("abstract") {
-        #[cfg(not(linux))] {
+        #[cfg(not(any(target_os = "linux", target_os = "android")))]
+        {
             warn!("Abstract-namespaced UNIX sockets are unlikely to be supported here");
         }
         Some(s)
