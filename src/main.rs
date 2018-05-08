@@ -221,7 +221,7 @@ fn run() -> Result<()> {
     }
     
     if false 
-        || cmd.oneshot
+    //    || cmd.oneshot
     {
         Err("This mode is not implemented")?
     }
@@ -240,6 +240,7 @@ fn run() -> Result<()> {
             udp_oneshot_mode
             unidirectional
             unidirectional_reverse
+            oneshot
         )
     };
     
@@ -273,8 +274,12 @@ fn run() -> Result<()> {
         }
         
         if concern == NeedsStdioReuser {
-            //Err("Stdin/stdout is used without a `reuse:` overlay.")?;
             eprintln!("Warning: replies on stdio get directed at random connected client");
+            websocat = websocat.auto_install_reuser();
+            continue;
+        }
+        
+        if concern == NeedsStdioReuser2 {
             websocat = websocat.auto_install_reuser();
             continue;
         }

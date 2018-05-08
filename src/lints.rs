@@ -8,6 +8,7 @@ pub enum ConfigurationConcern {
     StdinToStdout,
     StdioConflict,
     NeedsStdioReuser,
+    NeedsStdioReuser2,
     MultipleReusers,
     DegenerateMode,
 }
@@ -83,8 +84,14 @@ impl WebsocatConfiguration {
             return Some(StdioConflict);
         }
         
-        if self.s1.is_multiconnect() && self.s2.stdio_usage_status() > WithReuser {
-            return Some(NeedsStdioReuser);
+        if self.s1.is_multiconnect() 
+        && self.s2.stdio_usage_status() > WithReuser 
+        && ! self.opts.oneshot {
+            if !self.opts.unidirectional {
+                return Some(NeedsStdioReuser);
+            } else {
+                return Some(NeedsStdioReuser2);
+            }
         }
         
         if self.s1.reuser_count() + self.s2.reuser_count() > 1 {

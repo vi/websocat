@@ -65,6 +65,7 @@ pub struct Options {
     pub udp_oneshot_mode: bool,
     pub unidirectional: bool,
     pub unidirectional_reverse: bool,
+    pub oneshot: bool,
 }
 
 #[derive(Default)]
@@ -416,7 +417,12 @@ pub fn serve<S1, S2, OE>(h: Handle, s1: S1, s2 : S2, opts: Options, onerror: std
     let e2 = onerror.clone();
     let e3 = onerror.clone();
     
-    let left = s1.construct(&h, &mut ps, &opts);
+    let mut left = s1.construct(&h, &mut ps, &opts);
+    
+    if opts.oneshot {
+        left = PeerConstructor::ServeOnce(left.get_only_first_conn());
+    }
+    
     let prog = match left {
         ServeMultipleTimes(stream) => {
             let runner = stream
