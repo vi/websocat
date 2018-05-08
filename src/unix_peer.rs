@@ -80,7 +80,10 @@ impl Specifier for AbstractListen {
 pub struct AbstractDgram(pub String, pub String);
 impl Specifier for AbstractDgram {
     fn construct(&self, h:&Handle, _: &mut ProgramState, opts: &Options) -> PeerConstructor {
-        once(dgram_peer(h, &to_abstract(&self.0), &to_abstract(&self.1), opts))
+        #[cfg(not(feature="workaround1"))]
+        {once(dgram_peer(h, &to_abstract(&self.0), &to_abstract(&self.1), opts))}
+        #[cfg(feature="workaround1")]
+        {once(dgram_peer_workaround(h, &to_abstract(&self.0), &to_abstract(&self.1), opts))}
     }
     specifier_boilerplate!(noglobalstate singleconnect no_subspec typ=Other);
 }
@@ -181,30 +184,73 @@ pub fn dgram_peer(handle: &Handle, bindaddr: &Path, connectaddr: &Path, opts: &O
     ) as BoxedNewPeerFuture
 }
 
-/*
-pub fn dgram_peer_workaround(handle: &Handle, bindaddr: &str, connectaddr: &str, opts: &Options) -> BoxedNewPeerFuture {
-    extern crate libc;
-    use libc::{socket,AF_UNIX,SOCK_DGRAM};
-    let fd = unsafe {
-        socket(AF_UNIX);
-    };
-    Box::new(
-        futures::future::result(
-            UnixDatagram::bind(bindaddr, handle).and_then(|x| {
-                x.connect(connectaddr)?;
-            
-                let h1 = DgramPeerHandle(Rc::new(RefCell::new(
+#[cfg(feature="workaround1")]
+extern crate libc;
+#[cfg(feature="workaround1")]
+pub fn dgram_peer_workaround(handle: &Handle, bindaddr: &Path, connectaddr: &Path, opts: &Options) -> BoxedNewPeerFuture {
+    info!("Workaround method for getting abstract datagram socket");
+    fn getfd(bindaddr: &Path, connectaddr: &Path) -> Option<i32> {
+        use self::libc::{
+            socket,AF_UNIX,SOCK_DGRAM,bind,connect,
+            sockaddr,sockaddr_un,sa_family_t,socklen_t,
+            c_char,
+        };
+        use ::std::mem::{size_of,transmute};
+        use ::std::os::unix::ffi::OsStrExt;
+        unsafe {
+            let s = socket(AF_UNIX,SOCK_DGRAM,0);
+            if s == -1 {
+                return None;
+            }
+            {
+                let mut sa = sockaddr_un { sun_family: AF_UNIX as sa_family_t, sun_path: [0;108] };
+                let bp : &[c_char] = transmute(bindaddr.as_os_str().as_bytes());
+                let l = 108.min(bp.len());
+                sa.sun_path[..l].copy_from_slice(&bp[..l]);
+                let sa_len = l + size_of::<sa_family_t>();
+                let ret = bind(s, transmute(&sa), sa_len as socklen_t);
+                if ret == -1 {
+                    return None
+                }
+            }
+            {
+                let mut sa = sockaddr_un { sun_family: AF_UNIX as sa_family_t, sun_path: [0;108] };
+                let bp : &[c_char] = transmute(connectaddr.as_os_str().as_bytes());
+                let l = 108.min(bp.len());
+                sa.sun_path[..l].copy_from_slice(&bp[..l]);
+                let sa_len = l + size_of::<sa_family_t>();
+                let ret = connect(s, transmute(&sa), sa_len as socklen_t);
+                if ret == -1 {
+                    return None
+                }
+            }
+            Some(s)
+        }
+    }
+    fn getpeer(handle:&Handle,bindaddr: &Path, connectaddr: &Path, opts:&Options) -> Result<Peer,Box<::std::error::Error>> {
+        if let Some(fd) = getfd(bindaddr, connectaddr) {
+            let s : ::std::os::unix::net::UnixDatagram = unsafe {
+                ::std::os::unix::io::FromRawFd::from_raw_fd(fd)
+            };
+            let ss = UnixDatagram::from_datagram(s, handle)?;
+            let h1 = DgramPeerHandle(Rc::new(RefCell::new(
                 DgramPeer {
-                    s: x,
+                    s: ss,
                     oneshot_mode: opts.udp_oneshot_mode,
                 })));
-                let h2 = h1.clone();
-                Ok(Peer::new(h1, h2))
-            }).map_err(box_up_err)
-        )
+            let h2 = h1.clone();
+            Ok(Peer::new(h1, h2))
+        } else {
+            Err("Failed to get, bind or connect socket")?
+        }
+    }
+    Box::new(
+        futures::future::result({
+            getpeer(handle, bindaddr, connectaddr, opts)
+        })
     ) as BoxedNewPeerFuture
 }
-*/
+
 
 impl Read for DgramPeerHandle {
     fn read(&mut self, buf: &mut [u8]) -> IoResult<usize> {
