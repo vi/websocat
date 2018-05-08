@@ -90,7 +90,7 @@ impl Read for LiteralPeer
 
 
 
-struct DevNull;
+pub struct DevNull;
 
 impl AsyncWrite for DevNull {
     fn shutdown(&mut self) -> futures::Poll<(),std::io::Error> {

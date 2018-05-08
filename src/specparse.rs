@@ -181,6 +181,12 @@ impl Specifier {
                 Err("`open-async:` is not supported in this Websocat build")?;
             }
         } else
+        if s.starts_with("readfile:") {
+            boxup(super::file::ReadFile(s[9..].into()))
+        } else
+        if s.starts_with("writefile:") {
+            boxup(super::file::WriteFile(s[10..].into()))
+        } else
         if s == "inetd-ws:" {
             return spec("ws-l:inetd:");
         } else {
