@@ -95,8 +95,23 @@ pub struct WsWriteWrapper<T:WsStream+'static>(pub MultiProducerWsSink<T>,pub Mod
 
 impl<T:WsStream+'static> AsyncWrite for WsWriteWrapper<T> {
     fn shutdown(&mut self) -> futures::Poll<(),std::io::Error> {
-        // TODO: check this
-        Ok(Ready(()))
+        let mut sink = self.0.borrow_mut();
+        match sink.start_send(OwnedMessage::Close(None))
+            .map_err(io_other_error)?
+        {
+            futures::AsyncSink::NotReady(_) => {
+                wouldblock()
+            },
+            futures::AsyncSink::Ready => {
+                // Too lazy to implement a state machine here just for 
+                // properly handling this.
+                // And shutdown result is ignored here anyway.
+                let _ = sink.poll_complete()
+                    .map_err(|_|())
+                    .map(|_|());
+                Ok(Ready(()))
+            }
+        }
     }
 }
 
@@ -142,13 +157,7 @@ impl<T:WsStream+'static> Write for WsWriteWrapper<T> {
 impl<T:WsStream+'static> Drop for WsWriteWrapper<T> {
     fn drop(&mut self) {
         debug!("drop WsWriteWrapper",);
-        let mut sink = self.0.borrow_mut();
-        let _ = sink.start_send(OwnedMessage::Close(None))
-            .map_err(|_|())
-            .map(|_|());
-        let _ = sink.poll_complete()
-            .map_err(|_|())
-            .map(|_|());
+        // moved to shutdown()
     }
 }
 
