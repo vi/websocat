@@ -30,7 +30,7 @@ Basic examples:
 Short list of specifiers (see --long-help):
   ws:// wss:// - inetd: ws-listen: inetd-ws: tcp: tcp-l: ws-c:
   autoreconnect: reuse: mirror: threadedstdio: clogged:
-  literal: literalreply: assert: udp-connect:
+  literal: literalreply: assert: udp-connect: open-async:
 ")]
 struct Opt {
     /// First, listening/connecting specifier. See --long-help for info about specifiers.
@@ -156,6 +156,12 @@ Full list of specifiers:
     Replaces `-` when `no_unix_stdio` Cargo feature is activated
   
   `mirror:` - Simply copy output to input
+  
+  `open-async:<path>` - Open file for read and write and use it like a socket
+    Not for regular files, see readfile: and writefile: instead.
+  
+    Example:
+      websocat - open-async:/dev/null
   
   `clogged:` - Do nothing
     Don't read or write any bytes. Keep connections hanging.

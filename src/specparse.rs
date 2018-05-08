@@ -168,6 +168,19 @@ impl Specifier {
         if s.starts_with("autoreconnect:") {
             boxup(super::reconnect_peer::AutoReconnect(spec(&s[14..])?))
         } else 
+        if s.starts_with("open:") {
+            return Err("There is no `open:` specifier. Consider `open-async:` or `readfile:` or `writefile:`")?;
+        } else
+        if s.starts_with("open-async:") {
+            #[cfg(all(unix,not(feature="no_unix_stdio")))]
+            {
+                boxup(super::stdio_peer::OpenAsync(s[11..].into()))
+            }
+            #[cfg(any(not(unix),feature="no_unix_stdio"))]
+            {
+                Err("`open-async:` is not supported in this Websocat build")?;
+            }
+        } else
         if s == "inetd-ws:" {
             return spec("ws-l:inetd:");
         } else {

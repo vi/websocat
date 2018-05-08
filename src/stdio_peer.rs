@@ -8,9 +8,16 @@ use std;
 use tokio_core::reactor::{Handle};
 use futures;
 use futures::future::Future;
+use std::path::{PathBuf,Path};
+use std::rc::Rc;
+use std::cell::RefCell;
+use tokio_io::{AsyncRead,AsyncWrite};
+use std::io::{Read,Write};
+use std::io::Result as IoResult;
 
 #[cfg(unix)]
 use self::tokio_file_unix::{File as UnixFile};
+use ::std::fs::{OpenOptions};
 
 use super::{Peer, BoxedNewPeerFuture, Result};
 use futures::Stream;
@@ -27,6 +34,17 @@ impl Specifier for Stdio {
         once(ret)
     }
     specifier_boilerplate!(typ=Stdio globalstate singleconnect no_subspec);
+}
+
+#[derive(Clone,Debug)]
+pub struct OpenAsync(pub PathBuf);
+impl Specifier for OpenAsync {
+    fn construct(&self, h:&Handle, _ps: &mut ProgramState, _opts: &Options) -> PeerConstructor {
+        let ret;
+        ret = get_file_peer(&self.0, h);
+        once(ret)
+    }
+    specifier_boilerplate!(typ=Other noglobalstate singleconnect no_subspec);
 }
 
 
@@ -73,6 +91,7 @@ pub fn get_stdio_peer(s: &mut GlobalState, handle: &Handle) -> BoxedNewPeerFutur
     Box::new(futures::future::result(get_stdio_peer_impl(s, handle))) as BoxedNewPeerFuture
 }
 
+
 #[derive(Default,Clone)]
 pub struct GlobalState {
     need_to_restore_stdin_blocking_status : bool,
@@ -97,4 +116,49 @@ fn restore_blocking_status(s : &GlobalState) {
             let _ = UnixFile::raw_new(std::io::stdout()).set_nonblocking(false);
         }
     }
+}
+
+
+
+
+type ImplPollEvented = ::tokio_core::reactor::PollEvented<UnixFile<std::fs::File>>;
+
+#[derive(Clone)]
+struct FileWrapper(Rc<RefCell<ImplPollEvented>>);
+
+impl AsyncRead for FileWrapper{}
+impl Read for FileWrapper {
+    fn read(&mut self, buf: &mut [u8]) -> std::result::Result<usize, std::io::Error> {
+        self.0.borrow_mut().read(buf)
+    }
+}
+
+
+impl AsyncWrite for FileWrapper {
+    fn shutdown(&mut self) -> futures::Poll<(),std::io::Error> {
+        self.0.borrow_mut().shutdown()
+    }
+}
+impl Write for FileWrapper {
+    fn write(&mut self, buf: &[u8]) -> IoResult<usize> {
+        self.0.borrow_mut().write(buf)
+    }
+    fn flush(&mut self) -> IoResult<()> {
+        self.0.borrow_mut().flush()
+    }
+}
+
+fn get_file_peer_impl(p: &Path, handle: &Handle) -> Result<Peer> {
+    let oo = OpenOptions::new().read(true).write(true).create(false).open(p)?;
+    let f = self::UnixFile::new_nb(oo)?;
+
+    let s = f.into_io(&handle)?;
+    let ss = FileWrapper(Rc::new(RefCell::new(s)));
+    Ok(Peer::new(ss.clone(), ss))
+}
+
+
+pub fn get_file_peer(p: &Path, handle: &Handle) -> BoxedNewPeerFuture {
+   info!("get_file_peer");
+    Box::new(futures::future::result(get_file_peer_impl(p, handle))) as BoxedNewPeerFuture
 }
