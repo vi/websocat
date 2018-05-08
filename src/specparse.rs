@@ -156,6 +156,7 @@ impl Specifier {
             boxup(super::ws_server_peer::WsUpgrade(spec(x)?))
         } else
         if let Some(x) = ws_c_prefix(s) {
+            // TODO: de-hardcode URI
             boxup(super::ws_client_peer::WsConnect(spec(x)?, Url::parse("ws://0.0.0.0/").unwrap()))
         } else
         if let Some(x) = reuser_prefix(s) {

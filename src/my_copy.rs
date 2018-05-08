@@ -48,7 +48,8 @@ pub fn copy<R, W>(reader: R, writer: W, stop_on_reader_zero_read: bool) -> Copy<
         amt: 0,
         pos: 0,
         cap: 0,
-        buf: Box::new([0; 8192]),
+        // TODO - de-hardcode buffer size
+        buf: Box::new([0; 65536]),
         stop_on_reader_zero_read,
     }
 }
