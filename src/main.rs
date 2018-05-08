@@ -62,6 +62,10 @@ struct Opt {
     
     #[structopt(long="udp-oneshot", help="udp-listen: replies only one packet per client")]
     udp_oneshot_mode: bool,
+    
+    
+    #[structopt(long="unlink", help="Unlink listening UNIX socket before binding to it")]
+    unlink_unix_socket:bool,
 }
 
 fn longhelp() {
@@ -207,7 +211,7 @@ Full list of specifiers:
     to the specified string.
     
   TODO:
-  `exec:`, `unix-l:`
+  `exec:`, `seqpacket:`
   
 More examples:
   Wacky mode:
@@ -256,6 +260,7 @@ fn run() -> Result<()> {
             unidirectional
             unidirectional_reverse
             oneshot
+            unlink_unix_socket
         )
     };
     

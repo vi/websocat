@@ -39,8 +39,8 @@ impl Specifier for UnixConnect {
 #[derive(Debug,Clone)]
 pub struct UnixListen(pub PathBuf);
 impl Specifier for UnixListen {
-    fn construct(&self, h:&Handle, _: &mut ProgramState, _opts: &Options) -> PeerConstructor {
-        multi(unix_listen_peer(h, &self.0))
+    fn construct(&self, h:&Handle, _: &mut ProgramState, opts: &Options) -> PeerConstructor {
+        multi(unix_listen_peer(h, &self.0, opts))
     }
     specifier_boilerplate!(noglobalstate multiconnect no_subspec typ=Other);
 }
@@ -71,7 +71,7 @@ impl Specifier for AbstractConnect {
 pub struct AbstractListen(pub String);
 impl Specifier for AbstractListen {
     fn construct(&self, h:&Handle, _: &mut ProgramState, _opts: &Options) -> PeerConstructor {
-        multi(unix_listen_peer(h, &to_abstract(&self.0)))
+        multi(unix_listen_peer(h, &to_abstract(&self.0), &Default::default()))
     }
     specifier_boilerplate!(noglobalstate multiconnect no_subspec typ=Other);
 }
@@ -139,12 +139,15 @@ pub fn unix_connect_peer(handle: &Handle, addr: &Path) -> BoxedNewPeerFuture {
     ) as BoxedNewPeerFuture
 }
 
-pub fn unix_listen_peer(handle: &Handle, addr: &Path) -> BoxedNewPeerStream {
+pub fn unix_listen_peer(handle: &Handle, addr: &Path, opts:&Options) -> BoxedNewPeerStream {
+    if opts.unlink_unix_socket {
+        let _ = ::std::fs::remove_file(addr);
+    };
     let bound = match UnixListener::bind(&addr, handle) {
         Ok(x) => x,
         Err(e) => return peer_err_s(e),
     };
-    // TODO: chmod / unlink
+    // TODO: chmod
     Box::new(
         bound
         .incoming()

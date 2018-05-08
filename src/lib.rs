@@ -66,6 +66,7 @@ pub struct Options {
     pub unidirectional: bool,
     pub unidirectional_reverse: bool,
     pub oneshot: bool,
+    pub unlink_unix_socket: bool,
 }
 
 #[derive(Default)]
