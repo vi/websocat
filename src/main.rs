@@ -31,7 +31,8 @@ Short list of specifiers (see --long-help):
   ws:// wss:// - inetd: ws-listen: inetd-ws: tcp: tcp-l: ws-c:
   autoreconnect: reuse: mirror: threadedstdio: clogged:
   literal: literalreply: assert: udp-connect: open-async:
-  readfile: writefile: open-fd:
+  readfile: writefile: open-fd: unix-connect: unix-listen:
+  unix-dgram: abstract-connect: abstract-listen: abstract-dgram:
 ")]
 struct Opt {
     /// First, listening/connecting specifier. See --long-help for info about specifiers.

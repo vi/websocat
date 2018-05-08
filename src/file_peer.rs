@@ -6,7 +6,6 @@ use tokio_io::{AsyncRead,AsyncWrite};
 use std::io::{Read,Write};
 use std::io::Result as IoResult;
 
-#[cfg(unix)]
 use ::std::fs::{File};
 
 use super::{Peer, BoxedNewPeerFuture, Result};

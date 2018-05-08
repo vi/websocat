@@ -222,6 +222,8 @@ pub mod trivial_peer;
 pub mod reconnect_peer;
 pub mod file_peer;
 
+#[cfg(unix)]
+pub mod unix_peer;
 
 pub mod specparse;
 

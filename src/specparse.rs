@@ -51,6 +51,20 @@ pub fn ws_url_prefix(s:&str) -> Option<&str> {
     }
 }
 
+pub fn unix_specific_prefix(s:&str) -> Option<&str> {
+    if s.starts_with("unix") {
+        Some(s)
+    } else 
+    if s.starts_with("abstract") {
+        #[cfg(not(linux))] {
+            warn!("Abstract-namespaced UNIX sockets are unlikely to be supported here");
+        }
+        Some(s)
+    } else {
+        None
+    }
+}
+
 pub fn boxup<T:Specifier+'static>(x:T) -> Result<Rc<Specifier>> {
     Ok(Rc::new(x))
 }
@@ -197,6 +211,87 @@ impl Specifier {
         } else
         if s.starts_with("writefile:") {
             boxup(super::file_peer::WriteFile(s[10..].into()))
+        } else
+        if let Some(ss) = unix_specific_prefix(s) {
+            #[cfg(unix)]
+            {
+                if ss.starts_with("unix:") {
+                    boxup(super::unix_peer::UnixConnect(s[5..].into()))
+                } else
+                if ss.starts_with("unix-connect:") {
+                    boxup(super::unix_peer::UnixConnect(s[13..].into()))
+                } else
+                if ss.starts_with("connect-unix:") {
+                    boxup(super::unix_peer::UnixConnect(s[13..].into()))
+                } else
+                if ss.starts_with("unix-c:") {
+                    boxup(super::unix_peer::UnixConnect(s[7..].into()))
+                } else
+                if ss.starts_with("c-unix:") {
+                    boxup(super::unix_peer::UnixConnect(s[7..].into()))
+                } else
+                if ss.starts_with("unix-listen:") {
+                    boxup(super::unix_peer::UnixListen(s[12..].into()))
+                } else
+                if ss.starts_with("unix-l:") {
+                    boxup(super::unix_peer::UnixListen(s[7..].into()))
+                } else
+                if ss.starts_with("listen-unix:") {
+                    boxup(super::unix_peer::UnixListen(s[12..].into()))
+                } else
+                if ss.starts_with("l-unix:") {
+                    boxup(super::unix_peer::UnixListen(s[7..].into()))
+                } else
+                if ss.starts_with("unix-dgram:") || ss.starts_with("dgram-unix:") {
+                    let splits : Vec<&str> = s[11..].split(":").collect();
+                    if splits.len() != 2 {
+                        Err("Expected two colon-separted paths")?;
+                    }
+                    boxup(super::unix_peer::UnixDgram(splits[0].into(),splits[1].into()))
+                } else
+                if ss.starts_with("abstract:") {
+                    boxup(super::unix_peer::AbstractConnect(s[9..].into()))
+                } else
+                if ss.starts_with("abstract-connect:") {
+                    boxup(super::unix_peer::AbstractConnect(s[17..].into()))
+                } else
+                if ss.starts_with("connect-abstract:") {
+                    boxup(super::unix_peer::AbstractConnect(s[17..].into()))
+                } else
+                if ss.starts_with("abstract-c:") {
+                    boxup(super::unix_peer::AbstractConnect(s[11..].into()))
+                } else
+                if ss.starts_with("c-abstract:") {
+                    boxup(super::unix_peer::AbstractConnect(s[11..].into()))
+                } else
+                if ss.starts_with("abstract-listen:") {
+                    boxup(super::unix_peer::AbstractListen(s[16..].into()))
+                } else
+                if ss.starts_with("abstract-l:") {
+                    boxup(super::unix_peer::AbstractListen(s[11..].into()))
+                } else
+                if ss.starts_with("listen-abstract:") {
+                    boxup(super::unix_peer::AbstractListen(s[16..].into()))
+                } else
+                if ss.starts_with("l-abstract:") {
+                    boxup(super::unix_peer::AbstractListen(s[11..].into()))
+                } else
+                if ss.starts_with("abstract-dgram:") || ss.starts_with("dgram-abstract:") {
+                    let splits : Vec<&str> = s[15..].split(":").collect();
+                    if splits.len() != 2 {
+                        Err("Expected two colon-separted addresses")?;
+                    }
+                    boxup(super::unix_peer::AbstractDgram(splits[0].into(),splits[1].into()))
+                } else
+                {
+                    error!("Invalid specifier string `{}`", ss);
+                    Err("Wrong specifier")?
+                }
+            }
+            #[cfg(not(unix))]
+            {
+                Err("`unix*:` or `abstract*:` are not supported in this Websocat build")?;
+            }
         } else
         if s == "inetd-ws:" {
             return spec("ws-l:inetd:");

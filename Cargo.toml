@@ -24,6 +24,7 @@ structopt = { version = "0.2", default-features = false }
 [target.'cfg(unix)'.dependencies]
 tokio-file-unix = "^0.4.2"
 tokio-signal = { version = "0.1", optional = true }
+tokio-uds = "0.1"
 
 [features]
 default = ["signal_handler"]
