@@ -193,10 +193,10 @@ impl Specifier {
             }
         } else
         if s.starts_with("readfile:") {
-            boxup(super::file::ReadFile(s[9..].into()))
+            boxup(super::file_peer::ReadFile(s[9..].into()))
         } else
         if s.starts_with("writefile:") {
-            boxup(super::file::WriteFile(s[10..].into()))
+            boxup(super::file_peer::WriteFile(s[10..].into()))
         } else
         if s == "inetd-ws:" {
             return spec("ws-l:inetd:");

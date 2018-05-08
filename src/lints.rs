@@ -102,6 +102,7 @@ impl WebsocatConfiguration {
         // TODO: UDP connect oneshot mode
         // TODO: early fail for reuse:
         // TODO: writefile and reuse:
+        // TODO: warn about reuse: for non-stdio
         
         None
     }

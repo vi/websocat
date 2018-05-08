@@ -220,7 +220,8 @@ pub mod connection_reuse_peer;
 pub mod mirror_peer;
 pub mod trivial_peer;
 pub mod reconnect_peer;
-pub mod file;
+pub mod file_peer;
+
 
 pub mod specparse;
 
