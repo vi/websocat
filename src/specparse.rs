@@ -194,7 +194,7 @@ impl Specifier {
             }
             #[cfg(any(not(unix),feature="no_unix_stdio"))]
             {
-                Err("`open-async:` is not supported in this Websocat build")?;
+                Err("`open-async:` is not supported in this Websocat build")?
             }
         } else
         if s.starts_with("open-fd:") {
@@ -204,7 +204,7 @@ impl Specifier {
             }
             #[cfg(any(not(unix),feature="no_unix_stdio"))]
             {
-                Err("`open-fd:` is not supported in this Websocat build")?;
+                Err("`open-fd:` is not supported in this Websocat build")?
             }
         } else
         if s.starts_with("readfile:") {
@@ -291,7 +291,8 @@ impl Specifier {
             }
             #[cfg(not(unix))]
             {
-                Err("`unix*:` or `abstract*:` are not supported in this Websocat build")?;
+                let _ss = ss;
+                Err("`unix*:` or `abstract*:` are not supported in this Websocat build")?
             }
         } else
         if s == "inetd-ws:" {
