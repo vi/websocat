@@ -222,6 +222,7 @@ pub mod mirror_peer;
 pub mod trivial_peer;
 pub mod reconnect_peer;
 pub mod file_peer;
+pub mod process_peer;
 
 #[cfg(unix)]
 pub mod unix_peer;

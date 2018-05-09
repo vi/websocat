@@ -296,7 +296,11 @@ impl Specifier {
             }
         } else
         if s == "inetd-ws:" {
-            return spec("ws-l:inetd:");
+            spec("ws-l:inetd:")
+        } else
+        if s.starts_with("sh-c:") {
+            // TODO: document
+            boxup(super::process_peer::ShC(s[5..].into()))
         } else {
             error!("Invalid specifier string `{}`", s);
             Err("Wrong specifier")?

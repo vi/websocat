@@ -19,6 +19,7 @@ tokio-core =  { version = "=0.1.12" }
 tokio-io = "=0.1.5"
 tokio-stdin-stdout = "0.1.1"
 structopt = { version = "0.2", default-features = false }
+tokio-process = {version = "0.1.5" , optional = true }
 
 
 [target.'cfg(unix)'.dependencies]
@@ -28,11 +29,12 @@ tokio-uds = "0.1"
 libc = { version = "0.2", optional = true }
 
 [features]
-default = ["signal_handler"]
+default = ["signal_handler", "tokio-process"]
 no_unix_stdio = []
 ssl = ["websocket/async-ssl"]
 signal_handler = ["tokio-signal"]
 workaround1=["libc"]
+#seqpacket=["libc"]
 
 [dev-dependencies]
 tokio-timer = "=0.1.2"
