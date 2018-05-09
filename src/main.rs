@@ -33,6 +33,7 @@ Short list of specifiers (see --long-help):
   literal: literalreply: assert: udp-connect: open-async:
   readfile: writefile: open-fd: unix-connect: unix-listen:
   unix-dgram: abstract-connect: abstract-listen:
+  sh-c:
 ")]
 struct Opt {
     /// First, listening/connecting specifier. See --long-help for info about specifiers.
@@ -120,6 +121,9 @@ Full list of specifiers:
     Example: echo server
       websocat tcp-l:0.0.0.0:1441 mirror:
       
+  `sh-c:<command line>` - start subprocess though 'sh'
+    On Unix-like it allows executing command lines.
+  
   `udp:<hostport>` - send and receive packets to specified UDP socket
     Aliases: `udp-connect:` `connect-udp:` `c-udp:` `udp-c:`
     
