@@ -222,6 +222,8 @@ pub mod mirror_peer;
 pub mod trivial_peer;
 pub mod reconnect_peer;
 pub mod file_peer;
+
+#[cfg(feature="tokio-process")]
 pub mod process_peer;
 
 #[cfg(unix)]

@@ -300,7 +300,10 @@ impl Specifier {
         } else
         if s.starts_with("sh-c:") {
             // TODO: document
-            boxup(super::process_peer::ShC(s[5..].into()))
+            #[cfg(feature="tokio-process")]
+            { boxup(super::process_peer::ShC(s[5..].into())) }
+            #[cfg(not(feature="tokio-process"))]
+            { Err("`sh-c:` is not supported in this Websocat build")? }
         } else {
             error!("Invalid specifier string `{}`", s);
             Err("Wrong specifier")?
