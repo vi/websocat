@@ -51,7 +51,7 @@ Short list of specifiers (see --long-help):
   exec: sh-c:
 ```
 
-It runs singlethreaded.
+It runs singlethreaded. There is old non-async threaded version in `legacy` branch of releases prior to 0.5.
 
 Specify listening part first, unless you want websocat to serve once (like in `--oneshot` mode).
 
