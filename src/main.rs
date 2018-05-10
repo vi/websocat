@@ -133,14 +133,14 @@ Full list of specifiers:
     Example: echo server
       websocat tcp-l:0.0.0.0:1441 mirror:
       
-  `exec:<program_path> --exec-args <arguments...> --`
+  `exec:<program_path> --exec-args <arguments...>`
     Execute a program (subprocess) directly, without a subshell.
     
     Example: date server
       websocat -U ws-l:127.0.0.1:5667 exec:date
       
     Example: pinger
-      websocat -U ws-l:127.0.0.1:5667 exec:ping --exec-args 127.0.0.1 -c 1 --
+      websocat -U ws-l:127.0.0.1:5667 exec:ping --exec-args 127.0.0.1 -c 1
   
   `sh-c:<command line>` - start subprocess though 'sh -c' or `cmd /C`
   

@@ -51,6 +51,8 @@ Short list of specifiers (see --long-help):
   exec: sh-c:
 ```
 
+It runs singlethreaded.
+
 Specify listening part first, unless you want websocat to serve once (like in `--oneshot` mode).
 
 IPv6 supported, just use specifiers like `ws-l:[::1]:4567`
@@ -140,7 +142,7 @@ Full list of specifiers
     
         websocat tcp-l:0.0.0.0:1441 mirror:
       
-*  `exec:<program_path> --exec-args <arguments...> --`
+*  `exec:<program_path> --exec-args <arguments...>`
 
     Execute a program (subprocess) directly, without a subshell.
     
@@ -150,7 +152,7 @@ Full list of specifiers
       
     Example: pinger
     
-        websocat -U ws-l:127.0.0.1:5667 exec:ping --exec-args 127.0.0.1 -c 1 --
+        websocat -U ws-l:127.0.0.1:5667 exec:ping --exec-args 127.0.0.1 -c 1
   
 *  `sh-c:<command line>` - start subprocess though 'sh -c' or `cmd /C`
   
@@ -250,12 +252,15 @@ Full list of specifiers
 *  `unix-dgram:<path>:<path>` - Send packets to one path, receive from the other  
     
 *  `abstract-connect:<string>` - Connect to Linux abstract-namespaced socket
+
     Aliases: `abstract-c:`, `connect-abstract:`, `c-abstract:`, `abstract:`
 
 *  `abstract-listen:<path>` - Listen for connections on Linux abstract-namespaced socket
+
     Aliases: `abstract-l:`, `listen-abstract:`, `l-abstract:`
     
 *  `readfile:<path>` - synchronously read files
+
     Blocking on operations with the file pauses the whole process
     
     Example:
@@ -291,49 +296,6 @@ Full list of specifiers
 
     Read entire input and panic the program if the input is not equal
     to the specified string.
-
-Loopback Speed Test
----
-
-#### socat - 1G/s
-
-```
-$ socat tcp-l:8788,reuseaddr - > /dev/null&
-[1] 16042
-$ pv -i 10 /dev/zero | socat - tcp:127.0.0.1:8788
-20.8GiB 0:00:20 [1.07GiB/s] [    <=>                                                                                                                ]
-^C
-[1]+  Stopped                 socat tcp-l:8788,reuseaddr - > /dev/null
-```
-#### websockat (websocket mode) - 240 M/s
-```
-$ ./websocat_0.4_x86_64-unknown-linux-gnu -q -u l-ws:127.0.0.1:8788 - > /dev/null&
-[1] 17266
-$ pv -i 10 /dev/zero | ./websocat_0.4_x86_64-unknown-linux-gnu -u - ws://127.0.0.1:8788/
-INFO:websocat: Connecting to ws://127.0.0.1:8788/
-INFO:websocat: Validating response...
-INFO:websocat: Successfully connected
- 4.9GiB 0:00:20 [ 242MiB/s] [    <=>                                                                                                                ]
-^C
-
-$ fg
-./websocat_0.4_x86_64-unknown-linux-gnu -q -u l-ws:127.0.0.1:8788 - > /dev/null
-^C
-```
-#### websocat (TCP mode, without websocket) - 1.7 G/s
-
-```
-$ ./websocat_0.4_x86_64-unknown-linux-gnu -q -u l-tcp:127.0.0.1:8788 - > /dev/null&
-[1] 17899
-$ pv -i 10 /dev/zero | ./websocat_nossl_0.4_i686-unknown-linux-musl -u - tcp:127.0.0.1:8788
-INFO:websocat: Connected to TCP 127.0.0.1:8788
-33.7GiB 0:00:20 [1.71GiB/s] [    <=>                                                                                                                ]
-^C
-
-$ fg
-./websocat_0.4_x86_64-unknown-linux-gnu -q -u l-tcp:127.0.0.1:8788 - > /dev/null
-^C
-```
 
 
 P.S. Here is oneliner to remove non-blocking mode from terminal's stdin:
