@@ -111,10 +111,11 @@ impl SpecifierInfo {
     fn collect(&self) -> Vec<OneSpecifierInfo> {
         let mut r = vec![];
         r.push(self.this);
-        let mut ss = &self.subspecifier;
+        // on newer Rust can do without cloning
+        let mut ss = self.clone().subspecifier;
         while let Some(sub) = ss {
             r.push(sub.this);
-            ss = &sub.subspecifier;
+            ss = sub.subspecifier;
         }
         r
     }

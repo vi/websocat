@@ -70,26 +70,27 @@ impl /*Future for */ State {
         
         loop {
             let opts = self.opts.clone();
-            if let Some(ref mut p) = pp {
+            if let &mut Some(ref mut p) = pp {
                 return Ok(Async::Ready(p));
             }
             
             // Peer is not present: trying to create a new one
             
-            if let Some(ref mut bnpf) = nn {
+            if let Some(mut bnpf) = nn.take() {
                 match bnpf.poll() {
                     Ok(Async::Ready(p)) => {
                         *pp = Some(p);
-                        *nn = None;
                         continue;
                     },
-                    Ok(Async::NotReady) => return Ok(Async::NotReady),
+                    Ok(Async::NotReady) => {
+                        *nn = Some(bnpf);
+                        return Ok(Async::NotReady);
+                    },
                     Err(_x) => {
                         // Stop on error:
                         //return Err(_x);
                         
-                        // Just reconnect again on error:
-                        *nn = None;
+                        // Just reconnect again on error
                         
                         if ! aux.already_warned {
                             aux.already_warned = true;

@@ -39,7 +39,7 @@ struct PeerHandle(PeerSlot);
 
 impl Read for PeerHandle {
     fn read (&mut self, b:&mut [u8]) -> Result<usize, IoError> {
-        if let Some(ref mut x) = self.0.borrow_mut().deref_mut() {
+        if let &mut Some(ref mut x) = self.0.borrow_mut().deref_mut() {
             x.0.read(b)
         } else {
             unreachable!()
@@ -50,14 +50,14 @@ impl AsyncRead for PeerHandle{}
 
 impl Write for PeerHandle {
     fn write (&mut self, b: &[u8]) -> Result<usize, IoError> {
-        if let Some(ref mut x) = self.0.borrow_mut().deref_mut() {
+        if let &mut Some(ref mut x) = self.0.borrow_mut().deref_mut() {
             x.1.write(b)
         } else {
             unreachable!()
         }
     }
     fn flush (&mut self) -> Result<(), IoError> {
-        if let Some(ref mut x) = self.0.borrow_mut().deref_mut() {
+        if let &mut Some(ref mut x) = self.0.borrow_mut().deref_mut() {
             x.1.flush()
         } else {
             unreachable!()
@@ -66,7 +66,7 @@ impl Write for PeerHandle {
 }
 impl AsyncWrite for PeerHandle {
     fn shutdown(&mut self) -> futures::Poll<(),IoError> {
-        if let Some(ref mut x) = self.0.borrow_mut().deref_mut() {
+        if let &mut Some(ref mut x) = self.0.borrow_mut().deref_mut() {
             x.1.shutdown()
         } else {
             unreachable!()
