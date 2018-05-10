@@ -67,6 +67,9 @@ struct Opt {
     
     #[structopt(long="unlink", help="Unlink listening UNIX socket before binding to it")]
     unlink_unix_socket:bool,
+    
+    #[structopt(long="exec-args", help="Arguments for the `exec:` specifier. Specify them at the end or terminate with --.")]
+    exec_args: Vec<String>,
 }
 
 fn longhelp() {
