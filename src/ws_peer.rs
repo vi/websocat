@@ -1,47 +1,53 @@
 extern crate websocket;
 
-use std;
+use self::websocket::OwnedMessage;
+use self::websocket::stream::async::Stream as WsStream;
 use futures;
 use futures::sink::Sink;
 use futures::stream::Stream;
-use self::websocket::{OwnedMessage};
-use self::websocket::stream::async::{Stream as WsStream};
-use tokio_io::{self,AsyncRead,AsyncWrite};
-use std::io::{Read,Write};
+use std;
 use std::io::Result as IoResult;
+use std::io::{Read, Write};
+use tokio_io::{self, AsyncRead, AsyncWrite};
 
-use std::rc::Rc;
 use std::cell::RefCell;
+use std::rc::Rc;
 
-use futures::Async::{Ready, NotReady};
+use futures::Async::{NotReady, Ready};
 
-use super::{io_other_error, brokenpipe, wouldblock, Peer};
+use super::{brokenpipe, io_other_error, wouldblock, Peer};
 
 use super::ReadDebt;
 
-type MultiProducerWsSink<T> = Rc<RefCell<futures::stream::SplitSink<tokio_io::codec::Framed<T, websocket::async::MessageCodec<websocket::OwnedMessage>>>>>;
-type WsSource<T> = futures::stream::SplitStream<tokio_io::codec::Framed<T, websocket::async::MessageCodec<websocket::OwnedMessage>>>;
+type MultiProducerWsSink<T> = Rc<
+    RefCell<
+        futures::stream::SplitSink<
+            tokio_io::codec::Framed<T, websocket::async::MessageCodec<websocket::OwnedMessage>>,
+        >,
+    >,
+>;
+type WsSource<T> = futures::stream::SplitStream<
+    tokio_io::codec::Framed<T, websocket::async::MessageCodec<websocket::OwnedMessage>>,
+>;
 
-pub struct WsReadWrapper<T:WsStream+'static> {
+pub struct WsReadWrapper<T: WsStream + 'static> {
     pub s: WsSource<T>,
-    pub pingreply : MultiProducerWsSink<T>,
+    pub pingreply: MultiProducerWsSink<T>,
     pub debt: ReadDebt,
 }
 
-impl<T:WsStream+'static>  AsyncRead for WsReadWrapper<T>
-{}
+impl<T: WsStream + 'static> AsyncRead for WsReadWrapper<T> {}
 
-impl<T:WsStream+'static>  Read for WsReadWrapper<T>
-{
+impl<T: WsStream + 'static> Read for WsReadWrapper<T> {
     fn read(&mut self, buf: &mut [u8]) -> std::result::Result<usize, std::io::Error> {
         if let Some(ret) = self.debt.check_debt(buf) {
-            return ret
+            return ret;
         }
         match self.s.poll().map_err(io_other_error)? {
             Ready(Some(OwnedMessage::Close(_))) => {
                 debug!("incoming close");
                 brokenpipe()
-            },
+            }
             Ready(None) => {
                 debug!("incoming None");
                 brokenpipe()
@@ -55,7 +61,7 @@ impl<T:WsStream+'static>  Read for WsReadWrapper<T>
                 match sink.start_send(om).map_err(io_other_error)? {
                     futures::AsyncSink::NotReady(_) => {
                         warn!("dropped a ping request from websocket due to channel contention");
-                    },
+                    }
                     futures::AsyncSink::Ready => {
                         proceed = true;
                     }
@@ -63,7 +69,7 @@ impl<T:WsStream+'static>  Read for WsReadWrapper<T>
                 if proceed {
                     let _ = sink.poll_complete().map_err(io_other_error)?;
                 }
-                
+
                 Ok(0)
             }
             Ready(Some(OwnedMessage::Pong(_))) => {
@@ -78,44 +84,38 @@ impl<T:WsStream+'static>  Read for WsReadWrapper<T>
                 debug!("incoming binary");
                 self.debt.process_message(buf, x.as_slice())
             }
-            NotReady => {
-                wouldblock()
-            }
+            NotReady => wouldblock(),
         }
     }
 }
 
-#[derive(Debug,Copy,Clone)]
+#[derive(Debug, Copy, Clone)]
 pub enum Mode1 {
     Text,
     Binary,
 }
 
-pub struct WsWriteWrapper<T:WsStream+'static>(pub MultiProducerWsSink<T>,pub Mode1);
+pub struct WsWriteWrapper<T: WsStream + 'static>(pub MultiProducerWsSink<T>, pub Mode1);
 
-impl<T:WsStream+'static> AsyncWrite for WsWriteWrapper<T> {
-    fn shutdown(&mut self) -> futures::Poll<(),std::io::Error> {
+impl<T: WsStream + 'static> AsyncWrite for WsWriteWrapper<T> {
+    fn shutdown(&mut self) -> futures::Poll<(), std::io::Error> {
         let mut sink = self.0.borrow_mut();
         match sink.start_send(OwnedMessage::Close(None))
             .map_err(io_other_error)?
         {
-            futures::AsyncSink::NotReady(_) => {
-                wouldblock()
-            },
+            futures::AsyncSink::NotReady(_) => wouldblock(),
             futures::AsyncSink::Ready => {
-                // Too lazy to implement a state machine here just for 
+                // Too lazy to implement a state machine here just for
                 // properly handling this.
                 // And shutdown result is ignored here anyway.
-                let _ = sink.poll_complete()
-                    .map_err(|_|())
-                    .map(|_|());
+                let _ = sink.poll_complete().map_err(|_| ()).map(|_| ());
                 Ok(Ready(()))
             }
         }
     }
 }
 
-impl<T:WsStream+'static> Write for WsWriteWrapper<T> {
+impl<T: WsStream + 'static> Write for WsWriteWrapper<T> {
     fn write(&mut self, buf: &[u8]) -> IoResult<usize> {
         let om = match self.1 {
             Mode1::Binary => OwnedMessage::Binary(buf.to_vec()),
@@ -124,56 +124,49 @@ impl<T:WsStream+'static> Write for WsWriteWrapper<T> {
                 let text = match ::std::str::from_utf8(buf) {
                     Ok(x) => x,
                     Err(_) => {
-                        error!("Invalid UTF-8 in --text mode. Sending lossy data. May be \
-                                caused by unlucky buffer splits.");
+                        error!(
+                            "Invalid UTF-8 in --text mode. Sending lossy data. May be \
+                             caused by unlucky buffer splits."
+                        );
                         text_tmp = String::from_utf8_lossy(buf);
                         text_tmp.as_ref()
                     }
                 };
                 OwnedMessage::Text(text.to_string())
-            },
+            }
         };
         match self.0.borrow_mut().start_send(om).map_err(io_other_error)? {
-            futures::AsyncSink::NotReady(_) => {
-                wouldblock()
-            },
-            futures::AsyncSink::Ready => {
-                Ok(buf.len())
-            }
+            futures::AsyncSink::NotReady(_) => wouldblock(),
+            futures::AsyncSink::Ready => Ok(buf.len()),
         }
     }
     fn flush(&mut self) -> IoResult<()> {
         match self.0.borrow_mut().poll_complete().map_err(io_other_error)? {
-            NotReady => {
-                wouldblock()
-            },
-            Ready(()) => {
-                Ok(())
-            }
+            NotReady => wouldblock(),
+            Ready(()) => Ok(()),
         }
     }
 }
 
-impl<T:WsStream+'static> Drop for WsWriteWrapper<T> {
+impl<T: WsStream + 'static> Drop for WsWriteWrapper<T> {
     fn drop(&mut self) {
         debug!("drop WsWriteWrapper",);
         // moved to shutdown()
     }
 }
 
-
 pub struct PeerForWs(pub Peer);
 
 //implicit impl websocket::stream::async::Stream for PeerForWs {}
 
-impl AsyncRead for PeerForWs{}
+impl AsyncRead for PeerForWs {}
 impl Read for PeerForWs {
     fn read(&mut self, buf: &mut [u8]) -> std::result::Result<usize, std::io::Error> {
         (self.0).0.read(buf)
     }
 }
-impl AsyncWrite for PeerForWs{
-    fn shutdown(&mut self) -> futures::Poll<(),std::io::Error> {
+impl AsyncWrite for PeerForWs {
+    fn shutdown(&mut self) -> futures::Poll<(), std::io::Error> {
         (self.0).1.shutdown()
     }
 }

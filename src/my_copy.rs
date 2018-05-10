@@ -38,8 +38,9 @@ pub struct Copy<R, W> {
 /// Unlike original tokio_io::copy::copy, it does not always stop on zero length reads
 /// , handles BrokenPipe error kind as EOF and flushes after every write
 pub fn copy<R, W>(reader: R, writer: W, stop_on_reader_zero_read: bool) -> Copy<R, W>
-    where R: AsyncRead,
-          W: AsyncWrite,
+where
+    R: AsyncRead,
+    W: AsyncWrite,
 {
     Copy {
         reader: Some(reader),
@@ -55,8 +56,9 @@ pub fn copy<R, W>(reader: R, writer: W, stop_on_reader_zero_read: bool) -> Copy<
 }
 
 impl<R, W> Future for Copy<R, W>
-    where R: AsyncRead,
-          W: AsyncWrite,
+where
+    R: AsyncRead,
+    W: AsyncWrite,
 {
     type Item = (u64, R, W);
     type Error = io::Error;
@@ -96,8 +98,10 @@ impl<R, W> Future for Copy<R, W>
                 let writer = self.writer.as_mut().unwrap();
                 let i = try_nb!(writer.write(&self.buf[self.pos..self.cap]));
                 if i == 0 {
-                    return Err(io::Error::new(io::ErrorKind::WriteZero,
-                                              "write zero byte into writer"));
+                    return Err(io::Error::new(
+                        io::ErrorKind::WriteZero,
+                        "write zero byte into writer",
+                    ));
                 } else {
                     trace!("write {}", i);
                     self.pos += i;
@@ -114,9 +118,8 @@ impl<R, W> Future for Copy<R, W>
                 let reader = self.reader.take().unwrap();
                 let writer = self.writer.take().unwrap();
                 debug!("done");
-                return Ok((self.amt, reader, writer).into())
+                return Ok((self.amt, reader, writer).into());
             }
         }
     }
 }
-

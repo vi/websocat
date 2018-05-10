@@ -1,34 +1,33 @@
-extern crate tokio_stdin_stdout;
 #[cfg(unix)]
 extern crate tokio_file_unix;
-#[cfg(all(unix,feature="signal_handler"))]
+#[cfg(all(unix, feature = "signal_handler"))]
 extern crate tokio_signal;
+extern crate tokio_stdin_stdout;
 
-use std;
-use tokio_core::reactor::{Handle};
 use futures;
 use futures::future::Future;
-use std::path::{PathBuf,Path};
-use std::rc::Rc;
+use std;
 use std::cell::RefCell;
-use tokio_io::{AsyncRead,AsyncWrite};
-use std::io::{Read,Write};
 use std::io::Result as IoResult;
+use std::io::{Read, Write};
+use std::path::{Path, PathBuf};
+use std::rc::Rc;
+use tokio_core::reactor::Handle;
+use tokio_io::{AsyncRead, AsyncWrite};
 
 #[cfg(unix)]
-use self::tokio_file_unix::{File as UnixFile};
-use ::std::fs::{File as FsFile, OpenOptions};
+use self::tokio_file_unix::File as UnixFile;
+use std::fs::{File as FsFile, OpenOptions};
 
-use super::{Peer, BoxedNewPeerFuture, Result};
+use super::{BoxedNewPeerFuture, Peer, Result};
 use futures::Stream;
 
+use super::{once, Options, PeerConstructor, ProgramState, Specifier};
 
-use super::{once,Specifier,ProgramState,PeerConstructor,Options};
-
-#[derive(Clone,Debug)]
+#[derive(Clone, Debug)]
 pub struct Stdio;
 impl Specifier for Stdio {
-    fn construct(&self, h:&Handle, ps: &mut ProgramState, _opts: Rc<Options>) -> PeerConstructor {
+    fn construct(&self, h: &Handle, ps: &mut ProgramState, _opts: Rc<Options>) -> PeerConstructor {
         let ret;
         ret = get_stdio_peer(&mut ps.stdio, h);
         once(ret)
@@ -36,10 +35,10 @@ impl Specifier for Stdio {
     specifier_boilerplate!(typ=Stdio globalstate singleconnect no_subspec);
 }
 
-#[derive(Clone,Debug)]
+#[derive(Clone, Debug)]
 pub struct OpenAsync(pub PathBuf);
 impl Specifier for OpenAsync {
-    fn construct(&self, h:&Handle, _ps: &mut ProgramState, _opts: Rc<Options>) -> PeerConstructor {
+    fn construct(&self, h: &Handle, _ps: &mut ProgramState, _opts: Rc<Options>) -> PeerConstructor {
         let ret;
         ret = get_file_peer(&self.0, h);
         once(ret)
@@ -47,19 +46,16 @@ impl Specifier for OpenAsync {
     specifier_boilerplate!(typ=Other noglobalstate singleconnect no_subspec);
 }
 
-#[derive(Clone,Debug)]
+#[derive(Clone, Debug)]
 pub struct OpenFdAsync(pub i32);
 impl Specifier for OpenFdAsync {
-    fn construct(&self, h:&Handle, _ps: &mut ProgramState, _opts: Rc<Options>) -> PeerConstructor {
+    fn construct(&self, h: &Handle, _ps: &mut ProgramState, _opts: Rc<Options>) -> PeerConstructor {
         let ret;
         ret = get_fd_peer(self.0, h);
         once(ret)
     }
     specifier_boilerplate!(typ=Other noglobalstate singleconnect no_subspec);
 }
-
-
-
 
 fn get_stdio_peer_impl(s: &mut GlobalState, handle: &Handle) -> Result<Peer> {
     let si;
@@ -69,20 +65,20 @@ fn get_stdio_peer_impl(s: &mut GlobalState, handle: &Handle) -> Result<Peer> {
             info!("Setting stdin to nonblocking mode");
             s.need_to_restore_stdin_blocking_status = true;
         }
-        let stdin  = self::UnixFile::new_nb(std::io::stdin())?;
-        
+        let stdin = self::UnixFile::new_nb(std::io::stdin())?;
+
         if !UnixFile::raw_new(std::io::stdout()).get_nonblocking()? {
             info!("Setting stdout to nonblocking mode");
             s.need_to_restore_stdout_blocking_status = true;
         }
         let stdout = self::UnixFile::new_nb(std::io::stdout())?;
-    
+
         si = stdin.into_reader(&handle)?;
         so = stdout.into_io(&handle)?;
-        
+
         let s_clone = s.clone();
-        
-        #[cfg(all(unix,feature="signal_handler"))]
+
+        #[cfg(all(unix, feature = "signal_handler"))]
         {
             info!("Installing signal handler");
             let ctrl_c = tokio_signal::ctrl_c(&handle).flatten_stream();
@@ -92,10 +88,10 @@ fn get_stdio_peer_impl(s: &mut GlobalState, handle: &Handle) -> Result<Peer> {
                 #[allow(unreachable_code)]
                 Ok(())
             });
-            handle.spawn(prog.map_err(|_|()));
+            handle.spawn(prog.map_err(|_| ()));
         }
     }
-    Ok(Peer::new(si,so))
+    Ok(Peer::new(si, so))
 }
 
 pub fn get_stdio_peer(s: &mut GlobalState, handle: &Handle) -> BoxedNewPeerFuture {
@@ -103,10 +99,9 @@ pub fn get_stdio_peer(s: &mut GlobalState, handle: &Handle) -> BoxedNewPeerFutur
     Box::new(futures::future::result(get_stdio_peer_impl(s, handle))) as BoxedNewPeerFuture
 }
 
-
-#[derive(Default,Clone)]
+#[derive(Default, Clone)]
 pub struct GlobalState {
-    need_to_restore_stdin_blocking_status : bool,
+    need_to_restore_stdin_blocking_status: bool,
     need_to_restore_stdout_blocking_status: bool,
 }
 
@@ -116,7 +111,7 @@ impl Drop for GlobalState {
     }
 }
 
-fn restore_blocking_status(s : &GlobalState) {
+fn restore_blocking_status(s: &GlobalState) {
     {
         debug!("restore_blocking_status");
         if s.need_to_restore_stdin_blocking_status {
@@ -130,24 +125,20 @@ fn restore_blocking_status(s : &GlobalState) {
     }
 }
 
-
-
-
 type ImplPollEvented = ::tokio_core::reactor::PollEvented<UnixFile<std::fs::File>>;
 
 #[derive(Clone)]
 struct FileWrapper(Rc<RefCell<ImplPollEvented>>);
 
-impl AsyncRead for FileWrapper{}
+impl AsyncRead for FileWrapper {}
 impl Read for FileWrapper {
     fn read(&mut self, buf: &mut [u8]) -> std::result::Result<usize, std::io::Error> {
         self.0.borrow_mut().read(buf)
     }
 }
 
-
 impl AsyncWrite for FileWrapper {
-    fn shutdown(&mut self) -> futures::Poll<(),std::io::Error> {
+    fn shutdown(&mut self) -> futures::Poll<(), std::io::Error> {
         self.0.borrow_mut().shutdown()
     }
 }
@@ -161,7 +152,11 @@ impl Write for FileWrapper {
 }
 
 fn get_file_peer_impl(p: &Path, handle: &Handle) -> Result<Peer> {
-    let oo = OpenOptions::new().read(true).write(true).create(false).open(p)?;
+    let oo = OpenOptions::new()
+        .read(true)
+        .write(true)
+        .create(false)
+        .open(p)?;
     let f = self::UnixFile::new_nb(oo)?;
 
     let s = f.into_io(&handle)?;
@@ -169,15 +164,13 @@ fn get_file_peer_impl(p: &Path, handle: &Handle) -> Result<Peer> {
     Ok(Peer::new(ss.clone(), ss))
 }
 
-
 pub fn get_file_peer(p: &Path, handle: &Handle) -> BoxedNewPeerFuture {
-   info!("get_file_peer");
+    info!("get_file_peer");
     Box::new(futures::future::result(get_file_peer_impl(p, handle))) as BoxedNewPeerFuture
 }
 
-
 fn get_fd_peer_impl(fd: i32, handle: &Handle) -> Result<Peer> {
-    let ff : FsFile = unsafe { std::os::unix::io::FromRawFd::from_raw_fd(fd) };
+    let ff: FsFile = unsafe { std::os::unix::io::FromRawFd::from_raw_fd(fd) };
     let f = self::UnixFile::new_nb(ff)?;
 
     let s = f.into_io(&handle)?;
@@ -185,8 +178,7 @@ fn get_fd_peer_impl(fd: i32, handle: &Handle) -> Result<Peer> {
     Ok(Peer::new(ss.clone(), ss))
 }
 
-
 pub fn get_fd_peer(fd: i32, handle: &Handle) -> BoxedNewPeerFuture {
-   info!("get_fd_peer");
+    info!("get_fd_peer");
     Box::new(futures::future::result(get_fd_peer_impl(fd, handle))) as BoxedNewPeerFuture
 }

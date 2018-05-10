@@ -1,38 +1,39 @@
-extern crate tokio_io;
 extern crate futures;
+extern crate tokio_io;
 
 use futures::future::ok;
-use std::rc::Rc;
 use std::cell::RefCell;
+use std::rc::Rc;
 
-use super::{Peer, BoxedNewPeerFuture};
+use super::{BoxedNewPeerFuture, Peer};
 
-use tokio_io::{AsyncRead,AsyncWrite};
-use std::io::{Read, Write, Error as IoError};
+use std::io::{Error as IoError, Read, Write};
+use tokio_io::{AsyncRead, AsyncWrite};
 
-use futures::{Future,Poll,Async};
-use super::{once,Specifier,Handle,ProgramState,PeerConstructor,wouldblock,Options};
+use super::{once, wouldblock, Handle, Options, PeerConstructor, ProgramState, Specifier};
+use futures::{Async, Future, Poll};
 
 // TODO: shutdown write part if out writing part is shut down
 // TODO: stop if writing part and reading parts are closed (shutdown)?
 
-
 #[derive(Debug)]
 pub struct AutoReconnect(pub Rc<Specifier>);
 impl Specifier for AutoReconnect {
-    fn construct(&self, h:&Handle, _ps: &mut ProgramState, opts: Rc<Options>) -> PeerConstructor {
+    fn construct(&self, h: &Handle, _ps: &mut ProgramState, opts: Rc<Options>) -> PeerConstructor {
         let mut subspec_globalstate = false;
         let opts = opts.clone();
-        
+
         for i in self.0.get_info().collect() {
-            if i.uses_global_state { 
+            if i.uses_global_state {
                 subspec_globalstate = true;
             }
         }
-        
+
         if subspec_globalstate {
-            let e : Box<::std::error::Error> 
-            = "Can't use autoreconnect on a specifier that uses global state".to_owned().into();
+            let e: Box<::std::error::Error> =
+                "Can't use autoreconnect on a specifier that uses global state"
+                    .to_owned()
+                    .into();
             once(Box::new(::futures::future::err(e)) as BoxedNewPeerFuture)
         } else {
             //let inner = self.0.construct(h, ps).get_only_first_conn();
@@ -45,63 +46,63 @@ impl Specifier for AutoReconnect {
 
 #[derive(Default)]
 struct State2 {
-    already_warned : bool,
+    already_warned: bool,
 }
 
 struct State {
-    s : Rc<Specifier>,
-    p : Option<Peer>,
-    n : Option<BoxedNewPeerFuture>,
-    h : Handle,
+    s: Rc<Specifier>,
+    p: Option<Peer>,
+    n: Option<BoxedNewPeerFuture>,
+    h: Handle,
     opts: Rc<Options>,
-    aux : State2,
+    aux: State2,
 }
 
 /// This implementation's poll is to be reused many times, both after returning item and error
-impl /*Future for */ State {
+impl State {
     //type Item = &'mut Peer;
     //type Error = Box<::std::error::Error>;
-    
+
     fn poll(&mut self) -> Poll<&mut Peer, Box<::std::error::Error>> {
         let pp = &mut self.p;
         let nn = &mut self.n;
-        
+
         let aux = &mut self.aux;
-        
+
         loop {
             let opts = self.opts.clone();
             if let &mut Some(ref mut p) = pp {
                 return Ok(Async::Ready(p));
             }
-            
+
             // Peer is not present: trying to create a new one
-            
+
             if let Some(mut bnpf) = nn.take() {
                 match bnpf.poll() {
                     Ok(Async::Ready(p)) => {
                         *pp = Some(p);
                         continue;
-                    },
+                    }
                     Ok(Async::NotReady) => {
                         *nn = Some(bnpf);
                         return Ok(Async::NotReady);
-                    },
+                    }
                     Err(_x) => {
                         // Stop on error:
                         //return Err(_x);
-                        
+
                         // Just reconnect again on error
-                        
-                        if ! aux.already_warned {
+
+                        if !aux.already_warned {
                             aux.already_warned = true;
                             error!("Reconnecting failed. Trying again in tight endless loop.");
                         }
-                    },
+                    }
                 }
             }
-            
-            let mut fake_ps : ProgramState = Default::default();
-            let pc : PeerConstructor = self.s.construct(&self.h, &mut fake_ps, opts);
+
+            let mut fake_ps: ProgramState = Default::default();
+            let pc: PeerConstructor = self.s.construct(&self.h, &mut fake_ps, opts);
             *nn = Some(pc.get_only_first_conn());
         }
     }
@@ -112,19 +113,18 @@ struct PeerHandle(Rc<RefCell<State>>);
 
 macro_rules! getpeer {
     ($state:ident -> $p:ident) => {
-        let $p : &mut Peer = 
-        match $state.poll() {
+        let $p: &mut Peer = match $state.poll() {
             Ok(Async::Ready(p)) => p,
             Ok(Async::NotReady) => return wouldblock(),
             Err(e) => {
-                let e1 : Box<::std::error::Error+Send+Sync+'static> = format!("{}",e).into();
-                let e2 = ::std::io::Error::new(::std::io::ErrorKind::Other,e1);
+                let e1: Box<::std::error::Error + Send + Sync + 'static> =
+                    format!("{}", e).into();
+                let e2 = ::std::io::Error::new(::std::io::ErrorKind::Other, e1);
                 return Err(e2);
-            },
+            }
         };
-    }
+    };
 }
-
 
 impl State {
     fn reconnect(&mut self) {
@@ -134,34 +134,34 @@ impl State {
 }
 
 macro_rules! main_loop {
-    ($state:ident, $p:ident, bytes $e:expr) => {
+    ($state:ident, $p:ident,bytes $e:expr) => {
         main_loop!(qqq $state, $p, do_reconnect, {
-            match $e {
-                Ok(0) => { do_reconnect = true; }
-                Err(e) => {
-                    if e.kind() == ::std::io::ErrorKind::WouldBlock {
-                        return Err(e);
-                    }
-                    warn!("{}", e); 
-                    do_reconnect = true; 
-                }
-                Ok(x) => return Ok(x),
-            }
-        });
+                                    match $e {
+                                        Ok(0) => { do_reconnect = true; }
+                                        Err(e) => {
+                                            if e.kind() == ::std::io::ErrorKind::WouldBlock {
+                                                return Err(e);
+                                            }
+                                            warn!("{}", e);
+                                            do_reconnect = true;
+                                        }
+                                        Ok(x) => return Ok(x),
+                                    }
+                                });
     };
-    ($state:ident, $p:ident, none $e:expr) => {
+    ($state:ident, $p:ident,none $e:expr) => {
         main_loop!(qqq $state, $p, do_reconnect, {
-            match $e {
-                Err(e) => {
-                    if e.kind() == ::std::io::ErrorKind::WouldBlock {
-                        return Err(e);
-                    }
-                    warn!("{}", e); 
-                    do_reconnect = true; 
-                }
-                Ok(()) => return Ok(()),
-            }
-        });
+                                    match $e {
+                                        Err(e) => {
+                                            if e.kind() == ::std::io::ErrorKind::WouldBlock {
+                                                return Err(e);
+                                            }
+                                            warn!("{}", e);
+                                            do_reconnect = true;
+                                        }
+                                        Ok(()) => return Ok(()),
+                                    }
+                                });
     };
     (qqq $state:ident, $p:ident, $do_reconnect:ident, $the_match:expr) => {
         let mut $do_reconnect = false;
@@ -174,11 +174,11 @@ macro_rules! main_loop {
                 $the_match
             }
         }
-    }
+    };
 }
 
 impl Read for PeerHandle {
-    fn read (&mut self, b:&mut [u8]) -> Result<usize, IoError> {
+    fn read(&mut self, b: &mut [u8]) -> Result<usize, IoError> {
         let mut state = self.0.borrow_mut();
         main_loop!(state, p, bytes p.0.read(b));
     }
@@ -186,34 +186,31 @@ impl Read for PeerHandle {
 impl AsyncRead for PeerHandle {}
 
 impl Write for PeerHandle {
-    fn write (&mut self, b: &[u8]) -> Result<usize, IoError> {
+    fn write(&mut self, b: &[u8]) -> Result<usize, IoError> {
         let mut state = self.0.borrow_mut();
         main_loop!(state, p, bytes p.1.write(b));
     }
-    fn flush (&mut self) -> Result<(), IoError> {
+    fn flush(&mut self) -> Result<(), IoError> {
         let mut state = self.0.borrow_mut();
         main_loop!(state, p, none p.1.flush());
     }
 }
 impl AsyncWrite for PeerHandle {
-    fn shutdown(&mut self) -> futures::Poll<(),IoError> {
-       let mut state = self.0.borrow_mut();
-       state.p = None;
-       Ok(Async::Ready(()))
+    fn shutdown(&mut self) -> futures::Poll<(), IoError> {
+        let mut state = self.0.borrow_mut();
+        state.p = None;
+        Ok(Async::Ready(()))
     }
 }
 
-
-pub fn autoreconnector(h: Handle, s: Rc<Specifier>, opts: Rc<Options>) -> BoxedNewPeerFuture
-{
-    let s = Rc::new(RefCell::new(
-        State{
-            h,
-            s, 
-            p : None, 
-            n: None,
-            aux: Default::default(),
-            opts,
+pub fn autoreconnector(h: Handle, s: Rc<Specifier>, opts: Rc<Options>) -> BoxedNewPeerFuture {
+    let s = Rc::new(RefCell::new(State {
+        h,
+        s,
+        p: None,
+        n: None,
+        aux: Default::default(),
+        opts,
     }));
     let ph1 = PeerHandle(s.clone());
     let ph2 = PeerHandle(s);

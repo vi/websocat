@@ -1,48 +1,57 @@
-use std;
 use futures;
 use futures::Async;
-use std::path::{PathBuf,Path};
-use tokio_io::{AsyncRead,AsyncWrite};
-use std::io::{Read,Write};
+use std;
 use std::io::Result as IoResult;
+use std::io::{Read, Write};
+use std::path::{Path, PathBuf};
+use tokio_io::{AsyncRead, AsyncWrite};
 
-use ::std::fs::{File};
+use std::fs::File;
 use std::rc::Rc;
 
-use super::{Peer, BoxedNewPeerFuture, Result};
+use super::{BoxedNewPeerFuture, Peer, Result};
 
+use super::{once, Handle, Options, PeerConstructor, ProgramState, Specifier};
 
-use super::{once,Handle,Specifier,ProgramState,PeerConstructor,Options};
-
-#[derive(Clone,Debug)]
+#[derive(Clone, Debug)]
 pub struct ReadFile(pub PathBuf);
 impl Specifier for ReadFile {
-    fn construct(&self, _h:&Handle, _ps: &mut ProgramState, _opts: Rc<Options>) -> PeerConstructor {
-        fn gp(p : &Path) -> Result<Peer> {
+    fn construct(
+        &self,
+        _h: &Handle,
+        _ps: &mut ProgramState,
+        _opts: Rc<Options>,
+    ) -> PeerConstructor {
+        fn gp(p: &Path) -> Result<Peer> {
             let f = File::open(p)?;
             Ok(Peer::new(ReadFileWrapper(f), super::trivial_peer::DevNull))
         }
-        once(Box::new( futures::future::result(gp(&self.0)) ) as BoxedNewPeerFuture)
+        once(Box::new(futures::future::result(gp(&self.0))) as BoxedNewPeerFuture)
     }
     specifier_boilerplate!(typ=Other noglobalstate singleconnect no_subspec);
 }
 
-#[derive(Clone,Debug)]
+#[derive(Clone, Debug)]
 pub struct WriteFile(pub PathBuf);
 impl Specifier for WriteFile {
-    fn construct(&self, _h:&Handle, _ps: &mut ProgramState, _opts: Rc<Options>) -> PeerConstructor {
-        fn gp(p : &Path) -> Result<Peer> {
+    fn construct(
+        &self,
+        _h: &Handle,
+        _ps: &mut ProgramState,
+        _opts: Rc<Options>,
+    ) -> PeerConstructor {
+        fn gp(p: &Path) -> Result<Peer> {
             let f = File::create(p)?;
             Ok(Peer::new(super::trivial_peer::DevNull, WriteFileWrapper(f)))
         }
-        once(Box::new( futures::future::result(gp(&self.0)) ) as BoxedNewPeerFuture)
+        once(Box::new(futures::future::result(gp(&self.0))) as BoxedNewPeerFuture)
     }
     specifier_boilerplate!(typ=Other noglobalstate singleconnect no_subspec);
 }
 
 struct ReadFileWrapper(File);
 
-impl AsyncRead for ReadFileWrapper{}
+impl AsyncRead for ReadFileWrapper {}
 impl Read for ReadFileWrapper {
     fn read(&mut self, buf: &mut [u8]) -> std::result::Result<usize, std::io::Error> {
         self.0.read(buf)
@@ -52,7 +61,7 @@ impl Read for ReadFileWrapper {
 struct WriteFileWrapper(File);
 
 impl AsyncWrite for WriteFileWrapper {
-    fn shutdown(&mut self) -> futures::Poll<(),std::io::Error> {
+    fn shutdown(&mut self) -> futures::Poll<(), std::io::Error> {
         Ok(Async::Ready(()))
     }
 }
