@@ -27,8 +27,6 @@ r() {
 
 set -x
 
-if false; then
-
 FE=--features=ssl
 T=x86_64-unknown-linux-gnu
 r
@@ -42,8 +40,6 @@ r
 
 T=i686-unknown-linux-musl
 r
-
-fi
 
 T=arm-linux-androideabi
 r
