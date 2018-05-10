@@ -212,6 +212,9 @@ impl Specifier {
         if s.starts_with("writefile:") {
             boxup(super::file_peer::WriteFile(s[10..].into()))
         } else
+        if s.starts_with("appendfile:") {
+            unimplemented!() // TODO
+        } else
         if let Some(ss) = unix_specific_prefix(s) {
             #[cfg(unix)]
             {

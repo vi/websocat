@@ -94,6 +94,9 @@ Full list of specifiers:
       
     Example: for inetd mode
       websocat inetd: literal:$'Hello, world.\n'
+      
+    Example: SSH transport
+      ssh -c ProxyCommand='websocat - ws://myserver/mywebsocket' user@myserver
     
   `ws://<url>`, `wss://<url>` -- WebSocket client
     Example: forward port 4554 to a websocket
@@ -234,7 +237,7 @@ Full list of specifiers:
     Example:
       websocat ws-l:127.0.0.1:8000 readfile:hello.json
       
-  `write:<path>` - synchronously write files
+  `writefile:<path>` - synchronously write files
     Blocking on operations with the file pauses the whole process
     Files are opened in overwrite mode.
     

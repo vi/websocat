@@ -19,7 +19,7 @@ echo Version: $V
 mkdir -p "$D"
 
 r() {
-    cargo rustc $FE --release -j2 --target $T -- -C lto
+    cargo rustc --bin websocat $FE --release -j2 --target $T -- -C lto
     TF="$D"/websocat${S}_${V}_${T}${E}
     cp ./target/$T/release/websocat${E} "$TF"
     ${ST} "${TF}"
@@ -27,19 +27,23 @@ r() {
 
 set -x
 
-FE=--features=unix_socket
+if false; then
+
+FE=--features=ssl
 T=x86_64-unknown-linux-gnu
 r
 
 
 S=_nossl
-FE=--no-default-features\ --features=unix_socket
+FE=
 
 T=i686-unknown-linux-gnu
 r
 
 T=i686-unknown-linux-musl
 r
+
+fi
 
 T=arm-linux-androideabi
 r
@@ -51,7 +55,7 @@ ST=/mnt/src/git/osxcross/target/bin/x86_64-apple-darwin15-strip
 T=x86_64-apple-darwin
 r
 
-FE=--no-default-features
+FE=
 ST=i586-mingw32msvc-strip
 E=.exe
 T=i686-pc-windows-gnu
