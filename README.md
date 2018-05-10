@@ -238,7 +238,7 @@ Full list of specifiers
     Nginx config:
     
 ```
-    location /ws {{
+    location /ws {
         proxy_read_timeout 7d;
         proxy_send_timeout 7d;
         #proxy_pass http://localhost:3012;
@@ -246,7 +246,7 @@ Full list of specifiers
         proxy_http_version 1.1;
         proxy_set_header Upgrade $http_upgrade;
         proxy_set_header Connection "upgrade";
-    }}
+    }
 ```
       
 *  `unix-dgram:<path>:<path>` - Send packets to one path, receive from the other  
