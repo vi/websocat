@@ -65,9 +65,11 @@ pub struct Options {
     pub udp_oneshot_mode: bool,
     pub unidirectional: bool,
     pub unidirectional_reverse: bool,
+    pub exit_on_eof: bool,
     pub oneshot: bool,
     pub unlink_unix_socket: bool,
     pub exec_args: Vec<String>,
+    pub ws_c_uri: String,
 }
 
 #[derive(Default)]
@@ -368,25 +370,36 @@ impl Session {
             std::mem::drop(r);
             std::mem::drop(w); 
         });
-        let (unif,unir) = (self.2.unidirectional, self.2.unidirectional_reverse);
+        let (unif,unir,eeof) = (
+            self.2.unidirectional,
+            self.2.unidirectional_reverse,
+            self.2.exit_on_eof,
+        );
         type Ret = Box<Future<Item=(),Error=Box<std::error::Error>>>;
-        match (unif, unir) {
-            (false, false) => Box::new(
+        match (unif, unir,eeof) {
+            (false, false, false) => Box::new(
                     f1.join(f2)
                     .map(|(_,_)|{
                         info!("Finished");
                     })
                     .map_err(|x|  Box::new(x) as Box<std::error::Error> )
                 ) as Ret,
-            (true, false) => Box::new({
+            (false, false, true) => Box::new(
+                    f1.select(f2)
+                    .map(|(_,_)|{
+                        info!("One of directions finished");
+                    })
+                    .map_err(|(x,_)|  Box::new(x) as Box<std::error::Error> )
+                ) as Ret,
+            (true, false, _) => Box::new({
                     ::std::mem::drop(f2);
                     f1.map_err(|x|  Box::new(x) as Box<std::error::Error> )
                 }) as Ret,
-            (false, true) => Box::new({
+            (false, true, _) => Box::new({
                     ::std::mem::drop(f1);
                     f2.map_err(|x|  Box::new(x) as Box<std::error::Error> )
                 }) as Ret,
-            (true, true) => Box::new({
+            (true, true, _) => Box::new({
                     // Just open connection and close it.
                     ::std::mem::drop(f1);
                     ::std::mem::drop(f2);

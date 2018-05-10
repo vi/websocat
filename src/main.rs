@@ -46,6 +46,9 @@ struct Opt {
     #[structopt(short = "U", long = "unidirectional-reverse", help="Inhibit copying data from left specifier to right")]
     unidirectional_reverse: bool,
     
+    #[structopt(long = "exit-on-eof", help="Close a data transfer direction if the other one reached EOF")]
+    exit_on_eof: bool,
+    
     #[structopt(short = "t", long = "text", help="Send text WebSocket messages instead of binary")]
     websocket_text_mode: bool,
     
@@ -70,6 +73,9 @@ struct Opt {
     
     #[structopt(long="exec-args", raw(allow_hyphen_values=r#"true"#), help="Arguments for the `exec:` specifier. Must be the last option, everything after it gets into the exec args list.")]
     exec_args: Vec<String>,
+    
+    #[structopt(long="ws-c-uri", help="URI to use for ws-c: specifier", default_value="ws://0.0.0.0/")]
+    ws_c_uri: String,
 }
 
 fn longhelp() {
@@ -136,7 +142,7 @@ Full list of specifiers:
   `sh-c:<command line>` - start subprocess though 'sh -c' or `cmd /C`
   
     Example: unauthenticated shell
-      websocat ws-l:127.0.0.1:5667 sh-c:'bash -i 2>&1'
+      websocat --exit-on-eof ws-l:127.0.0.1:5667 sh-c:'bash -i 2>&1'
   
   `udp:<hostport>` - send and receive packets to specified UDP socket
     Aliases: `udp-connect:` `connect-udp:` `c-udp:` `udp-c:`
@@ -157,8 +163,8 @@ Full list of specifiers:
     URL and Host: header being sent are independent from underlying specifier
     Aliases: `ws-c:` `c-ws:` `connect-ws:`
     
-    Example:
-      websocat - ws-c:tcp:127.0.0.1:8808
+    Example: connect to echo server in more explicit way
+      websocat --ws-c-uri=ws://echo.websocket.org/ - ws-c:tcp:174.129.224.73:80
   
   `autoreconnect:<spec>` - Auto-reconnector
     Re-establish underlying specifier on any error or EOF
@@ -296,9 +302,11 @@ fn run() -> Result<()> {
             udp_oneshot_mode
             unidirectional
             unidirectional_reverse
+            exit_on_eof
             oneshot
             unlink_unix_socket
             exec_args
+            ws_c_uri
         )
     };
     

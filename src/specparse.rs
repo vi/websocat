@@ -172,7 +172,7 @@ impl Specifier {
         } else
         if let Some(x) = ws_c_prefix(s) {
             // TODO: de-hardcode URI
-            boxup(super::ws_client_peer::WsConnect(spec(x)?, Url::parse("ws://0.0.0.0/").unwrap()))
+            boxup(super::ws_client_peer::WsConnect(spec(x)?))
         } else
         if let Some(x) = reuser_prefix(s) {
             boxup(super::connection_reuse_peer::Reuser(spec(x)?))

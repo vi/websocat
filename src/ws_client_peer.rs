@@ -11,7 +11,7 @@ use std::cell::RefCell;
 
 use self::websocket::client::Url;
 
-use super::{Peer, BoxedNewPeerFuture, box_up_err};
+use super::{Peer, BoxedNewPeerFuture, box_up_err, peer_err};
 
 use super::ws_peer::{WsReadWrapper, WsWriteWrapper, PeerForWs, Mode1};
 use super::{once,Specifier,ProgramState,PeerConstructor,Options};
@@ -27,12 +27,15 @@ impl Specifier for WsClient {
 }
 
 #[derive(Debug)]
-pub struct WsConnect<T:Specifier>(pub T,pub Url);
+pub struct WsConnect<T:Specifier>(pub T);
 impl<T:Specifier> Specifier for WsConnect<T> {
     fn construct(&self, h:&Handle, ps: &mut ProgramState, opts: Rc<Options>) -> PeerConstructor {
         let inner = self.0.construct(h, ps, opts.clone());
         
-        let url = self.1.clone();
+        let url : Url = match opts.ws_c_uri.parse() {
+            Ok(x) => x,
+            Err(e) => return PeerConstructor::ServeOnce(peer_err(e)),
+        };
         
         let opts = opts.clone();
         
