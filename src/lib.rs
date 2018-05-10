@@ -122,7 +122,7 @@ impl SpecifierInfo {
 /// a `WsUpgrade(TcpListen(SocketAddr))`.
 pub trait Specifier : std::fmt::Debug {
     /// Apply the specifier for constructing a "socket" or other connecting device.
-    fn construct(&self, h:&Handle, ps: &mut ProgramState, opts: &Options) -> PeerConstructor;
+    fn construct(&self, h:&Handle, ps: &mut ProgramState, opts: Rc<Options>) -> PeerConstructor;
     
     // Specified by `specifier_boilerplate!`:
     fn is_multiconnect(&self) -> bool;
@@ -148,7 +148,7 @@ pub trait Specifier : std::fmt::Debug {
 }
 
 impl Specifier for Rc<Specifier> {
-    fn construct(&self, h:&Handle, ps: &mut ProgramState,opts: &Options) -> PeerConstructor {
+    fn construct(&self, h:&Handle, ps: &mut ProgramState,opts: Rc<Options>) -> PeerConstructor {
         (**self).construct(h, ps, opts)
     }
     
@@ -336,7 +336,7 @@ pub use specparse::boxup;
 pub use specparse::spec;
 
 
-pub fn peer_from_str(ps: &mut ProgramState, handle: &Handle, opts: &Options, s: &str) -> PeerConstructor {
+pub fn peer_from_str(ps: &mut ProgramState, handle: &Handle, opts: Rc<Options>, s: &str) -> PeerConstructor {
     let spec = match spec(s) {
         Ok(x) => x,
         Err(e) => return once(Box::new(futures::future::err(e)) as BoxedNewPeerFuture),
@@ -348,7 +348,7 @@ pub struct Transfer {
     from: Box<AsyncRead>,
     to:   Box<AsyncWrite>,
 }
-pub struct Session(Transfer,Transfer,Options);
+pub struct Session(Transfer,Transfer,Rc<Options>);
 
 
 impl Session {
@@ -393,7 +393,7 @@ impl Session {
                 }) as Ret,
         }
     }
-    pub fn new(peer1: Peer, peer2: Peer, opts:Options) -> Self {
+    pub fn new(peer1: Peer, peer2: Peer, opts:Rc<Options>) -> Self {
         Session (
             Transfer {
                 from: peer1.0,
@@ -424,9 +424,12 @@ pub fn serve<S1, S2, OE>(h: Handle, s1: S1, s2 : S2, opts: Options, onerror: std
     let e2 = onerror.clone();
     let e3 = onerror.clone();
     
-    let mut left = s1.construct(&h, &mut ps, &opts);
+    let opts1 = Rc::new(opts);
+    let opts2 = opts1.clone();
     
-    if opts.oneshot {
+    let mut left = s1.construct(&h, &mut ps, opts1);
+    
+    if opts2.oneshot {
         left = PeerConstructor::ServeOnce(left.get_only_first_conn());
     }
     
@@ -434,13 +437,13 @@ pub fn serve<S1, S2, OE>(h: Handle, s1: S1, s2 : S2, opts: Options, onerror: std
         ServeMultipleTimes(stream) => {
             let runner = stream
             .map(move |peer1| {
-                let optsc1 = opts.clone();
+                let opts3 = opts2.clone();
                 let e1_1 = e1.clone();
                 h1.spawn(
-                    s2.construct(&h1, &mut ps, &opts)
+                    s2.construct(&h1, &mut ps, opts2.clone())
                     .get_only_first_conn()
                     .and_then(move |peer2| {
-                        let s = Session::new(peer1,peer2, optsc1);
+                        let s = Session::new(peer1,peer2, opts3);
                         s.run()
                     })
                     .map_err(move|e|e1_1(e))
@@ -451,10 +454,10 @@ pub fn serve<S1, S2, OE>(h: Handle, s1: S1, s2 : S2, opts: Options, onerror: std
         ServeOnce(peer1c) => {
             let runner = peer1c
             .and_then(move |peer1| {
-                let right = s2.construct(&h2, &mut ps, &opts);
+                let right = s2.construct(&h2, &mut ps, opts2.clone());
                 let fut = right.get_only_first_conn();
                 fut.and_then(move |peer2| {
-                    let s = Session::new(peer1,peer2,opts.clone());
+                    let s = Session::new(peer1,peer2,opts2);
                     s.run().map(|()| {
                         ::std::mem::drop(ps) 
                         // otherwise ps will be dropped sooner

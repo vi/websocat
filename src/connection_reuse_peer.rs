@@ -18,7 +18,7 @@ use super::{once,Specifier,Handle,ProgramState,PeerConstructor,Options};
 #[derive(Debug)]
 pub struct Reuser(pub Rc<Specifier>);
 impl Specifier for Reuser {
-    fn construct(&self, h:&Handle, ps: &mut ProgramState, opts: &Options) -> PeerConstructor {
+    fn construct(&self, h:&Handle, ps: &mut ProgramState, opts: Rc<Options>) -> PeerConstructor {
         let mut reuser = ps.reuser.clone();
         let inner = ||self.0.construct(h, ps, opts).get_only_first_conn();
         once(connection_reuser(&mut reuser, inner))

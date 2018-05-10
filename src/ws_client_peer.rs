@@ -19,7 +19,7 @@ use super::{once,Specifier,ProgramState,PeerConstructor,Options};
 #[derive(Debug,Clone)]
 pub struct WsClient(pub Url);
 impl Specifier for WsClient {
-    fn construct(&self, h:&Handle, _: &mut ProgramState, opts: &Options) -> PeerConstructor {
+    fn construct(&self, h:&Handle, _: &mut ProgramState, opts: Rc<Options>) -> PeerConstructor {
         let url = self.0.clone();
         once(get_ws_client_peer(h, &url, opts))
     }
@@ -29,15 +29,15 @@ impl Specifier for WsClient {
 #[derive(Debug)]
 pub struct WsConnect<T:Specifier>(pub T,pub Url);
 impl<T:Specifier> Specifier for WsConnect<T> {
-    fn construct(&self, h:&Handle, ps: &mut ProgramState, opts: &Options) -> PeerConstructor {
-        let inner = self.0.construct(h, ps, opts);
+    fn construct(&self, h:&Handle, ps: &mut ProgramState, opts: Rc<Options>) -> PeerConstructor {
+        let inner = self.0.construct(h, ps, opts.clone());
         
         let url = self.1.clone();
         
         let opts = opts.clone();
         
         inner.map(move |q| {
-            get_ws_client_peer_wrapped(&url, q, &opts)
+            get_ws_client_peer_wrapped(&url, q, opts.clone())
         })
     }
     specifier_boilerplate!(noglobalstate has_subspec typ=Other);
@@ -46,7 +46,7 @@ impl<T:Specifier> Specifier for WsConnect<T> {
 
 
 
-fn get_ws_client_peer_impl<S,F>(uri: &Url, opts: &Options, f: F) -> BoxedNewPeerFuture 
+fn get_ws_client_peer_impl<S,F>(uri: &Url, opts: Rc<Options>, f: F) -> BoxedNewPeerFuture 
     where S:WsStream+Send+'static, F : FnOnce(ClientBuilder)->ClientNew<S>
 {
     let mode1 = if opts.websocket_text_mode { Mode1::Text } else {Mode1::Binary};
@@ -79,7 +79,7 @@ fn get_ws_client_peer_impl<S,F>(uri: &Url, opts: &Options, f: F) -> BoxedNewPeer
     ) as BoxedNewPeerFuture
 }
 
-pub fn get_ws_client_peer(handle: &Handle, uri: &Url, opts: &Options) -> BoxedNewPeerFuture {
+pub fn get_ws_client_peer(handle: &Handle, uri: &Url, opts: Rc<Options>) -> BoxedNewPeerFuture {
     info!("get_ws_client_peer");
     get_ws_client_peer_impl(uri, opts, |before_connect| {
         #[cfg(feature="ssl")]
@@ -96,7 +96,7 @@ unsafe impl Send for PeerForWs {
     //! https://github.com/cyderize/rust-websocket/issues/168
 }
 
-pub fn get_ws_client_peer_wrapped(uri: &Url, inner: Peer, opts: &Options) -> BoxedNewPeerFuture {
+pub fn get_ws_client_peer_wrapped(uri: &Url, inner: Peer, opts: Rc<Options>) -> BoxedNewPeerFuture {
     info!("get_ws_client_peer_wrapped");
     get_ws_client_peer_impl(uri, opts, |before_connect| {
         let after_connect = before_connect

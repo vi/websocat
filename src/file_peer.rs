@@ -7,6 +7,7 @@ use std::io::{Read,Write};
 use std::io::Result as IoResult;
 
 use ::std::fs::{File};
+use std::rc::Rc;
 
 use super::{Peer, BoxedNewPeerFuture, Result};
 
@@ -16,7 +17,7 @@ use super::{once,Handle,Specifier,ProgramState,PeerConstructor,Options};
 #[derive(Clone,Debug)]
 pub struct ReadFile(pub PathBuf);
 impl Specifier for ReadFile {
-    fn construct(&self, _h:&Handle, _ps: &mut ProgramState, _opts: &Options) -> PeerConstructor {
+    fn construct(&self, _h:&Handle, _ps: &mut ProgramState, _opts: Rc<Options>) -> PeerConstructor {
         fn gp(p : &Path) -> Result<Peer> {
             let f = File::open(p)?;
             Ok(Peer::new(ReadFileWrapper(f), super::trivial_peer::DevNull))
@@ -29,7 +30,7 @@ impl Specifier for ReadFile {
 #[derive(Clone,Debug)]
 pub struct WriteFile(pub PathBuf);
 impl Specifier for WriteFile {
-    fn construct(&self, _h:&Handle, _ps: &mut ProgramState, _opts: &Options) -> PeerConstructor {
+    fn construct(&self, _h:&Handle, _ps: &mut ProgramState, _opts: Rc<Options>) -> PeerConstructor {
         fn gp(p : &Path) -> Result<Peer> {
             let f = File::create(p)?;
             Ok(Peer::new(super::trivial_peer::DevNull, WriteFileWrapper(f)))

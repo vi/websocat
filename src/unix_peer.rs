@@ -30,7 +30,7 @@ use super::{once,multi,Specifier,ProgramState,PeerConstructor,Options};
 #[derive(Debug,Clone)]
 pub struct UnixConnect(pub PathBuf);
 impl Specifier for UnixConnect {
-    fn construct(&self, h:&Handle, _: &mut ProgramState, _opts: &Options) -> PeerConstructor {
+    fn construct(&self, h:&Handle, _: &mut ProgramState, _opts: Rc<Options>) -> PeerConstructor {
         once(unix_connect_peer(h, &self.0))
     }
     specifier_boilerplate!(noglobalstate singleconnect no_subspec typ=Other);
@@ -39,7 +39,7 @@ impl Specifier for UnixConnect {
 #[derive(Debug,Clone)]
 pub struct UnixListen(pub PathBuf);
 impl Specifier for UnixListen {
-    fn construct(&self, h:&Handle, _: &mut ProgramState, opts: &Options) -> PeerConstructor {
+    fn construct(&self, h:&Handle, _: &mut ProgramState, opts: Rc<Options>) -> PeerConstructor {
         multi(unix_listen_peer(h, &self.0, opts))
     }
     specifier_boilerplate!(noglobalstate multiconnect no_subspec typ=Other);
@@ -48,7 +48,7 @@ impl Specifier for UnixListen {
 #[derive(Debug,Clone)]
 pub struct UnixDgram(pub PathBuf, pub PathBuf);
 impl Specifier for UnixDgram {
-    fn construct(&self, h:&Handle, _: &mut ProgramState, opts: &Options) -> PeerConstructor {
+    fn construct(&self, h:&Handle, _: &mut ProgramState, opts: Rc<Options>) -> PeerConstructor {
         once(dgram_peer(h, &self.0, &self.1, opts))
     }
     specifier_boilerplate!(noglobalstate singleconnect no_subspec typ=Other);
@@ -61,7 +61,7 @@ fn to_abstract(x: &str) -> PathBuf {
 #[derive(Debug,Clone)]
 pub struct AbstractConnect(pub String);
 impl Specifier for AbstractConnect {
-    fn construct(&self, h:&Handle, _: &mut ProgramState, _opts: &Options) -> PeerConstructor {
+    fn construct(&self, h:&Handle, _: &mut ProgramState, _opts: Rc<Options>) -> PeerConstructor {
         once(unix_connect_peer(h, &to_abstract(&self.0)))
     }
     specifier_boilerplate!(noglobalstate singleconnect no_subspec typ=Other);
@@ -70,8 +70,8 @@ impl Specifier for AbstractConnect {
 #[derive(Debug,Clone)]
 pub struct AbstractListen(pub String);
 impl Specifier for AbstractListen {
-    fn construct(&self, h:&Handle, _: &mut ProgramState, _opts: &Options) -> PeerConstructor {
-        multi(unix_listen_peer(h, &to_abstract(&self.0), &Default::default()))
+    fn construct(&self, h:&Handle, _: &mut ProgramState, _opts: Rc<Options>) -> PeerConstructor {
+        multi(unix_listen_peer(h, &to_abstract(&self.0), Rc::new(Default::default())))
     }
     specifier_boilerplate!(noglobalstate multiconnect no_subspec typ=Other);
 }
@@ -79,7 +79,7 @@ impl Specifier for AbstractListen {
 #[derive(Debug,Clone)]
 pub struct AbstractDgram(pub String, pub String);
 impl Specifier for AbstractDgram {
-    fn construct(&self, h:&Handle, _: &mut ProgramState, opts: &Options) -> PeerConstructor {
+    fn construct(&self, h:&Handle, _: &mut ProgramState, opts: Rc<Options>) -> PeerConstructor {
         #[cfg(not(feature="workaround1"))]
         {once(dgram_peer(h, &to_abstract(&self.0), &to_abstract(&self.1), opts))}
         #[cfg(feature="workaround1")]
@@ -139,7 +139,7 @@ pub fn unix_connect_peer(handle: &Handle, addr: &Path) -> BoxedNewPeerFuture {
     ) as BoxedNewPeerFuture
 }
 
-pub fn unix_listen_peer(handle: &Handle, addr: &Path, opts:&Options) -> BoxedNewPeerStream {
+pub fn unix_listen_peer(handle: &Handle, addr: &Path, opts:Rc<Options>) -> BoxedNewPeerStream {
     if opts.unlink_unix_socket {
         let _ = ::std::fs::remove_file(addr);
     };
@@ -169,7 +169,7 @@ struct DgramPeer {
 #[derive(Clone)]
 struct DgramPeerHandle(Rc<RefCell<DgramPeer>>);
 
-pub fn dgram_peer(handle: &Handle, bindaddr: &Path, connectaddr: &Path, opts: &Options) -> BoxedNewPeerFuture {
+pub fn dgram_peer(handle: &Handle, bindaddr: &Path, connectaddr: &Path, opts: Rc<Options>) -> BoxedNewPeerFuture {
     Box::new(
         futures::future::result(
             UnixDatagram::bind(bindaddr, handle).and_then(|x| {
@@ -190,7 +190,7 @@ pub fn dgram_peer(handle: &Handle, bindaddr: &Path, connectaddr: &Path, opts: &O
 #[cfg(feature="workaround1")]
 extern crate libc;
 #[cfg(feature="workaround1")]
-pub fn dgram_peer_workaround(handle: &Handle, bindaddr: &Path, connectaddr: &Path, opts: &Options) -> BoxedNewPeerFuture {
+pub fn dgram_peer_workaround(handle: &Handle, bindaddr: &Path, connectaddr: &Path, opts: Rc<Options>) -> BoxedNewPeerFuture {
     info!("Workaround method for getting abstract datagram socket");
     fn getfd(bindaddr: &Path, connectaddr: &Path) -> Option<i32> {
         use self::libc::{
@@ -230,7 +230,7 @@ pub fn dgram_peer_workaround(handle: &Handle, bindaddr: &Path, connectaddr: &Pat
             Some(s)
         }
     }
-    fn getpeer(handle:&Handle,bindaddr: &Path, connectaddr: &Path, opts:&Options) -> Result<Peer,Box<::std::error::Error>> {
+    fn getpeer(handle:&Handle,bindaddr: &Path, connectaddr: &Path, opts:Rc<Options>) -> Result<Peer,Box<::std::error::Error>> {
         if let Some(fd) = getfd(bindaddr, connectaddr) {
             let s : ::std::os::unix::net::UnixDatagram = unsafe {
                 ::std::os::unix::io::FromRawFd::from_raw_fd(fd)

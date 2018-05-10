@@ -22,7 +22,7 @@ use super::{once,multi,Specifier,ProgramState,PeerConstructor,Options};
 #[derive(Debug,Clone)]
 pub struct TcpConnect(pub SocketAddr);
 impl Specifier for TcpConnect {
-    fn construct(&self, h:&Handle, _: &mut ProgramState, _opts: &Options) -> PeerConstructor {
+    fn construct(&self, h:&Handle, _: &mut ProgramState, _opts: Rc<Options>) -> PeerConstructor {
         once(tcp_connect_peer(h, &self.0))
     }
     specifier_boilerplate!(noglobalstate singleconnect no_subspec typ=Other);
@@ -31,7 +31,7 @@ impl Specifier for TcpConnect {
 #[derive(Debug,Clone)]
 pub struct TcpListen(pub SocketAddr);
 impl Specifier for TcpListen {
-    fn construct(&self, h:&Handle, _: &mut ProgramState, _opts: &Options) -> PeerConstructor {
+    fn construct(&self, h:&Handle, _: &mut ProgramState, _opts: Rc<Options>) -> PeerConstructor {
         multi(tcp_listen_peer(h, &self.0))
     }
     specifier_boilerplate!(noglobalstate multiconnect no_subspec typ=Other);
@@ -40,7 +40,7 @@ impl Specifier for TcpListen {
 #[derive(Debug,Clone)]
 pub struct UdpConnect(pub SocketAddr);
 impl Specifier for UdpConnect {
-    fn construct(&self, h:&Handle, _: &mut ProgramState, opts: &Options) -> PeerConstructor {
+    fn construct(&self, h:&Handle, _: &mut ProgramState, opts: Rc<Options>) -> PeerConstructor {
         once(udp_connect_peer(h, &self.0, opts))
     }
     specifier_boilerplate!(noglobalstate singleconnect no_subspec typ=Other);
@@ -49,7 +49,7 @@ impl Specifier for UdpConnect {
 #[derive(Debug,Clone)]
 pub struct UdpListen(pub SocketAddr);
 impl Specifier for UdpListen {
-    fn construct(&self, h:&Handle, _: &mut ProgramState, opts: &Options) -> PeerConstructor {
+    fn construct(&self, h:&Handle, _: &mut ProgramState, opts: Rc<Options>) -> PeerConstructor {
         once(udp_listen_peer(h, &self.0, opts))
     }
     specifier_boilerplate!(noglobalstate singleconnect no_subspec typ=Other);
@@ -172,7 +172,7 @@ fn get_zero_address(addr:&SocketAddr) -> SocketAddr {
     SocketAddr::new(ip, 0)
 }
 
-pub fn udp_connect_peer(handle: &Handle, addr: &SocketAddr, opts: &Options) -> BoxedNewPeerFuture {
+pub fn udp_connect_peer(handle: &Handle, addr: &SocketAddr, opts: Rc<Options>) -> BoxedNewPeerFuture {
     let za = get_zero_address(addr);
     
     Box::new(
@@ -193,7 +193,7 @@ pub fn udp_connect_peer(handle: &Handle, addr: &SocketAddr, opts: &Options) -> B
     ) as BoxedNewPeerFuture
 }
 
-pub fn udp_listen_peer(handle: &Handle, addr: &SocketAddr, opts: &Options) -> BoxedNewPeerFuture {
+pub fn udp_listen_peer(handle: &Handle, addr: &SocketAddr, opts: Rc<Options>) -> BoxedNewPeerFuture {
     Box::new(
         futures::future::result(
             UdpSocket::bind(addr, handle).and_then(|x| {

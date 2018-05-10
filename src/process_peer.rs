@@ -23,7 +23,7 @@ use ::std::process::Stdio;
 #[derive(Debug,Clone)]
 pub struct ShC(pub String);
 impl Specifier for ShC {
-    fn construct(&self, h:&Handle, _: &mut ProgramState, _opts: &Options) -> PeerConstructor {
+    fn construct(&self, h:&Handle, _: &mut ProgramState, _opts: Rc<Options>) -> PeerConstructor {
         let mut args = Command::new("sh");
         args.arg("-c").arg(self.0.clone());
         once(Box::new(futures::future::result(process_connect_peer(h, args))) as BoxedNewPeerFuture)

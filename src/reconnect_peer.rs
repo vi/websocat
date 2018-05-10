@@ -20,7 +20,7 @@ use super::{once,Specifier,Handle,ProgramState,PeerConstructor,wouldblock,Option
 #[derive(Debug)]
 pub struct AutoReconnect(pub Rc<Specifier>);
 impl Specifier for AutoReconnect {
-    fn construct(&self, h:&Handle, _ps: &mut ProgramState, opts: &Options) -> PeerConstructor {
+    fn construct(&self, h:&Handle, _ps: &mut ProgramState, opts: Rc<Options>) -> PeerConstructor {
         let mut subspec_globalstate = false;
         let opts = opts.clone();
         
@@ -53,7 +53,7 @@ struct State {
     p : Option<Peer>,
     n : Option<BoxedNewPeerFuture>,
     h : Handle,
-    opts: Options,
+    opts: Rc<Options>,
     aux : State2,
 }
 
@@ -67,9 +67,9 @@ impl /*Future for */ State {
         let nn = &mut self.n;
         
         let aux = &mut self.aux;
-        let opts = &self.opts;
         
         loop {
+            let opts = self.opts.clone();
             if let Some(ref mut p) = pp {
                 return Ok(Async::Ready(p));
             }
@@ -203,7 +203,7 @@ impl AsyncWrite for PeerHandle {
 }
 
 
-pub fn autoreconnector(h: Handle, s: Rc<Specifier>, opts: Options) -> BoxedNewPeerFuture
+pub fn autoreconnector(h: Handle, s: Rc<Specifier>, opts: Rc<Options>) -> BoxedNewPeerFuture
 {
     let s = Rc::new(RefCell::new(
         State{

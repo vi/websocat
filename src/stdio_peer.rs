@@ -28,7 +28,7 @@ use super::{once,Specifier,ProgramState,PeerConstructor,Options};
 #[derive(Clone,Debug)]
 pub struct Stdio;
 impl Specifier for Stdio {
-    fn construct(&self, h:&Handle, ps: &mut ProgramState, _opts: &Options) -> PeerConstructor {
+    fn construct(&self, h:&Handle, ps: &mut ProgramState, _opts: Rc<Options>) -> PeerConstructor {
         let ret;
         ret = get_stdio_peer(&mut ps.stdio, h);
         once(ret)
@@ -39,7 +39,7 @@ impl Specifier for Stdio {
 #[derive(Clone,Debug)]
 pub struct OpenAsync(pub PathBuf);
 impl Specifier for OpenAsync {
-    fn construct(&self, h:&Handle, _ps: &mut ProgramState, _opts: &Options) -> PeerConstructor {
+    fn construct(&self, h:&Handle, _ps: &mut ProgramState, _opts: Rc<Options>) -> PeerConstructor {
         let ret;
         ret = get_file_peer(&self.0, h);
         once(ret)
@@ -50,7 +50,7 @@ impl Specifier for OpenAsync {
 #[derive(Clone,Debug)]
 pub struct OpenFdAsync(pub i32);
 impl Specifier for OpenFdAsync {
-    fn construct(&self, h:&Handle, _ps: &mut ProgramState, _opts: &Options) -> PeerConstructor {
+    fn construct(&self, h:&Handle, _ps: &mut ProgramState, _opts: Rc<Options>) -> PeerConstructor {
         let ret;
         ret = get_fd_peer(self.0, h);
         once(ret)

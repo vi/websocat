@@ -16,7 +16,7 @@ use super::{Specifier,ProgramState,Handle,PeerConstructor,Options};
 #[derive(Debug)]
 pub struct WsUpgrade<T:Specifier>(pub T);
 impl<T:Specifier> Specifier for WsUpgrade<T> {
-    fn construct(&self, h:&Handle, ps: &mut ProgramState, opts: &Options) -> PeerConstructor {
+    fn construct(&self, h:&Handle, ps: &mut ProgramState, opts: Rc<Options>) -> PeerConstructor {
         let mode1 = if opts.websocket_text_mode { Mode1::Text } else {Mode1::Binary};
         let inner = self.0.construct(h, ps, opts);
         inner.map(move |p|ws_upgrade_peer(p,mode1))

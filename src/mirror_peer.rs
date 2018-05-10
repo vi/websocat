@@ -9,7 +9,7 @@ use std::io::{Read,Write};
 use std::io::Result as IoResult;
 
 use futures::Async::{Ready, NotReady};
-
+use std::rc::Rc;
 
 use futures::sync::mpsc;
 
@@ -21,7 +21,7 @@ use super::{once,Specifier,ProgramState,Handle,PeerConstructor,Options};
 #[derive(Debug,Clone)]
 pub struct Mirror;
 impl Specifier for Mirror {
-    fn construct(&self, _:&Handle, _: &mut ProgramState, _opts: &Options) -> PeerConstructor {
+    fn construct(&self, _:&Handle, _: &mut ProgramState, _opts: Rc<Options>) -> PeerConstructor {
         once(get_mirror_peer())
     }
     specifier_boilerplate!(noglobalstate singleconnect no_subspec typ=Other);
@@ -30,7 +30,7 @@ impl Specifier for Mirror {
 #[derive(Clone)]
 pub struct LiteralReply(pub Vec<u8>);
 impl Specifier for LiteralReply {
-    fn construct(&self, _:&Handle, _: &mut ProgramState, _opts: &Options) -> PeerConstructor {
+    fn construct(&self, _:&Handle, _: &mut ProgramState, _opts: Rc<Options>) -> PeerConstructor {
         once(get_literal_reply_peer(self.0.clone()))
     }
     specifier_boilerplate!(noglobalstate singleconnect no_subspec typ=Other);
