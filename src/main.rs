@@ -254,7 +254,9 @@ Full list of specifiers:
     to the specified string.
     
   TODO:
-  `exec:`, `seqpacket:`
+  --unix-seqpacket
+  sctp:
+  ssl:
   
 More examples:
   Wacky mode:
