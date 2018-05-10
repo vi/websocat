@@ -80,7 +80,7 @@ Full list of specifiers
     
     Aliases: `stdio:`, `inetd:`
     
-*   `inetd:` also disables logging to stderr.
+   `inetd:` also disables logging to stderr (TODO).
     
     Example: like `cat(1)`.
       
@@ -118,7 +118,7 @@ Full list of specifiers
   
     Example of inetd.conf line:
     
-      1234 stream tcp nowait myuser  /opt/websocat websocat inetd-ws: tcp:127.0.0.1:22
+        1234 stream tcp nowait myuser  /opt/websocat websocat inetd-ws: tcp:127.0.0.1:22
 
   
 *  `tcp:<hostport>` - connect to specified TCP host and port
@@ -127,32 +127,36 @@ Full list of specifiers
     
     Example: like netcat
     
-      websocat - tcp:127.0.0.1:22
+        websocat - tcp:127.0.0.1:22
       
     Example: IPv6
     
-      websocat ws-l:0.0.0.0:8084 tcp:[::1]:22
+        websocat ws-l:0.0.0.0:8084 tcp:[::1]:22
     
 *  `tcp-l:<hostport>` - listen TCP port on specified address
     Aliases: `l-tcp:`  `tcp-listen:` `listen-tcp:`
     
     Example: echo server
-      websocat tcp-l:0.0.0.0:1441 mirror:
+    
+        websocat tcp-l:0.0.0.0:1441 mirror:
       
 *  `exec:<program_path> --exec-args <arguments...> --`
 
     Execute a program (subprocess) directly, without a subshell.
     
     Example: date server
-      websocat -U ws-l:127.0.0.1:5667 exec:date
+    
+        websocat -U ws-l:127.0.0.1:5667 exec:date
       
     Example: pinger
-      websocat -U ws-l:127.0.0.1:5667 exec:ping --exec-args 127.0.0.1 -c 1 --
+    
+        websocat -U ws-l:127.0.0.1:5667 exec:ping --exec-args 127.0.0.1 -c 1 --
   
 *  `sh-c:<command line>` - start subprocess though 'sh -c' or `cmd /C`
   
     Example: unauthenticated shell
-      websocat --exit-on-eof ws-l:127.0.0.1:5667 sh-c:'bash -i 2>&1'
+    
+        websocat --exit-on-eof ws-l:127.0.0.1:5667 sh-c:'bash -i 2>&1'
   
 *  `udp:<hostport>` - send and receive packets to specified UDP socket
 
@@ -205,6 +209,7 @@ Full list of specifiers
     Replaces `-` when `no_unix_stdio` Cargo feature is activated
   
 *  `mirror:` - Simply copy output to input
+
     Similar to `exec:cat`.
   
 *  `open-async:<path>` - Open file for read and write and use it like a socket
@@ -254,7 +259,8 @@ Full list of specifiers
     Blocking on operations with the file pauses the whole process
     
     Example:
-      websocat ws-l:127.0.0.1:8000 readfile:hello.json
+    
+        websocat ws-l:127.0.0.1:8000 readfile:hello.json
       
 *  `writefile:<path>` - synchronously write files
 
