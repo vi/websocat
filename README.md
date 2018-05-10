@@ -303,6 +303,16 @@ P.S. Here is oneliner to remove non-blocking mode from terminal's stdin:
     perl -we 'use Fcntl qw(F_GETFL F_SETFL O_NONBLOCK); open F, "<&=", 0; my $flags = fcntl(F, F_GETFL, 0); fcntl(F, F_SETFL, $flags & !O_NONBLOCK);'
 
 
+Planned features
+---
+
+* Driving SSL server websockets (specifying cert and key)
+* Pure Rust version with SSL support?
+* SOCK_SEQPACKET mode for `exec:`?
+* SOCK_SEQPACKET SCTP mode?
+* Option for auto `\n` insertion
+* Add WebRTC's DataChannel to the mix (separate project)?
+
 See also
 ---
 
