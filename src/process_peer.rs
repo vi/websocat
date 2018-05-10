@@ -24,8 +24,27 @@ use ::std::process::Stdio;
 pub struct ShC(pub String);
 impl Specifier for ShC {
     fn construct(&self, h:&Handle, _: &mut ProgramState, _opts: Rc<Options>) -> PeerConstructor {
-        let mut args = Command::new("sh");
-        args.arg("-c").arg(self.0.clone());
+        let args = 
+        if cfg!(target_os = "windows") {
+            let mut args = Command::new("cmd");
+            args.arg("/C").arg(self.0.clone());
+            args
+        } else {
+            let mut args = Command::new("sh");
+            args.arg("-c").arg(self.0.clone());
+            args
+        };
+        once(Box::new(futures::future::result(process_connect_peer(h, args))) as BoxedNewPeerFuture)
+    }
+    specifier_boilerplate!(noglobalstate singleconnect no_subspec typ=Other);
+}
+
+#[derive(Debug,Clone)]
+pub struct Exec(pub String);
+impl Specifier for Exec {
+    fn construct(&self, h:&Handle, _: &mut ProgramState, opts: Rc<Options>) -> PeerConstructor {
+        let mut args = Command::new(self.0.clone());
+        args.args(opts.exec_args.clone());
         once(Box::new(futures::future::result(process_connect_peer(h, args))) as BoxedNewPeerFuture)
     }
     specifier_boilerplate!(noglobalstate singleconnect no_subspec typ=Other);

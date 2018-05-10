@@ -67,6 +67,7 @@ pub struct Options {
     pub unidirectional_reverse: bool,
     pub oneshot: bool,
     pub unlink_unix_socket: bool,
+    pub exec_args: Vec<String>,
 }
 
 #[derive(Default)]

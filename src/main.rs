@@ -33,7 +33,7 @@ Short list of specifiers (see --long-help):
   literal: literalreply: assert: udp-connect: open-async:
   readfile: writefile: open-fd: unix-connect: unix-listen:
   unix-dgram: abstract-connect: abstract-listen:
-  sh-c:
+  exec: sh-c:
 ")]
 struct Opt {
     /// First, listening/connecting specifier. See --long-help for info about specifiers.
@@ -68,7 +68,7 @@ struct Opt {
     #[structopt(long="unlink", help="Unlink listening UNIX socket before binding to it")]
     unlink_unix_socket:bool,
     
-    #[structopt(long="exec-args", help="Arguments for the `exec:` specifier. Specify them at the end or terminate with --.")]
+    #[structopt(long="exec-args", raw(allow_hyphen_values=r#"true"#), help="Arguments for the `exec:` specifier. Must be the last option, everything after it gets into the exec args list.")]
     exec_args: Vec<String>,
 }
 
@@ -116,7 +116,7 @@ Full list of specifiers:
       websocat - tcp:127.0.0.1:22
       
     Example: IPv6
-      websocat - tcp:[::1]:22
+      websocat ws-l:0.0.0.0:8084 tcp:[::1]:22
     
   `tcp-l:<hostport>` - listen TCP port on specified address
     Aliases: `l-tcp:`  `tcp-listen:` `listen-tcp:`
@@ -124,8 +124,19 @@ Full list of specifiers:
     Example: echo server
       websocat tcp-l:0.0.0.0:1441 mirror:
       
-  `sh-c:<command line>` - start subprocess though 'sh'
-    On Unix-like it allows executing command lines.
+  `exec:<program_path> --exec-args <arguments...> --`
+    Execute a program (subprocess) directly, without a subshell.
+    
+    Example: date server
+      websocat -U ws-l:127.0.0.1:5667 exec:date
+      
+    Example: pinger
+      websocat -U ws-l:127.0.0.1:5667 exec:ping --exec-args 127.0.0.1 -c 1 --
+  
+  `sh-c:<command line>` - start subprocess though 'sh -c' or `cmd /C`
+  
+    Example: unauthenticated shell
+      websocat ws-l:127.0.0.1:5667 sh-c:'bash -i 2>&1'
   
   `udp:<hostport>` - send and receive packets to specified UDP socket
     Aliases: `udp-connect:` `connect-udp:` `c-udp:` `udp-c:`
@@ -169,6 +180,7 @@ Full list of specifiers:
     Replaces `-` when `no_unix_stdio` Cargo feature is activated
   
   `mirror:` - Simply copy output to input
+    Similar to `exec:cat`.
   
   `open-async:<path>` - Open file for read and write and use it like a socket
     Not for regular files, see readfile: and writefile: instead.
@@ -183,6 +195,24 @@ Full list of specifiers:
     
   `unix-listen:<path>` - Listen for connections on a UNIX socket
     Aliases: `unix-l:`, `listen-unix:`, `l-unix:`
+    
+    Example: with nginx
+      umask 0000
+      websocat --unlink ws-l:unix-l:/tmp/wstest tcp:[::]:22
+      
+    Nginx config:
+    
+    location /ws {{
+        proxy_read_timeout 7d;
+        proxy_send_timeout 7d;
+        #proxy_pass http://localhost:3012;
+        proxy_pass http://unix:/tmp/wstest;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection \"upgrade\";
+    }}
+      
+      TODO: chmod?
     
   `unix-dgram:<path>:<path>` - Send packets to one path, receive from the other  
     
@@ -268,6 +298,7 @@ fn run() -> Result<()> {
             unidirectional_reverse
             oneshot
             unlink_unix_socket
+            exec_args
         )
     };
     

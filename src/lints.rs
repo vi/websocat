@@ -103,6 +103,7 @@ impl WebsocatConfiguration {
         // TODO: early fail for reuse:
         // TODO: writefile and reuse:
         // TODO: warn about reuse: for non-stdio
+        // TODO: warn about swapped specifiers
         
         None
     }

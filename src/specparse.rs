@@ -298,12 +298,23 @@ impl Specifier {
         if s == "inetd-ws:" {
             spec("ws-l:inetd:")
         } else
+        if s.starts_with("l-ws-unix:") {
+            spec(&format!("ws-l:unix-l:{}", &s[10..]))
+        } else
+        if s.starts_with("l-ws-abstract:") {
+            spec(&format!("ws-l:abstract-l::{}", &s[14..]))
+        } else
         if s.starts_with("sh-c:") {
-            // TODO: document
             #[cfg(feature="tokio-process")]
             { boxup(super::process_peer::ShC(s[5..].into())) }
             #[cfg(not(feature="tokio-process"))]
             { Err("`sh-c:` is not supported in this Websocat build")? }
+        } else
+        if s.starts_with("exec:") {
+            #[cfg(feature="tokio-process")]
+            { boxup(super::process_peer::Exec(s[5..].into())) }
+            #[cfg(not(feature="tokio-process"))]
+            { Err("`exec:` is not supported in this Websocat build")? }
         } else {
             error!("Invalid specifier string `{}`", s);
             Err("Wrong specifier")?
