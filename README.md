@@ -313,6 +313,8 @@ Planned features
 * Option for auto `\n` insertion
 * Add WebRTC's DataChannel to the mix (separate project)?
 
+There are also checkboxes on [Issues](https://github.com/vi/websocat/issues/1).
+
 See also
 ---
 

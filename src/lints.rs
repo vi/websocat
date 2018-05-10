@@ -102,6 +102,7 @@ impl WebsocatConfiguration {
         // TODO: writefile and reuse:
         // TODO: warn about reuse: for non-stdio
         // TODO: multiple exec:s
+        // TODO: exec: without --exec-args
 
         None
     }
