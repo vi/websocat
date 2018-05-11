@@ -1,27 +1,21 @@
-#![allow(unused,dead_code)]
-
 extern crate tokio_uds;
 
 use futures;
-use futures::future::Future;
 use futures::stream::Stream;
-use futures::unsync::oneshot::{channel, Receiver, Sender};
 use std;
 use std::io::Result as IoResult;
 use std::io::{Read, Write};
-use std::net::SocketAddr;
 use tokio_core::reactor::Handle;
 use tokio_io::{AsyncRead, AsyncWrite};
 
 use std::cell::RefCell;
 use std::rc::Rc;
 
-use std::fs::File;
 use std::path::{Path, PathBuf};
 
 use self::tokio_uds::{UnixDatagram, UnixListener, UnixStream};
 
-use super::{box_up_err, peer_err_s, wouldblock, BoxedNewPeerFuture, BoxedNewPeerStream, Peer};
+use super::{box_up_err, peer_err_s, BoxedNewPeerFuture, BoxedNewPeerStream, Peer};
 use super::{multi, once, Options, PeerConstructor, ProgramState, Specifier};
 
 #[derive(Debug, Clone)]
@@ -182,7 +176,8 @@ pub fn unix_listen_peer(handle: &Handle, addr: &Path, opts: Rc<Options>) -> Boxe
 
 struct DgramPeer {
     s: UnixDatagram,
-    oneshot_mode: bool,
+    #[allow(unused)]
+    oneshot_mode: bool, // TODO
 }
 
 #[derive(Clone)]
@@ -288,14 +283,14 @@ pub fn dgram_peer_workaround(
 
 impl Read for DgramPeerHandle {
     fn read(&mut self, buf: &mut [u8]) -> IoResult<usize> {
-        let mut p = self.0.borrow_mut();
+        let p = self.0.borrow_mut();
         p.s.recv(buf)
     }
 }
 
 impl Write for DgramPeerHandle {
     fn write(&mut self, buf: &[u8]) -> IoResult<usize> {
-        let mut p = self.0.borrow_mut();
+        let p = self.0.borrow_mut();
         p.s.send(buf)
     }
 
