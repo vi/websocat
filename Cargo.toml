@@ -7,6 +7,7 @@ repository = "https://github.com/vi/websocat"
 description = "Connection forwarder from/to web sockets to/from usual sockets, in style of socat"
 keywords = ["WebSocket", "socat", "rfc6455", "netcat", "tunnel"]
 exclude = ["autorelease.sh"]
+readme = "README.md"
 
 
 [dependencies]
@@ -47,3 +48,12 @@ lto = true
 debug-assertions = false
 codegen-units = 1
 panic = 'abort'
+
+[package.metadata.deb]
+section = "utility"
+extended-description = """\
+A tool allows you to interconnect two specifiers, like in socat, \
+but with Websocket and some other additional functions."""
+features = ["ssl"]
+#depends = "$auto"
+depends = "libssl1.1, libc6 (>= 2.19), libgcc1 (>= 1:4.9.0)"
