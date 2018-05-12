@@ -26,6 +26,13 @@ impl Specifier for Mirror {
     }
     specifier_boilerplate!(noglobalstate singleconnect no_subspec typ=Other);
 }
+specifier_class!(
+    name=MirrorClass, 
+    target=Mirror, 
+    prefixes=["mirror:"], 
+    arg_handling=noarg,
+    help="TODO"
+);
 
 #[derive(Clone)]
 pub struct LiteralReply(pub Vec<u8>);
@@ -40,6 +47,13 @@ impl std::fmt::Debug for LiteralReply {
         write!(f, "LiteralReply")
     }
 }
+specifier_class!(
+    name=LiteralReplyClass, 
+    target=LiteralReply, 
+    prefixes=["literalreply:"], 
+    arg_handling=into,
+    help="TODO"
+);
 
 struct MirrorWrite(mpsc::Sender<Vec<u8>>);
 struct MirrorRead {

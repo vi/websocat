@@ -25,6 +25,13 @@ impl Specifier for TcpConnect {
     }
     specifier_boilerplate!(noglobalstate singleconnect no_subspec typ=Other);
 }
+specifier_class!(
+    name=TcpConnectClass, 
+    target=TcpConnect,
+    prefixes=["tcp:", "tcp-connect:", "connect-tcp:", "tcp-c:", "c-tcp:"], 
+    arg_handling=parse,
+    help="TODO"
+);
 
 #[derive(Debug, Clone)]
 pub struct TcpListen(pub SocketAddr);
@@ -34,6 +41,13 @@ impl Specifier for TcpListen {
     }
     specifier_boilerplate!(noglobalstate multiconnect no_subspec typ=Other);
 }
+specifier_class!(
+    name=TcpListenClass, 
+    target=TcpListen,
+    prefixes=["tcp-listen:", "listen-tcp:", "tcp-l:", "l-tcp:"], 
+    arg_handling=parse,
+    help="TODO"
+);
 
 #[derive(Debug, Clone)]
 pub struct UdpConnect(pub SocketAddr);
@@ -43,6 +57,13 @@ impl Specifier for UdpConnect {
     }
     specifier_boilerplate!(noglobalstate singleconnect no_subspec typ=Other);
 }
+specifier_class!(
+    name=UdpConnectClass, 
+    target=UdpConnect,
+    prefixes=["udp:", "udp-connect:", "connect-udp:", "udp-c:", "c-udp:"], 
+    arg_handling=parse,
+    help="TODO"
+);
 
 #[derive(Debug, Clone)]
 pub struct UdpListen(pub SocketAddr);
@@ -52,6 +73,13 @@ impl Specifier for UdpListen {
     }
     specifier_boilerplate!(noglobalstate singleconnect no_subspec typ=Other);
 }
+specifier_class!(
+    name=UdpListenClass, 
+    target=UdpListen,
+    prefixes=["udp-listen:", "listen-udp:", "udp-l:", "l-udp:"], 
+    arg_handling=parse,
+    help="TODO"
+);
 
 /*
 struct RcReadProxy<R>(Rc<R>) where for<'a> &'a R : AsyncRead;

@@ -43,6 +43,13 @@ impl Specifier for AutoReconnect {
     specifier_boilerplate!(singleconnect noglobalstate has_subspec typ=Other);
     self_0_is_subspecifier!(...);
 }
+specifier_class!(
+    name=AutoReconnectClass, 
+    target=AutoReconnect, 
+    prefixes=["autoreconnect:"], 
+    arg_handling=subspec,
+    help="TODO"
+);
 
 #[derive(Default)]
 struct State2 {

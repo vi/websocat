@@ -35,6 +35,14 @@ impl Specifier for Stdio {
     specifier_boilerplate!(typ=Stdio globalstate singleconnect no_subspec);
 }
 
+specifier_class!(
+    name=StdioClass, 
+    target=Stdio, 
+    prefixes=["-","stdio:","inetd:"], 
+    arg_handling=noarg,
+    help="TODO"
+);
+
 #[derive(Clone, Debug)]
 pub struct OpenAsync(pub PathBuf);
 impl Specifier for OpenAsync {
@@ -45,6 +53,14 @@ impl Specifier for OpenAsync {
     }
     specifier_boilerplate!(typ=Other noglobalstate singleconnect no_subspec);
 }
+specifier_class!(
+    name=OpenAsyncClass, 
+    target=OpenAsync, 
+    prefixes=["open-async:"], 
+    arg_handling=into,
+    help="TODO"
+);
+
 
 #[derive(Clone, Debug)]
 pub struct OpenFdAsync(pub i32);
@@ -56,6 +72,15 @@ impl Specifier for OpenFdAsync {
     }
     specifier_boilerplate!(typ=Other noglobalstate singleconnect no_subspec);
 }
+specifier_class!(
+    name=OpenFdAsyncClass, 
+    target=OpenFdAsync, 
+    prefixes=["open-fd:"], 
+    arg_handling=parse,
+    help="TODO"
+);
+
+
 
 fn get_stdio_peer_impl(s: &mut GlobalState, handle: &Handle) -> Result<Peer> {
     let si;

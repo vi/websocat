@@ -26,6 +26,13 @@ impl Specifier for UnixConnect {
     }
     specifier_boilerplate!(noglobalstate singleconnect no_subspec typ=Other);
 }
+specifier_class!(
+    name=UnixConnectClass, 
+    target=UnixConnect, 
+    prefixes=["unix:", "unix-connect:", "connect-unix:", "unix-c:", "c-unix:"], 
+    arg_handling=into,
+    help="TODO"
+);
 
 #[derive(Debug, Clone)]
 pub struct UnixListen(pub PathBuf);
@@ -35,6 +42,13 @@ impl Specifier for UnixListen {
     }
     specifier_boilerplate!(noglobalstate multiconnect no_subspec typ=Other);
 }
+specifier_class!(
+    name=UnixListenClass, 
+    target=UnixListen, 
+    prefixes=["unix-listen:", "listen-unix:", "unix-l:", "l-unix:"], 
+    arg_handling=into,
+    help="TODO"
+);
 
 #[derive(Debug, Clone)]
 pub struct UnixDgram(pub PathBuf, pub PathBuf);
@@ -44,6 +58,23 @@ impl Specifier for UnixDgram {
     }
     specifier_boilerplate!(noglobalstate singleconnect no_subspec typ=Other);
 }
+specifier_class!(
+    name=UnixDgramClass, 
+    target=UnixDgram,
+    prefixes=["unix-dgram:"],
+    arg_handling={
+        fn construct(self:&UnixDgramClass, _full:&str, just_arg:&str)
+                -> super::Result<Rc<Specifier>> 
+        {
+            let splits: Vec<&str> = just_arg.split(":").collect();
+            if splits.len() != 2 {
+                Err("Expected two colon-separted paths")?;
+            }
+            Ok(Rc::new(UnixDgram(splits[0].into(), splits[1].into() ))) 
+        }
+    },
+    help="TODO"
+);
 
 fn to_abstract(x: &str) -> PathBuf {
     format!("\x00{}", x).into()
@@ -57,6 +88,13 @@ impl Specifier for AbstractConnect {
     }
     specifier_boilerplate!(noglobalstate singleconnect no_subspec typ=Other);
 }
+specifier_class!(
+    name=AbstractConnectClass, 
+    target=AbstractConnect, 
+    prefixes=["abstract:", "abstract-connect:", "connect-abstract:", "abstract-c:", "c-abstract:"], 
+    arg_handling=into,
+    help="TODO"
+);
 
 #[derive(Debug, Clone)]
 pub struct AbstractListen(pub String);
@@ -70,6 +108,13 @@ impl Specifier for AbstractListen {
     }
     specifier_boilerplate!(noglobalstate multiconnect no_subspec typ=Other);
 }
+specifier_class!(
+    name=AbstractListenClass, 
+    target=AbstractListen, 
+    prefixes=["abstract-listen:", "listen-abstract:", "abstract-l:", "l-abstract:"], 
+    arg_handling=into,
+    help="TODO"
+);
 
 #[derive(Debug, Clone)]
 pub struct AbstractDgram(pub String, pub String);
@@ -96,6 +141,24 @@ impl Specifier for AbstractDgram {
     }
     specifier_boilerplate!(noglobalstate singleconnect no_subspec typ=Other);
 }
+specifier_class!(
+    name=AbstractDgramClass, 
+    target=AbstractDgram,
+    prefixes=["abstract-dgram:"],
+    arg_handling={
+        fn construct(self:&AbstractDgramClass, _full:&str, just_arg:&str)
+                -> super::Result<Rc<Specifier>> 
+        {
+            let splits: Vec<&str> = just_arg.split(":").collect();
+            if splits.len() != 2 {
+                Err("Expected two colon-separted addresses")?;
+            }
+            Ok(Rc::new(UnixDgram(splits[0].into(), splits[1].into() ))) 
+        }
+    },
+    help="TODO"
+);
+
 
 // based on https://github.com/tokio-rs/tokio-core/blob/master/examples/proxy.rs
 #[derive(Clone)]

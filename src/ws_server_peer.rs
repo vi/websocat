@@ -14,8 +14,8 @@ use super::{box_up_err, io_other_error, BoxedNewPeerFuture, Peer};
 use super::{Handle, Options, PeerConstructor, ProgramState, Specifier};
 
 #[derive(Debug)]
-pub struct WsUpgrade<T: Specifier>(pub T);
-impl<T: Specifier> Specifier for WsUpgrade<T> {
+pub struct WsServer<T: Specifier>(pub T);
+impl<T: Specifier> Specifier for WsServer<T> {
     fn construct(&self, h: &Handle, ps: &mut ProgramState, opts: Rc<Options>) -> PeerConstructor {
         let mode1 = if opts.websocket_text_mode {
             Mode1::Text
@@ -28,6 +28,41 @@ impl<T: Specifier> Specifier for WsUpgrade<T> {
     specifier_boilerplate!(typ=Other noglobalstate has_subspec);
     self_0_is_subspecifier!(proxy_is_multiconnect);
 }
+specifier_class!(
+    name=WsServerClass, 
+    target=WsServer,
+    prefixes=["ws-l:","l-ws:","ws-listen:","listen-ws:"], 
+    arg_handling={
+        fn construct(self:&WsServerClass, _full:&str, just_arg:&str) -> super::Result<Rc<Specifier>> {
+            if just_arg == "" {
+                Err("Specify underlying protocol for ws-l:")?;
+            }
+            if let Some(c) = just_arg.chars().next() {
+                if c.is_numeric() || c == '[' {
+                    // Assuming user uses old format like ws-l:127.0.0.1:8080
+                    return super::spec(&("ws-l:tcp-l:".to_owned() + just_arg));
+                }
+            }
+            Ok(Rc::new(WsServer(super::spec(just_arg)?))) 
+        }
+    },
+    help="TODO"
+);
+
+
+/* 
+
+     if x == "" {
+                Err("Specify underlying protocol for ws-l:")?;
+            }
+            if let Some(c) = x.chars().next() {
+                if c.is_numeric() || c == '[' {
+                    // Assuming user uses old format like ws-l:127.0.0.1:8080
+                    return spec(&("ws-l:tcp-l:".to_owned() + x));
+                }
+            }
+            boxup(super::ws_server_peer::WsUpgrade(spec(x)?))
+*/
 
 pub fn ws_upgrade_peer(inner_peer: Peer, mode1: Mode1) -> BoxedNewPeerFuture {
     let step1 = PeerForWs(inner_peer);

@@ -6,7 +6,7 @@ use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
 use tokio_io::{AsyncRead, AsyncWrite};
 
-use std::fs::File;
+use std::fs::{File,OpenOptions};
 use std::rc::Rc;
 
 use super::{BoxedNewPeerFuture, Peer, Result};
@@ -30,6 +30,13 @@ impl Specifier for ReadFile {
     }
     specifier_boilerplate!(typ=Other noglobalstate singleconnect no_subspec);
 }
+specifier_class!(
+    name=ReadFileClass, 
+    target=ReadFile, 
+    prefixes=["readfile:"], 
+    arg_handling=into,
+    help="TODO"
+);
 
 #[derive(Clone, Debug)]
 pub struct WriteFile(pub PathBuf);
@@ -48,6 +55,38 @@ impl Specifier for WriteFile {
     }
     specifier_boilerplate!(typ=Other noglobalstate singleconnect no_subspec);
 }
+specifier_class!(
+    name=WriteFileClass, 
+    target=WriteFile, 
+    prefixes=["writefile:"], 
+    arg_handling=into,
+    help="TODO"
+);
+
+#[derive(Clone, Debug)]
+pub struct AppendFile(pub PathBuf);
+impl Specifier for AppendFile {
+    fn construct(
+        &self,
+        _h: &Handle,
+        _ps: &mut ProgramState,
+        _opts: Rc<Options>,
+    ) -> PeerConstructor {
+        fn gp(p: &Path) -> Result<Peer> {
+            let f = OpenOptions::new().append(true).open(p)?;
+            Ok(Peer::new(super::trivial_peer::DevNull, WriteFileWrapper(f)))
+        }
+        once(Box::new(futures::future::result(gp(&self.0))) as BoxedNewPeerFuture)
+    }
+    specifier_boilerplate!(typ=Other noglobalstate singleconnect no_subspec);
+}
+specifier_class!(
+    name=AppendFileClass, 
+    target=AppendFile, 
+    prefixes=["appendfile:"], 
+    arg_handling=into,
+    help="TODO"
+);
 
 struct ReadFileWrapper(File);
 

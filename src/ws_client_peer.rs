@@ -25,6 +25,17 @@ impl Specifier for WsClient {
     }
     specifier_boilerplate!(noglobalstate singleconnect no_subspec typ=Other);
 }
+specifier_class!(
+    name=WsClientClass, 
+    target=WsClient,
+    prefixes=["ws://","wss://"],
+    arg_handling={
+        fn construct(self:&WsClientClass, full:&str, _just_arg:&str) -> super::Result<Rc<Specifier>> {
+            Ok(Rc::new(WsClient(full.parse()?))) 
+        }
+    },
+    help="TODO"
+);
 
 #[derive(Debug)]
 pub struct WsConnect<T: Specifier>(pub T);
@@ -44,6 +55,13 @@ impl<T: Specifier> Specifier for WsConnect<T> {
     specifier_boilerplate!(noglobalstate has_subspec typ=Other);
     self_0_is_subspecifier!(proxy_is_multiconnect);
 }
+specifier_class!(
+    name=WsConnectClass, 
+    target=WsConnect, 
+    prefixes=["ws-c:", "c-ws:", "ws-connect:", "connect-ws:"], 
+    arg_handling=subspec,
+    help="TODO"
+);
 
 fn get_ws_client_peer_impl<S, F>(uri: &Url, opts: Rc<Options>, f: F) -> BoxedNewPeerFuture
 where

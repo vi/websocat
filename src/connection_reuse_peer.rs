@@ -26,6 +26,15 @@ impl Specifier for Reuser {
     self_0_is_subspecifier!(...);
 }
 
+specifier_class!(
+    name=ReuserClass, 
+    target=Reuser, 
+    prefixes=["reuse:"], 
+    arg_handling=subspec,
+    help="TODO"
+);
+
+
 type PeerSlot = Rc<RefCell<Option<Peer>>>;
 
 #[derive(Default, Clone)]

@@ -35,6 +35,13 @@ impl Specifier for ShC {
     }
     specifier_boilerplate!(noglobalstate singleconnect no_subspec typ=Other);
 }
+specifier_class!(
+    name=ShCClass, 
+    target=ShC, 
+    prefixes=["sh-c:", "cmd:"], 
+    arg_handling=into,
+    help="TODO"
+);
 
 #[derive(Debug, Clone)]
 pub struct Exec(pub String);
@@ -46,6 +53,13 @@ impl Specifier for Exec {
     }
     specifier_boilerplate!(noglobalstate singleconnect no_subspec typ=Other);
 }
+specifier_class!(
+    name=ExecClass, 
+    target=Exec, 
+    prefixes=["exec:"], 
+    arg_handling=into,
+    help="TODO"
+);
 
 fn process_connect_peer(h: &Handle, mut cmd: Command) -> Result<Peer, Box<std::error::Error>> {
     cmd.stdin(Stdio::piped()).stdout(Stdio::piped());

@@ -94,6 +94,124 @@ pub enum SpecifierType {
     Other,
 }
 
+/// A trait for a each specified type's accompanying object
+///
+/// Don't forget to register each instance at the `list_of_all_specifier_classes` macro.
+pub trait SpecifierClass {
+    /// The primary name of the class
+    fn get_name(&self) -> &'static str;
+    /// Names to match command line parameters against, with a `:` colon if needed
+    fn get_prefixes(&self) -> Vec<&'static str>;
+    /// --long-help snippet about this specifier
+    fn help(&self) -> &'static str;
+    /// Given the command line text, construct the specifier
+    ///
+    /// Full str is like `ws://qwe` in `ws://qwe`
+    ///
+    /// Just arg is like `127.0.0.1:8080` in `tcp-l:127.0.0.1:8080`
+    fn construct(&self, full:&str, just_arg:&str) -> Result<Rc<Specifier>>;
+}
+macro_rules! specifier_class {
+    (name=$n:ident, target=$t:ident, prefixes=[$($p:expr),*], arg_handling=$c:tt, help=$h:expr) => {
+        pub struct $n;
+        impl $crate::SpecifierClass for $n {
+            fn get_name(&self) -> &'static str { stringify!($n) }
+            fn get_prefixes(&self) -> Vec<&'static str> { vec![$($p),*] }
+            fn help(&self) -> &'static str { $h }
+            specifier_class!(construct target=$t $c);
+        }
+    };
+    (construct target=$t:ident noarg) => {
+        fn construct(&self, _full:&str, just_arg:&str) -> $crate::Result<Rc<Specifier>> {
+            if just_arg != "" {
+                Err(format!("{}-specifer requires no parameters. `{}` is not needed", 
+                    self.get_name(), just_arg))?;
+            }
+            Ok(Rc::new($t)) 
+        }
+    };
+    (construct target=$t:ident into) => {
+        fn construct(&self, _full:&str, just_arg:&str) -> $crate::Result<Rc<Specifier>> {
+            Ok(Rc::new($t(just_arg.into()))) 
+        }
+    };
+    (construct target=$t:ident parse) => {
+        fn construct(&self, _full:&str, just_arg:&str) -> $crate::Result<Rc<Specifier>> {
+            Ok(Rc::new($t(just_arg.parse()?))) 
+        }
+    };
+    (construct target=$t:ident subspec) => {
+        fn construct(&self, _full:&str, just_arg:&str) -> $crate::Result<Rc<Specifier>> {
+            Ok(Rc::new($t($crate::spec(just_arg)?))) 
+        }
+    };
+    (construct target=$t:ident {$($x:tt)*}) => {
+        $($x)*
+    };
+}
+
+// This is an X-Macro.
+macro_rules! list_of_all_specifier_classes {
+    ($your_macro:ident) => {
+        #[cfg(all(unix, not(feature = "no_unix_stdio")))]
+        $your_macro!($crate::stdio_peer::StdioClass);
+        #[cfg(all(unix, not(feature = "no_unix_stdio")))]
+        $your_macro!($crate::stdio_peer::OpenAsyncClass);
+        #[cfg(all(unix, not(feature = "no_unix_stdio")))]
+        $your_macro!($crate::stdio_peer::OpenFdAsyncClass);
+        
+        #[cfg(not(all(unix, not(feature = "no_unix_stdio"))))]
+        $your_macro!($crate::stdio_threaded_peer::ThreadedStdioSubstituteClass);
+        
+        $your_macro!($crate::stdio_threaded_peer::ThreadedStdioClass);
+        
+        $your_macro!($crate::connection_reuse_peer::ReuserClass);
+        $your_macro!($crate::reconnect_peer::AutoReconnectClass);
+        
+        $your_macro!($crate::mirror_peer::MirrorClass);
+        $your_macro!($crate::mirror_peer::LiteralReplyClass);
+        $your_macro!($crate::trivial_peer::CloggedClass);
+        $your_macro!($crate::trivial_peer::LiteralClass);
+        $your_macro!($crate::trivial_peer::AssertClass);
+        
+        $your_macro!($crate::net_peer::TcpConnectClass);
+        $your_macro!($crate::net_peer::TcpListenClass);
+        $your_macro!($crate::net_peer::UdpConnectClass);
+        $your_macro!($crate::net_peer::UdpListenClass);
+        
+        $your_macro!($crate::ws_server_peer::WsServerClass);
+        $your_macro!($crate::ws_client_peer::WsConnectClass);
+        $your_macro!($crate::ws_client_peer::WsClientClass);
+        
+        $your_macro!($crate::file_peer::ReadFileClass);
+        $your_macro!($crate::file_peer::WriteFileClass);
+        $your_macro!($crate::file_peer::AppendFileClass);
+        
+        #[cfg(unix)]
+        $your_macro!($crate::unix_peer::UnixConnectClass);
+        #[cfg(unix)]
+        $your_macro!($crate::unix_peer::UnixListenClass);
+        #[cfg(unix)]
+        $your_macro!($crate::unix_peer::UnixDgramClass);
+        #[cfg(unix)]
+        $your_macro!($crate::unix_peer::AbstractConnectClass);
+        #[cfg(unix)]
+        $your_macro!($crate::unix_peer::AbstractListenClass);
+        #[cfg(unix)]
+        $your_macro!($crate::unix_peer::AbstractDgramClass);
+        
+        #[cfg(feature = "tokio-process")]
+        $your_macro!($crate::process_peer::ShCClass);
+        #[cfg(feature = "tokio-process")]
+        $your_macro!($crate::process_peer::ExecClass);
+        /*
+        $your_macro!($crate:: :: );
+        $your_macro!($crate:: :: );
+        $your_macro!($crate:: :: );
+        */
+    }
+}
+
 #[derive(Debug, Clone, Copy)]
 pub struct OneSpecifierInfo {
     pub multiconnect: bool,
@@ -127,6 +245,8 @@ impl SpecifierInfo {
 pub trait Specifier: std::fmt::Debug {
     /// Apply the specifier for constructing a "socket" or other connecting device.
     fn construct(&self, h: &Handle, ps: &mut ProgramState, opts: Rc<Options>) -> PeerConstructor;
+
+    
 
     // Specified by `specifier_boilerplate!`:
     fn is_multiconnect(&self) -> bool;
@@ -344,7 +464,6 @@ impl Peer {
     }
 }
 
-pub use specparse::boxup;
 pub use specparse::spec;
 
 pub fn peer_from_str(

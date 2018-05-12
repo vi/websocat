@@ -28,6 +28,13 @@ impl std::fmt::Debug for Literal {
         write!(f, "Literal")
     }
 }
+specifier_class!(
+    name=LiteralClass, 
+    target=Literal, 
+    prefixes=["literal:"], 
+    arg_handling=into,
+    help="TODO"
+);
 
 #[derive(Clone)]
 pub struct Assert(pub Vec<u8>);
@@ -42,6 +49,13 @@ impl std::fmt::Debug for Assert {
         write!(f, "Assert")
     }
 }
+specifier_class!(
+    name=AssertClass, 
+    target=Assert, 
+    prefixes=["assert:"], 
+    arg_handling=into,
+    help="TODO"
+);
 
 #[derive(Debug, Clone)]
 pub struct Clogged;
@@ -51,6 +65,14 @@ impl Specifier for Clogged {
     }
     specifier_boilerplate!(noglobalstate singleconnect no_subspec typ=Other);
 }
+specifier_class!(
+    name=CloggedClass, 
+    target=Clogged, 
+    prefixes=["clogged:"], 
+    arg_handling=noarg,
+    help="TODO"
+);
+
 
 struct LiteralPeer {
     debt: ReadDebt,
