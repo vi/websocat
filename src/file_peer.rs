@@ -73,7 +73,7 @@ impl Specifier for AppendFile {
         _opts: Rc<Options>,
     ) -> PeerConstructor {
         fn gp(p: &Path) -> Result<Peer> {
-            let f = OpenOptions::new().append(true).open(p)?;
+            let f = OpenOptions::new().create(true).append(true).open(p)?;
             Ok(Peer::new(super::trivial_peer::DevNull, WriteFileWrapper(f)))
         }
         once(Box::new(futures::future::result(gp(&self.0))) as BoxedNewPeerFuture)
