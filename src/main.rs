@@ -82,6 +82,8 @@ struct Opt {
     #[structopt(long = "ws-c-uri", help = "URI to use for ws-c: specifier",
                 default_value = "ws://0.0.0.0/")]
     ws_c_uri: String,
+    
+    // TODO: -v --quiet
 }
 
 fn longhelp() {
