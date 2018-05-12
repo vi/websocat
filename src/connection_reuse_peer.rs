@@ -72,8 +72,10 @@ impl Write for PeerHandle {
 }
 impl AsyncWrite for PeerHandle {
     fn shutdown(&mut self) -> futures::Poll<(), IoError> {
-        if let &mut Some(ref mut x) = self.0.borrow_mut().deref_mut() {
-            x.1.shutdown()
+        if let &mut Some(ref mut _x) = self.0.borrow_mut().deref_mut() {
+            // Ignore shutdown attempts
+            Ok(futures::Async::Ready(()))
+            //_x.1.shutdown()
         } else {
             unreachable!()
         }
