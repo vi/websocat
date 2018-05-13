@@ -33,7 +33,13 @@ specifier_class!(
     target=Literal, 
     prefixes=["literal:"], 
     arg_handling=into,
-    help="TODO"
+    help=r#"
+Output a string, discard input.
+
+Example:
+
+    websocat ws-l:127.0.0.1:8080 literal:'{ "hello":"world"} '
+"#
 );
 
 #[derive(Clone)]
@@ -54,7 +60,10 @@ specifier_class!(
     target=Assert, 
     prefixes=["assert:"], 
     arg_handling=into,
-    help="TODO"
+    help=r#"
+Check the input. Read entire input and panic the program if the input is not equal
+to the specified string. Used in tests.
+"#
 );
 
 #[derive(Debug, Clone)]
@@ -70,7 +79,9 @@ specifier_class!(
     target=Clogged, 
     prefixes=["clogged:"], 
     arg_handling=noarg,
-    help="TODO"
+    help=r#"
+Do nothing. Don't read or write any bytes. Keep connections in "hung" state.
+"#
 );
 
 

@@ -46,7 +46,18 @@ specifier_class!(
             Ok(Rc::new(WsServer(super::spec(just_arg)?))) 
         }
     },
-    help="TODO"
+    help=r#"
+WebSocket server. Argument is either IPv4 host and port to listen
+or a subspecifier.
+
+Example: Dump all incoming websocket data to console
+
+    websocat ws-l:127.0.0.1:8808 -
+
+Example: the same, but more verbose:
+
+    websocat ws-l:tcp-l:127.0.0.1:8808 reuse:-TODO
+"#
 );
 
 

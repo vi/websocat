@@ -40,7 +40,18 @@ specifier_class!(
     target=ShC, 
     prefixes=["sh-c:", "cmd:"], 
     arg_handling=into,
-    help="TODO"
+    help=r#"
+Start specified command line using `sh -c` or `cmd /C`
+  
+Example: serve a counter
+
+    websocat -U ws-l:127.0.0.1:8008 cmd:'for i in 0 1 2 3 4 5 6 7 8 9 10; do echo $i; sleep 1; done'
+  
+Example: unauthenticated shell
+
+    websocat --exit-on-eof ws-l:127.0.0.1:5667 sh-c:'bash -i 2>&1'
+
+"#
 );
 
 #[derive(Debug, Clone)]
@@ -58,7 +69,18 @@ specifier_class!(
     target=Exec, 
     prefixes=["exec:"], 
     arg_handling=into,
-    help="TODO"
+    help=r#"
+Execute a program directly (without a subshell), providing array of arguments on Unix
+
+Example: Serve current date
+
+  websocat -U ws-l:127.0.0.1:5667 exec:date
+  
+Example: pinger
+
+  websocat -U ws-l:127.0.0.1:5667 exec:ping --exec-args 127.0.0.1 -c 1
+  
+"#
 );
 
 fn process_connect_peer(h: &Handle, mut cmd: Command) -> Result<Peer, Box<std::error::Error>> {

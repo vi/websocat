@@ -149,67 +149,8 @@ macro_rules! specifier_class {
     };
 }
 
-// This is an X-Macro.
-macro_rules! list_of_all_specifier_classes {
-    ($your_macro:ident) => {
-        #[cfg(all(unix, not(feature = "no_unix_stdio")))]
-        $your_macro!($crate::stdio_peer::StdioClass);
-        #[cfg(all(unix, not(feature = "no_unix_stdio")))]
-        $your_macro!($crate::stdio_peer::OpenAsyncClass);
-        #[cfg(all(unix, not(feature = "no_unix_stdio")))]
-        $your_macro!($crate::stdio_peer::OpenFdAsyncClass);
-        
-        #[cfg(not(all(unix, not(feature = "no_unix_stdio"))))]
-        $your_macro!($crate::stdio_threaded_peer::ThreadedStdioSubstituteClass);
-        
-        $your_macro!($crate::stdio_threaded_peer::ThreadedStdioClass);
-        
-        $your_macro!($crate::connection_reuse_peer::ReuserClass);
-        $your_macro!($crate::reconnect_peer::AutoReconnectClass);
-        
-        $your_macro!($crate::mirror_peer::MirrorClass);
-        $your_macro!($crate::mirror_peer::LiteralReplyClass);
-        $your_macro!($crate::trivial_peer::CloggedClass);
-        $your_macro!($crate::trivial_peer::LiteralClass);
-        $your_macro!($crate::trivial_peer::AssertClass);
-        
-        $your_macro!($crate::net_peer::TcpConnectClass);
-        $your_macro!($crate::net_peer::TcpListenClass);
-        $your_macro!($crate::net_peer::UdpConnectClass);
-        $your_macro!($crate::net_peer::UdpListenClass);
-        
-        $your_macro!($crate::ws_server_peer::WsServerClass);
-        $your_macro!($crate::ws_client_peer::WsConnectClass);
-        $your_macro!($crate::ws_client_peer::WsClientClass);
-        
-        $your_macro!($crate::file_peer::ReadFileClass);
-        $your_macro!($crate::file_peer::WriteFileClass);
-        $your_macro!($crate::file_peer::AppendFileClass);
-        
-        #[cfg(unix)]
-        $your_macro!($crate::unix_peer::UnixConnectClass);
-        #[cfg(unix)]
-        $your_macro!($crate::unix_peer::UnixListenClass);
-        #[cfg(unix)]
-        $your_macro!($crate::unix_peer::UnixDgramClass);
-        #[cfg(unix)]
-        $your_macro!($crate::unix_peer::AbstractConnectClass);
-        #[cfg(unix)]
-        $your_macro!($crate::unix_peer::AbstractListenClass);
-        #[cfg(unix)]
-        $your_macro!($crate::unix_peer::AbstractDgramClass);
-        
-        #[cfg(feature = "tokio-process")]
-        $your_macro!($crate::process_peer::ShCClass);
-        #[cfg(feature = "tokio-process")]
-        $your_macro!($crate::process_peer::ExecClass);
-        /*
-        $your_macro!($crate:: :: );
-        $your_macro!($crate:: :: );
-        $your_macro!($crate:: :: );
-        */
-    }
-}
+#[macro_use]
+pub mod all_peers;
 
 #[derive(Debug, Clone, Copy)]
 pub struct OneSpecifierInfo {

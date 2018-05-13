@@ -48,7 +48,19 @@ specifier_class!(
     target=AutoReconnect, 
     prefixes=["autoreconnect:"], 
     arg_handling=subspec,
-    help="TODO"
+    help=r#"
+Re-establish underlying specifier on any error or EOF
+
+Example: keep connecting to the port or spin 100% CPU trying if it is closed.
+
+    websocat - autoreconnect:tcp:127.0.0.1:5445
+    
+Example: keep remote logging connection open (or flood the host if port is closed):
+
+    websocat -u ws-l:0.0.0.0:8080 reuse:autoreconnect:tcp:192.168.0.3:1025
+  
+TODO: implement delays between reconnect attempts
+"#
 );
 
 #[derive(Default)]

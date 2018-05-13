@@ -1,3 +1,4 @@
+#[macro_use]
 extern crate websocat;
 
 extern crate futures;
@@ -12,7 +13,8 @@ extern crate structopt;
 use structopt::StructOpt;
 
 use tokio_core::reactor::Core;
-use websocat::{spec, Options, WebsocatConfiguration};
+
+use websocat::{spec, Options, WebsocatConfiguration, SpecifierClass};
 
 type Result<T> = std::result::Result<T, Box<std::error::Error>>;
 
@@ -48,7 +50,7 @@ struct Opt {
                 help = "Inhibit copying data from left specifier to right")]
     unidirectional_reverse: bool,
 
-    #[structopt(long = "exit-on-eof",
+    #[structopt(long = "exit-on-eof", short="E",
                 help = "Close a data transfer direction if the other one reached EOF")]
     exit_on_eof: bool,
 
@@ -87,201 +89,71 @@ struct Opt {
 }
 
 fn longhelp() {
-    println!(
-        "(see also usual --help message)
+    println!(r#"(see also the usual --help message)
     
-Full list of specifiers:
-  `-` -- Stdin/stdout
-    Read input from console, print to console.
-    Can be specified only one time.
-    Aliases: `stdio:`, `inetd:`
-    
-    `inetd:` also disables logging to stderr.
-    
-    Example: like `cat(1)`.
-      websocat - -
-      
-    Example: for inetd mode
-      websocat inetd: literal:$'Hello, world.\n'
-      
-    Example: SSH transport
-      ssh -c ProxyCommand='websocat - ws://myserver/mywebsocket' user@myserver
-    
-  `ws://<url>`, `wss://<url>` -- WebSocket client
-    Example: forward port 4554 to a websocket
-      websocat tcp-l:127.0.0.1:4554 wss://127.0.0.1/some_websocket
-      
-  `ws-listen:<spec>` - Listen for websocket connections
-    A combining specifier, but given IPv4 address as argument auto-inserts `tcp-l:`
-    Aliases: `listen-ws:` `ws-l:` `l-ws:`
-    
-    Example:
-        websocat ws-l:127.0.0.1:8808 -
-    
-    Example: the same, but more verbose:
-        websocat ws-l:tcp-l:127.0.0.1:8808 reuse:-
-  
-  `inetd-ws:` - Alias of `ws-l:inetd:`
-  
-    Example of inetd.conf line:
-      1234 stream tcp nowait myuser  /opt/websocat websocat inetd-ws: tcp:127.0.0.1:22
+Positional arguments to websocat are generally called specifiers.
+Specifiers are ways to obtain a connection from some string representation (i.e. address).
 
-  
-  `tcp:<hostport>` - connect to specified TCP host and port
-    Aliases: `tcp-connect:`,`connect-tcp:`,`c-tcp:`,`tcp-c:`
-    
-    Example: like netcat
-      websocat - tcp:127.0.0.1:22
-      
-    Example: IPv6
-      websocat ws-l:0.0.0.0:8084 tcp:[::1]:22
-    
-  `tcp-l:<hostport>` - listen TCP port on specified address
-    Aliases: `l-tcp:`  `tcp-listen:` `listen-tcp:`
-    
-    Example: echo server
-      websocat tcp-l:0.0.0.0:1441 mirror:
-      
-  `exec:<program_path> --exec-args <arguments...>`
-    Execute a program (subprocess) directly, without a subshell.
-    
-    Example: date server
-      websocat -U ws-l:127.0.0.1:5667 exec:date
-      
-    Example: pinger
-      websocat -U ws-l:127.0.0.1:5667 exec:ping --exec-args 127.0.0.1 -c 1
-  
-  `sh-c:<command line>` - start subprocess though 'sh -c' or `cmd /C`
-  
-    Example: unauthenticated shell
-      websocat --exit-on-eof ws-l:127.0.0.1:5667 sh-c:'bash -i 2>&1'
-  
-  `udp:<hostport>` - send and receive packets to specified UDP socket
-    Aliases: `udp-connect:` `connect-udp:` `c-udp:` `udp-c:`
-    
-  `udp-listen:<hostport>` - bind to socket on host and port
-    Aliases: `udp-l:`, `l-udp:`, `listen-udp:`
-    
-    Note that it is not a multiconnect specifier: entire lifecycle
-    of the UDP socket is the same connection.
-    
-    Packets get sent to the most recent seen peer.
-    If no peers are seen yet, it waits for the first packet.
-    
-    File a feature request on Github if you want proper DNS-like request-reply UDP mode here.
-  
-  `ws-connect:<spec>` - low-level WebSocket connector
-    A combining specifier. Underlying specifier is should be after the colon.
-    URL and Host: header being sent are independent from underlying specifier
-    Aliases: `ws-c:` `c-ws:` `connect-ws:`
-    
-    Example: connect to echo server in more explicit way
-      websocat --ws-c-uri=ws://echo.websocket.org/ - ws-c:tcp:174.129.224.73:80
-  
-  `autoreconnect:<spec>` - Auto-reconnector
-    Re-establish underlying specifier on any error or EOF
-    
-    Example: keep connecting to the port or spin 100% CPU trying if it is closed.
-      websocat - autoreconnect:tcp:127.0.0.1:5445
-      
-    TODO: implement timeouts
-    
-  `reuse:<spec>` - Reuse one connection for serving multiple clients
-    Better suited for unidirectional connections
-    
-    Example (unreliable): don't disconnect SSH when websocket reconnects
-      websocat ws-l:[::]:8088 reuse:tcp:127.0.0.1:22
+Specifiers may be argumentless (like `mirror:`), can accept an argument (which
+may be some path or socket address, like `tcp:`), or can accept a subspecifier
+(like `reuse:` or `autoreconnect:`).
 
-  `threadedstdio:` - Stdin/stdout, spawning a thread
-    Like `-`, but forces threaded mode instead of async mode
-    Use when standard input is not `epoll(7)`-able.
-    Replaces `-` when `no_unix_stdio` Cargo feature is activated
-  
-  `mirror:` - Simply copy output to input
-    Similar to `exec:cat`.
-  
-  `open-async:<path>` - Open file for read and write and use it like a socket
-    Not for regular files, see readfile: and writefile: instead.
-  
-    Example:
-      websocat - open-async:/dev/null
-      
-  `open-fd:<number>` - Use specified file descriptor like a socket
-  
-  `unix-connect:<path>` - Connect to UNIX socket
-    Aliases: `unix:`, `connect-unix:`, `unix-c:`, `c-unix:`
-    
-  `unix-listen:<path>` - Listen for connections on a UNIX socket
-    Aliases: `unix-l:`, `listen-unix:`, `l-unix:`
-    
-    Example: with nginx
-      umask 0000
-      websocat --unlink ws-l:unix-l:/tmp/wstest tcp:[::]:22
-      
-    Nginx config:
-    
-    location /ws {{
-        proxy_read_timeout 7d;
-        proxy_send_timeout 7d;
-        #proxy_pass http://localhost:3012;
-        proxy_pass http://unix:/tmp/wstest;
-        proxy_http_version 1.1;
-        proxy_set_header Upgrade $http_upgrade;
-        proxy_set_header Connection \"upgrade\";
-    }}
-      
-      TODO: chmod?
-    
-  `unix-dgram:<path>:<path>` - Send packets to one path, receive from the other  
-    
-  `abstract-connect:<string>` - Connect to Linux abstract-namespaced socket
-    Aliases: `abstract-c:`, `connect-abstract:`, `c-abstract:`, `abstract:`
+Here is the full list of specifier classes in this WebSocat build:
 
-  `abstract-listen:<path>` - Listen for connections on Linux abstract-namespaced socket
-    Aliases: `abstract-l:`, `listen-abstract:`, `l-abstract:`
+"#);
     
-  `readfile:<path>` - synchronously read files
-    Blocking on operations with the file pauses the whole process
     
-    Example:
-      websocat ws-l:127.0.0.1:8000 readfile:hello.json
-      
-  `writefile:<path>` - synchronously write files
-    Blocking on operations with the file pauses the whole process
-    Files are opened in overwrite mode.
+
+    fn help1(sc: &SpecifierClass) {
+        let n = sc.get_name().replace("Class","");
+        let prefixes = 
+            sc
+            .get_prefixes()
+            .iter()
+            .map(|x|format!("`{}`",x))
+            .collect::<Vec<_>>()
+            .join(", ");
+        println!("### {}\n\n* {}", n, prefixes);
+        
+        let help = 
+            sc
+            .help()
+            //.lines()
+            //.map(|x|format!("    {}",x))
+            //.collect::<Vec<_>>()
+            //.join("\n")
+            ;
+        println!("{}\n", help);
+    }
+
+    macro_rules! my {
+        ($x:expr) => {
+            help1(&$x);
+        }
+    }
     
-    Example:
-      websocat ws-l:127.0.0.1:8000 reuse:writefile:log.txt
+    list_of_all_specifier_classes!(my);
+
+    println!(r#"
   
-  `clogged:` - Do nothing
-    Don't read or write any bytes. Keep connections hanging.
-    
-  `literal:<string>` - Output a string, discard input.
-    Ignore all input, use specified string as output.
   
-  `literalreply:<string>` - Reply with this string for each input packet
-  
-  `assert:<string>` - Check the input.
-    Read entire input and panic the program if the input is not equal
-    to the specified string.
-    
-  TODO:
+TODO:
   --unix-seqpacket
   sctp:
   ssl:
-  
-More examples:
-  Wacky mode:
-    websocat ws-l:ws-l:ws-c:- tcp:127.0.0.1:5678
+
+Final example just for fun: wacky mode
+
+    websocat ws-c:ws-l:ws-c:- tcp:127.0.0.1:5678
     
-    Connect to a websocket using stdin/stdout as a transport,
-    then accept a websocket connection over this previous websocket as a transport,
-    then connect to a websocket using previous step as a transport,
-    then forward resulting connection to the TCP port.
-    
-    (Excercise to the reader: manage to actually connect to it).
-"
-    );
+Connect to a websocket using stdin/stdout as a transport,
+then accept a websocket connection over the previous websocket used as a transport,
+then connect to a websocket using previous step as a transport,
+then forward resulting connection to the TCP port.
+
+(Excercise to the reader: manage to make it actually connect to 5678).
+"#);
+
 }
 
 fn run() -> Result<()> {

@@ -31,7 +31,13 @@ specifier_class!(
     target=UnixConnect, 
     prefixes=["unix:", "unix-connect:", "connect-unix:", "unix-c:", "c-unix:"], 
     arg_handling=into,
-    help="TODO"
+    help=r#"
+Connect to UNIX socket. Argument is filesystem path.
+
+Example: forward connections from websockets to a UNIX stream socket
+
+    websocat ws-l:127.0.0.1:8088 unix:the_socket
+"#
 );
 
 #[derive(Debug, Clone)]
@@ -47,7 +53,39 @@ specifier_class!(
     target=UnixListen, 
     prefixes=["unix-listen:", "listen-unix:", "unix-l:", "l-unix:"], 
     arg_handling=into,
-    help="TODO"
+    help=r#"
+Listen for connections on a specified UNIX socket
+
+Example: forward connections from a UNIX socket to a WebSocket
+
+    websocat --unlink unix-l:the_socket ws://127.0.0.1:8089
+    
+Example: Accept forwarded WebSocket connections from Nginx
+
+    umask 0000
+    websocat --unlink ws-l:unix-l:/tmp/wstest tcp:[::]:22
+      
+Nginx config:
+    
+    location /ws {
+        proxy_read_timeout 7d;
+        proxy_send_timeout 7d;
+        #proxy_pass http://localhost:3012;
+        proxy_pass http://unix:/tmp/wstest;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection \"upgrade\";
+    }
+
+This configuration allows to make Nginx responsible for
+SSL and also it can choose which connections to forward
+to websocat based on URLs.
+
+Obviously, Nginx can also redirect to TCP-listening
+websocat just as well - UNIX sockets are not a requirement for this feature.
+
+TODO: --chmod option?
+"#
 );
 
 #[derive(Debug, Clone)]
@@ -73,7 +111,17 @@ specifier_class!(
             Ok(Rc::new(UnixDgram(splits[0].into(), splits[1].into() ))) 
         }
     },
-    help="TODO"
+    help=r#"
+Send packets to one path, receive from the other.
+A socket for sending must be already openend.
+
+I don't know if this mode has any use, it is here just for completeness.
+
+Example:
+
+    socat unix-recv:./sender -&
+    websocat - unix-dgram:./receiver:./sender
+"#
 );
 
 fn to_abstract(x: &str) -> PathBuf {
@@ -93,7 +141,18 @@ specifier_class!(
     target=AbstractConnect, 
     prefixes=["abstract:", "abstract-connect:", "connect-abstract:", "abstract-c:", "c-abstract:"], 
     arg_handling=into,
-    help="TODO"
+    help=r#"
+Connect to UNIX abstract-namespaced socket. Argument is some string used as address.
+
+Too long addresses may be silently chopped off.
+
+Example: forward connections from websockets to an abstract stream socket
+
+    websocat ws-l:127.0.0.1:8088 abstract:the_socket
+
+Note that abstract-namespaced Linux sockets may not be normally supported by Rust,
+so non-prebuilt versions may have problems with them.
+"#
 );
 
 #[derive(Debug, Clone)]
@@ -113,7 +172,16 @@ specifier_class!(
     target=AbstractListen, 
     prefixes=["abstract-listen:", "listen-abstract:", "abstract-l:", "l-abstract:"], 
     arg_handling=into,
-    help="TODO"
+    help=r#"
+Listen for connections on a specified abstract UNIX socket
+
+Example: forward connections from an abstract UNIX socket to a WebSocket
+
+    websocat abstract-l:the_socket ws://127.0.0.1:8089
+
+Note that abstract-namespaced Linux sockets may not be normally supported by Rust,
+so non-prebuilt versions may have problems with them.
+"#
 );
 
 #[derive(Debug, Clone)]
@@ -156,7 +224,20 @@ specifier_class!(
             Ok(Rc::new(UnixDgram(splits[0].into(), splits[1].into() ))) 
         }
     },
-    help="TODO"
+    help=r#"
+Send packets to one address, receive from the other.
+A socket for sending must be already openend.
+
+I don't know if this mode has any use, it is here just for completeness.
+
+Example (untested):
+
+    websocat - abstract-dgram:receiver_addr:sender_addr
+
+Note that abstract-namespaced Linux sockets may not be normally supported by Rust,
+so non-prebuilt versions may have problems with them. In particular, this mode
+may fail to work without `workaround1` Cargo feature.
+"#
 );
 
 

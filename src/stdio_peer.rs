@@ -40,7 +40,28 @@ specifier_class!(
     target=Stdio, 
     prefixes=["-","stdio:","inetd:"], 
     arg_handling=noarg,
-    help="TODO"
+    help=r#"
+Read input from console, print to console.
+
+This specifier can be specified only one time.
+    
+When `inetd:` form is used, it also disables logging to stderr (TODO)
+    
+Example: simulate `cat(1)`.
+
+    websocat - -
+
+Example: SSH transport
+
+    ssh -c ProxyCommand='websocat - ws://myserver/mywebsocket' user@myserver
+  
+`inetd-ws:` - is of `ws-l:inetd:`
+
+Example of inetd.conf line that makes it listen for websocket
+connections on port 1234 and redirect the data to local SSH server.
+
+    1234 stream tcp nowait myuser  /opt/websocat websocat inetd-ws: tcp:127.0.0.1:22
+"#
 );
 
 #[derive(Clone, Debug)]
@@ -58,7 +79,15 @@ specifier_class!(
     target=OpenAsync, 
     prefixes=["open-async:"], 
     arg_handling=into,
-    help="TODO"
+    help=r#"
+Open file for read and write and use it like a socket.
+Not for regular files, see readfile/writefile instead.
+  
+Example: Serve big blobs of random data to clients
+
+    websocat -U ws-l:127.0.0.1:8088 open-async:/dev/urandom
+
+"#
 );
 
 
@@ -77,7 +106,13 @@ specifier_class!(
     target=OpenFdAsync, 
     prefixes=["open-fd:"], 
     arg_handling=parse,
-    help="TODO"
+    help=r#"
+Use specified file descriptor like a socket
+
+Example: Serve random data to clients v2
+
+    websocat -U ws-l:127.0.0.1:8088 reuse:open-fd:55   55< /dev/urandom
+"#
 );
 
 

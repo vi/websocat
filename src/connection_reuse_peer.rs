@@ -31,7 +31,20 @@ specifier_class!(
     target=Reuser, 
     prefixes=["reuse:"], 
     arg_handling=subspec,
-    help="TODO"
+    help=r#"
+Reuse subspecifier for serving multiple clients.
+
+Better used with --unidirectional, otherwise replies get directed to
+random connected client.
+
+Example: Forward multiple parallel WebSocket connections to a single persistent TCP connection
+
+    websocat -u ws-l:0.0.0.0:8800 reuse:tcp:127.0.0.1:4567
+
+Example (unreliable): don't disconnect SSH when websocket reconnects
+
+    websocat ws-l:[::]:8088 reuse:tcp:127.0.0.1:22
+"#
 );
 
 

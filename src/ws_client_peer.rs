@@ -34,7 +34,16 @@ specifier_class!(
             Ok(Rc::new(WsClient(full.parse()?))) 
         }
     },
-    help="TODO"
+    help=r#"
+WebSocket client. Argument is host and URL.
+
+Example: manually interact with a web socket
+
+    websocat - ws://echo.websocket.org/
+
+Example: forward TCP port 4554 to a websocket
+
+    websocat tcp-l:127.0.0.1:4554 wss://127.0.0.1/some_websocket"#
 );
 
 #[derive(Debug)]
@@ -60,7 +69,20 @@ specifier_class!(
     target=WsConnect, 
     prefixes=["ws-c:", "c-ws:", "ws-connect:", "connect-ws:"], 
     arg_handling=subspec,
-    help="TODO"
+    help=r#"
+Low-level WebSocket connector. Argument is a subspecifier.
+
+URL and Host: header being sent are independent from the underlying specifier.
+
+Example: connect to echo server in more explicit way
+
+    websocat --ws-c-uri=ws://echo.websocket.org/ - ws-c:tcp:174.129.224.73:80
+
+Example: connect to echo server, observing WebSocket TCP packet exchange
+
+    websocat --ws-c-uri=ws://echo.websocket.org/ - ws-c:cmd:"socat -v -x - tcp:174.129.224.73:80"
+
+"#
 );
 
 fn get_ws_client_peer_impl<S, F>(uri: &Url, opts: Rc<Options>, f: F) -> BoxedNewPeerFuture

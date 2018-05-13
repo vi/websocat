@@ -70,174 +70,310 @@ Limitations
 * Windows not tested at all
 * Only partial SSL support.
 
-Full list of specifiers
+Full list of specifiers with examples
 ---
 
 (available as `--long-help`)
 
-*  `-` -- Stdin/stdout
 
-    Read input from console, print to console.
-    Can be specified only one time.
+### WsClient
+
+* `ws://`, `wss://`
+
+WebSocket client. Argument is host and URL.
+
+Example: manually interact with a web socket
+
+    websocat - ws://echo.websocket.org/
+
+Example: forward TCP port 4554 to a websocket
+
+    websocat tcp-l:127.0.0.1:4554 wss://127.0.0.1/some_websocket
+
+### WsServer
+
+* `ws-l:`, `l-ws:`, `ws-listen:`, `listen-ws:`
+
+WebSocket server. Argument is either IPv4 host and port to listen
+or a subspecifier.
+
+Example: Dump all incoming websocket data to console
+
+    websocat ws-l:127.0.0.1:8808 -
+
+Example: the same, but more verbose:
+
+    websocat ws-l:tcp-l:127.0.0.1:8808 reuse:-TODO
+
+
+### Stdio
+
+* `-`, `stdio:`, `inetd:`
+
+Read input from console, print to console.
+
+This specifier can be specified only one time.
     
-    Aliases: `stdio:`, `inetd:`
+When `inetd:` form is used, it also disables logging to stderr (TODO)
     
-   `inetd:` also disables logging to stderr (TODO).
+Example: simulate `cat(1)`.
+
+    websocat - -
+
+Example: SSH transport
+
+    ssh -c ProxyCommand='websocat - ws://myserver/mywebsocket' user@myserver
+  
+`inetd-ws:` - is of `ws-l:inetd:`
+
+Example of inetd.conf line that makes it listen for websocket
+connections on port 1234 and redirect the data to local SSH server.
+
+    1234 stream tcp nowait myuser  /opt/websocat websocat inetd-ws: tcp:127.0.0.1:22
+
+
+### TcpConnect
+
+* `tcp:`, `tcp-connect:`, `connect-tcp:`, `tcp-c:`, `c-tcp:`
+
+Connect to specified TCP host and port. Argument is a socket address.
+
+Example: simulate netcat netcat
+
+    websocat - tcp:127.0.0.1:22
+
+Example: redirect websocket connections to local SSH server over IPv6
+
+    websocat ws-l:0.0.0.0:8084 tcp:[::1]:22
+
+
+### TcpListen
+
+* `tcp-listen:`, `listen-tcp:`, `tcp-l:`, `l-tcp:`
+
+Listen TCP port on specified address.
     
-    Example: like `cat(1)`.
+Example: echo server
+
+    websocat tcp-l:0.0.0.0:1441 mirror:
+    
+Example: redirect TCP to a websocket
+
+    websocat tcp-l:0.0.0.0:8088 ws://echo.websocket.org
+
+
+### ShC
+
+* `sh-c:`, `cmd:`
+
+Start specified command line using `sh -c` or `cmd /C`
+  
+Example: serve a counter
+
+    websocat -U ws-l:127.0.0.1:8008 cmd:'for i in 0 1 2 3 4 5 6 7 8 9 10; do echo $i; sleep 1; done'
+  
+Example: unauthenticated shell
+
+    websocat --exit-on-eof ws-l:127.0.0.1:5667 sh-c:'bash -i 2>&1'
+
+
+
+### Exec
+
+* `exec:`
+
+Execute a program directly (without a subshell), providing array of arguments on Unix
+
+Example: Serve current date
+
+  websocat -U ws-l:127.0.0.1:5667 exec:date
+  
+Example: pinger
+
+  websocat -U ws-l:127.0.0.1:5667 exec:ping --exec-args 127.0.0.1 -c 1
+  
+
+
+### ReadFile
+
+* `readfile:`
+
+Synchronously read a file. Argumen is a file path.
+
+Blocking on operations with the file pauses the whole process
+
+Example: Serve the file once per connection, ignore all replies.
+
+    websocat ws-l:127.0.0.1:8000 readfile:hello.json
+
+
+
+### WriteFile
+
+* `writefile:`
+
+
+Synchronously truncate and write a file.
+
+Blocking on operations with the file pauses the whole process
+
+Example:
+
+    websocat ws-l:127.0.0.1:8000 writefile:data.txt
+
+
+
+### AppendFile
+
+* `appendfile:`
+
+
+Synchronously append a file.
+
+Blocking on operations with the file pauses the whole process
+
+Example: Logging all incoming data from WebSocket clients to one file
+
+    websocat -u ws-l:127.0.0.1:8000 reuse:appendfile:log.txt
+
+
+### Reuser
+
+* `reuse:`
+
+Reuse subspecifier for serving multiple clients.
+
+Better used with --unidirectional, otherwise replies get directed to
+random connected client.
+
+Example: Forward multiple parallel WebSocket connections to a single persistent TCP connection
+
+    websocat -u ws-l:0.0.0.0:8800 reuse:tcp:127.0.0.1:4567
+
+Example (unreliable): don't disconnect SSH when websocket reconnects
+
+    websocat ws-l:[::]:8088 reuse:tcp:127.0.0.1:22
+
+
+### AutoReconnect
+
+* `autoreconnect:`
+
+Re-establish underlying specifier on any error or EOF
+
+Example: keep connecting to the port or spin 100% CPU trying if it is closed.
+
+    websocat - autoreconnect:tcp:127.0.0.1:5445
+    
+Example: keep remote logging connection open (or flood the host if port is closed):
+
+    websocat -u ws-l:0.0.0.0:8080 reuse:autoreconnect:tcp:192.168.0.3:1025
+  
+TODO: implement delays between reconnect attempts
+
+
+### WsConnect
+
+* `ws-c:`, `c-ws:`, `ws-connect:`, `connect-ws:`
+
+Low-level WebSocket connector. Argument is a subspecifier.
+
+URL and Host: header being sent are independent from the underlying specifier.
+
+Example: connect to echo server in more explicit way
+
+    websocat --ws-c-uri=ws://echo.websocket.org/ - ws-c:tcp:174.129.224.73:80
+
+Example: connect to echo server, observing WebSocket TCP packet exchange
+
+    websocat --ws-c-uri=ws://echo.websocket.org/ - ws-c:cmd:"socat -v -x - tcp:174.129.224.73:80"
+
+
+
+### UdpConnect
+
+* `udp:`, `udp-connect:`, `connect-udp:`, `udp-c:`, `c-udp:`
+
+Send and receive packets to specified UDP socket, from random UDP port  
+
+
+### UdpListen
+
+* `udp-listen:`, `listen-udp:`, `udp-l:`, `l-udp:`
+
+Bind an UDP socket to specifier host:port, receive packet
+from any remote UDP socket, send replies to recently observed
+remote UDP socket.
+
+Note that it is not a multiconnect specifier like e.g. `tcp-listen`:
+entire lifecycle of the UDP socket is the same connection.
+
+File a feature request on Github if you want proper DNS-like request-reply UDP mode here.
+
+
+### OpenAsync
+
+* `open-async:`
+
+Open file for read and write and use it like a socket.
+Not for regular files, see readfile/writefile instead.
+  
+Example: Serve big blobs of random data to clients
+
+    websocat -U ws-l:127.0.0.1:8088 open-async:/dev/urandom
+
+
+
+### OpenFdAsync
+
+* `open-fd:`
+
+Use specified file descriptor like a socket
+
+Example: Serve random data to clients v2
+
+    websocat -U ws-l:127.0.0.1:8088 reuse:open-fd:55   55< /dev/urandom
+
+
+### ThreadedStdio
+
+* `threadedstdio:`
+
+Stdin/stdout, spawning a thread.
+
+Like `-`, but forces threaded mode instead of async mode
+
+Use when standard input is not `epoll(7)`-able or you want to avoid setting it to nonblocking mode.
+
+
+### UnixConnect
+
+* `unix:`, `unix-connect:`, `connect-unix:`, `unix-c:`, `c-unix:`
+
+Connect to UNIX socket. Argument is filesystem path.
+
+Example: forward connections from websockets to a UNIX stream socket
+
+    websocat ws-l:127.0.0.1:8088 unix:the_socket
+
+
+### UnixListen
+
+* `unix-listen:`, `listen-unix:`, `unix-l:`, `l-unix:`
+
+Listen for connections on a specified UNIX socket
+
+Example: forward connections from a UNIX socket to a WebSocket
+
+    websocat --unlink unix-l:the_socket ws://127.0.0.1:8089
+    
+Example: Accept forwarded WebSocket connections from Nginx
+
+    umask 0000
+    websocat --unlink ws-l:unix-l:/tmp/wstest tcp:[::]:22
       
-        websocat - -
-      
-    Example: for inetd mode
+Nginx config:
     
-        websocat inetd: literal:$'Hello, world.\n'
-      
-    Example: SSH transport
-    
-        ssh -c ProxyCommand='websocat - ws://myserver/mywebsocket' user@myserver
-    
-*  `ws://<url>`, `wss://<url>` -- WebSocket client
-
-    Example: forward port 4554 to a websocket
-    
-        websocat tcp-l:127.0.0.1:4554 wss://127.0.0.1/some_websocket
-      
-*  `ws-listen:<spec>` - Listen for websocket connections
-
-    A combining specifier, but given IPv4 address as argument auto-inserts `tcp-l:`
-    
-    Aliases: `listen-ws:` `ws-l:` `l-ws:`
-    
-    Example:
-    
-        websocat ws-l:127.0.0.1:8808 -
-    
-    Example: the same, but more verbose:
-    
-        websocat ws-l:tcp-l:127.0.0.1:8808 reuse:-
-  
-*  `inetd-ws:` - Alias of `ws-l:inetd:`
-  
-    Example of inetd.conf line:
-    
-        1234 stream tcp nowait myuser  /opt/websocat websocat inetd-ws: tcp:127.0.0.1:22
-
-  
-*  `tcp:<hostport>` - connect to specified TCP host and port
-
-    Aliases: `tcp-connect:`,`connect-tcp:`,`c-tcp:`,`tcp-c:`
-    
-    Example: like netcat
-    
-        websocat - tcp:127.0.0.1:22
-      
-    Example: IPv6
-    
-        websocat ws-l:0.0.0.0:8084 tcp:[::1]:22
-    
-*  `tcp-l:<hostport>` - listen TCP port on specified address
-    Aliases: `l-tcp:`  `tcp-listen:` `listen-tcp:`
-    
-    Example: echo server
-    
-        websocat tcp-l:0.0.0.0:1441 mirror:
-      
-*  `exec:<program_path> --exec-args <arguments...>`
-
-    Execute a program (subprocess) directly, without a subshell.
-    
-    Example: date server
-    
-        websocat -U ws-l:127.0.0.1:5667 exec:date
-      
-    Example: pinger
-    
-        websocat -U ws-l:127.0.0.1:5667 exec:ping --exec-args 127.0.0.1 -c 1
-  
-*  `sh-c:<command line>` - start subprocess though 'sh -c' or `cmd /C`
-  
-    Example: unauthenticated shell
-    
-        websocat --exit-on-eof ws-l:127.0.0.1:5667 sh-c:'bash -i 2>&1'
-  
-*  `udp:<hostport>` - send and receive packets to specified UDP socket
-
-    Aliases: `udp-connect:` `connect-udp:` `c-udp:` `udp-c:`
-    
-*  `udp-listen:<hostport>` - bind to socket on host and port
-
-    Aliases: `udp-l:`, `l-udp:`, `listen-udp:`
-    
-    Note that it is not a multiconnect specifier: entire lifecycle
-    of the UDP socket is the same connection.
-    
-    Packets get sent to the most recent seen peer.
-    If no peers are seen yet, it waits for the first packet.
-    
-    File a feature request on Github if you want proper DNS-like request-reply UDP mode here.
-  
-*   `ws-connect:<spec>` - low-level WebSocket connector
-
-    A combining specifier. Underlying specifier is should be after the colon.
-    URL and Host: header being sent are independent from underlying specifier
-    Aliases: `ws-c:` `c-ws:` `connect-ws:`
-    
-    Example: connect to echo server in more explicit way
-    
-        websocat --ws-c-uri=ws://echo.websocket.org/ - ws-c:tcp:174.129.224.73:80
-  
-*   `autoreconnect:<spec>` - Auto-reconnector
-
-    Re-establish underlying specifier on any error or EOF
-    
-    Example: keep connecting to the port or spin 100% CPU trying if it is closed.
-    
-        websocat - autoreconnect:tcp:127.0.0.1:5445
-      
-    TODO: implement delays
-    
-*  `reuse:<spec>` - Reuse one connection for serving multiple clients
-
-    Better suited for unidirectional connections
-    
-    Example (unreliable): don't disconnect SSH when websocket reconnects
-      
-        websocat ws-l:[::]:8088 reuse:tcp:127.0.0.1:22
-
-*  `threadedstdio:` - Stdin/stdout, spawning a thread
-  
-    Like `-`, but forces threaded mode instead of async mode
-    Use when standard input is not `epoll(7)`-able.
-    Replaces `-` when `no_unix_stdio` Cargo feature is activated
-  
-*  `mirror:` - Simply copy output to input
-
-    Similar to `exec:cat`.
-  
-*  `open-async:<path>` - Open file for read and write and use it like a socket
-
-    Not for regular files, see `readfile:` and `writefile:` instead.
-  
-    Example:
-    
-        websocat - open-async:/dev/null
-      
-*  `open-fd:<number>` - Use specified file descriptor like a socket
-  
-*   `unix-connect:<path>` - Connect to UNIX socket
-    Aliases: `unix:`, `connect-unix:`, `unix-c:`, `c-unix:`
-    
-*   `unix-listen:<path>` - Listen for connections on a UNIX socket
-    Aliases: `unix-l:`, `listen-unix:`, `l-unix:`
-    
-    Example: with nginx
-    
-        umask 0000
-        websocat --unlink ws-l:unix-l:/tmp/wstest tcp:[::]:22
-      
-    Nginx config:
-    
-```
     location /ws {
         proxy_read_timeout 7d;
         proxy_send_timeout 7d;
@@ -245,62 +381,126 @@ Full list of specifiers
         proxy_pass http://unix:/tmp/wstest;
         proxy_http_version 1.1;
         proxy_set_header Upgrade $http_upgrade;
-        proxy_set_header Connection "upgrade";
+        proxy_set_header Connection \"upgrade\";
     }
-```
-      
-*  `unix-dgram:<path>:<path>` - Send packets to one path, receive from the other  
-    
-*  `abstract-connect:<string>` - Connect to Linux abstract-namespaced socket
 
-    Aliases: `abstract-c:`, `connect-abstract:`, `c-abstract:`, `abstract:`
+This configuration allows to make Nginx responsible for
+SSL and also it can choose which connections to forward
+to websocat based on URLs.
 
-*  `abstract-listen:<path>` - Listen for connections on Linux abstract-namespaced socket
+Obviously, Nginx can also redirect to TCP-listening
+websocat just as well - UNIX sockets are not a requirement for this feature.
 
-    Aliases: `abstract-l:`, `listen-abstract:`, `l-abstract:`
-    
-*  `readfile:<path>` - synchronously read files
-
-    Blocking on operations with the file pauses the whole process
-    
-    Example:
-    
-        websocat ws-l:127.0.0.1:8000 readfile:hello.json
-      
-*  `writefile:<path>` - synchronously write files
-
-    Blocking on operations with the file pauses the whole process
-    Files are opened in overwrite mode.
-    
-    Example:
-    
-        websocat ws-l:127.0.0.1:8000 reuse:writefile:log.txt
-        
-    TODO: `appendfile:`
-  
-*  `clogged:` - Do nothing
-
-    Don't read or write any bytes. Keep connections hanging.
-    
-*  `literal:<string>` - Output a string, discard input.
-
-    Ignore all input, use specified string as output.
-  
-*  `literalreply:<string>` - Reply with this string for each input packet
-
-    Example:
-
-        websocat ws-l:127.0.0.1:3456 literalreply:Hello_world
-  
-*  `assert:<string>` - Check the input.
-
-    Read entire input and panic the program if the input is not equal
-    to the specified string.
+TODO: --chmod option?
 
 
-P.S. Here is oneliner to remove non-blocking mode from terminal's stdin:
+### UnixDgram
 
-    perl -we 'use Fcntl qw(F_GETFL F_SETFL O_NONBLOCK); open F, "<&=", 0; my $flags = fcntl(F, F_GETFL, 0); fcntl(F, F_SETFL, $flags & !O_NONBLOCK);'
+* `unix-dgram:`
+
+Send packets to one path, receive from the other.
+A socket for sending must be already openend.
+
+I don't know if this mode has any use, it is here just for completeness.
+
+Example:
+
+    socat unix-recv:./sender -&
+    websocat - unix-dgram:./receiver:./sender
+
+
+### AbstractConnect
+
+* `abstract:`, `abstract-connect:`, `connect-abstract:`, `abstract-c:`, `c-abstract:`
+
+Connect to UNIX abstract-namespaced socket. Argument is some string used as address.
+
+Too long addresses may be silently chopped off.
+
+Example: forward connections from websockets to an abstract stream socket
+
+    websocat ws-l:127.0.0.1:8088 abstract:the_socket
+
+Note that abstract-namespaced Linux sockets may not be normally supported by Rust,
+so non-prebuilt versions may have problems with them.
+
+
+### AbstractListen
+
+* `abstract-listen:`, `listen-abstract:`, `abstract-l:`, `l-abstract:`
+
+Listen for connections on a specified abstract UNIX socket
+
+Example: forward connections from an abstract UNIX socket to a WebSocket
+
+    websocat abstract-l:the_socket ws://127.0.0.1:8089
+
+Note that abstract-namespaced Linux sockets may not be normally supported by Rust,
+so non-prebuilt versions may have problems with them.
+
+
+### AbstractDgram
+
+* `abstract-dgram:`
+
+Send packets to one address, receive from the other.
+A socket for sending must be already openend.
+
+I don't know if this mode has any use, it is here just for completeness.
+
+Example (untested):
+
+    websocat - abstract-dgram:receiver_addr:sender_addr
+
+Note that abstract-namespaced Linux sockets may not be normally supported by Rust,
+so non-prebuilt versions may have problems with them. In particular, this mode
+may fail to work without `workaround1` Cargo feature.
+
+
+### Mirror
+
+* `mirror:`
+
+Simply copy output to input. No arguments needed.
+
+Similar to `exec:cat`.
+
+
+### LiteralReply
+
+* `literalreply:`
+
+Reply with a specified string for each input packet.
+
+Example:
+
+    websocat ws-l:0.0.0.0:1234 literalreply:'{"status":"OK"}'
+
+
+### Clogged
+
+* `clogged:`
+
+Do nothing. Don't read or write any bytes. Keep connections in "hung" state.
+
+
+### Literal
+
+* `literal:`
+
+Output a string, discard input.
+
+Example:
+
+    websocat ws-l:127.0.0.1:8080 literal:'{ "hello":"world"} '
+
+
+### Assert
+
+* `assert:`
+
+Check the input. Read entire input and panic the program if the input is not equal
+to the specified string. Used in tests.
 
 
 Planned features

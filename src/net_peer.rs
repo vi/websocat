@@ -30,7 +30,17 @@ specifier_class!(
     target=TcpConnect,
     prefixes=["tcp:", "tcp-connect:", "connect-tcp:", "tcp-c:", "c-tcp:"], 
     arg_handling=parse,
-    help="TODO"
+    help=r#"
+Connect to specified TCP host and port. Argument is a socket address.
+
+Example: simulate netcat netcat
+
+    websocat - tcp:127.0.0.1:22
+
+Example: redirect websocket connections to local SSH server over IPv6
+
+    websocat ws-l:0.0.0.0:8084 tcp:[::1]:22
+"#
 );
 
 #[derive(Debug, Clone)]
@@ -46,7 +56,17 @@ specifier_class!(
     target=TcpListen,
     prefixes=["tcp-listen:", "listen-tcp:", "tcp-l:", "l-tcp:"], 
     arg_handling=parse,
-    help="TODO"
+    help=r#"
+Listen TCP port on specified address.
+    
+Example: echo server
+
+    websocat tcp-l:0.0.0.0:1441 mirror:
+    
+Example: redirect TCP to a websocket
+
+    websocat tcp-l:0.0.0.0:8088 ws://echo.websocket.org
+"#
 );
 
 #[derive(Debug, Clone)]
@@ -62,7 +82,9 @@ specifier_class!(
     target=UdpConnect,
     prefixes=["udp:", "udp-connect:", "connect-udp:", "udp-c:", "c-udp:"], 
     arg_handling=parse,
-    help="TODO"
+    help=r#"
+Send and receive packets to specified UDP socket, from random UDP port  
+"#
 );
 
 #[derive(Debug, Clone)]
@@ -78,7 +100,16 @@ specifier_class!(
     target=UdpListen,
     prefixes=["udp-listen:", "listen-udp:", "udp-l:", "l-udp:"], 
     arg_handling=parse,
-    help="TODO"
+    help=r#"
+Bind an UDP socket to specifier host:port, receive packet
+from any remote UDP socket, send replies to recently observed
+remote UDP socket.
+
+Note that it is not a multiconnect specifier like e.g. `tcp-listen`:
+entire lifecycle of the UDP socket is the same connection.
+
+File a feature request on Github if you want proper DNS-like request-reply UDP mode here.
+"#
 );
 
 /*

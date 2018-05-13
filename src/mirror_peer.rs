@@ -31,7 +31,11 @@ specifier_class!(
     target=Mirror, 
     prefixes=["mirror:"], 
     arg_handling=noarg,
-    help="TODO"
+    help=r#"
+Simply copy output to input. No arguments needed.
+
+Similar to `exec:cat`.
+"#
 );
 
 #[derive(Clone)]
@@ -52,7 +56,13 @@ specifier_class!(
     target=LiteralReply, 
     prefixes=["literalreply:"], 
     arg_handling=into,
-    help="TODO"
+    help=r#"
+Reply with a specified string for each input packet.
+
+Example:
+
+    websocat ws-l:0.0.0.0:1234 literalreply:'{"status":"OK"}'
+"#
 );
 
 struct MirrorWrite(mpsc::Sender<Vec<u8>>);

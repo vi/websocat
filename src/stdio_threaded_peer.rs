@@ -21,7 +21,13 @@ specifier_class!(
     target=ThreadedStdio, 
     prefixes=["threadedstdio:"], 
     arg_handling=noarg,
-    help="TODO"
+    help=r#"
+Stdin/stdout, spawning a thread.
+
+Like `-`, but forces threaded mode instead of async mode
+
+Use when standard input is not `epoll(7)`-able or you want to avoid setting it to nonblocking mode.
+"#
 );
 #[cfg(not(all(unix, not(feature = "no_unix_stdio"))))]
 specifier_class!(
@@ -29,7 +35,11 @@ specifier_class!(
     target=ThreadedStdio, 
     prefixes=["-","stdio:","inetd:"], 
     arg_handling=noarg,
-    help="TODO"
+    help=r#"
+Read input from console, print to console (threaded version).
+
+This specifier can be specified only one time.
+"#
 );
 
 pub fn get_stdio_peer() -> BoxedNewPeerFuture {

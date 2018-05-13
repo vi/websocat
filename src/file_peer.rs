@@ -35,7 +35,16 @@ specifier_class!(
     target=ReadFile, 
     prefixes=["readfile:"], 
     arg_handling=into,
-    help="TODO"
+    help=r#"
+Synchronously read a file. Argumen is a file path.
+
+Blocking on operations with the file pauses the whole process
+
+Example: Serve the file once per connection, ignore all replies.
+
+    websocat ws-l:127.0.0.1:8000 readfile:hello.json
+
+"#
 );
 
 #[derive(Clone, Debug)]
@@ -60,7 +69,17 @@ specifier_class!(
     target=WriteFile, 
     prefixes=["writefile:"], 
     arg_handling=into,
-    help="TODO"
+    help=r#"
+
+Synchronously truncate and write a file.
+
+Blocking on operations with the file pauses the whole process
+
+Example:
+
+    websocat ws-l:127.0.0.1:8000 writefile:data.txt
+
+"#
 );
 
 #[derive(Clone, Debug)]
@@ -85,7 +104,16 @@ specifier_class!(
     target=AppendFile, 
     prefixes=["appendfile:"], 
     arg_handling=into,
-    help="TODO"
+    help=r#"
+
+Synchronously append a file.
+
+Blocking on operations with the file pauses the whole process
+
+Example: Logging all incoming data from WebSocket clients to one file
+
+    websocat -u ws-l:127.0.0.1:8000 reuse:appendfile:log.txt
+"#
 );
 
 struct ReadFileWrapper(File);
