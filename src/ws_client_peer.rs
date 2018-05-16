@@ -1,7 +1,8 @@
 extern crate websocket;
 
 use self::websocket::stream::async::Stream as WsStream;
-use self::websocket::{ClientBuilder, client::async::ClientNew};
+use self::websocket::{ClientBuilder};
+use self::websocket::client::async::ClientNew;
 use futures::future::Future;
 use futures::stream::Stream;
 use tokio_core::reactor::Handle;
