@@ -1,5 +1,8 @@
 extern crate tokio_uds;
 
+#[cfg(any(feature = "workaround1",feature="seqpacket"))]
+extern crate libc;
+
 use futures;
 use futures::stream::Stream;
 use std;
@@ -17,6 +20,8 @@ use self::tokio_uds::{UnixDatagram, UnixListener, UnixStream};
 
 use super::{box_up_err, peer_err_s, BoxedNewPeerFuture, BoxedNewPeerStream, Peer};
 use super::{multi, once, Options, PeerConstructor, ProgramState, Specifier};
+#[allow(unused)]
+use super::simple_err;
 
 #[derive(Debug, Clone)]
 pub struct UnixConnect(pub PathBuf);
@@ -240,6 +245,65 @@ may fail to work without `workaround1` Cargo feature.
 "#
 );
 
+#[cfg(feature="seqpacket")]
+#[derive(Debug, Clone)]
+pub struct SeqpacketConnect(pub PathBuf);
+#[cfg(feature="seqpacket")]
+impl Specifier for SeqpacketConnect {
+    fn construct(&self, h: &Handle, _: &mut ProgramState, _opts: Rc<Options>) -> PeerConstructor {
+        once(seqpacket_connect_peer(h, &self.0))
+    }
+    specifier_boilerplate!(noglobalstate singleconnect no_subspec typ=Other);
+}
+#[cfg(feature="seqpacket")]
+specifier_class!(
+    name=SeqpacketConnectClass, 
+    target=SeqpacketConnect, 
+    prefixes=["seqpacket:", "seqpacket-connect:", "connect-seqpacket:", "seqpacket-c:", "c-seqpacket:"], 
+    arg_handling=into,
+    help=r#"
+Connect to AF_UNIX SOCK_SEQPACKET socket. Argument is a filesystem path.
+
+Start the path with `@` character to make it connect to abstract-namespaced socket instead.
+
+Too long paths are silently truncated.
+
+Example: forward connections from websockets to a UNIX seqpacket abstract socket
+
+    websocat ws-l:127.0.0.1:1234 seqpacket:@test
+"#
+);
+
+#[cfg(feature="seqpacket")]
+#[derive(Debug, Clone)]
+pub struct SeqpacketListen(pub PathBuf);
+#[cfg(feature="seqpacket")]
+impl Specifier for SeqpacketListen {
+    fn construct(&self, h: &Handle, _: &mut ProgramState, opts: Rc<Options>) -> PeerConstructor {
+        multi(seqpacket_listen_peer(h, &self.0, opts))
+    }
+    specifier_boilerplate!(noglobalstate multiconnect no_subspec typ=Other);
+}
+#[cfg(feature="seqpacket")]
+specifier_class!(
+    name=SeqpacketListenClass, 
+    target=SeqpacketListen, 
+    prefixes=["seqpacket-listen:", "listen-seqpacket:", "seqpacket-l:", "l-seqpacket:"], 
+    arg_handling=into,
+    help=r#"
+Listen for connections on a specified AF_UNIX SOCK_SEQPACKET socket
+
+Start the path with `@` character to make it connect to abstract-namespaced socket instead.
+
+Too long (>=108 bytes) paths are silently truncated.
+
+Example: forward connections from a UNIX seqpacket socket to a WebSocket
+
+    websocat --unlink seqpacket-l:the_socket ws://127.0.0.1:8089
+"#
+);
+
+
 
 // based on https://github.com/tokio-rs/tokio-core/blob/master/examples/proxy.rs
 #[derive(Clone)]
@@ -349,8 +413,7 @@ pub fn dgram_peer(
     )) as BoxedNewPeerFuture
 }
 
-#[cfg(feature = "workaround1")]
-extern crate libc;
+
 #[cfg(feature = "workaround1")]
 pub fn dgram_peer_workaround(
     handle: &Handle,
@@ -361,7 +424,7 @@ pub fn dgram_peer_workaround(
     info!("Workaround method for getting abstract datagram socket");
     fn getfd(bindaddr: &Path, connectaddr: &Path) -> Option<i32> {
         use self::libc::{bind, c_char, connect, sa_family_t, sockaddr, sockaddr_un, socket,
-                         socklen_t, AF_UNIX, SOCK_DGRAM};
+                         socklen_t, AF_UNIX, SOCK_DGRAM, close};
         use std::mem::{size_of, transmute};
         use std::os::unix::ffi::OsStrExt;
         unsafe {
@@ -380,6 +443,7 @@ pub fn dgram_peer_workaround(
                 let sa_len = l + size_of::<sa_family_t>();
                 let ret = bind(s, transmute(&sa), sa_len as socklen_t);
                 if ret == -1 {
+                    close(s);
                     return None;
                 }
             }
@@ -394,6 +458,7 @@ pub fn dgram_peer_workaround(
                 let sa_len = l + size_of::<sa_family_t>();
                 let ret = connect(s, transmute(&sa), sa_len as socklen_t);
                 if ret == -1 {
+                    close(s);
                     return None;
                 }
             }
@@ -450,3 +515,131 @@ impl AsyncWrite for DgramPeerHandle {
         Ok(().into())
     }
 }
+
+#[cfg(feature="seqpacket")]
+pub fn seqpacket_connect_peer(handle: &Handle, addr: &Path) -> BoxedNewPeerFuture {
+   fn getfd(addr: &Path) -> Option<i32> {
+        use self::libc::{c_char, close, connect, sa_family_t, sockaddr_un, socket,
+                         socklen_t, AF_UNIX, SOCK_SEQPACKET};
+        use std::mem::{size_of, transmute};
+        use std::os::unix::ffi::OsStrExt;
+        unsafe {
+            let s = socket(AF_UNIX, SOCK_SEQPACKET, 0);
+            if s == -1 {
+                return None;
+            }
+            {
+                let mut sa = sockaddr_un {
+                    sun_family: AF_UNIX as sa_family_t,
+                    sun_path: [0; 108],
+                };
+                let bp: &[c_char] = transmute(addr.as_os_str().as_bytes());
+                let l = 108.min(bp.len());
+                sa.sun_path[..l].copy_from_slice(&bp[..l]);
+                if sa.sun_path[0] == b'@' as c_char {
+                    sa.sun_path[0] = b'\x00' as c_char;
+                }
+                let sa_len = l + size_of::<sa_family_t>();
+                let ret = connect(s, transmute(&sa), sa_len as socklen_t);
+                if ret == -1 {
+                    close(s);
+                    return None;
+                }
+            }
+            Some(s)
+        }
+    }
+    fn getpeer(
+        handle: &Handle,
+        addr: &Path,
+    ) -> Result<Peer, Box<::std::error::Error>> {
+        if let Some(fd) = getfd(addr) {
+            let s: ::std::os::unix::net::UnixStream =
+                unsafe { ::std::os::unix::io::FromRawFd::from_raw_fd(fd) };
+            let ss = UnixStream::from_stream(s, handle)?;
+            let x = Rc::new(ss);
+            Ok(Peer::new(
+                MyUnixStream(x.clone(), true),
+                MyUnixStream(x.clone(), false),
+            ))
+        } else {
+            Err("Failed to get or connect socket")?
+        }
+    }
+    Box::new(futures::future::result({
+        getpeer(handle, addr)
+    })) as BoxedNewPeerFuture
+}
+
+
+#[cfg(feature="seqpacket")]
+pub fn seqpacket_listen_peer(handle: &Handle, addr: &Path, opts:Rc<Options>) -> BoxedNewPeerStream {
+   fn getfd(addr: &Path, opts:Rc<Options>) -> Option<i32> {
+        use self::libc::{c_char, bind, close, sa_family_t, sockaddr_un, socket,
+                         socklen_t, AF_UNIX, SOCK_SEQPACKET, listen, unlink};
+        use std::mem::{size_of, transmute};
+        use std::os::unix::ffi::OsStrExt;
+        unsafe {
+            let s = socket(AF_UNIX, SOCK_SEQPACKET, 0);
+            if s == -1 {
+                return None;
+            }
+            {
+                let mut sa = sockaddr_un {
+                    sun_family: AF_UNIX as sa_family_t,
+                    sun_path: [0; 108],
+                };
+                let bp: &[c_char] = transmute(addr.as_os_str().as_bytes());
+                
+                let l = 108.min(bp.len());
+                sa.sun_path[..l].copy_from_slice(&bp[..l]);
+                if sa.sun_path[0] == b'@' as c_char {
+                    sa.sun_path[0] = b'\x00' as c_char;
+                } else {
+                    if opts.unlink_unix_socket {
+                        sa.sun_path[107]=0;
+                        unlink(&sa.sun_path as *const c_char);
+                    }
+                }
+                let sa_len = l + size_of::<sa_family_t>();
+                let ret = bind(s, transmute(&sa), sa_len as socklen_t);
+                if ret == -1 {
+                    close(s);
+                    return None;
+                }
+            }
+            {
+                let ret = listen(s, 50);
+                if ret == -1 {
+                    close(s);
+                    return None;
+                }
+            }
+            Some(s)
+        }
+    }
+    let fd = match getfd(addr, opts)  {
+        Some(x) => x,
+        None => return peer_err_s(simple_err("Failed to get or bind socket".into())),
+    };
+    let l1 : ::std::os::unix::net::UnixListener =
+        unsafe { ::std::os::unix::io::FromRawFd::from_raw_fd(fd) };
+    let bound = match UnixListener::from_listener(l1, handle) {
+        Ok(x) => x,
+        Err(e) => return peer_err_s(e),
+    };
+    Box::new(
+        bound
+            .incoming()
+            .map(|(x, _addr)| {
+                info!("Incoming unix socket connection");
+                let x = Rc::new(x);
+                Peer::new(
+                    MyUnixStream(x.clone(), true),
+                    MyUnixStream(x.clone(), false),
+                )
+            })
+            .map_err(|e| box_up_err(e)),
+    ) as BoxedNewPeerStream
+}
+

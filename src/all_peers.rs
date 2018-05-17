@@ -58,6 +58,12 @@ macro_rules! list_of_all_specifier_classes {
         $your_macro!($crate::trivial_peer::LiteralClass);
         $your_macro!($crate::trivial_peer::AssertClass);
         
+        
+        #[cfg(feature="seqpacket")]
+        $your_macro!($crate::unix_peer::SeqpacketConnectClass);
+        #[cfg(feature="seqpacket")]
+        $your_macro!($crate::unix_peer::SeqpacketListenClass);
+        
         /*
         $your_macro!($crate:: :: );
         $your_macro!($crate:: :: );

@@ -503,6 +503,37 @@ Check the input. Read entire input and panic the program if the input is not equ
 to the specified string. Used in tests.
 
 
+### SeqpacketConnect
+
+* `seqpacket:`, `seqpacket-connect:`, `connect-seqpacket:`, `seqpacket-c:`, `c-seqpacket:`
+
+Connect to AF_UNIX SOCK_SEQPACKET socket. Argument is a filesystem path.
+
+Start the path with `@` character to make it connect to abstract-namespaced socket instead.
+
+Too long paths are silently truncated.
+
+Example: forward connections from websockets to a UNIX seqpacket abstract socket
+
+    websocat ws-l:127.0.0.1:1234 seqpacket:@test
+
+
+### SeqpacketListen
+
+* `seqpacket-listen:`, `listen-seqpacket:`, `seqpacket-l:`, `l-seqpacket:`
+
+Listen for connections on a specified AF_UNIX SOCK_SEQPACKET socket
+
+Start the path with `@` character to make it connect to abstract-namespaced socket instead.
+
+Too long (>=108 bytes) paths are silently truncated.
+
+Example: forward connections from a UNIX seqpacket socket to a WebSocket
+
+    websocat --unlink seqpacket-l:the_socket ws://127.0.0.1:8089
+
+
+
 Planned features
 ---
 

@@ -391,6 +391,11 @@ pub fn peer_strerr(e: &str) -> BoxedNewPeerFuture {
     let q: Box<std::error::Error> = From::from(e);
     Box::new(futures::future::err(q)) as BoxedNewPeerFuture
 }
+pub fn simple_err(e: String) -> std::io::Error {
+    let e1 : Box<std::error::Error + Send + Sync> = e.into();
+    let e2 = ::std::io::Error::new(::std::io::ErrorKind::Other, e1);
+    e2
+}
 pub fn box_up_err<E: std::error::Error + 'static>(e: E) -> Box<std::error::Error> {
     Box::new(e) as Box<std::error::Error>
 }

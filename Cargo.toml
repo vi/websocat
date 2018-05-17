@@ -35,7 +35,7 @@ no_unix_stdio = []
 ssl = ["websocket/async-ssl"]
 signal_handler = ["tokio-signal"]
 workaround1=["libc"]
-#seqpacket=["libc"]
+seqpacket=["libc"]
 
 [dev-dependencies]
 tokio-timer = "=0.1.2"

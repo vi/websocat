@@ -10,7 +10,7 @@ use super::{BoxedNewPeerFuture, Peer};
 use std::io::{Error as IoError, Read, Write};
 use tokio_io::{AsyncRead, AsyncWrite};
 
-use super::{once, wouldblock, Handle, Options, PeerConstructor, ProgramState, Specifier};
+use super::{once, wouldblock, Handle, Options, PeerConstructor, ProgramState, Specifier, simple_err};
 use futures::{Async, Future, Poll};
 
 // TODO: shutdown write part if out writing part is shut down
@@ -136,10 +136,7 @@ macro_rules! getpeer {
             Ok(Async::Ready(p)) => p,
             Ok(Async::NotReady) => return wouldblock(),
             Err(e) => {
-                let e1: Box<::std::error::Error + Send + Sync + 'static> =
-                    format!("{}", e).into();
-                let e2 = ::std::io::Error::new(::std::io::ErrorKind::Other, e1);
-                return Err(e2);
+                return Err(simple_err(format!("{}", e)));
             }
         };
     };
