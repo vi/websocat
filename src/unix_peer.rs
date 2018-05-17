@@ -423,7 +423,7 @@ pub fn dgram_peer_workaround(
 ) -> BoxedNewPeerFuture {
     info!("Workaround method for getting abstract datagram socket");
     fn getfd(bindaddr: &Path, connectaddr: &Path) -> Option<i32> {
-        use self::libc::{bind, c_char, connect, sa_family_t, sockaddr, sockaddr_un, socket,
+        use self::libc::{bind, c_char, connect, sa_family_t, sockaddr_un, socket,
                          socklen_t, AF_UNIX, SOCK_DGRAM, close};
         use std::mem::{size_of, transmute};
         use std::os::unix::ffi::OsStrExt;
