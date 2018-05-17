@@ -23,6 +23,9 @@ use super::{multi, once, Options, PeerConstructor, ProgramState, Specifier};
 #[allow(unused)]
 use super::simple_err;
 
+#[allow(unused)]
+use std::net::SocketAddr;
+
 #[derive(Debug, Clone)]
 pub struct UnixConnect(pub PathBuf);
 impl Specifier for UnixConnect {
@@ -303,6 +306,58 @@ Example: forward connections from a UNIX seqpacket socket to a WebSocket
 "#
 );
 
+
+
+#[cfg(feature="seqpacket")]
+#[derive(Debug, Clone)]
+pub struct SctpConnect(pub SocketAddr);
+#[cfg(feature="seqpacket")]
+impl Specifier for SctpConnect {
+    fn construct(&self, h: &Handle, _: &mut ProgramState, _opts: Rc<Options>) -> PeerConstructor {
+        once(sctp_connect_peer(h, &self.0))
+    }
+    specifier_boilerplate!(noglobalstate singleconnect no_subspec typ=Other);
+}
+#[cfg(feature="seqpacket")]
+specifier_class!(
+    name=SctpConnectClass, 
+    target=SctpConnect, 
+    prefixes=["sctp:", "sctp-connect:", "connect-sctp:", "sctp-c:", "c-sctp:"], 
+    arg_handling=parse,
+    help=r#"
+Connect to AF_INET SOCK_SEQPACKET socket. Argument is a socket address.
+
+Example: forward connections from a websocket to a SCTP
+
+    websocat ws-l:127.0.0.1:1234 sctp:127.0.0.1:5667
+"#
+);
+
+#[cfg(feature="seqpacket")]
+#[derive(Debug, Clone)]
+pub struct SctpListen(pub SocketAddr);
+#[cfg(feature="seqpacket")]
+impl Specifier for SctpListen {
+    fn construct(&self, h: &Handle, _: &mut ProgramState, _opts: Rc<Options>) -> PeerConstructor {
+        multi(sctp_listen_peer(h, &self.0))
+    }
+    specifier_boilerplate!(noglobalstate multiconnect no_subspec typ=Other);
+}
+#[cfg(feature="seqpacket")]
+specifier_class!(
+    name=SctpListenClass, 
+    target=SctpListen, 
+    prefixes=["sctp-listen:", "listen-sctp:", "sctp-l:", "l-sctp:"], 
+    arg_handling=parse,
+    help=r#"
+Listen for connections on a specified AF_INET SOCK_SEQPACKET socket
+
+
+Example: forward connections from a SCTP socket to a WebSocket
+
+    websocat sctp-l:127.0.0.1:5667 ws://127.0.0.1:8089
+"#
+);
 
 
 // based on https://github.com/tokio-rs/tokio-core/blob/master/examples/proxy.rs
@@ -643,3 +698,129 @@ pub fn seqpacket_listen_peer(handle: &Handle, addr: &Path, opts:Rc<Options>) -> 
     ) as BoxedNewPeerStream
 }
 
+
+#[cfg(feature="seqpacket")]
+pub fn sctp_connect_peer(handle: &Handle, addr: &SocketAddr) -> BoxedNewPeerFuture {
+   fn getfd(addr: &SocketAddr) -> Option<i32> {
+        use self::libc::{close, connect, sockaddr_in, sockaddr_in6, socket,
+                         socklen_t, AF_INET, AF_INET6, SOCK_STREAM,SOCK_SEQPACKET, IPPROTO_SCTP};
+        use std::mem::{size_of, transmute};
+        unsafe {
+            let s = socket(if addr.is_ipv4(){AF_INET}else{AF_INET6}, SOCK_STREAM, IPPROTO_SCTP);
+            if s == -1 {
+                return None;
+            }
+            // Maybe use https://github.com/nix-rust/nix/blob/master/src/sys/socket/addr.rs#L249 here?
+            match addr {
+                &SocketAddr::V4(v4) => {
+                    let sa : sockaddr_in = transmute(v4); // FIXME
+                    let sa_len = size_of::<sockaddr_in>();
+                    let ret = connect(s, transmute(&sa), sa_len as socklen_t);
+                    if ret == -1 {
+                        close(s);
+                        return None;
+                    }
+                }
+                &SocketAddr::V6(v6) => {
+                    let sa : sockaddr_in6 = transmute(v6); // FIXME
+                    let sa_len = size_of::<sockaddr_in6>();
+                    let ret = connect(s, transmute(&sa), sa_len as socklen_t);
+                    if ret == -1 {
+                        close(s);
+                        return None;
+                    }
+                }
+            }
+            Some(s)
+        }
+    }
+    fn getpeer(
+        handle: &Handle,
+        addr: &SocketAddr,
+    ) -> Result<Peer, Box<::std::error::Error>> {
+        if let Some(fd) = getfd(addr) {
+            let s: ::std::os::unix::net::UnixStream =
+                unsafe { ::std::os::unix::io::FromRawFd::from_raw_fd(fd) };
+            let ss = UnixStream::from_stream(s, handle)?;
+            let x = Rc::new(ss);
+            Ok(Peer::new(
+                MyUnixStream(x.clone(), true),
+                MyUnixStream(x.clone(), false),
+            ))
+        } else {
+            Err("Failed to get or connect socket")?
+        }
+    }
+    Box::new(futures::future::result({
+        getpeer(handle, addr)
+    })) as BoxedNewPeerFuture
+}
+
+
+#[cfg(feature="seqpacket")]
+pub fn sctp_listen_peer(handle: &Handle, addr: &SocketAddr) -> BoxedNewPeerStream {
+   fn getfd(addr: &SocketAddr) -> Option<i32> {
+        use self::libc::{bind, close, sockaddr_in, sockaddr_in6, socket,
+                         socklen_t, AF_INET, AF_INET6,SOCK_STREAM, SOCK_SEQPACKET, listen, IPPROTO_SCTP};
+        use std::mem::{size_of, transmute};
+        unsafe {
+            let s = socket(if addr.is_ipv4(){AF_INET}else{AF_INET6}, SOCK_STREAM, IPPROTO_SCTP);
+            if s == -1 {
+                return None;
+            }
+            {
+                match addr {
+                    &SocketAddr::V4(v4) => {
+                        let sa : sockaddr_in = transmute(v4); // FIXME
+                        let sa_len = size_of::<sockaddr_in>();
+                        let ret = bind(s, transmute(&sa), sa_len as socklen_t);
+                        if ret == -1 {
+                            close(s);
+                            return None;
+                        }
+                    }
+                    &SocketAddr::V6(v6) => {
+                        let sa : sockaddr_in6 = transmute(v6); // FIXME
+                        let sa_len = size_of::<sockaddr_in6>();
+                        let ret = bind(s, transmute(&sa), sa_len as socklen_t);
+                        if ret == -1 {
+                            close(s);
+                            return None;
+                        }
+                    }
+                }
+            }
+            {
+                let ret = listen(s, 50);
+                if ret == -1 {
+                    close(s);
+                    return None;
+                }
+            }
+            Some(s)
+        }
+    }
+    let fd = match getfd(addr)  {
+        Some(x) => x,
+        None => return peer_err_s(simple_err("Failed to get or bind socket".into())),
+    };
+    let l1 : ::std::os::unix::net::UnixListener =
+        unsafe { ::std::os::unix::io::FromRawFd::from_raw_fd(fd) };
+    let bound = match UnixListener::from_listener(l1, handle) {
+        Ok(x) => x,
+        Err(e) => return peer_err_s(e),
+    };
+    Box::new(
+        bound
+            .incoming()
+            .map(|(x, _addr)| {
+                info!("Incoming unix socket connection");
+                let x = Rc::new(x);
+                Peer::new(
+                    MyUnixStream(x.clone(), true),
+                    MyUnixStream(x.clone(), false),
+                )
+            })
+            .map_err(|e| box_up_err(e)),
+    ) as BoxedNewPeerStream
+}

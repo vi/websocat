@@ -138,7 +138,6 @@ Here is the full list of specifier classes in this WebSocat build:
   
   
 TODO:
-  sctp:
   ssl:
 
 Final example just for fun: wacky mode

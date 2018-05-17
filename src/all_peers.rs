@@ -63,6 +63,10 @@ macro_rules! list_of_all_specifier_classes {
         $your_macro!($crate::unix_peer::SeqpacketConnectClass);
         #[cfg(feature="seqpacket")]
         $your_macro!($crate::unix_peer::SeqpacketListenClass);
+        #[cfg(feature="seqpacket")]
+        $your_macro!($crate::unix_peer::SctpConnectClass);
+        #[cfg(feature="seqpacket")]
+        $your_macro!($crate::unix_peer::SctpListenClass);
         
         /*
         $your_macro!($crate:: :: );
