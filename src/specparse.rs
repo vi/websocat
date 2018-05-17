@@ -7,6 +7,12 @@ pub fn spec(s: &str) -> Result<Rc<Specifier>> {
 
 impl Specifier {
     fn from_str(s: &str) -> Result<Rc<Specifier>> {
+        #[cfg(not(feature="ssl"))] {
+            if s.starts_with("wss://") {
+                Err("SSL is not compiled in. Use ws:// or get/make another Websocat build.")?
+            }
+        }
+    
         #[cfg(not(any(target_os = "linux", target_os = "android")))] {
             if s.starts_with("abstract") {
                 warn!("Abstract-namespaced UNIX sockets are unlikely to be supported here");
