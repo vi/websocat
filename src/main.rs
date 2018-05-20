@@ -85,6 +85,9 @@ struct Opt {
                 default_value = "ws://0.0.0.0/")]
     ws_c_uri: String,
     
+    #[structopt(long = "linemode-retain-newlines", help="In --line mode, don't chop off trailing \\n from messages")]
+    linemode_retain_newlines: bool,
+    
     // TODO: -v --quiet
 }
 
@@ -193,6 +196,7 @@ fn run() -> Result<()> {
             unlink_unix_socket
             exec_args
             ws_c_uri
+            linemode_retain_newlines
         )
     };
 

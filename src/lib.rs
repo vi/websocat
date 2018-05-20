@@ -70,6 +70,7 @@ pub struct Options {
     pub unlink_unix_socket: bool,
     pub exec_args: Vec<String>,
     pub ws_c_uri: String,
+    pub linemode_retain_newlines: bool,
 }
 
 #[derive(Default)]
