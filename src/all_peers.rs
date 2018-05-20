@@ -52,6 +52,7 @@ macro_rules! list_of_all_specifier_classes {
         #[cfg(unix)]
         $your_macro!($crate::unix_peer::AbstractDgramClass);
         
+        $your_macro!($crate::line_peer::Packet2LineClass);
         $your_macro!($crate::mirror_peer::MirrorClass);
         $your_macro!($crate::mirror_peer::LiteralReplyClass);
         $your_macro!($crate::trivial_peer::CloggedClass);

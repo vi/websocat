@@ -286,11 +286,9 @@ mod my_copy;
 #[cfg(all(unix, not(feature = "no_unix_stdio")))]
 pub mod stdio_peer;
 
-pub mod connection_reuse_peer;
 pub mod file_peer;
 pub mod mirror_peer;
 pub mod net_peer;
-pub mod reconnect_peer;
 pub mod stdio_threaded_peer;
 pub mod trivial_peer;
 pub mod ws_client_peer;
@@ -302,6 +300,11 @@ pub mod process_peer;
 
 #[cfg(unix)]
 pub mod unix_peer;
+
+
+pub mod connection_reuse_peer;
+pub mod reconnect_peer;
+pub mod line_peer;
 
 pub mod specparse;
 
