@@ -24,7 +24,7 @@ impl Specifier for WsClient {
         let url = self.0.clone();
         once(get_ws_client_peer(h, &url, opts))
     }
-    specifier_boilerplate!(noglobalstate singleconnect no_subspec typ=Other);
+    specifier_boilerplate!(noglobalstate singleconnect no_subspec typ=WebSocket);
 }
 specifier_class!(
     name=WsClientClass, 
@@ -62,7 +62,7 @@ impl<T: Specifier> Specifier for WsConnect<T> {
 
         inner.map(move |q| get_ws_client_peer_wrapped(&url, q, opts.clone()))
     }
-    specifier_boilerplate!(noglobalstate has_subspec typ=Other);
+    specifier_boilerplate!(noglobalstate has_subspec typ=WebSocket);
     self_0_is_subspecifier!(proxy_is_multiconnect);
 }
 specifier_class!(

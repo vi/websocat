@@ -1,5 +1,6 @@
 use super::{connection_reuse_peer, Specifier, SpecifierType, WebsocatConfiguration};
 use std::rc::Rc;
+use super::line_peer;
 
 /// Diagnostics for specifiers and options combinations
 #[derive(PartialEq, Eq)]
@@ -10,6 +11,13 @@ pub enum ConfigurationConcern {
     NeedsStdioReuser2,
     MultipleReusers,
     DegenerateMode,
+}
+
+#[derive(PartialEq, Eq,Clone,Copy)]
+pub enum AutoInstallLinemodeConcern {
+    NoWebsocket,
+    MultipleWebsocket,
+    AlreadyLine,
 }
 
 #[derive(Ord, PartialOrd, Eq, PartialEq, Copy, Clone)]
@@ -27,6 +35,7 @@ pub enum StdioUsageStatus {
 trait SpecifierExt {
     fn stdio_usage_status(&self) -> StdioUsageStatus;
     fn reuser_count(&self) -> usize;
+    fn contains(&self, t:SpecifierType) -> bool;
 }
 
 impl<T: Specifier> SpecifierExt for T {
@@ -44,7 +53,7 @@ impl<T: Specifier> SpecifierExt for T {
                         sus = WithReuser;
                     }
                 }
-                SpecifierType::Other => {
+                _ => {
                     if sus == IsItself {
                         sus = Indirectly;
                     }
@@ -62,6 +71,15 @@ impl<T: Specifier> SpecifierExt for T {
             }
         }
         count
+    }
+    
+    fn contains(&self, t:SpecifierType) -> bool {
+        for i in self.get_info().collect() {
+            if i.typ == t {
+                return true;
+            }
+        }
+        false
     }
 }
 
@@ -113,6 +131,36 @@ impl WebsocatConfiguration {
             opts,
             s1,
             s2: Rc::new(connection_reuse_peer::Reuser(s2)),
+        }
+    }
+    
+    pub fn auto_install_linemode(self) -> Result<Self, (AutoInstallLinemodeConcern,Self)> {
+        use self::AutoInstallLinemodeConcern::*;
+        use SpecifierType::{Line,WebSocket};
+        if self.s1.contains(Line) { return Err((AlreadyLine,self)) }
+        if self.s2.contains(Line) { return Err((AlreadyLine,self)) }
+        if self.s1.contains(WebSocket) {
+            if self.s2.contains(WebSocket) {
+                Err((MultipleWebsocket, self))
+            } else {
+                let WebsocatConfiguration { opts, s1, s2 } = self;
+                Ok(WebsocatConfiguration {
+                    opts,
+                    s1: Rc::new(line_peer::Message2Line(s1)),
+                    s2: Rc::new(line_peer::Line2Message(s2)),
+                })
+            }
+        } else {
+            if self.s2.contains(WebSocket) {
+                let WebsocatConfiguration { opts, s1, s2 } = self;
+                Ok(WebsocatConfiguration {
+                    opts,
+                    s1: Rc::new(line_peer::Line2Message(s1)),
+                    s2: Rc::new(line_peer::Message2Line(s2)),
+                })
+            } else {
+                Err((NoWebsocket, self))
+            }
         }
     }
 }

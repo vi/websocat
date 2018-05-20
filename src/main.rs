@@ -88,6 +88,9 @@ struct Opt {
     #[structopt(long = "linemode-retain-newlines", help="In --line mode, don't chop off trailing \\n from messages")]
     linemode_retain_newlines: bool,
     
+    #[structopt(short="-l", long="--line", help="Make each WebSocket message correspond to one line")]
+    linemode: bool,
+    
     // TODO: -v --quiet
 }
 
@@ -205,8 +208,18 @@ fn run() -> Result<()> {
 
     let mut websocat = WebsocatConfiguration { opts, s1, s2 };
 
+    if cmd.linemode {
+        use websocat::lints::AutoInstallLinemodeConcern::*;
+        websocat = match websocat.auto_install_linemode() {
+            Ok(x) => x,
+            Err((NoWebsocket,_)) => Err("No websocket usage is specified. Use line2msg: and msg2line: specifiers manually if needed.")?,
+            Err((MultipleWebsocket,_)) => Err("Multiple websocket usages are specified. Use line2msg: and msg2line: specifiers manually if needed.")?,
+            Err((AlreadyLine,_)) => Err("Can't auto-insert msg2line:/line2msg: if you have already manually specified some of them")?,
+        }
+    }
+
     while let Some(concern) = websocat.get_concern() {
-        use websocat::ConfigurationConcern::*;
+        use websocat::lints::ConfigurationConcern::*;
         if concern == StdinToStdout {
             if cmd.dumpspec {
                 println!("cat mode");

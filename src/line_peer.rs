@@ -1,20 +1,13 @@
-#![allow(unused)]
-
-use futures::future::Future;
 use futures::future::ok;
-use futures::stream::Stream;
 
-use std::cell::RefCell;
 use std::rc::Rc;
 
-use super::ws_peer::{Mode1, PeerForWs, WsReadWrapper, WsWriteWrapper};
-use super::{box_up_err, io_other_error, BoxedNewPeerFuture, Peer};
-use super::{Handle, Options, PeerConstructor, ProgramState, Specifier, ReadDebt};
+use super::{BoxedNewPeerFuture, Peer};
+use super::{Handle, Options, PeerConstructor, ProgramState, Specifier};
 
 use tokio_io::AsyncRead;
 use std::io::Read;
 
-use futures;
 use std::io::Error as IoError;
 
 #[derive(Debug)]
@@ -24,7 +17,7 @@ impl<T: Specifier> Specifier for Message2Line<T> {
         let inner = self.0.construct(h, ps, opts);
         inner.map(move |p| packet2line_peer(p))
     }
-    specifier_boilerplate!(typ=Other noglobalstate has_subspec);
+    specifier_boilerplate!(typ=Line noglobalstate has_subspec);
     self_0_is_subspecifier!(proxy_is_multiconnect);
 }
 specifier_class!(
@@ -56,7 +49,7 @@ impl<T: Specifier> Specifier for Line2Message<T> {
         let inner = self.0.construct(h, ps, opts);
         inner.map(move |p| line2packet_peer(p, retain_newlines))
     }
-    specifier_boilerplate!(typ=Other noglobalstate has_subspec);
+    specifier_boilerplate!(typ=Line noglobalstate has_subspec);
     self_0_is_subspecifier!(proxy_is_multiconnect);
 }
 specifier_class!(

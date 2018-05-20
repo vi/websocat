@@ -25,7 +25,7 @@ impl<T: Specifier> Specifier for WsServer<T> {
         let inner = self.0.construct(h, ps, opts);
         inner.map(move |p| ws_upgrade_peer(p, mode1))
     }
-    specifier_boilerplate!(typ=Other noglobalstate has_subspec);
+    specifier_boilerplate!(typ=WebSocket noglobalstate has_subspec);
     self_0_is_subspecifier!(proxy_is_multiconnect);
 }
 specifier_class!(

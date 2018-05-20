@@ -37,8 +37,6 @@ fn io_other_error<E: std::error::Error + Send + Sync + 'static>(e: E) -> std::io
     std::io::Error::new(std::io::ErrorKind::Other, e)
 }
 
-pub use lints::ConfigurationConcern;
-
 pub struct WebsocatConfiguration {
     pub opts: Options,
     pub s1: Rc<Specifier>,
@@ -92,6 +90,8 @@ pub enum SpecifierType {
     Stdio,
     Reuser,
     Other,
+    Line,
+    WebSocket,
 }
 
 /// A trait for a each specified type's accompanying object
