@@ -14,13 +14,13 @@ readme = "README.md"
 websocket = { version = "0.20.2", default-features = false, features=["async"] }
 env_logger = {version="0.5.9", default-features = false }
 log = {version="0.4.1", default-features = false}
-#clap = { version = "*", default-features = false }
 futures = {version = "=0.1.17" }
 tokio-core =  { version = "=0.1.12" }
 tokio-io = "=0.1.5"
 tokio-stdin-stdout = "0.1.1"
 structopt = { version = "0.2", default-features = false }
 tokio-process = {version = "0.1.5" , optional = true }
+slab_typesafe = "0.1"
 
 
 [target.'cfg(unix)'.dependencies]

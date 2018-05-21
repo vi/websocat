@@ -17,6 +17,9 @@ extern crate websocket;
 #[macro_use]
 extern crate log;
 
+#[macro_use]
+extern crate slab_typesafe;
+
 use futures::future::Future;
 use tokio_core::reactor::Handle;
 use tokio_io::{AsyncRead, AsyncWrite};
@@ -77,6 +80,7 @@ pub struct ProgramState {
     stdio: stdio_peer::GlobalState,
 
     reuser: connection_reuse_peer::GlobalState,
+    reuser2: connection_reuse_peer2::GlobalState,
 }
 
 pub struct Peer(Box<AsyncRead>, Box<AsyncWrite>);
@@ -304,6 +308,7 @@ pub mod unix_peer;
 
 
 pub mod connection_reuse_peer;
+pub mod connection_reuse_peer2;
 pub mod reconnect_peer;
 pub mod line_peer;
 

@@ -32,7 +32,7 @@ specifier_class!(
     prefixes=["reuse:"], 
     arg_handling=subspec,
     help=r#"
-Reuse subspecifier for serving multiple clients.
+Reuse subspecifier for serving multiple clients: unpredictable mode.
 
 Better used with --unidirectional, otherwise replies get directed to
 random connected client.
