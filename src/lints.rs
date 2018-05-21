@@ -1,4 +1,4 @@
-use super::{connection_reuse_peer, Specifier, SpecifierType, WebsocatConfiguration};
+use super::{primitive_reuse_peer, Specifier, SpecifierType, WebsocatConfiguration};
 use std::rc::Rc;
 use super::line_peer;
 
@@ -130,7 +130,7 @@ impl WebsocatConfiguration {
         WebsocatConfiguration {
             opts,
             s1,
-            s2: Rc::new(connection_reuse_peer::Reuser(s2)),
+            s2: Rc::new(primitive_reuse_peer::Reuser(s2)),
         }
     }
     

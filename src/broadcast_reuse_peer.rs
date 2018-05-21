@@ -54,7 +54,7 @@ messages get accumulated up to the configurable --broadcast-buffer, then dropped
 
 Example: Simple data exchange between connected WebSocket clients
 
-    websocat ws-l:0.0.0.0:8800 reuse-broadcast:mirror:
+    websocat -E ws-l:0.0.0.0:8800 reuse-broadcast:mirror:
 "#
 );
 

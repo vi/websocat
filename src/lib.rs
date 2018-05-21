@@ -79,8 +79,8 @@ pub struct ProgramState {
     #[cfg(all(unix, not(feature = "no_unix_stdio")))]
     stdio: stdio_peer::GlobalState,
 
-    reuser: connection_reuse_peer::GlobalState,
-    reuser2: connection_reuse_peer2::GlobalState,
+    reuser: primitive_reuse_peer::GlobalState,
+    reuser2: broadcast_reuse_peer::GlobalState,
 }
 
 pub struct Peer(Box<AsyncRead>, Box<AsyncWrite>);
@@ -307,8 +307,8 @@ pub mod process_peer;
 pub mod unix_peer;
 
 
-pub mod connection_reuse_peer;
-pub mod connection_reuse_peer2;
+pub mod primitive_reuse_peer;
+pub mod broadcast_reuse_peer;
 pub mod reconnect_peer;
 pub mod line_peer;
 

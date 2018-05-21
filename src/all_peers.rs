@@ -22,8 +22,8 @@ macro_rules! list_of_all_specifier_classes {
         $your_macro!($crate::file_peer::WriteFileClass);
         $your_macro!($crate::file_peer::AppendFileClass);
         
-        $your_macro!($crate::connection_reuse_peer::ReuserClass);
-        $your_macro!($crate::connection_reuse_peer2::BroadcastReuserClass);
+        $your_macro!($crate::primitive_reuse_peer::ReuserClass);
+        $your_macro!($crate::broadcast_reuse_peer::BroadcastReuserClass);
         $your_macro!($crate::reconnect_peer::AutoReconnectClass);
         
         $your_macro!($crate::ws_client_peer::WsConnectClass);
