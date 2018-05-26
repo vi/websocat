@@ -60,6 +60,7 @@ macro_rules! list_of_all_specifier_classes {
         $your_macro!($crate::trivial_peer::CloggedClass);
         $your_macro!($crate::trivial_peer::LiteralClass);
         $your_macro!($crate::trivial_peer::AssertClass);
+        $your_macro!($crate::trivial_peer::Assert2Class);
         
         
         #[cfg(feature="seqpacket")]

@@ -13,7 +13,7 @@ use tokio_io::{AsyncRead, AsyncWrite};
 use super::ReadDebt;
 use super::wouldblock;
 
-use super::{once, Handle, Options, PeerConstructor, ProgramState, Specifier};
+use super::{once, Handle, Options, PeerConstructor, ProgramState, Specifier, simple_err};
 
 #[derive(Clone)]
 pub struct Literal(pub Vec<u8>);
@@ -66,6 +66,30 @@ to the specified string. Used in tests.
 "#
 );
 
+#[derive(Clone)]
+pub struct Assert2(pub Vec<u8>);
+impl Specifier for Assert2 {
+    fn construct(&self, _: &Handle, _: &mut ProgramState, _opts: Rc<Options>) -> PeerConstructor {
+        once(get_assert2_peer(self.0.clone()))
+    }
+    specifier_boilerplate!(noglobalstate singleconnect no_subspec typ=Other);
+}
+impl std::fmt::Debug for Assert2 {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::result::Result<(), std::fmt::Error> {
+        write!(f, "Assert2")
+    }
+}
+specifier_class!(
+    name=Assert2Class, 
+    target=Assert2, 
+    prefixes=["assert2:"], 
+    arg_handling=into,
+    help=r#"
+Check the input. Read entire input and emit an error if the input is not equal
+to the specified string.
+"#
+);
+
 #[derive(Debug, Clone)]
 pub struct Clogged;
 impl Specifier for Clogged {
@@ -99,7 +123,13 @@ pub fn get_literal_peer(b: Vec<u8>) -> BoxedNewPeerFuture {
 }
 pub fn get_assert_peer(b: Vec<u8>) -> BoxedNewPeerFuture {
     let r = DevNull;
-    let w = AssertPeer(vec![], b);
+    let w = AssertPeer(vec![], b, true);
+    let p = Peer::new(r, w);
+    Box::new(futures::future::ok(p)) as BoxedNewPeerFuture
+}
+pub fn get_assert2_peer(b: Vec<u8>) -> BoxedNewPeerFuture {
+    let r = DevNull;
+    let w = AssertPeer(vec![], b, false);
     let p = Peer::new(r, w);
     Box::new(futures::future::ok(p)) as BoxedNewPeerFuture
 }
@@ -144,10 +174,17 @@ impl Read for DevNull {
     }
 }
 
-struct AssertPeer(Vec<u8>, Vec<u8>);
+struct AssertPeer(Vec<u8>, Vec<u8>, bool);
 impl AsyncWrite for AssertPeer {
     fn shutdown(&mut self) -> futures::Poll<(), std::io::Error> {
-        assert_eq!(self.0, self.1);
+        if self.2 {
+            assert_eq!(self.0, self.1);
+        } else {
+            if self.0 != self.1 {
+                error!("Assertion failed");
+                return Err(simple_err("Assertion failed".into()));
+            }
+        }
         info!("Assertion succeed");
         Ok(Ready(()))
     }
