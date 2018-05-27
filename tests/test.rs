@@ -140,6 +140,86 @@ fn ws() {
 }
 
 #[test]
+fn ws_persist() {
+    let _ = env_logger::try_init();
+    let mut core = Core::new().unwrap();
+
+    let prog1 = {
+        let s1 = spec("ws-l:127.0.0.1:45914").unwrap();
+        let s2 = spec("literal:qwert4y").unwrap();
+
+        let websocat = WebsocatConfiguration {
+            opts: Default::default(),
+            s1,
+            s2,
+        };
+
+        websocat.serve(
+            core.handle(),
+            std::rc::Rc::new(|e| {
+                eprintln!("{}", e);
+                panic!();
+            }),
+        )
+    };
+    let prog2 = {
+        let s1 = spec("literal:invalid_connection_request").unwrap();
+        let s2 = spec("tcp:127.0.0.1:45914").unwrap();
+        let h2 = core.handle();
+
+        let websocat = WebsocatConfiguration {
+            opts: Default::default(),
+            s1,
+            s2,
+        };
+
+        let t = tokio_timer::wheel().build();
+        let delay = t.sleep(std::time::Duration::new(0, 200_000_000))
+            .map_err(|_| ());
+
+        delay.and_then(|()| {
+            websocat.serve(
+                h2,
+                std::rc::Rc::new(|e| {
+                    eprintln!("{}", e);
+                    panic!();
+                }),
+            )
+        })
+    };
+    let prog3 = {
+        let s1 = spec("ws://127.0.0.1:45914/ololo").unwrap();
+        let s2 = spec("assert:qwert4y").unwrap();
+        let h2 = core.handle();
+
+        let websocat = WebsocatConfiguration {
+            opts: Default::default(),
+            s1,
+            s2,
+        };
+
+        let t = tokio_timer::wheel().build();
+        let delay = t.sleep(std::time::Duration::new(0, 200_000_000))
+            .map_err(|_| ());
+
+        delay.and_then(|()| {
+            websocat.serve(
+                h2,
+                std::rc::Rc::new(|e| {
+                    eprintln!("{}", e);
+                    panic!();
+                }),
+            )
+        })
+    };
+
+    core.handle().spawn(prog1);
+    core.handle().spawn(prog2);
+    let prog = prog3;
+    core.run(prog).map_err(|()| panic!()).unwrap();
+}
+
+#[test]
 #[cfg(unix)]
 fn unix() {
     let _ = env_logger::try_init();
