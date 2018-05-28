@@ -2,26 +2,25 @@ extern crate tokio_stdin_stdout;
 
 use super::{BoxedNewPeerFuture, Peer};
 
-use super::{once, Handle, Options, PeerConstructor, ConstructParams, Specifier};
+use super::{once, ConstructParams, PeerConstructor, Specifier};
 
 use std::rc::Rc;
 
 #[derive(Debug, Clone)]
 pub struct ThreadedStdio;
 impl Specifier for ThreadedStdio {
-    fn construct(&self, _:ConstructParams) -> PeerConstructor {
+    fn construct(&self, _: ConstructParams) -> PeerConstructor {
         once(get_stdio_peer())
     }
     specifier_boilerplate!(globalstate singleconnect no_subspec typ=Stdio);
 }
 
-
 specifier_class!(
-    name=ThreadedStdioClass, 
-    target=ThreadedStdio, 
-    prefixes=["threadedstdio:"], 
-    arg_handling=noarg,
-    help=r#"
+    name = ThreadedStdioClass,
+    target = ThreadedStdio,
+    prefixes = ["threadedstdio:"],
+    arg_handling = noarg,
+    help = r#"
 Stdin/stdout, spawning a thread.
 
 Like `-`, but forces threaded mode instead of async mode
@@ -31,11 +30,11 @@ Use when standard input is not `epoll(7)`-able or you want to avoid setting it t
 );
 #[cfg(not(all(unix, not(feature = "no_unix_stdio"))))]
 specifier_class!(
-    name=ThreadedStdioSubstituteClass, 
-    target=ThreadedStdio, 
-    prefixes=["-","stdio:","inetd:"], 
-    arg_handling=noarg,
-    help=r#"
+    name = ThreadedStdioSubstituteClass,
+    target = ThreadedStdio,
+    prefixes = ["-", "stdio:", "inetd:"],
+    arg_handling = noarg,
+    help = r#"
 Read input from console, print to console (threaded version).
 
 This specifier can be specified only one time.

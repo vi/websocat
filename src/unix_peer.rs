@@ -1,6 +1,6 @@
 extern crate tokio_uds;
 
-#[cfg(any(feature = "workaround1",feature="seqpacket"))]
+#[cfg(any(feature = "workaround1", feature = "seqpacket"))]
 extern crate libc;
 
 use futures;
@@ -18,25 +18,31 @@ use std::path::{Path, PathBuf};
 
 use self::tokio_uds::{UnixDatagram, UnixListener, UnixStream};
 
-use super::{box_up_err, peer_err_s, BoxedNewPeerFuture, BoxedNewPeerStream, Peer};
-use super::{multi, once, Options, PeerConstructor, ConstructParams, Specifier};
 #[allow(unused)]
 use super::simple_err;
+use super::{box_up_err, peer_err_s, BoxedNewPeerFuture, BoxedNewPeerStream, Peer};
+use super::{multi, once, ConstructParams, Options, PeerConstructor, Specifier};
 
 #[derive(Debug, Clone)]
 pub struct UnixConnect(pub PathBuf);
 impl Specifier for UnixConnect {
-    fn construct(&self, p:ConstructParams) -> PeerConstructor {
+    fn construct(&self, p: ConstructParams) -> PeerConstructor {
         once(unix_connect_peer(&p.tokio_handle, &self.0))
     }
     specifier_boilerplate!(noglobalstate singleconnect no_subspec typ=Other);
 }
 specifier_class!(
-    name=UnixConnectClass, 
-    target=UnixConnect, 
-    prefixes=["unix:", "unix-connect:", "connect-unix:", "unix-c:", "c-unix:"], 
-    arg_handling=into,
-    help=r#"
+    name = UnixConnectClass,
+    target = UnixConnect,
+    prefixes = [
+        "unix:",
+        "unix-connect:",
+        "connect-unix:",
+        "unix-c:",
+        "c-unix:"
+    ],
+    arg_handling = into,
+    help = r#"
 Connect to UNIX socket. Argument is filesystem path.
 
 Example: forward connections from websockets to a UNIX stream socket
@@ -48,17 +54,21 @@ Example: forward connections from websockets to a UNIX stream socket
 #[derive(Debug, Clone)]
 pub struct UnixListen(pub PathBuf);
 impl Specifier for UnixListen {
-    fn construct(&self, p:ConstructParams) -> PeerConstructor {
-        multi(unix_listen_peer(&p.tokio_handle, &self.0, p.program_options))
+    fn construct(&self, p: ConstructParams) -> PeerConstructor {
+        multi(unix_listen_peer(
+            &p.tokio_handle,
+            &self.0,
+            p.program_options,
+        ))
     }
     specifier_boilerplate!(noglobalstate multiconnect no_subspec typ=Other);
 }
 specifier_class!(
-    name=UnixListenClass, 
-    target=UnixListen, 
-    prefixes=["unix-listen:", "listen-unix:", "unix-l:", "l-unix:"], 
-    arg_handling=into,
-    help=r#"
+    name = UnixListenClass,
+    target = UnixListen,
+    prefixes = ["unix-listen:", "listen-unix:", "unix-l:", "l-unix:"],
+    arg_handling = into,
+    help = r#"
 Listen for connections on a specified UNIX socket
 
 Example: forward connections from a UNIX socket to a WebSocket
@@ -96,27 +106,34 @@ TODO: --chmod option?
 #[derive(Debug, Clone)]
 pub struct UnixDgram(pub PathBuf, pub PathBuf);
 impl Specifier for UnixDgram {
-    fn construct(&self, p:ConstructParams) -> PeerConstructor {
-        once(dgram_peer(&p.tokio_handle, &self.0, &self.1, p.program_options))
+    fn construct(&self, p: ConstructParams) -> PeerConstructor {
+        once(dgram_peer(
+            &p.tokio_handle,
+            &self.0,
+            &self.1,
+            p.program_options,
+        ))
     }
     specifier_boilerplate!(noglobalstate singleconnect no_subspec typ=Other);
 }
 specifier_class!(
-    name=UnixDgramClass, 
-    target=UnixDgram,
-    prefixes=["unix-dgram:"],
-    arg_handling={
-        fn construct(self:&UnixDgramClass, _full:&str, just_arg:&str)
-                -> super::Result<Rc<Specifier>> 
-        {
+    name = UnixDgramClass,
+    target = UnixDgram,
+    prefixes = ["unix-dgram:"],
+    arg_handling = {
+        fn construct(
+            self: &UnixDgramClass,
+            _full: &str,
+            just_arg: &str,
+        ) -> super::Result<Rc<Specifier>> {
             let splits: Vec<&str> = just_arg.split(":").collect();
             if splits.len() != 2 {
                 Err("Expected two colon-separted paths")?;
             }
-            Ok(Rc::new(UnixDgram(splits[0].into(), splits[1].into() ))) 
+            Ok(Rc::new(UnixDgram(splits[0].into(), splits[1].into())))
         }
     },
-    help=r#"
+    help = r#"
 Send packets to one path, receive from the other.
 A socket for sending must be already openend.
 
@@ -136,17 +153,23 @@ fn to_abstract(x: &str) -> PathBuf {
 #[derive(Debug, Clone)]
 pub struct AbstractConnect(pub String);
 impl Specifier for AbstractConnect {
-    fn construct(&self, p:ConstructParams) -> PeerConstructor {
+    fn construct(&self, p: ConstructParams) -> PeerConstructor {
         once(unix_connect_peer(&p.tokio_handle, &to_abstract(&self.0)))
     }
     specifier_boilerplate!(noglobalstate singleconnect no_subspec typ=Other);
 }
 specifier_class!(
-    name=AbstractConnectClass, 
-    target=AbstractConnect, 
-    prefixes=["abstract:", "abstract-connect:", "connect-abstract:", "abstract-c:", "c-abstract:"], 
-    arg_handling=into,
-    help=r#"
+    name = AbstractConnectClass,
+    target = AbstractConnect,
+    prefixes = [
+        "abstract:",
+        "abstract-connect:",
+        "connect-abstract:",
+        "abstract-c:",
+        "c-abstract:"
+    ],
+    arg_handling = into,
+    help = r#"
 Connect to UNIX abstract-namespaced socket. Argument is some string used as address.
 
 Too long addresses may be silently chopped off.
@@ -163,7 +186,7 @@ so non-prebuilt versions may have problems with them.
 #[derive(Debug, Clone)]
 pub struct AbstractListen(pub String);
 impl Specifier for AbstractListen {
-    fn construct(&self, p:ConstructParams) -> PeerConstructor {
+    fn construct(&self, p: ConstructParams) -> PeerConstructor {
         multi(unix_listen_peer(
             &p.tokio_handle,
             &to_abstract(&self.0),
@@ -173,11 +196,16 @@ impl Specifier for AbstractListen {
     specifier_boilerplate!(noglobalstate multiconnect no_subspec typ=Other);
 }
 specifier_class!(
-    name=AbstractListenClass, 
-    target=AbstractListen, 
-    prefixes=["abstract-listen:", "listen-abstract:", "abstract-l:", "l-abstract:"], 
-    arg_handling=into,
-    help=r#"
+    name = AbstractListenClass,
+    target = AbstractListen,
+    prefixes = [
+        "abstract-listen:",
+        "listen-abstract:",
+        "abstract-l:",
+        "l-abstract:"
+    ],
+    arg_handling = into,
+    help = r#"
 Listen for connections on a specified abstract UNIX socket
 
 Example: forward connections from an abstract UNIX socket to a WebSocket
@@ -192,7 +220,7 @@ so non-prebuilt versions may have problems with them.
 #[derive(Debug, Clone)]
 pub struct AbstractDgram(pub String, pub String);
 impl Specifier for AbstractDgram {
-    fn construct(&self, p:ConstructParams) -> PeerConstructor {
+    fn construct(&self, p: ConstructParams) -> PeerConstructor {
         #[cfg(not(feature = "workaround1"))]
         {
             once(dgram_peer(
@@ -215,21 +243,23 @@ impl Specifier for AbstractDgram {
     specifier_boilerplate!(noglobalstate singleconnect no_subspec typ=Other);
 }
 specifier_class!(
-    name=AbstractDgramClass, 
-    target=AbstractDgram,
-    prefixes=["abstract-dgram:"],
-    arg_handling={
-        fn construct(self:&AbstractDgramClass, _full:&str, just_arg:&str)
-                -> super::Result<Rc<Specifier>> 
-        {
+    name = AbstractDgramClass,
+    target = AbstractDgram,
+    prefixes = ["abstract-dgram:"],
+    arg_handling = {
+        fn construct(
+            self: &AbstractDgramClass,
+            _full: &str,
+            just_arg: &str,
+        ) -> super::Result<Rc<Specifier>> {
             let splits: Vec<&str> = just_arg.split(":").collect();
             if splits.len() != 2 {
                 Err("Expected two colon-separted addresses")?;
             }
-            Ok(Rc::new(UnixDgram(splits[0].into(), splits[1].into() ))) 
+            Ok(Rc::new(UnixDgram(splits[0].into(), splits[1].into())))
         }
     },
-    help=r#"
+    help = r#"
 Send packets to one address, receive from the other.
 A socket for sending must be already openend.
 
@@ -245,23 +275,29 @@ may fail to work without `workaround1` Cargo feature.
 "#
 );
 
-#[cfg(feature="seqpacket")]
+#[cfg(feature = "seqpacket")]
 #[derive(Debug, Clone)]
 pub struct SeqpacketConnect(pub PathBuf);
-#[cfg(feature="seqpacket")]
+#[cfg(feature = "seqpacket")]
 impl Specifier for SeqpacketConnect {
-    fn construct(&self, p:ConstructParams) -> PeerConstructor {
+    fn construct(&self, p: ConstructParams) -> PeerConstructor {
         once(seqpacket_connect_peer(&p.tokio_handle, &self.0))
     }
     specifier_boilerplate!(noglobalstate singleconnect no_subspec typ=Other);
 }
-#[cfg(feature="seqpacket")]
+#[cfg(feature = "seqpacket")]
 specifier_class!(
-    name=SeqpacketConnectClass, 
-    target=SeqpacketConnect, 
-    prefixes=["seqpacket:", "seqpacket-connect:", "connect-seqpacket:", "seqpacket-c:", "c-seqpacket:"], 
-    arg_handling=into,
-    help=r#"
+    name = SeqpacketConnectClass,
+    target = SeqpacketConnect,
+    prefixes = [
+        "seqpacket:",
+        "seqpacket-connect:",
+        "connect-seqpacket:",
+        "seqpacket-c:",
+        "c-seqpacket:"
+    ],
+    arg_handling = into,
+    help = r#"
 Connect to AF_UNIX SOCK_SEQPACKET socket. Argument is a filesystem path.
 
 Start the path with `@` character to make it connect to abstract-namespaced socket instead.
@@ -274,23 +310,28 @@ Example: forward connections from websockets to a UNIX seqpacket abstract socket
 "#
 );
 
-#[cfg(feature="seqpacket")]
+#[cfg(feature = "seqpacket")]
 #[derive(Debug, Clone)]
 pub struct SeqpacketListen(pub PathBuf);
-#[cfg(feature="seqpacket")]
+#[cfg(feature = "seqpacket")]
 impl Specifier for SeqpacketListen {
-    fn construct(&self, p:ConstructParams) -> PeerConstructor {
+    fn construct(&self, p: ConstructParams) -> PeerConstructor {
         multi(seqpacket_listen_peer(&p.tokio_handle, &self.0, opts))
     }
     specifier_boilerplate!(noglobalstate multiconnect no_subspec typ=Other);
 }
-#[cfg(feature="seqpacket")]
+#[cfg(feature = "seqpacket")]
 specifier_class!(
-    name=SeqpacketListenClass, 
-    target=SeqpacketListen, 
-    prefixes=["seqpacket-listen:", "listen-seqpacket:", "seqpacket-l:", "l-seqpacket:"], 
-    arg_handling=into,
-    help=r#"
+    name = SeqpacketListenClass,
+    target = SeqpacketListen,
+    prefixes = [
+        "seqpacket-listen:",
+        "listen-seqpacket:",
+        "seqpacket-l:",
+        "l-seqpacket:"
+    ],
+    arg_handling = into,
+    help = r#"
 Listen for connections on a specified AF_UNIX SOCK_SEQPACKET socket
 
 Start the path with `@` character to make it connect to abstract-namespaced socket instead.
@@ -302,8 +343,6 @@ Example: forward connections from a UNIX seqpacket socket to a WebSocket
     websocat --unlink seqpacket-l:the_socket ws://127.0.0.1:8089
 "#
 );
-
-
 
 // based on https://github.com/tokio-rs/tokio-core/blob/master/examples/proxy.rs
 #[derive(Clone)]
@@ -413,7 +452,6 @@ pub fn dgram_peer(
     )) as BoxedNewPeerFuture
 }
 
-
 #[cfg(feature = "workaround1")]
 pub fn dgram_peer_workaround(
     handle: &Handle,
@@ -423,8 +461,10 @@ pub fn dgram_peer_workaround(
 ) -> BoxedNewPeerFuture {
     info!("Workaround method for getting abstract datagram socket");
     fn getfd(bindaddr: &Path, connectaddr: &Path) -> Option<i32> {
-        use self::libc::{bind, c_char, connect, sa_family_t, sockaddr_un, socket,
-                         socklen_t, AF_UNIX, SOCK_DGRAM, close};
+        use self::libc::{
+            bind, c_char, close, connect, sa_family_t, sockaddr_un, socket, socklen_t, AF_UNIX,
+            SOCK_DGRAM,
+        };
         use std::mem::{size_of, transmute};
         use std::os::unix::ffi::OsStrExt;
         unsafe {
@@ -516,11 +556,13 @@ impl AsyncWrite for DgramPeerHandle {
     }
 }
 
-#[cfg(feature="seqpacket")]
+#[cfg(feature = "seqpacket")]
 pub fn seqpacket_connect_peer(handle: &Handle, addr: &Path) -> BoxedNewPeerFuture {
-   fn getfd(addr: &Path) -> Option<i32> {
-        use self::libc::{c_char, close, connect, sa_family_t, sockaddr_un, socket,
-                         socklen_t, AF_UNIX, SOCK_SEQPACKET};
+    fn getfd(addr: &Path) -> Option<i32> {
+        use self::libc::{
+            c_char, close, connect, sa_family_t, sockaddr_un, socket, socklen_t, AF_UNIX,
+            SOCK_SEQPACKET,
+        };
         use std::mem::{size_of, transmute};
         use std::os::unix::ffi::OsStrExt;
         unsafe {
@@ -549,10 +591,7 @@ pub fn seqpacket_connect_peer(handle: &Handle, addr: &Path) -> BoxedNewPeerFutur
             Some(s)
         }
     }
-    fn getpeer(
-        handle: &Handle,
-        addr: &Path,
-    ) -> Result<Peer, Box<::std::error::Error>> {
+    fn getpeer(handle: &Handle, addr: &Path) -> Result<Peer, Box<::std::error::Error>> {
         if let Some(fd) = getfd(addr) {
             let s: ::std::os::unix::net::UnixStream =
                 unsafe { ::std::os::unix::io::FromRawFd::from_raw_fd(fd) };
@@ -566,17 +605,20 @@ pub fn seqpacket_connect_peer(handle: &Handle, addr: &Path) -> BoxedNewPeerFutur
             Err("Failed to get or connect socket")?
         }
     }
-    Box::new(futures::future::result({
-        getpeer(handle, addr)
-    })) as BoxedNewPeerFuture
+    Box::new(futures::future::result({ getpeer(handle, addr) })) as BoxedNewPeerFuture
 }
 
-
-#[cfg(feature="seqpacket")]
-pub fn seqpacket_listen_peer(handle: &Handle, addr: &Path, opts:Rc<Options>) -> BoxedNewPeerStream {
-   fn getfd(addr: &Path, opts:Rc<Options>) -> Option<i32> {
-        use self::libc::{c_char, bind, close, sa_family_t, sockaddr_un, socket,
-                         socklen_t, AF_UNIX, SOCK_SEQPACKET, listen, unlink};
+#[cfg(feature = "seqpacket")]
+pub fn seqpacket_listen_peer(
+    handle: &Handle,
+    addr: &Path,
+    opts: Rc<Options>,
+) -> BoxedNewPeerStream {
+    fn getfd(addr: &Path, opts: Rc<Options>) -> Option<i32> {
+        use self::libc::{
+            bind, c_char, close, listen, sa_family_t, sockaddr_un, socket, socklen_t, unlink,
+            AF_UNIX, SOCK_SEQPACKET,
+        };
         use std::mem::{size_of, transmute};
         use std::os::unix::ffi::OsStrExt;
         unsafe {
@@ -590,14 +632,14 @@ pub fn seqpacket_listen_peer(handle: &Handle, addr: &Path, opts:Rc<Options>) -> 
                     sun_path: [0; 108],
                 };
                 let bp: &[c_char] = transmute(addr.as_os_str().as_bytes());
-                
+
                 let l = 108.min(bp.len());
                 sa.sun_path[..l].copy_from_slice(&bp[..l]);
                 if sa.sun_path[0] == b'@' as c_char {
                     sa.sun_path[0] = b'\x00' as c_char;
                 } else {
                     if opts.unlink_unix_socket {
-                        sa.sun_path[107]=0;
+                        sa.sun_path[107] = 0;
                         unlink(&sa.sun_path as *const c_char);
                     }
                 }
@@ -618,11 +660,11 @@ pub fn seqpacket_listen_peer(handle: &Handle, addr: &Path, opts:Rc<Options>) -> 
             Some(s)
         }
     }
-    let fd = match getfd(addr, opts)  {
+    let fd = match getfd(addr, opts) {
         Some(x) => x,
         None => return peer_err_s(simple_err("Failed to get or bind socket".into())),
     };
-    let l1 : ::std::os::unix::net::UnixListener =
+    let l1: ::std::os::unix::net::UnixListener =
         unsafe { ::std::os::unix::io::FromRawFd::from_raw_fd(fd) };
     let bound = match UnixListener::from_listener(l1, handle) {
         Ok(x) => x,
@@ -642,4 +684,3 @@ pub fn seqpacket_listen_peer(handle: &Handle, addr: &Path, opts:Rc<Options>) -> 
             .map_err(|e| box_up_err(e)),
     ) as BoxedNewPeerStream
 }
-

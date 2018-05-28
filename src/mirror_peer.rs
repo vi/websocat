@@ -16,22 +16,22 @@ use futures::sync::mpsc;
 use tokio_io::{AsyncRead, AsyncWrite};
 
 use super::ReadDebt;
-use super::{once, Handle, Options, PeerConstructor, ConstructParams, Specifier};
+use super::{once, ConstructParams, PeerConstructor, Specifier};
 
 #[derive(Debug, Clone)]
 pub struct Mirror;
 impl Specifier for Mirror {
-    fn construct(&self, _:ConstructParams) -> PeerConstructor {
+    fn construct(&self, _: ConstructParams) -> PeerConstructor {
         once(get_mirror_peer())
     }
     specifier_boilerplate!(noglobalstate singleconnect no_subspec typ=Other);
 }
 specifier_class!(
-    name=MirrorClass, 
-    target=Mirror, 
-    prefixes=["mirror:"], 
-    arg_handling=noarg,
-    help=r#"
+    name = MirrorClass,
+    target = Mirror,
+    prefixes = ["mirror:"],
+    arg_handling = noarg,
+    help = r#"
 Simply copy output to input. No arguments needed.
 
 Similar to `exec:cat`.
@@ -41,7 +41,7 @@ Similar to `exec:cat`.
 #[derive(Clone)]
 pub struct LiteralReply(pub Vec<u8>);
 impl Specifier for LiteralReply {
-    fn construct(&self, _:ConstructParams) -> PeerConstructor {
+    fn construct(&self, _: ConstructParams) -> PeerConstructor {
         once(get_literal_reply_peer(self.0.clone()))
     }
     specifier_boilerplate!(noglobalstate singleconnect no_subspec typ=Other);
@@ -52,11 +52,11 @@ impl std::fmt::Debug for LiteralReply {
     }
 }
 specifier_class!(
-    name=LiteralReplyClass, 
-    target=LiteralReply, 
-    prefixes=["literalreply:"], 
-    arg_handling=into,
-    help=r#"
+    name = LiteralReplyClass,
+    target = LiteralReply,
+    prefixes = ["literalreply:"],
+    arg_handling = into,
+    help = r#"
 Reply with a specified string for each input packet.
 
 Example:

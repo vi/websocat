@@ -7,17 +7,17 @@ use futures::future::ok;
 use std::cell::RefCell;
 use std::rc::Rc;
 
-use super::{brokenpipe,wouldblock,io_other_error,simple_err,BoxedNewPeerFuture, Peer};
+use super::{brokenpipe, io_other_error, simple_err, wouldblock, BoxedNewPeerFuture, Peer};
 
 use std::io::{Error as IoError, Read, Write};
 use tokio_io::{AsyncRead, AsyncWrite};
 
-use super::{once, Handle, Options, PeerConstructor, ProgramState, Specifier, ConstructParams};
-use futures::Future;
-use futures::Stream;
+use super::{once, ConstructParams, Handle, Options, PeerConstructor, ProgramState, Specifier};
 use futures::Async;
 use futures::AsyncSink;
+use futures::Future;
 use futures::Sink;
+use futures::Stream;
 use std::ops::DerefMut;
 
 use futures::unsync::mpsc;
@@ -28,7 +28,7 @@ use slab_typesafe::Slab;
 #[derive(Debug)]
 pub struct BroadcastReuser(pub Rc<Specifier>);
 impl Specifier for BroadcastReuser {
-    fn construct(&self, p:ConstructParams) -> PeerConstructor {
+    fn construct(&self, p: ConstructParams) -> PeerConstructor {
         let mut reuser = p.global_state.borrow_mut().reuser2.clone();
         let h = p.tokio_handle.clone();
         let inner = || self.0.construct(p).get_only_first_conn();
@@ -39,11 +39,11 @@ impl Specifier for BroadcastReuser {
 }
 
 specifier_class!(
-    name=BroadcastReuserClass, 
-    target=BroadcastReuser, 
-    prefixes=["reuse-broadcast:", "broadcast-reuse:","broadcast:"], 
-    arg_handling=subspec,
-    help=r#"
+    name = BroadcastReuserClass,
+    target = BroadcastReuser,
+    prefixes = ["reuse-broadcast:", "broadcast-reuse:", "broadcast:"],
+    arg_handling = subspec,
+    help = r#"
 Reuse subspecifier for serving multiple clients: broadcast mode.
 
 Messages from any connected client get directed to subspecifier,
@@ -59,9 +59,8 @@ Example: Simple data exchange between connected WebSocket clients
 "#
 );
 
-
 type SailingBuffer = Rc<Vec<u8>>;
-type Clients=Slab<BroadcastClientIndex,mpsc::Sender<SailingBuffer>>;
+type Clients = Slab<BroadcastClientIndex, mpsc::Sender<SailingBuffer>>;
 
 pub struct Broadcaster {
     inner_peer: Peer,
@@ -72,59 +71,54 @@ pub type HBroadCaster = Rc<RefCell<Option<Broadcaster>>>;
 pub type GlobalState = HBroadCaster;
 
 struct PeerHandleW(HBroadCaster);
-struct PeerHandleR(HBroadCaster, mpsc::Receiver<SailingBuffer>, BroadcastClientIndex);
+struct PeerHandleR(
+    HBroadCaster,
+    mpsc::Receiver<SailingBuffer>,
+    BroadcastClientIndex,
+);
 struct InnerPeerReader(HBroadCaster, Vec<u8>);
 
 impl Future for InnerPeerReader {
     type Item = ();
     type Error = ();
-    fn poll(&mut self) -> futures::Poll<(),()> {
+    fn poll(&mut self) -> futures::Poll<(), ()> {
         loop {
-            let mut meb = self
-                    .0
-                    .borrow_mut();
-            let mut me =meb.as_mut()
-                    .expect("Assertion failed 16293");
-            match me.inner_peer
-                    .0
-                    .read(&mut self.1[..]) {
+            let mut meb = self.0.borrow_mut();
+            let mut me = meb.as_mut().expect("Assertion failed 16293");
+            match me.inner_peer.0.read(&mut self.1[..]) {
                 Ok(n) => {
                     if me.clients.len() == 0 {
                         info!("Dropping broadcast due to no clients being connected");
                         continue;
                     }
                     let sb = Rc::new(self.1[0..n].to_vec());
-                    for (_,client) in me.clients.iter_mut() {
+                    for (_, client) in me.clients.iter_mut() {
                         match client.start_send(sb.clone()) {
-                            Ok(AsyncSink::Ready) => {
-                                match client.poll_complete() {
-                                    Ok(Async::Ready(())) => {
-                                    
-                                    },
-                                    Ok(Async::NotReady) => {
-                                        warn!("A client's sink is NotReady for poll_complete");
-                                    }
-                                    Err(e) => {
-                                        warn!("A client's sink is in error state: {}", e);
-                                    }
+                            Ok(AsyncSink::Ready) => match client.poll_complete() {
+                                Ok(Async::Ready(())) => {}
+                                Ok(Async::NotReady) => {
+                                    warn!("A client's sink is NotReady for poll_complete");
                                 }
-                            }
+                                Err(e) => {
+                                    warn!("A client's sink is in error state: {}", e);
+                                }
+                            },
                             Ok(AsyncSink::NotReady(_)) => {
                                 warn!("A client's sink is NotReady for start_send");
                             }
                             Err(e) => {
-                                warn!("A client's sink is in error state: {}",e);
+                                warn!("A client's sink is in error state: {}", e);
                             }
                         };
                     }
-                },
+                }
                 Err(e) => {
                     if e.kind() == ::std::io::ErrorKind::WouldBlock {
                         return Ok(Async::NotReady);
                     }
                     error!("Inner peer read failed: {}", e);
                     return Err(());
-                },
+                }
             }
         }
     }
@@ -132,7 +126,12 @@ impl Future for InnerPeerReader {
 
 impl Drop for PeerHandleR {
     fn drop(&mut self) {
-        self.0.borrow_mut().as_mut().expect("Assertion failed 16292").clients.remove(self.2);
+        self.0
+            .borrow_mut()
+            .as_mut()
+            .expect("Assertion failed 16292")
+            .clients
+            .remove(self.2);
     }
 }
 
@@ -147,15 +146,13 @@ impl Read for PeerHandleR {
                     }
                     b[0..(v.len())].copy_from_slice(&v[..]);
                     Ok(v.len())
-                },
-                Ok(Async::Ready(None)) => {
-                    brokenpipe()
-                },
+                }
+                Ok(Async::Ready(None)) => brokenpipe(),
                 Ok(Async::NotReady) => wouldblock(),
                 Err(()) => Err(simple_err("Something unexpected".into())),
-            }
+            };
         }
-    
+
         /*if let &mut Some(ref mut x) = self.0.borrow_mut().deref_mut() {
             x.inner_peer.0.read(b) // To be changed
         } else {
@@ -186,7 +183,7 @@ impl AsyncWrite for PeerHandleW {
         if let &mut Some(ref mut _x) = self.0.borrow_mut().deref_mut() {
             // Ignore shutdown attempts
             Ok(futures::Async::Ready(()))
-            //_x.1.shutdown()
+        //_x.1.shutdown()
         } else {
             unreachable!()
         }
@@ -195,8 +192,13 @@ impl AsyncWrite for PeerHandleW {
 
 fn makeclient(ps: HBroadCaster) -> Peer {
     let n = 1; // TODO: de-hardcode
-    let (send,recv) = mpsc::channel(n);
-    let k = ps.borrow_mut().as_mut().expect("Assertion failed 16291").clients.insert(send);
+    let (send, recv) = mpsc::channel(n);
+    let k = ps
+        .borrow_mut()
+        .as_mut()
+        .expect("Assertion failed 16291")
+        .clients
+        .insert(send);
     let ph1 = PeerHandleR(ps.clone(), recv, k);
     let ph2 = PeerHandleW(ps);
     Peer::new(ph1, ph2)
@@ -217,11 +219,11 @@ pub fn connection_reuser<F: FnOnce() -> BoxedNewPeerFuture>(
             {
                 let mut b = rc.borrow_mut();
                 let x: &mut Option<Broadcaster> = b.deref_mut();
-                *x = Some(Broadcaster{
+                *x = Some(Broadcaster {
                     inner_peer: inner,
                     clients: Clients::new(),
                 });
-                hh.spawn(InnerPeerReader(rc.clone(), vec![0;65536]));
+                hh.spawn(InnerPeerReader(rc.clone(), vec![0; 65536]));
             }
 
             let ps: HBroadCaster = rc.clone();

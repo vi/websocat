@@ -10,7 +10,7 @@ use super::{BoxedNewPeerFuture, Peer};
 use std::io::{Error as IoError, Read, Write};
 use tokio_io::{AsyncRead, AsyncWrite};
 
-use super::{once, wouldblock, Handle, Options, PeerConstructor, ProgramState, Specifier, simple_err, L2rUser, ConstructParams};
+use super::{once, simple_err, wouldblock, ConstructParams, PeerConstructor, Specifier};
 use futures::{Async, Future, Poll};
 
 // TODO: shutdown write part if out writing part is shut down
@@ -19,7 +19,7 @@ use futures::{Async, Future, Poll};
 #[derive(Debug)]
 pub struct AutoReconnect(pub Rc<Specifier>);
 impl Specifier for AutoReconnect {
-    fn construct(&self, cp:ConstructParams) -> PeerConstructor {
+    fn construct(&self, cp: ConstructParams) -> PeerConstructor {
         let mut subspec_globalstate = false;
 
         for i in self.0.get_info().collect() {
@@ -43,11 +43,11 @@ impl Specifier for AutoReconnect {
     self_0_is_subspecifier!(...);
 }
 specifier_class!(
-    name=AutoReconnectClass, 
-    target=AutoReconnect, 
-    prefixes=["autoreconnect:"], 
-    arg_handling=subspec,
-    help=r#"
+    name = AutoReconnectClass,
+    target = AutoReconnect,
+    prefixes = ["autoreconnect:"],
+    arg_handling = subspec,
+    help = r#"
 Re-establish underlying specifier on any error or EOF
 
 Example: keep connecting to the port or spin 100% CPU trying if it is closed.
@@ -71,7 +71,7 @@ struct State {
     s: Rc<Specifier>,
     p: Option<Peer>,
     n: Option<BoxedNewPeerFuture>,
-    cp : ConstructParams,
+    cp: ConstructParams,
     aux: State2,
 }
 

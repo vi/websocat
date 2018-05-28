@@ -14,14 +14,14 @@ use std::process::Command;
 
 use self::tokio_process::{Child, CommandExt};
 
+use super::{once, ConstructParams, PeerConstructor, Specifier};
 use super::{BoxedNewPeerFuture, Peer};
-use super::{once, Options, PeerConstructor, ConstructParams, Specifier};
 use std::process::Stdio;
 
 #[derive(Debug, Clone)]
 pub struct ShC(pub String);
 impl Specifier for ShC {
-    fn construct(&self, p:ConstructParams) -> PeerConstructor {
+    fn construct(&self, p: ConstructParams) -> PeerConstructor {
         let args = if cfg!(target_os = "windows") {
             let mut args = Command::new("cmd");
             args.arg("/C").arg(self.0.clone());
@@ -37,11 +37,11 @@ impl Specifier for ShC {
     specifier_boilerplate!(noglobalstate singleconnect no_subspec typ=Other);
 }
 specifier_class!(
-    name=ShCClass, 
-    target=ShC, 
-    prefixes=["sh-c:", "cmd:"], 
-    arg_handling=into,
-    help=r#"
+    name = ShCClass,
+    target = ShC,
+    prefixes = ["sh-c:", "cmd:"],
+    arg_handling = into,
+    help = r#"
 Start specified command line using `sh -c` or `cmd /C`
   
 Example: serve a counter
@@ -58,7 +58,7 @@ Example: unauthenticated shell
 #[derive(Debug, Clone)]
 pub struct Exec(pub String);
 impl Specifier for Exec {
-    fn construct(&self, p:ConstructParams) -> PeerConstructor {
+    fn construct(&self, p: ConstructParams) -> PeerConstructor {
         let mut args = Command::new(self.0.clone());
         args.args(p.program_options.exec_args.clone());
         let h = &p.tokio_handle;
@@ -67,11 +67,11 @@ impl Specifier for Exec {
     specifier_boilerplate!(noglobalstate singleconnect no_subspec typ=Other);
 }
 specifier_class!(
-    name=ExecClass, 
-    target=Exec, 
-    prefixes=["exec:"], 
-    arg_handling=into,
-    help=r#"
+    name = ExecClass,
+    target = Exec,
+    prefixes = ["exec:"],
+    arg_handling = into,
+    help = r#"
 Execute a program directly (without a subshell), providing array of arguments on Unix
 
 Example: Serve current date

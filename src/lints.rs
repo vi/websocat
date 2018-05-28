@@ -1,6 +1,6 @@
+use super::line_peer;
 use super::{primitive_reuse_peer, Specifier, SpecifierType, WebsocatConfiguration};
 use std::rc::Rc;
-use super::line_peer;
 
 /// Diagnostics for specifiers and options combinations
 #[derive(PartialEq, Eq)]
@@ -13,7 +13,7 @@ pub enum ConfigurationConcern {
     DegenerateMode,
 }
 
-#[derive(PartialEq, Eq,Clone,Copy)]
+#[derive(PartialEq, Eq, Clone, Copy)]
 pub enum AutoInstallLinemodeConcern {
     NoWebsocket,
     MultipleWebsocket,
@@ -35,7 +35,7 @@ pub enum StdioUsageStatus {
 trait SpecifierExt {
     fn stdio_usage_status(&self) -> StdioUsageStatus;
     fn reuser_count(&self) -> usize;
-    fn contains(&self, t:SpecifierType) -> bool;
+    fn contains(&self, t: SpecifierType) -> bool;
 }
 
 impl<T: Specifier> SpecifierExt for T {
@@ -72,8 +72,8 @@ impl<T: Specifier> SpecifierExt for T {
         }
         count
     }
-    
-    fn contains(&self, t:SpecifierType) -> bool {
+
+    fn contains(&self, t: SpecifierType) -> bool {
         for i in self.get_info().collect() {
             if i.typ == t {
                 return true;
@@ -100,7 +100,8 @@ impl WebsocatConfiguration {
             return Some(StdioConflict);
         }
 
-        if self.s1.is_multiconnect() && self.s2.stdio_usage_status() > WithReuser
+        if self.s1.is_multiconnect()
+            && self.s2.stdio_usage_status() > WithReuser
             && !self.opts.oneshot
         {
             if !self.opts.unidirectional {
@@ -133,12 +134,16 @@ impl WebsocatConfiguration {
             s2: Rc::new(primitive_reuse_peer::Reuser(s2)),
         }
     }
-    
-    pub fn auto_install_linemode(self) -> Result<Self, (AutoInstallLinemodeConcern,Self)> {
+
+    pub fn auto_install_linemode(self) -> Result<Self, (AutoInstallLinemodeConcern, Self)> {
         use self::AutoInstallLinemodeConcern::*;
-        use SpecifierType::{Line,WebSocket};
-        if self.s1.contains(Line) { return Err((AlreadyLine,self)) }
-        if self.s2.contains(Line) { return Err((AlreadyLine,self)) }
+        use SpecifierType::{Line, WebSocket};
+        if self.s1.contains(Line) {
+            return Err((AlreadyLine, self));
+        }
+        if self.s2.contains(Line) {
+            return Err((AlreadyLine, self));
+        }
         if self.s1.contains(WebSocket) {
             if self.s2.contains(WebSocket) {
                 Err((MultipleWebsocket, self))

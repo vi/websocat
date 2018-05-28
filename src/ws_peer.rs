@@ -1,7 +1,7 @@
 extern crate websocket;
 
-use self::websocket::OwnedMessage;
 use self::websocket::stream::async::Stream as WsStream;
+use self::websocket::OwnedMessage;
 use futures;
 use futures::sink::Sink;
 use futures::stream::Stream;
@@ -100,7 +100,8 @@ pub struct WsWriteWrapper<T: WsStream + 'static>(pub MultiProducerWsSink<T>, pub
 impl<T: WsStream + 'static> AsyncWrite for WsWriteWrapper<T> {
     fn shutdown(&mut self) -> futures::Poll<(), std::io::Error> {
         let mut sink = self.0.borrow_mut();
-        match sink.start_send(OwnedMessage::Close(None))
+        match sink
+            .start_send(OwnedMessage::Close(None))
             .map_err(io_other_error)?
         {
             futures::AsyncSink::NotReady(_) => wouldblock(),

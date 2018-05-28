@@ -15,22 +15,22 @@ use std::rc::Rc;
 use tokio_core::net::{TcpListener, TcpStream, UdpSocket};
 
 use super::{box_up_err, peer_err_s, wouldblock, BoxedNewPeerFuture, BoxedNewPeerStream, Peer};
-use super::{multi, once, Options, PeerConstructor, ConstructParams, Specifier};
+use super::{multi, once, ConstructParams, Options, PeerConstructor, Specifier};
 
 #[derive(Debug, Clone)]
 pub struct TcpConnect(pub SocketAddr);
 impl Specifier for TcpConnect {
-    fn construct(&self, p:ConstructParams) -> PeerConstructor {
+    fn construct(&self, p: ConstructParams) -> PeerConstructor {
         once(tcp_connect_peer(&p.tokio_handle, &self.0))
     }
     specifier_boilerplate!(noglobalstate singleconnect no_subspec typ=Other);
 }
 specifier_class!(
-    name=TcpConnectClass, 
-    target=TcpConnect,
-    prefixes=["tcp:", "tcp-connect:", "connect-tcp:", "tcp-c:", "c-tcp:"], 
-    arg_handling=parse,
-    help=r#"
+    name = TcpConnectClass,
+    target = TcpConnect,
+    prefixes = ["tcp:", "tcp-connect:", "connect-tcp:", "tcp-c:", "c-tcp:"],
+    arg_handling = parse,
+    help = r#"
 Connect to specified TCP host and port. Argument is a socket address.
 
 Example: simulate netcat netcat
@@ -46,17 +46,17 @@ Example: redirect websocket connections to local SSH server over IPv6
 #[derive(Debug, Clone)]
 pub struct TcpListen(pub SocketAddr);
 impl Specifier for TcpListen {
-    fn construct(&self, p:ConstructParams) -> PeerConstructor {
+    fn construct(&self, p: ConstructParams) -> PeerConstructor {
         multi(tcp_listen_peer(&p.tokio_handle, &self.0))
     }
     specifier_boilerplate!(noglobalstate multiconnect no_subspec typ=Other);
 }
 specifier_class!(
-    name=TcpListenClass, 
-    target=TcpListen,
-    prefixes=["tcp-listen:", "listen-tcp:", "tcp-l:", "l-tcp:"], 
-    arg_handling=parse,
-    help=r#"
+    name = TcpListenClass,
+    target = TcpListen,
+    prefixes = ["tcp-listen:", "listen-tcp:", "tcp-l:", "l-tcp:"],
+    arg_handling = parse,
+    help = r#"
 Listen TCP port on specified address.
     
 Example: echo server
@@ -72,17 +72,21 @@ Example: redirect TCP to a websocket
 #[derive(Debug, Clone)]
 pub struct UdpConnect(pub SocketAddr);
 impl Specifier for UdpConnect {
-    fn construct(&self, p:ConstructParams) -> PeerConstructor {
-        once(udp_connect_peer(&p.tokio_handle, &self.0, p.program_options))
+    fn construct(&self, p: ConstructParams) -> PeerConstructor {
+        once(udp_connect_peer(
+            &p.tokio_handle,
+            &self.0,
+            p.program_options,
+        ))
     }
     specifier_boilerplate!(noglobalstate singleconnect no_subspec typ=Other);
 }
 specifier_class!(
-    name=UdpConnectClass, 
-    target=UdpConnect,
-    prefixes=["udp:", "udp-connect:", "connect-udp:", "udp-c:", "c-udp:"], 
-    arg_handling=parse,
-    help=r#"
+    name = UdpConnectClass,
+    target = UdpConnect,
+    prefixes = ["udp:", "udp-connect:", "connect-udp:", "udp-c:", "c-udp:"],
+    arg_handling = parse,
+    help = r#"
 Send and receive packets to specified UDP socket, from random UDP port  
 "#
 );
@@ -90,17 +94,17 @@ Send and receive packets to specified UDP socket, from random UDP port
 #[derive(Debug, Clone)]
 pub struct UdpListen(pub SocketAddr);
 impl Specifier for UdpListen {
-    fn construct(&self, p:ConstructParams) -> PeerConstructor {
+    fn construct(&self, p: ConstructParams) -> PeerConstructor {
         once(udp_listen_peer(&p.tokio_handle, &self.0, p.program_options))
     }
     specifier_boilerplate!(noglobalstate singleconnect no_subspec typ=Other);
 }
 specifier_class!(
-    name=UdpListenClass, 
-    target=UdpListen,
-    prefixes=["udp-listen:", "listen-udp:", "udp-l:", "l-udp:"], 
-    arg_handling=parse,
-    help=r#"
+    name = UdpListenClass,
+    target = UdpListen,
+    prefixes = ["udp-listen:", "listen-udp:", "udp-l:", "l-udp:"],
+    arg_handling = parse,
+    help = r#"
 Bind an UDP socket to specifier host:port, receive packet
 from any remote UDP socket, send replies to recently observed
 remote UDP socket.
@@ -283,7 +287,8 @@ impl Read for UdpPeerHandle {
                 p.state = Some(UdpPeerState::ConnectMode);
                 p.s.recv(buf)
             }
-            UdpPeerState::HasAddress(oldaddr) => p.s
+            UdpPeerState::HasAddress(oldaddr) => p
+                .s
                 .recv_from(buf)
                 .map(|(ret, addr)| {
                     warn!("New client for the same listening UDP socket");

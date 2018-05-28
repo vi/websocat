@@ -10,15 +10,15 @@ use futures::Async::Ready;
 use std::rc::Rc;
 use tokio_io::{AsyncRead, AsyncWrite};
 
-use super::ReadDebt;
 use super::wouldblock;
+use super::ReadDebt;
 
-use super::{once, Handle, Options, PeerConstructor, ConstructParams, Specifier, simple_err};
+use super::{once, simple_err, ConstructParams, PeerConstructor, Specifier};
 
 #[derive(Clone)]
 pub struct Literal(pub Vec<u8>);
 impl Specifier for Literal {
-    fn construct(&self, _:ConstructParams) -> PeerConstructor {
+    fn construct(&self, _: ConstructParams) -> PeerConstructor {
         once(get_literal_peer(self.0.clone()))
     }
     specifier_boilerplate!(singleconnect no_subspec noglobalstate typ=Other);
@@ -29,11 +29,11 @@ impl std::fmt::Debug for Literal {
     }
 }
 specifier_class!(
-    name=LiteralClass, 
-    target=Literal, 
-    prefixes=["literal:"], 
-    arg_handling=into,
-    help=r#"
+    name = LiteralClass,
+    target = Literal,
+    prefixes = ["literal:"],
+    arg_handling = into,
+    help = r#"
 Output a string, discard input.
 
 Example:
@@ -45,7 +45,7 @@ Example:
 #[derive(Clone)]
 pub struct Assert(pub Vec<u8>);
 impl Specifier for Assert {
-    fn construct(&self, _:ConstructParams) -> PeerConstructor {
+    fn construct(&self, _: ConstructParams) -> PeerConstructor {
         once(get_assert_peer(self.0.clone()))
     }
     specifier_boilerplate!(noglobalstate singleconnect no_subspec typ=Other);
@@ -56,11 +56,11 @@ impl std::fmt::Debug for Assert {
     }
 }
 specifier_class!(
-    name=AssertClass, 
-    target=Assert, 
-    prefixes=["assert:"], 
-    arg_handling=into,
-    help=r#"
+    name = AssertClass,
+    target = Assert,
+    prefixes = ["assert:"],
+    arg_handling = into,
+    help = r#"
 Check the input. Read entire input and panic the program if the input is not equal
 to the specified string. Used in tests.
 "#
@@ -69,7 +69,7 @@ to the specified string. Used in tests.
 #[derive(Clone)]
 pub struct Assert2(pub Vec<u8>);
 impl Specifier for Assert2 {
-    fn construct(&self, _:ConstructParams) -> PeerConstructor {
+    fn construct(&self, _: ConstructParams) -> PeerConstructor {
         once(get_assert2_peer(self.0.clone()))
     }
     specifier_boilerplate!(noglobalstate singleconnect no_subspec typ=Other);
@@ -80,11 +80,11 @@ impl std::fmt::Debug for Assert2 {
     }
 }
 specifier_class!(
-    name=Assert2Class, 
-    target=Assert2, 
-    prefixes=["assert2:"], 
-    arg_handling=into,
-    help=r#"
+    name = Assert2Class,
+    target = Assert2,
+    prefixes = ["assert2:"],
+    arg_handling = into,
+    help = r#"
 Check the input. Read entire input and emit an error if the input is not equal
 to the specified string.
 "#
@@ -93,21 +93,20 @@ to the specified string.
 #[derive(Debug, Clone)]
 pub struct Clogged;
 impl Specifier for Clogged {
-    fn construct(&self, _:ConstructParams) -> PeerConstructor {
+    fn construct(&self, _: ConstructParams) -> PeerConstructor {
         once(get_clogged_peer())
     }
     specifier_boilerplate!(noglobalstate singleconnect no_subspec typ=Other);
 }
 specifier_class!(
-    name=CloggedClass, 
-    target=Clogged, 
-    prefixes=["clogged:"], 
-    arg_handling=noarg,
-    help=r#"
+    name = CloggedClass,
+    target = Clogged,
+    prefixes = ["clogged:"],
+    arg_handling = noarg,
+    help = r#"
 Do nothing. Don't read or write any bytes. Keep connections in "hung" state.
 "#
 );
-
 
 struct LiteralPeer {
     debt: ReadDebt,

@@ -22,7 +22,7 @@ use std::fs::{File as FsFile, OpenOptions};
 use super::{BoxedNewPeerFuture, Peer, Result};
 use futures::Stream;
 
-use super::{once, Options, PeerConstructor, ProgramState, Specifier, ConstructParams};
+use super::{once, ConstructParams, PeerConstructor, Specifier};
 
 #[derive(Clone, Debug)]
 pub struct Stdio;
@@ -36,11 +36,11 @@ impl Specifier for Stdio {
 }
 
 specifier_class!(
-    name=StdioClass, 
-    target=Stdio, 
-    prefixes=["-","stdio:","inetd:"], 
-    arg_handling=noarg,
-    help=r#"
+    name = StdioClass,
+    target = Stdio,
+    prefixes = ["-", "stdio:", "inetd:"],
+    arg_handling = noarg,
+    help = r#"
 Read input from console, print to console.
 
 This specifier can be specified only one time.
@@ -75,11 +75,11 @@ impl Specifier for OpenAsync {
     specifier_boilerplate!(typ=Other noglobalstate singleconnect no_subspec);
 }
 specifier_class!(
-    name=OpenAsyncClass, 
-    target=OpenAsync, 
-    prefixes=["open-async:"], 
-    arg_handling=into,
-    help=r#"
+    name = OpenAsyncClass,
+    target = OpenAsync,
+    prefixes = ["open-async:"],
+    arg_handling = into,
+    help = r#"
 Open file for read and write and use it like a socket.
 Not for regular files, see readfile/writefile instead.
   
@@ -90,11 +90,10 @@ Example: Serve big blobs of random data to clients
 "#
 );
 
-
 #[derive(Clone, Debug)]
 pub struct OpenFdAsync(pub i32);
 impl Specifier for OpenFdAsync {
-    fn construct(&self, p:ConstructParams) -> PeerConstructor {
+    fn construct(&self, p: ConstructParams) -> PeerConstructor {
         let ret;
         ret = get_fd_peer(self.0, &p.tokio_handle);
         once(ret)
@@ -102,11 +101,11 @@ impl Specifier for OpenFdAsync {
     specifier_boilerplate!(typ=Other noglobalstate singleconnect no_subspec);
 }
 specifier_class!(
-    name=OpenFdAsyncClass, 
-    target=OpenFdAsync, 
-    prefixes=["open-fd:"], 
-    arg_handling=parse,
-    help=r#"
+    name = OpenFdAsyncClass,
+    target = OpenFdAsync,
+    prefixes = ["open-fd:"],
+    arg_handling = parse,
+    help = r#"
 Use specified file descriptor like a socket
 
 Example: Serve random data to clients v2
@@ -114,8 +113,6 @@ Example: Serve random data to clients v2
     websocat -U ws-l:127.0.0.1:8088 reuse:open-fd:55   55< /dev/urandom
 "#
 );
-
-
 
 fn get_stdio_peer_impl(s: &mut GlobalState, handle: &Handle) -> Result<Peer> {
     let si;

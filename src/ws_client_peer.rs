@@ -1,8 +1,8 @@
 extern crate websocket;
 
-use self::websocket::stream::async::Stream as WsStream;
-use self::websocket::{ClientBuilder};
 use self::websocket::client::async::ClientNew;
+use self::websocket::stream::async::Stream as WsStream;
+use self::websocket::ClientBuilder;
 use futures::future::Future;
 use futures::stream::Stream;
 use tokio_core::reactor::Handle;
@@ -15,27 +15,31 @@ use self::websocket::client::Url;
 use super::{box_up_err, peer_err, BoxedNewPeerFuture, Peer};
 
 use super::ws_peer::{Mode1, PeerForWs, WsReadWrapper, WsWriteWrapper};
-use super::{once, Options, PeerConstructor, ConstructParams, Specifier};
+use super::{once, ConstructParams, Options, PeerConstructor, Specifier};
 
 #[derive(Debug, Clone)]
 pub struct WsClient(pub Url);
 impl Specifier for WsClient {
-    fn construct(&self, p:ConstructParams) -> PeerConstructor {
+    fn construct(&self, p: ConstructParams) -> PeerConstructor {
         let url = self.0.clone();
         once(get_ws_client_peer(&p.tokio_handle, &url, p.program_options))
     }
     specifier_boilerplate!(noglobalstate singleconnect no_subspec typ=WebSocket);
 }
 specifier_class!(
-    name=WsClientClass, 
-    target=WsClient,
-    prefixes=["ws://","wss://"],
-    arg_handling={
-        fn construct(self:&WsClientClass, full:&str, _just_arg:&str) -> super::Result<Rc<Specifier>> {
-            Ok(Rc::new(WsClient(full.parse()?))) 
+    name = WsClientClass,
+    target = WsClient,
+    prefixes = ["ws://", "wss://"],
+    arg_handling = {
+        fn construct(
+            self: &WsClientClass,
+            full: &str,
+            _just_arg: &str,
+        ) -> super::Result<Rc<Specifier>> {
+            Ok(Rc::new(WsClient(full.parse()?)))
         }
     },
-    help=r#"
+    help = r#"
 WebSocket client. Argument is host and URL.
 
 Example: manually interact with a web socket
@@ -50,7 +54,7 @@ Example: forward TCP port 4554 to a websocket
 #[derive(Debug)]
 pub struct WsConnect<T: Specifier>(pub T);
 impl<T: Specifier> Specifier for WsConnect<T> {
-    fn construct(&self, p:ConstructParams) -> PeerConstructor {
+    fn construct(&self, p: ConstructParams) -> PeerConstructor {
         let inner = self.0.construct(p.clone());
 
         let url: Url = match p.program_options.ws_c_uri.parse() {
@@ -66,11 +70,11 @@ impl<T: Specifier> Specifier for WsConnect<T> {
     self_0_is_subspecifier!(proxy_is_multiconnect);
 }
 specifier_class!(
-    name=WsConnectClass, 
-    target=WsConnect, 
-    prefixes=["ws-c:", "c-ws:", "ws-connect:", "connect-ws:"], 
-    arg_handling=subspec,
-    help=r#"
+    name = WsConnectClass,
+    target = WsConnect,
+    prefixes = ["ws-c:", "c-ws:", "ws-connect:", "connect-ws:"],
+    arg_handling = subspec,
+    help = r#"
 Low-level WebSocket connector. Argument is a subspecifier.
 
 URL and Host: header being sent are independent from the underlying specifier.

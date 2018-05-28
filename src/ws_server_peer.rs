@@ -11,12 +11,12 @@ use self::websocket::server::upgrade::async::IntoWs;
 
 use super::ws_peer::{Mode1, PeerForWs, WsReadWrapper, WsWriteWrapper};
 use super::{box_up_err, io_other_error, BoxedNewPeerFuture, Peer};
-use super::{Handle, Options, PeerConstructor, ConstructParams, Specifier};
+use super::{ConstructParams, PeerConstructor, Specifier};
 
 #[derive(Debug)]
 pub struct WsServer<T: Specifier>(pub T);
 impl<T: Specifier> Specifier for WsServer<T> {
-    fn construct(&self, cp:ConstructParams) -> PeerConstructor {
+    fn construct(&self, cp: ConstructParams) -> PeerConstructor {
         let mode1 = if cp.program_options.websocket_text_mode {
             Mode1::Text
         } else {
@@ -29,11 +29,15 @@ impl<T: Specifier> Specifier for WsServer<T> {
     self_0_is_subspecifier!(proxy_is_multiconnect);
 }
 specifier_class!(
-    name=WsServerClass, 
-    target=WsServer,
-    prefixes=["ws-l:","l-ws:","ws-listen:","listen-ws:"], 
-    arg_handling={
-        fn construct(self:&WsServerClass, _full:&str, just_arg:&str) -> super::Result<Rc<Specifier>> {
+    name = WsServerClass,
+    target = WsServer,
+    prefixes = ["ws-l:", "l-ws:", "ws-listen:", "listen-ws:"],
+    arg_handling = {
+        fn construct(
+            self: &WsServerClass,
+            _full: &str,
+            just_arg: &str,
+        ) -> super::Result<Rc<Specifier>> {
             if just_arg == "" {
                 Err("Specify underlying protocol for ws-l:")?;
             }
@@ -43,10 +47,10 @@ specifier_class!(
                     return super::spec(&("ws-l:tcp-l:".to_owned() + just_arg));
                 }
             }
-            Ok(Rc::new(WsServer(super::spec(just_arg)?))) 
+            Ok(Rc::new(WsServer(super::spec(just_arg)?)))
         }
     },
-    help=r#"
+    help = r#"
 WebSocket server. Argument is either IPv4 host and port to listen
 or a subspecifier.
 
@@ -59,7 +63,6 @@ Example: the same, but more verbose:
     websocat ws-l:tcp-l:127.0.0.1:8808 reuse:-
 "#
 );
-
 
 /* 
 

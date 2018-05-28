@@ -10,14 +10,14 @@ use super::{BoxedNewPeerFuture, Peer};
 use std::io::{Error as IoError, Read, Write};
 use tokio_io::{AsyncRead, AsyncWrite};
 
-use super::{once, Handle, Options, PeerConstructor, ProgramState, Specifier, ConstructParams};
+use super::{once, ConstructParams, PeerConstructor, Specifier};
 use futures::Future;
 use std::ops::DerefMut;
 
 #[derive(Debug)]
 pub struct Reuser(pub Rc<Specifier>);
 impl Specifier for Reuser {
-    fn construct(&self, p:ConstructParams) -> PeerConstructor {
+    fn construct(&self, p: ConstructParams) -> PeerConstructor {
         let mut reuser = p.global_state.borrow_mut().reuser.clone();
         let inner = || self.0.construct(p).get_only_first_conn();
         once(connection_reuser(&mut reuser, inner))
@@ -27,11 +27,11 @@ impl Specifier for Reuser {
 }
 
 specifier_class!(
-    name=ReuserClass, 
-    target=Reuser, 
-    prefixes=["reuse:"], 
-    arg_handling=subspec,
-    help=r#"
+    name = ReuserClass,
+    target = Reuser,
+    prefixes = ["reuse:"],
+    arg_handling = subspec,
+    help = r#"
 Reuse subspecifier for serving multiple clients: unpredictable mode.
 
 Better used with --unidirectional, otherwise replies get directed to
@@ -46,7 +46,6 @@ Example (unreliable): don't disconnect SSH when websocket reconnects
     websocat ws-l:[::]:8088 reuse:tcp:127.0.0.1:22
 "#
 );
-
 
 type PeerSlot = Rc<RefCell<Option<Peer>>>;
 
@@ -88,7 +87,7 @@ impl AsyncWrite for PeerHandle {
         if let &mut Some(ref mut _x) = self.0.borrow_mut().deref_mut() {
             // Ignore shutdown attempts
             Ok(futures::Async::Ready(()))
-            //_x.1.shutdown()
+        //_x.1.shutdown()
         } else {
             unreachable!()
         }

@@ -3,17 +3,17 @@ use futures::future::ok;
 use std::rc::Rc;
 
 use super::{BoxedNewPeerFuture, Peer};
-use super::{Handle, Options, PeerConstructor, ConstructParams, Specifier};
+use super::{ConstructParams, PeerConstructor, Specifier};
 
-use tokio_io::AsyncRead;
 use std::io::Read;
+use tokio_io::AsyncRead;
 
 use std::io::Error as IoError;
 
 #[derive(Debug)]
 pub struct Message2Line<T: Specifier>(pub T);
 impl<T: Specifier> Specifier for Message2Line<T> {
-    fn construct(&self, cp:ConstructParams) -> PeerConstructor {
+    fn construct(&self, cp: ConstructParams) -> PeerConstructor {
         let inner = self.0.construct(cp.clone());
         inner.map(move |p| packet2line_peer(p))
     }
@@ -21,11 +21,11 @@ impl<T: Specifier> Specifier for Message2Line<T> {
     self_0_is_subspecifier!(proxy_is_multiconnect);
 }
 specifier_class!(
-    name=Message2LineClass, 
-    target=Message2Line,
-    prefixes=["msg2line:"], 
-    arg_handling=subspec,
-    help=r#"
+    name = Message2LineClass,
+    target = Message2Line,
+    prefixes = ["msg2line:"],
+    arg_handling = subspec,
+    help = r#"
 Line filter: ensure each message (a chunk from one read call from underlying specifier)
 contains no inner newlines and terminates with one newline.
 
@@ -44,7 +44,7 @@ Example: TODO
 #[derive(Debug)]
 pub struct Line2Message<T: Specifier>(pub T);
 impl<T: Specifier> Specifier for Line2Message<T> {
-    fn construct(&self, cp:ConstructParams) -> PeerConstructor {
+    fn construct(&self, cp: ConstructParams) -> PeerConstructor {
         let retain_newlines = cp.program_options.linemode_retain_newlines;
         let inner = self.0.construct(cp.clone());
         inner.map(move |p| line2packet_peer(p, retain_newlines))
@@ -82,41 +82,39 @@ impl Read for Packet2LineWrapper {
     fn read(&mut self, b: &mut [u8]) -> Result<usize, IoError> {
         let l = b.len();
         assert!(l > 1);
-        let mut n = match self.0.read(&mut b[..(l-1)]) {
+        let mut n = match self.0.read(&mut b[..(l - 1)]) {
             Ok(x) => x,
             Err(e) => return Err(e),
         };
         if n == 0 {
-            return Ok(n)
+            return Ok(n);
         }
         // chomp away \n or \r\n
-        if n>0 && b[n-1] == b'\n' {
-            n-=1;
+        if n > 0 && b[n - 1] == b'\n' {
+            n -= 1;
         }
-        if n>0 && b[n-1] == b'\r' {
-            n-=1;
+        if n > 0 && b[n - 1] == b'\r' {
+            n -= 1;
         }
         // replace those with spaces
         for i in 0..n {
-            if b[i] == b'\n' || b[i] == b'\r' { 
+            if b[i] == b'\n' || b[i] == b'\r' {
                 b[i] = b' ';
             }
         }
         // add back one \n
         b[n] = b'\n';
-        n+=1;
-        
+        n += 1;
+
         Ok(n)
     }
 }
-impl AsyncRead for Packet2LineWrapper {
-}
+impl AsyncRead for Packet2LineWrapper {}
 
-
-pub fn line2packet_peer(inner_peer: Peer, retain_newlines:bool) -> BoxedNewPeerFuture {
-    let filtered = Line2PacketWrapper{
-        inner:inner_peer.0, 
-        queue:vec![],
+pub fn line2packet_peer(inner_peer: Peer, retain_newlines: bool) -> BoxedNewPeerFuture {
+    let filtered = Line2PacketWrapper {
+        inner: inner_peer.0,
+        queue: vec![],
         retain_newlines,
     };
     let thepeer = Peer::new(filtered, inner_peer.1);
@@ -134,19 +132,23 @@ impl Read for Line2PacketWrapper {
         let mut queued_line_len = None;
         for i in 0..self.queue.len() {
             if self.queue[i] == b'\n' {
-                queued_line_len=Some(i);
+                queued_line_len = Some(i);
                 break;
             }
         }
         //eprint!("qll={:?} ", queued_line_len);
-    
+
         if let Some(mut n) = queued_line_len {
-            n+=1;
+            n += 1;
             buf[0..n].copy_from_slice(&self.queue[0..n]);
             ::std::mem::drop(self.queue.drain(0..n));
             if !self.retain_newlines {
-                if n > 0 && (buf[n-1] == b'\n') { n-=1 }
-                if n > 0 && (buf[n-1] == b'\r') { n-=1 }
+                if n > 0 && (buf[n - 1] == b'\n') {
+                    n -= 1
+                }
+                if n > 0 && (buf[n - 1] == b'\r') {
+                    n -= 1
+                }
             }
             //eprintln!("n={}", n);
             Ok(n)
@@ -155,24 +157,29 @@ impl Read for Line2PacketWrapper {
                 Ok(x) => x,
                 Err(e) => return Err(e),
             };
-            
+
             if n == 0 {
                 if self.queue.len() != 0 {
-                    warn!("Throwing away {} bytes of incomplete line", self.queue.len());
+                    warn!(
+                        "Throwing away {} bytes of incomplete line",
+                        self.queue.len()
+                    );
                 }
                 return Ok(0);
             }
-            
+
             let mut happy_case =
-                self.queue.len() == 0 && 
-                (!buf[0..(n-1)].contains(&b'\n')) && 
-                buf[n-1] == b'\n';
-            
+                self.queue.len() == 0 && (!buf[0..(n - 1)].contains(&b'\n')) && buf[n - 1] == b'\n';
+
             if happy_case {
                 // Specifically to avoid allocations when data is already nice
                 if !self.retain_newlines {
-                    if n > 0 && (buf[n-1] == b'\n') { n-=1 }
-                    if n > 0 && (buf[n-1] == b'\r') { n-=1 }
+                    if n > 0 && (buf[n - 1] == b'\n') {
+                        n -= 1
+                    }
+                    if n > 0 && (buf[n - 1] == b'\r') {
+                        n -= 1
+                    }
                 }
                 //eprintln!("happy n={}", n);
                 Ok(n)
@@ -182,8 +189,7 @@ impl Read for Line2PacketWrapper {
                 //eprintln!(" recurse");
                 self.read(buf)
             }
-        } 
+        }
     }
 }
-impl AsyncRead for Line2PacketWrapper {
-}
+impl AsyncRead for Line2PacketWrapper {}

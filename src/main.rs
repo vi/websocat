@@ -14,12 +14,13 @@ use structopt::StructOpt;
 
 use tokio_core::reactor::Core;
 
-use websocat::{spec, Options, WebsocatConfiguration, SpecifierClass};
+use websocat::{spec, Options, SpecifierClass, WebsocatConfiguration};
 
 type Result<T> = std::result::Result<T, Box<std::error::Error>>;
 
 #[derive(StructOpt, Debug)]
-#[structopt(after_help = "
+#[structopt(
+    after_help = "
 Basic examples:
   Connect stdin/stdout to a websocket:
     websocat - ws://echo.websocket.org/
@@ -36,26 +37,37 @@ Short list of specifiers (see --long-help):
   readfile: writefile: open-fd: unix-connect: unix-listen:
   unix-dgram: abstract-connect: abstract-listen:
   exec: sh-c:
-")]
+"
+)]
 struct Opt {
     /// First, listening/connecting specifier. See --long-help for info about specifiers.
     s1: String,
     /// Second, connecting specifier
     s2: String,
 
-    #[structopt(short = "u", long = "unidirectional",
-                help = "Inhibit copying data from right specifier to left")]
+    #[structopt(
+        short = "u",
+        long = "unidirectional",
+        help = "Inhibit copying data from right specifier to left"
+    )]
     unidirectional: bool,
-    #[structopt(short = "U", long = "unidirectional-reverse",
-                help = "Inhibit copying data from left specifier to right")]
+    #[structopt(
+        short = "U",
+        long = "unidirectional-reverse",
+        help = "Inhibit copying data from left specifier to right"
+    )]
     unidirectional_reverse: bool,
 
-    #[structopt(long = "exit-on-eof", short="E",
-                help = "Close a data transfer direction if the other one reached EOF")]
+    #[structopt(
+        long = "exit-on-eof",
+        short = "E",
+        help = "Close a data transfer direction if the other one reached EOF"
+    )]
     exit_on_eof: bool,
 
-    #[structopt(short = "t", long = "text",
-                help = "Send text WebSocket messages instead of binary")]
+    #[structopt(
+        short = "t", long = "text", help = "Send text WebSocket messages instead of binary"
+    )]
     websocket_text_mode: bool,
 
     #[structopt(long = "oneshot", help = "Serve only once")]
@@ -64,8 +76,10 @@ struct Opt {
     #[structopt(long = "long-help", help = "Show full help aboput specifiers and examples")]
     longhelp: bool,
 
-    #[structopt(long = "dump-spec",
-                help = "Instead of running, dump the specifiers representation to stdout")]
+    #[structopt(
+        long = "dump-spec",
+        help = "Instead of running, dump the specifiers representation to stdout"
+    )]
     dumpspec: bool,
 
     #[structopt(long = "protocol", help = "Specify Sec-WebSocket-Protocol: header")]
@@ -77,25 +91,34 @@ struct Opt {
     #[structopt(long = "unlink", help = "Unlink listening UNIX socket before binding to it")]
     unlink_unix_socket: bool,
 
-    #[structopt(long = "exec-args", raw(allow_hyphen_values = r#"true"#),
-                help = "Arguments for the `exec:` specifier. Must be the last option, everything after it gets into the exec args list.")]
+    #[structopt(
+        long = "exec-args",
+        raw(allow_hyphen_values = r#"true"#),
+        help = "Arguments for the `exec:` specifier. Must be the last option, everything after it gets into the exec args list."
+    )]
     exec_args: Vec<String>,
 
-    #[structopt(long = "ws-c-uri", help = "URI to use for ws-c: specifier",
-                default_value = "ws://0.0.0.0/")]
+    #[structopt(
+        long = "ws-c-uri", help = "URI to use for ws-c: specifier", default_value = "ws://0.0.0.0/"
+    )]
     ws_c_uri: String,
-    
-    #[structopt(long = "linemode-retain-newlines", help="In --line mode, don't chop off trailing \\n from messages")]
+
+    #[structopt(
+        long = "linemode-retain-newlines",
+        help = "In --line mode, don't chop off trailing \\n from messages"
+    )]
     linemode_retain_newlines: bool,
-    
-    #[structopt(short="-l", long="--line", help="Make each WebSocket message correspond to one line")]
+
+    #[structopt(
+        short = "-l", long = "--line", help = "Make each WebSocket message correspond to one line"
+    )]
     linemode: bool,
-    
     // TODO: -v --quiet
 }
 
 fn longhelp() {
-    println!(r#"(see also the usual --help message)
+    println!(
+        r#"(see also the usual --help message)
     
 Positional arguments to websocat are generally called specifiers.
 Specifiers are ways to obtain a connection from some string representation (i.e. address).
@@ -106,21 +129,19 @@ may be some path or socket address, like `tcp:`), or can accept a subspecifier
 
 Here is the full list of specifier classes in this WebSocat build:
 
-"#);
-    
-    
+"#
+    );
 
     fn help1(sc: &SpecifierClass) {
-        let n = sc.get_name().replace("Class","");
-        let prefixes = 
-            sc
+        let n = sc.get_name().replace("Class", "");
+        let prefixes = sc
             .get_prefixes()
             .iter()
-            .map(|x|format!("`{}`",x))
+            .map(|x| format!("`{}`", x))
             .collect::<Vec<_>>()
             .join(", ");
         println!("### {}\n\n* {}", n, prefixes);
-        
+
         let help = 
             sc
             .help()
@@ -135,12 +156,13 @@ Here is the full list of specifier classes in this WebSocat build:
     macro_rules! my {
         ($x:expr) => {
             help1(&$x);
-        }
+        };
     }
-    
+
     list_of_all_specifier_classes!(my);
 
-    println!(r#"
+    println!(
+        r#"
   
   
 TODO:
@@ -157,8 +179,8 @@ then connect to a websocket using previous step as a transport,
 then forward resulting connection to the TCP port.
 
 (Excercise to the reader: manage to make it actually connect to 5678).
-"#);
-
+"#
+    );
 }
 
 fn run() -> Result<()> {
