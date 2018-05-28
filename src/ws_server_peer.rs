@@ -11,18 +11,18 @@ use self::websocket::server::upgrade::async::IntoWs;
 
 use super::ws_peer::{Mode1, PeerForWs, WsReadWrapper, WsWriteWrapper};
 use super::{box_up_err, io_other_error, BoxedNewPeerFuture, Peer};
-use super::{Handle, Options, PeerConstructor, ProgramState, Specifier};
+use super::{Handle, Options, PeerConstructor, ConstructParams, Specifier};
 
 #[derive(Debug)]
 pub struct WsServer<T: Specifier>(pub T);
 impl<T: Specifier> Specifier for WsServer<T> {
-    fn construct(&self, h: &Handle, ps: &mut ProgramState, opts: Rc<Options>) -> PeerConstructor {
-        let mode1 = if opts.websocket_text_mode {
+    fn construct(&self, cp:ConstructParams) -> PeerConstructor {
+        let mode1 = if cp.program_options.websocket_text_mode {
             Mode1::Text
         } else {
             Mode1::Binary
         };
-        let inner = self.0.construct(h, ps, opts);
+        let inner = self.0.construct(cp.clone());
         inner.map(move |p| ws_upgrade_peer(p, mode1))
     }
     specifier_boilerplate!(typ=WebSocket noglobalstate has_subspec);

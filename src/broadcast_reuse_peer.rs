@@ -12,7 +12,7 @@ use super::{brokenpipe,wouldblock,io_other_error,simple_err,BoxedNewPeerFuture, 
 use std::io::{Error as IoError, Read, Write};
 use tokio_io::{AsyncRead, AsyncWrite};
 
-use super::{once, Handle, Options, PeerConstructor, ProgramState, Specifier};
+use super::{once, Handle, Options, PeerConstructor, ProgramState, Specifier, ConstructParams};
 use futures::Future;
 use futures::Stream;
 use futures::Async;
@@ -28,10 +28,11 @@ use slab_typesafe::Slab;
 #[derive(Debug)]
 pub struct BroadcastReuser(pub Rc<Specifier>);
 impl Specifier for BroadcastReuser {
-    fn construct(&self, h: &Handle, ps: &mut ProgramState, opts: Rc<Options>) -> PeerConstructor {
-        let mut reuser = ps.reuser2.clone();
-        let inner = || self.0.construct(h, ps, opts).get_only_first_conn();
-        once(connection_reuser(h, &mut reuser, inner))
+    fn construct(&self, p:ConstructParams) -> PeerConstructor {
+        let mut reuser = p.global_state.borrow_mut().reuser2.clone();
+        let h = p.tokio_handle.clone();
+        let inner = || self.0.construct(p).get_only_first_conn();
+        once(connection_reuser(&h, &mut reuser, inner))
     }
     specifier_boilerplate!(singleconnect has_subspec typ=Reuser globalstate);
     self_0_is_subspecifier!(...);

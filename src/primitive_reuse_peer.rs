@@ -10,16 +10,16 @@ use super::{BoxedNewPeerFuture, Peer};
 use std::io::{Error as IoError, Read, Write};
 use tokio_io::{AsyncRead, AsyncWrite};
 
-use super::{once, Handle, Options, PeerConstructor, ProgramState, Specifier};
+use super::{once, Handle, Options, PeerConstructor, ProgramState, Specifier, ConstructParams};
 use futures::Future;
 use std::ops::DerefMut;
 
 #[derive(Debug)]
 pub struct Reuser(pub Rc<Specifier>);
 impl Specifier for Reuser {
-    fn construct(&self, h: &Handle, ps: &mut ProgramState, opts: Rc<Options>) -> PeerConstructor {
-        let mut reuser = ps.reuser.clone();
-        let inner = || self.0.construct(h, ps, opts).get_only_first_conn();
+    fn construct(&self, p:ConstructParams) -> PeerConstructor {
+        let mut reuser = p.global_state.borrow_mut().reuser.clone();
+        let inner = || self.0.construct(p).get_only_first_conn();
         once(connection_reuser(&mut reuser, inner))
     }
     specifier_boilerplate!(singleconnect has_subspec typ=Reuser globalstate);

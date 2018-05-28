@@ -11,17 +11,12 @@ use std::rc::Rc;
 
 use super::{BoxedNewPeerFuture, Peer, Result};
 
-use super::{once, Handle, Options, PeerConstructor, ProgramState, Specifier};
+use super::{once, Handle, Options, PeerConstructor, ProgramState, Specifier, RefCell, ConstructParams};
 
 #[derive(Clone, Debug)]
 pub struct ReadFile(pub PathBuf);
 impl Specifier for ReadFile {
-    fn construct(
-        &self,
-        _h: &Handle,
-        _ps: &mut ProgramState,
-        _opts: Rc<Options>,
-    ) -> PeerConstructor {
+    fn construct(&self, _:ConstructParams) -> PeerConstructor {
         fn gp(p: &Path) -> Result<Peer> {
             let f = File::open(p)?;
             Ok(Peer::new(ReadFileWrapper(f), super::trivial_peer::DevNull))
@@ -50,12 +45,7 @@ Example: Serve the file once per connection, ignore all replies.
 #[derive(Clone, Debug)]
 pub struct WriteFile(pub PathBuf);
 impl Specifier for WriteFile {
-    fn construct(
-        &self,
-        _h: &Handle,
-        _ps: &mut ProgramState,
-        _opts: Rc<Options>,
-    ) -> PeerConstructor {
+    fn construct(&self, _:ConstructParams) -> PeerConstructor {
         fn gp(p: &Path) -> Result<Peer> {
             let f = File::create(p)?;
             Ok(Peer::new(super::trivial_peer::DevNull, WriteFileWrapper(f)))
@@ -85,12 +75,7 @@ Example:
 #[derive(Clone, Debug)]
 pub struct AppendFile(pub PathBuf);
 impl Specifier for AppendFile {
-    fn construct(
-        &self,
-        _h: &Handle,
-        _ps: &mut ProgramState,
-        _opts: Rc<Options>,
-    ) -> PeerConstructor {
+    fn construct(&self, _:ConstructParams) -> PeerConstructor {
         fn gp(p: &Path) -> Result<Peer> {
             let f = OpenOptions::new().create(true).append(true).open(p)?;
             Ok(Peer::new(super::trivial_peer::DevNull, WriteFileWrapper(f)))

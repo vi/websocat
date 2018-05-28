@@ -15,13 +15,13 @@ use std::rc::Rc;
 use tokio_core::net::{TcpListener, TcpStream, UdpSocket};
 
 use super::{box_up_err, peer_err_s, wouldblock, BoxedNewPeerFuture, BoxedNewPeerStream, Peer};
-use super::{multi, once, Options, PeerConstructor, ProgramState, Specifier};
+use super::{multi, once, Options, PeerConstructor, ConstructParams, Specifier};
 
 #[derive(Debug, Clone)]
 pub struct TcpConnect(pub SocketAddr);
 impl Specifier for TcpConnect {
-    fn construct(&self, h: &Handle, _: &mut ProgramState, _opts: Rc<Options>) -> PeerConstructor {
-        once(tcp_connect_peer(h, &self.0))
+    fn construct(&self, p:ConstructParams) -> PeerConstructor {
+        once(tcp_connect_peer(&p.tokio_handle, &self.0))
     }
     specifier_boilerplate!(noglobalstate singleconnect no_subspec typ=Other);
 }
@@ -46,8 +46,8 @@ Example: redirect websocket connections to local SSH server over IPv6
 #[derive(Debug, Clone)]
 pub struct TcpListen(pub SocketAddr);
 impl Specifier for TcpListen {
-    fn construct(&self, h: &Handle, _: &mut ProgramState, _opts: Rc<Options>) -> PeerConstructor {
-        multi(tcp_listen_peer(h, &self.0))
+    fn construct(&self, p:ConstructParams) -> PeerConstructor {
+        multi(tcp_listen_peer(&p.tokio_handle, &self.0))
     }
     specifier_boilerplate!(noglobalstate multiconnect no_subspec typ=Other);
 }
@@ -72,8 +72,8 @@ Example: redirect TCP to a websocket
 #[derive(Debug, Clone)]
 pub struct UdpConnect(pub SocketAddr);
 impl Specifier for UdpConnect {
-    fn construct(&self, h: &Handle, _: &mut ProgramState, opts: Rc<Options>) -> PeerConstructor {
-        once(udp_connect_peer(h, &self.0, opts))
+    fn construct(&self, p:ConstructParams) -> PeerConstructor {
+        once(udp_connect_peer(&p.tokio_handle, &self.0, p.program_options))
     }
     specifier_boilerplate!(noglobalstate singleconnect no_subspec typ=Other);
 }
@@ -90,8 +90,8 @@ Send and receive packets to specified UDP socket, from random UDP port
 #[derive(Debug, Clone)]
 pub struct UdpListen(pub SocketAddr);
 impl Specifier for UdpListen {
-    fn construct(&self, h: &Handle, _: &mut ProgramState, opts: Rc<Options>) -> PeerConstructor {
-        once(udp_listen_peer(h, &self.0, opts))
+    fn construct(&self, p:ConstructParams) -> PeerConstructor {
+        once(udp_listen_peer(&p.tokio_handle, &self.0, p.program_options))
     }
     specifier_boilerplate!(noglobalstate singleconnect no_subspec typ=Other);
 }

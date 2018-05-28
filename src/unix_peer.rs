@@ -19,15 +19,15 @@ use std::path::{Path, PathBuf};
 use self::tokio_uds::{UnixDatagram, UnixListener, UnixStream};
 
 use super::{box_up_err, peer_err_s, BoxedNewPeerFuture, BoxedNewPeerStream, Peer};
-use super::{multi, once, Options, PeerConstructor, ProgramState, Specifier};
+use super::{multi, once, Options, PeerConstructor, ConstructParams, Specifier};
 #[allow(unused)]
 use super::simple_err;
 
 #[derive(Debug, Clone)]
 pub struct UnixConnect(pub PathBuf);
 impl Specifier for UnixConnect {
-    fn construct(&self, h: &Handle, _: &mut ProgramState, _opts: Rc<Options>) -> PeerConstructor {
-        once(unix_connect_peer(h, &self.0))
+    fn construct(&self, p:ConstructParams) -> PeerConstructor {
+        once(unix_connect_peer(&p.tokio_handle, &self.0))
     }
     specifier_boilerplate!(noglobalstate singleconnect no_subspec typ=Other);
 }
@@ -48,8 +48,8 @@ Example: forward connections from websockets to a UNIX stream socket
 #[derive(Debug, Clone)]
 pub struct UnixListen(pub PathBuf);
 impl Specifier for UnixListen {
-    fn construct(&self, h: &Handle, _: &mut ProgramState, opts: Rc<Options>) -> PeerConstructor {
-        multi(unix_listen_peer(h, &self.0, opts))
+    fn construct(&self, p:ConstructParams) -> PeerConstructor {
+        multi(unix_listen_peer(&p.tokio_handle, &self.0, p.program_options))
     }
     specifier_boilerplate!(noglobalstate multiconnect no_subspec typ=Other);
 }
@@ -96,8 +96,8 @@ TODO: --chmod option?
 #[derive(Debug, Clone)]
 pub struct UnixDgram(pub PathBuf, pub PathBuf);
 impl Specifier for UnixDgram {
-    fn construct(&self, h: &Handle, _: &mut ProgramState, opts: Rc<Options>) -> PeerConstructor {
-        once(dgram_peer(h, &self.0, &self.1, opts))
+    fn construct(&self, p:ConstructParams) -> PeerConstructor {
+        once(dgram_peer(&p.tokio_handle, &self.0, &self.1, p.program_options))
     }
     specifier_boilerplate!(noglobalstate singleconnect no_subspec typ=Other);
 }
@@ -136,8 +136,8 @@ fn to_abstract(x: &str) -> PathBuf {
 #[derive(Debug, Clone)]
 pub struct AbstractConnect(pub String);
 impl Specifier for AbstractConnect {
-    fn construct(&self, h: &Handle, _: &mut ProgramState, _opts: Rc<Options>) -> PeerConstructor {
-        once(unix_connect_peer(h, &to_abstract(&self.0)))
+    fn construct(&self, p:ConstructParams) -> PeerConstructor {
+        once(unix_connect_peer(&p.tokio_handle, &to_abstract(&self.0)))
     }
     specifier_boilerplate!(noglobalstate singleconnect no_subspec typ=Other);
 }
@@ -163,9 +163,9 @@ so non-prebuilt versions may have problems with them.
 #[derive(Debug, Clone)]
 pub struct AbstractListen(pub String);
 impl Specifier for AbstractListen {
-    fn construct(&self, h: &Handle, _: &mut ProgramState, _opts: Rc<Options>) -> PeerConstructor {
+    fn construct(&self, p:ConstructParams) -> PeerConstructor {
         multi(unix_listen_peer(
-            h,
+            &p.tokio_handle,
             &to_abstract(&self.0),
             Rc::new(Default::default()),
         ))
@@ -192,23 +192,23 @@ so non-prebuilt versions may have problems with them.
 #[derive(Debug, Clone)]
 pub struct AbstractDgram(pub String, pub String);
 impl Specifier for AbstractDgram {
-    fn construct(&self, h: &Handle, _: &mut ProgramState, opts: Rc<Options>) -> PeerConstructor {
+    fn construct(&self, p:ConstructParams) -> PeerConstructor {
         #[cfg(not(feature = "workaround1"))]
         {
             once(dgram_peer(
-                h,
+                &p.tokio_handle,
                 &to_abstract(&self.0),
                 &to_abstract(&self.1),
-                opts,
+                p.program_options,
             ))
         }
         #[cfg(feature = "workaround1")]
         {
             once(dgram_peer_workaround(
-                h,
+                &p.tokio_handle,
                 &to_abstract(&self.0),
                 &to_abstract(&self.1),
-                opts,
+                p.program_options,
             ))
         }
     }
@@ -250,8 +250,8 @@ may fail to work without `workaround1` Cargo feature.
 pub struct SeqpacketConnect(pub PathBuf);
 #[cfg(feature="seqpacket")]
 impl Specifier for SeqpacketConnect {
-    fn construct(&self, h: &Handle, _: &mut ProgramState, _opts: Rc<Options>) -> PeerConstructor {
-        once(seqpacket_connect_peer(h, &self.0))
+    fn construct(&self, p:ConstructParams) -> PeerConstructor {
+        once(seqpacket_connect_peer(&p.tokio_handle, &self.0))
     }
     specifier_boilerplate!(noglobalstate singleconnect no_subspec typ=Other);
 }
@@ -279,8 +279,8 @@ Example: forward connections from websockets to a UNIX seqpacket abstract socket
 pub struct SeqpacketListen(pub PathBuf);
 #[cfg(feature="seqpacket")]
 impl Specifier for SeqpacketListen {
-    fn construct(&self, h: &Handle, _: &mut ProgramState, opts: Rc<Options>) -> PeerConstructor {
-        multi(seqpacket_listen_peer(h, &self.0, opts))
+    fn construct(&self, p:ConstructParams) -> PeerConstructor {
+        multi(seqpacket_listen_peer(&p.tokio_handle, &self.0, opts))
     }
     specifier_boilerplate!(noglobalstate multiconnect no_subspec typ=Other);
 }

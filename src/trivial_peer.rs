@@ -13,12 +13,12 @@ use tokio_io::{AsyncRead, AsyncWrite};
 use super::ReadDebt;
 use super::wouldblock;
 
-use super::{once, Handle, Options, PeerConstructor, ProgramState, Specifier, simple_err};
+use super::{once, Handle, Options, PeerConstructor, ConstructParams, Specifier, simple_err};
 
 #[derive(Clone)]
 pub struct Literal(pub Vec<u8>);
 impl Specifier for Literal {
-    fn construct(&self, _: &Handle, _: &mut ProgramState, _opts: Rc<Options>) -> PeerConstructor {
+    fn construct(&self, _:ConstructParams) -> PeerConstructor {
         once(get_literal_peer(self.0.clone()))
     }
     specifier_boilerplate!(singleconnect no_subspec noglobalstate typ=Other);
@@ -45,7 +45,7 @@ Example:
 #[derive(Clone)]
 pub struct Assert(pub Vec<u8>);
 impl Specifier for Assert {
-    fn construct(&self, _: &Handle, _: &mut ProgramState, _opts: Rc<Options>) -> PeerConstructor {
+    fn construct(&self, _:ConstructParams) -> PeerConstructor {
         once(get_assert_peer(self.0.clone()))
     }
     specifier_boilerplate!(noglobalstate singleconnect no_subspec typ=Other);
@@ -69,7 +69,7 @@ to the specified string. Used in tests.
 #[derive(Clone)]
 pub struct Assert2(pub Vec<u8>);
 impl Specifier for Assert2 {
-    fn construct(&self, _: &Handle, _: &mut ProgramState, _opts: Rc<Options>) -> PeerConstructor {
+    fn construct(&self, _:ConstructParams) -> PeerConstructor {
         once(get_assert2_peer(self.0.clone()))
     }
     specifier_boilerplate!(noglobalstate singleconnect no_subspec typ=Other);
@@ -93,7 +93,7 @@ to the specified string.
 #[derive(Debug, Clone)]
 pub struct Clogged;
 impl Specifier for Clogged {
-    fn construct(&self, _: &Handle, _: &mut ProgramState, _opts: Rc<Options>) -> PeerConstructor {
+    fn construct(&self, _:ConstructParams) -> PeerConstructor {
         once(get_clogged_peer())
     }
     specifier_boilerplate!(noglobalstate singleconnect no_subspec typ=Other);

@@ -22,14 +22,14 @@ use std::fs::{File as FsFile, OpenOptions};
 use super::{BoxedNewPeerFuture, Peer, Result};
 use futures::Stream;
 
-use super::{once, Options, PeerConstructor, ProgramState, Specifier};
+use super::{once, Options, PeerConstructor, ProgramState, Specifier, ConstructParams};
 
 #[derive(Clone, Debug)]
 pub struct Stdio;
 impl Specifier for Stdio {
-    fn construct(&self, h: &Handle, ps: &mut ProgramState, _opts: Rc<Options>) -> PeerConstructor {
+    fn construct(&self, p: ConstructParams) -> PeerConstructor {
         let ret;
-        ret = get_stdio_peer(&mut ps.stdio, h);
+        ret = get_stdio_peer(&mut p.global_state.borrow_mut().stdio, &p.tokio_handle);
         once(ret)
     }
     specifier_boilerplate!(typ=Stdio globalstate singleconnect no_subspec);
@@ -67,9 +67,9 @@ connections on port 1234 and redirect the data to local SSH server.
 #[derive(Clone, Debug)]
 pub struct OpenAsync(pub PathBuf);
 impl Specifier for OpenAsync {
-    fn construct(&self, h: &Handle, _ps: &mut ProgramState, _opts: Rc<Options>) -> PeerConstructor {
+    fn construct(&self, p: ConstructParams) -> PeerConstructor {
         let ret;
-        ret = get_file_peer(&self.0, h);
+        ret = get_file_peer(&self.0, &p.tokio_handle);
         once(ret)
     }
     specifier_boilerplate!(typ=Other noglobalstate singleconnect no_subspec);
@@ -94,9 +94,9 @@ Example: Serve big blobs of random data to clients
 #[derive(Clone, Debug)]
 pub struct OpenFdAsync(pub i32);
 impl Specifier for OpenFdAsync {
-    fn construct(&self, h: &Handle, _ps: &mut ProgramState, _opts: Rc<Options>) -> PeerConstructor {
+    fn construct(&self, p:ConstructParams) -> PeerConstructor {
         let ret;
-        ret = get_fd_peer(self.0, h);
+        ret = get_fd_peer(self.0, &p.tokio_handle);
         once(ret)
     }
     specifier_boilerplate!(typ=Other noglobalstate singleconnect no_subspec);

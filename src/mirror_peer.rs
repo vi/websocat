@@ -16,12 +16,12 @@ use futures::sync::mpsc;
 use tokio_io::{AsyncRead, AsyncWrite};
 
 use super::ReadDebt;
-use super::{once, Handle, Options, PeerConstructor, ProgramState, Specifier};
+use super::{once, Handle, Options, PeerConstructor, ConstructParams, Specifier};
 
 #[derive(Debug, Clone)]
 pub struct Mirror;
 impl Specifier for Mirror {
-    fn construct(&self, _: &Handle, _: &mut ProgramState, _opts: Rc<Options>) -> PeerConstructor {
+    fn construct(&self, _:ConstructParams) -> PeerConstructor {
         once(get_mirror_peer())
     }
     specifier_boilerplate!(noglobalstate singleconnect no_subspec typ=Other);
@@ -41,7 +41,7 @@ Similar to `exec:cat`.
 #[derive(Clone)]
 pub struct LiteralReply(pub Vec<u8>);
 impl Specifier for LiteralReply {
-    fn construct(&self, _: &Handle, _: &mut ProgramState, _opts: Rc<Options>) -> PeerConstructor {
+    fn construct(&self, _:ConstructParams) -> PeerConstructor {
         once(get_literal_reply_peer(self.0.clone()))
     }
     specifier_boilerplate!(noglobalstate singleconnect no_subspec typ=Other);

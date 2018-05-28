@@ -8,6 +8,8 @@
 //! 4. `Peer` - an active connection. Once we have two of them, we can start a:
 //! 5. `Session` with two `Transfer`s - forward and reverse.
 
+#![allow(unused)]
+
 extern crate futures;
 extern crate tokio_core;
 #[macro_use]
@@ -27,6 +29,7 @@ use tokio_io::{AsyncRead, AsyncWrite};
 use futures::Stream;
 
 use std::rc::Rc;
+use std::cell::RefCell;
 
 type Result<T> = std::result::Result<T, Box<std::error::Error>>;
 
@@ -81,6 +84,17 @@ pub struct ProgramState {
 
     reuser: primitive_reuse_peer::GlobalState,
     reuser2: broadcast_reuse_peer::GlobalState,
+}
+
+/// Some information passed from the left specifier Peer to the right
+#[derive(Default,Clone)]
+pub struct LeftSpecToRightSpec {
+
+}
+#[derive(Clone)]
+enum L2rUser {
+    FillIn(Rc<RefCell<LeftSpecToRightSpec>>),
+    ReadFrom(Rc<RefCell<LeftSpecToRightSpec>>),
 }
 
 pub struct Peer(Box<AsyncRead>, Box<AsyncWrite>);
@@ -184,12 +198,20 @@ impl SpecifierInfo {
     }
 }
 
+#[derive(Clone)]
+pub struct ConstructParams {
+    tokio_handle: Handle,
+    global_state: Rc<RefCell<ProgramState>>,
+    program_options: Rc<Options>,
+    left_to_right: L2rUser,
+}
+
 /// A parsed command line argument.
 /// For example, `ws-listen:tcp-l:127.0.0.1:8080` gets parsed into
 /// a `WsUpgrade(TcpListen(SocketAddr))`.
 pub trait Specifier: std::fmt::Debug {
     /// Apply the specifier for constructing a "socket" or other connecting device.
-    fn construct(&self, h: &Handle, ps: &mut ProgramState, opts: Rc<Options>) -> PeerConstructor;
+    fn construct(&self, p:ConstructParams) -> PeerConstructor;
 
     
 
@@ -217,8 +239,8 @@ pub trait Specifier: std::fmt::Debug {
 }
 
 impl Specifier for Rc<Specifier> {
-    fn construct(&self, h: &Handle, ps: &mut ProgramState, opts: Rc<Options>) -> PeerConstructor {
-        (**self).construct(h, ps, opts)
+    fn construct(&self, p:ConstructParams) -> PeerConstructor {
+        (**self).construct(p)
     }
 
     fn is_multiconnect(&self) -> bool {
@@ -314,22 +336,53 @@ pub mod line_peer;
 
 pub mod specparse;
 
+pub type PeerOverlay = Rc<Fn(Peer) -> BoxedNewPeerFuture>;
+
 pub enum PeerConstructor {
     ServeOnce(BoxedNewPeerFuture),
     ServeMultipleTimes(BoxedNewPeerStream),
+    Overlay1(BoxedNewPeerFuture, PeerOverlay),
+    OverlayM(BoxedNewPeerStream, PeerOverlay),
 }
 
 impl PeerConstructor {
-    pub fn map<F: 'static>(self, f: F) -> Self
-    where
-        F: FnMut(Peer) -> BoxedNewPeerFuture,
+    pub fn map<F:'static>(self, func: F ) -> Self
+            where F:Fn(Peer) -> BoxedNewPeerFuture
     {
+        let f = Rc::new(func);
         use PeerConstructor::*;
         match self {
-            ServeOnce(x) => ServeOnce(Box::new(x.and_then(f)) as BoxedNewPeerFuture),
-            ServeMultipleTimes(s) => {
-                ServeMultipleTimes(Box::new(s.and_then(f)) as BoxedNewPeerStream)
+            ServeOnce(x) => Overlay1(x, f),
+            ServeMultipleTimes(s) => OverlayM(s, f),
+            Overlay1(x, mapper) => {
+                Overlay1(x, Rc::new(
+                    move |p| {
+                        let ff = f.clone();
+                        Box::new(mapper(p).and_then(
+                            move |x| ff(x)
+                        )) 
+                    }
+                ))
             }
+            OverlayM(x, mapper) => {
+                OverlayM(x, Rc::new(
+                    move |p| {
+                        let ff = f.clone();
+                        Box::new(mapper(p).and_then(
+                            move |x| ff(x)
+                        )) 
+                    }
+                ))
+            }
+            
+            // This implementation (without Overlay{1,M} cases)
+            // causes task to be spawned too late (before establishing ws upgrade)
+            // when serving clients:
+            
+            //ServeOnce(x) => ServeOnce(Box::new(x.and_then(f)) as BoxedNewPeerFuture),
+            //ServeMultipleTimes(s) => {
+            //    ServeMultipleTimes(Box::new(s.and_then(f)) as BoxedNewPeerStream)
+            //}
         }
     }
 
@@ -344,7 +397,21 @@ impl PeerConstructor {
                     })
                     .map_err(|(e, _)| e),
             ) as BoxedNewPeerFuture,
-            ServeOnce(future) => future,
+            ServeOnce(futur) => futur,
+            Overlay1(futur, mapper) => {
+                Box::new(futur.and_then(move |p|mapper(p))) as BoxedNewPeerFuture
+            }
+            OverlayM(stre, mapper) =>  Box::new(
+                stre.into_future()
+                    .map(move |(std_peer, _)| {
+                        let peer2 = std_peer.expect("Nowhere to connect it");
+                        peer2
+                    })
+                    .map_err(|(e, _)| e)
+                    .and_then(move |p| {
+                        mapper(p)
+                    })
+            ) as BoxedNewPeerFuture,
         }
     }
 }
@@ -421,8 +488,8 @@ impl Peer {
 pub use specparse::spec;
 
 pub fn peer_from_str(
-    ps: &mut ProgramState,
-    handle: &Handle,
+    ps: Rc<RefCell<ProgramState>>,
+    handle: Handle,
     opts: Rc<Options>,
     s: &str,
 ) -> PeerConstructor {
@@ -430,7 +497,14 @@ pub fn peer_from_str(
         Ok(x) => x,
         Err(e) => return once(Box::new(futures::future::err(e)) as BoxedNewPeerFuture),
     };
-    spec.construct(handle, ps, opts)
+    let l2r = Rc::new(RefCell::new(Default::default()));
+    let cp = ConstructParams {
+        tokio_handle: handle,
+        program_options: opts,
+        global_state: ps,
+        left_to_right: L2rUser::ReadFrom(l2r),
+    };
+    spec.construct(cp)
 }
 
 pub struct Transfer {
@@ -507,22 +581,20 @@ impl Session {
     }
 }
 
-pub fn serve<S1, S2, OE>(
+pub fn serve<OE>(
     h: Handle,
-    s1: S1,
-    s2: S2,
+    s1: Rc<Specifier>,
+    s2: Rc<Specifier>,
     opts: Options,
     onerror: std::rc::Rc<OE>,
 ) -> Box<Future<Item = (), Error = ()>>
 where
-    S1: Specifier + 'static,
-    S2: Specifier + 'static,
     OE: Fn(Box<std::error::Error>) -> () + 'static,
 {
     info!("Serving {:?} to {:?} with {:?}", s1, s2, opts);
-    let mut ps = ProgramState::default();
+    let mut ps = Rc::new(RefCell::new(ProgramState::default()));
 
-    use PeerConstructor::{ServeMultipleTimes, ServeOnce};
+    use PeerConstructor::{ServeMultipleTimes, ServeOnce, Overlay1, OverlayM};
 
     let h1 = h.clone();
     let h2 = h.clone();
@@ -534,7 +606,20 @@ where
     let opts1 = Rc::new(opts);
     let opts2 = opts1.clone();
 
-    let mut left = s1.construct(&h, &mut ps, opts1);
+    let l2r = Rc::new(RefCell::new(Default::default()));
+    let cp1 = ConstructParams {
+        tokio_handle: h.clone(),
+        program_options: opts1.clone(),
+        global_state: ps.clone(),
+        left_to_right: L2rUser::FillIn(l2r.clone()),
+    };
+    let cp2 = ConstructParams {
+        tokio_handle: h.clone(),
+        program_options: opts1,
+        global_state: ps.clone(),
+        left_to_right: L2rUser::ReadFrom(l2r),
+    };
+    let mut left = s1.construct(cp1);
 
     if opts2.oneshot {
         left = PeerConstructor::ServeOnce(left.get_only_first_conn());
@@ -546,8 +631,9 @@ where
                 .map(move |peer1| {
                     let opts3 = opts2.clone();
                     let e1_1 = e1.clone();
+                    let cp2 = cp2.clone();
                     h1.spawn(
-                        s2.construct(&h1, &mut ps, opts2.clone())
+                        s2.construct(cp2)
                             .get_only_first_conn()
                             .and_then(move |peer2| {
                                 let s = Session::new(peer1, peer2, opts3);
@@ -559,9 +645,35 @@ where
                 .for_each(|()| futures::future::ok(()));
             Box::new(runner.map_err(move |e| e2(e))) as Box<Future<Item = (), Error = ()>>
         }
+        OverlayM(stream, mapper) => {
+            let runner = stream
+                .map(move |peer1_| {
+                    debug!("Underlying connection established");
+                    let opts3 = opts2.clone();
+                    let opts2 = opts2.clone();
+                    let e1_1 = e1.clone();
+                    let s2 = s2.clone();
+                    let h1 = h1.clone();
+                    let h2 = h1.clone();
+                    let ps = ps.clone();
+                    let cp2 = cp2.clone();
+                    h1.spawn(
+                        mapper(peer1_).and_then(move |peer1| {
+                            s2.construct(cp2)
+                                .get_only_first_conn()
+                                .and_then(move |peer2| {
+                                    let s = Session::new(peer1, peer2, opts3);
+                                    s.run()
+                                })
+                        }).map_err(move |e| e1_1(e))
+                    )
+                })
+                .for_each(|()| futures::future::ok(()));
+            Box::new(runner.map_err(move |e| e2(e))) as Box<Future<Item = (), Error = ()>>
+        }
         ServeOnce(peer1c) => {
             let runner = peer1c.and_then(move |peer1| {
-                let right = s2.construct(&h2, &mut ps, opts2.clone());
+                let right = s2.construct(cp2);
                 let fut = right.get_only_first_conn();
                 fut.and_then(move |peer2| {
                     let s = Session::new(peer1, peer2, opts2);
@@ -569,6 +681,24 @@ where
                         ::std::mem::drop(ps)
                         // otherwise ps will be dropped sooner
                         // and stdin/stdout may become blocking sooner
+                    })
+                })
+            });
+            Box::new(runner.map_err(move |e| e3(e))) as Box<Future<Item = (), Error = ()>>
+        }
+        Overlay1(peer1c, mapper) => {
+            let runner = peer1c.and_then(move |peer1_| {
+                debug!("Underlying connection established");
+                mapper(peer1_).and_then(move |peer1| {
+                    let right = s2.construct(cp2);
+                    let fut = right.get_only_first_conn();
+                    fut.and_then(move |peer2| {
+                        let s = Session::new(peer1, peer2, opts2);
+                        s.run().map(|()| {
+                            ::std::mem::drop(ps)
+                            // otherwise ps will be dropped sooner
+                            // and stdin/stdout may become blocking sooner
+                        })
                     })
                 })
             });

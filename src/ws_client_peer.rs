@@ -15,14 +15,14 @@ use self::websocket::client::Url;
 use super::{box_up_err, peer_err, BoxedNewPeerFuture, Peer};
 
 use super::ws_peer::{Mode1, PeerForWs, WsReadWrapper, WsWriteWrapper};
-use super::{once, Options, PeerConstructor, ProgramState, Specifier};
+use super::{once, Options, PeerConstructor, ConstructParams, Specifier};
 
 #[derive(Debug, Clone)]
 pub struct WsClient(pub Url);
 impl Specifier for WsClient {
-    fn construct(&self, h: &Handle, _: &mut ProgramState, opts: Rc<Options>) -> PeerConstructor {
+    fn construct(&self, p:ConstructParams) -> PeerConstructor {
         let url = self.0.clone();
-        once(get_ws_client_peer(h, &url, opts))
+        once(get_ws_client_peer(&p.tokio_handle, &url, p.program_options))
     }
     specifier_boilerplate!(noglobalstate singleconnect no_subspec typ=WebSocket);
 }
@@ -50,15 +50,15 @@ Example: forward TCP port 4554 to a websocket
 #[derive(Debug)]
 pub struct WsConnect<T: Specifier>(pub T);
 impl<T: Specifier> Specifier for WsConnect<T> {
-    fn construct(&self, h: &Handle, ps: &mut ProgramState, opts: Rc<Options>) -> PeerConstructor {
-        let inner = self.0.construct(h, ps, opts.clone());
+    fn construct(&self, p:ConstructParams) -> PeerConstructor {
+        let inner = self.0.construct(p.clone());
 
-        let url: Url = match opts.ws_c_uri.parse() {
+        let url: Url = match p.program_options.ws_c_uri.parse() {
             Ok(x) => x,
             Err(e) => return PeerConstructor::ServeOnce(peer_err(e)),
         };
 
-        let opts = opts.clone();
+        let opts = p.program_options;
 
         inner.map(move |q| get_ws_client_peer_wrapped(&url, q, opts.clone()))
     }

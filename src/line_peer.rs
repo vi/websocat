@@ -3,7 +3,7 @@ use futures::future::ok;
 use std::rc::Rc;
 
 use super::{BoxedNewPeerFuture, Peer};
-use super::{Handle, Options, PeerConstructor, ProgramState, Specifier};
+use super::{Handle, Options, PeerConstructor, ConstructParams, Specifier};
 
 use tokio_io::AsyncRead;
 use std::io::Read;
@@ -13,8 +13,8 @@ use std::io::Error as IoError;
 #[derive(Debug)]
 pub struct Message2Line<T: Specifier>(pub T);
 impl<T: Specifier> Specifier for Message2Line<T> {
-    fn construct(&self, h: &Handle, ps: &mut ProgramState, opts: Rc<Options>) -> PeerConstructor {
-        let inner = self.0.construct(h, ps, opts);
+    fn construct(&self, cp:ConstructParams) -> PeerConstructor {
+        let inner = self.0.construct(cp.clone());
         inner.map(move |p| packet2line_peer(p))
     }
     specifier_boilerplate!(typ=Line noglobalstate has_subspec);
@@ -44,9 +44,9 @@ Example: TODO
 #[derive(Debug)]
 pub struct Line2Message<T: Specifier>(pub T);
 impl<T: Specifier> Specifier for Line2Message<T> {
-    fn construct(&self, h: &Handle, ps: &mut ProgramState, opts: Rc<Options>) -> PeerConstructor {
-        let retain_newlines = opts.linemode_retain_newlines;
-        let inner = self.0.construct(h, ps, opts);
+    fn construct(&self, cp:ConstructParams) -> PeerConstructor {
+        let retain_newlines = cp.program_options.linemode_retain_newlines;
+        let inner = self.0.construct(cp.clone());
         inner.map(move |p| line2packet_peer(p, retain_newlines))
     }
     specifier_boilerplate!(typ=Line noglobalstate has_subspec);
