@@ -86,6 +86,10 @@ impl Future for InnerPeerReader {
             let mut meb = self.0.borrow_mut();
             let mut me = meb.as_mut().expect("Assertion failed 16293");
             match me.inner_peer.0.read(&mut self.1[..]) {
+                Ok(0) => {
+                    info!("Underlying peer finished");
+                    return Ok(futures::Async::Ready(()));
+                }
                 Ok(n) => {
                     if me.clients.len() == 0 {
                         info!("Dropping broadcast due to no clients being connected");
