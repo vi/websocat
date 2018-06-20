@@ -28,7 +28,7 @@ Like `-`, but forces threaded mode instead of async mode
 Use when standard input is not `epoll(7)`-able or you want to avoid setting it to nonblocking mode.
 "#
 );
-#[cfg(not(all(unix, not(feature = "no_unix_stdio"))))]
+#[cfg(not(all(unix, feature = "unix_stdio")))]
 specifier_class!(
     name = ThreadedStdioSubstituteClass,
     target = ThreadedStdio,

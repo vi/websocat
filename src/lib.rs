@@ -77,7 +77,7 @@ pub struct Options {
 
 #[derive(Default)]
 pub struct ProgramState {
-    #[cfg(all(unix, not(feature = "no_unix_stdio")))]
+    #[cfg(all(unix, feature = "unix_stdio"))]
     stdio: stdio_peer::GlobalState,
 
     reuser: primitive_reuse_peer::GlobalState,
@@ -304,7 +304,7 @@ macro_rules! self_0_is_subspecifier {
 pub mod lints;
 mod my_copy;
 
-#[cfg(all(unix, not(feature = "no_unix_stdio")))]
+#[cfg(all(unix, feature = "unix_stdio"))]
 pub mod stdio_peer;
 
 pub mod file_peer;

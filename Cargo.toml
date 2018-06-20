@@ -30,8 +30,8 @@ tokio-uds = "=0.1.5"
 libc = { version = "0.2", optional = true }
 
 [features]
-default = ["signal_handler", "tokio-process"]
-no_unix_stdio = []
+default = ["signal_handler", "tokio-process", "unix_stdio"]
+unix_stdio = []
 ssl = ["websocket/async-ssl"]
 signal_handler = ["tokio-signal"]
 workaround1=["libc"]

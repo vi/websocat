@@ -5,9 +5,9 @@ macro_rules! list_of_all_specifier_classes {
         $your_macro!($crate::ws_client_peer::WsClientClass);
         $your_macro!($crate::ws_server_peer::WsServerClass);
 
-        #[cfg(all(unix, not(feature = "no_unix_stdio")))]
+        #[cfg(all(unix, feature = "unix_stdio"))]
         $your_macro!($crate::stdio_peer::StdioClass);
-        #[cfg(not(all(unix, not(feature = "no_unix_stdio"))))]
+        #[cfg(not(all(unix, feature = "unix_stdio")))]
         $your_macro!($crate::stdio_threaded_peer::ThreadedStdioSubstituteClass);
 
         $your_macro!($crate::net_peer::TcpConnectClass);
@@ -31,9 +31,9 @@ macro_rules! list_of_all_specifier_classes {
         $your_macro!($crate::net_peer::UdpConnectClass);
         $your_macro!($crate::net_peer::UdpListenClass);
 
-        #[cfg(all(unix, not(feature = "no_unix_stdio")))]
+        #[cfg(all(unix, feature = "unix_stdio"))]
         $your_macro!($crate::stdio_peer::OpenAsyncClass);
-        #[cfg(all(unix, not(feature = "no_unix_stdio")))]
+        #[cfg(all(unix, feature = "unix_stdio"))]
         $your_macro!($crate::stdio_peer::OpenFdAsyncClass);
 
         $your_macro!($crate::stdio_threaded_peer::ThreadedStdioClass);
