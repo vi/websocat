@@ -10,7 +10,7 @@ impl Specifier {
         #[cfg(not(feature = "ssl"))]
         {
             if s.starts_with("wss://") {
-                Err("SSL is not compiled in. Use ws:// or get/make another Websocat build.")?
+                Err("SSL is not compiled in. Use ws:// or get/make another Websocat build.\nYou can also try to workaround missing SSL by using ws-c:cmd:socat trick (see some ws-c: example)")?
             }
         }
 
