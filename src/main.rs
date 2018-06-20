@@ -128,6 +128,7 @@ struct Opt {
     // TODO: -v --quiet
 }
 
+// TODO: make it byte-oriented/OsStr?
 fn interpret_custom_header(x:&str) -> Result<(String,Vec<u8>)> {
     let colon = x.find(':');
     let colon = if let Some(colon) = colon { colon } else {
