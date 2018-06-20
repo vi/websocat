@@ -54,6 +54,6 @@ section = "utility"
 extended-description = """\
 A tool allows you to interconnect two specifiers, like in socat, \
 but with Websocket and some other additional functions."""
-features = ["ssl", "workaround1", "seqpacket"]
+features = ["ssl", "workaround1", "seqpacket", "unix_stdio"]
 #depends = "$auto"
 depends = "libssl1.1, libc6 (>= 2.19), libgcc1 (>= 1:4.9.0)"
