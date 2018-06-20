@@ -74,6 +74,7 @@ pub struct Options {
     pub ws_c_uri: String,
     pub linemode_retain_newlines: bool,
     pub origin: Option<String>,
+    pub custom_headers: Vec<(String,Vec<u8>)>,
 }
 
 #[derive(Default)]

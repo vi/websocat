@@ -117,7 +117,28 @@ struct Opt {
     #[structopt(long="origin",help="Add Origin HTTP header to websocket client request")]
     origin: Option<String>,
     
+    #[structopt(
+        long="header",
+        short="-H",
+        help="Add custom HTTP header to websocket client request. Separate header name and value with a colon and optionally a single space. Can be used multiple times.",
+        parse(try_from_str="interpret_custom_header"),
+    )]
+    custom_headers: Vec<(String,Vec<u8>)>,
+    
     // TODO: -v --quiet
+}
+
+fn interpret_custom_header(x:&str) -> Result<(String,Vec<u8>)> {
+    let colon = x.find(':');
+    let colon = if let Some(colon) = colon { colon } else {
+        Err("Argument to --header must contain `:` character")?
+    };
+    let hn = &x[0..colon];
+    let mut hv = &x[colon+1..];
+    if hv.chars().next() == Some(' ') {
+        hv = &x[colon+2..];
+    }
+    Ok((hn.to_owned(), hv.as_bytes().to_vec()))
 }
 
 fn longhelp() {
@@ -212,7 +233,7 @@ fn run() -> Result<()> {
                 Options {
                     $($o : cmd.$o,)*
                 }
-            }
+            };
         }
         opts!(
             websocket_text_mode
@@ -227,6 +248,7 @@ fn run() -> Result<()> {
             ws_c_uri
             linemode_retain_newlines
             origin
+            custom_headers
         )
     };
 

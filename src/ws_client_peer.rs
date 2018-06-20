@@ -1,4 +1,5 @@
 extern crate websocket;
+extern crate hyper;
 
 use self::websocket::client::async::ClientNew;
 use self::websocket::stream::async::Stream as WsStream;
@@ -16,6 +17,8 @@ use super::{box_up_err, peer_err, BoxedNewPeerFuture, Peer};
 
 use super::ws_peer::{Mode1, PeerForWs, WsReadWrapper, WsWriteWrapper};
 use super::{once, ConstructParams, Options, PeerConstructor, Specifier};
+
+use self::hyper::header::Headers;
 
 #[derive(Debug, Clone)]
 pub struct WsClient(pub Url);
@@ -102,15 +105,24 @@ where
     };
 
     let stage1 = ClientBuilder::from_url(uri);
-    let stage2 = if let Some(ref x) = opts.origin {
-        stage1.origin(x.clone())
-    } else {
+    let stage2 = if opts.custom_headers.is_empty() {
         stage1
+    } else {
+        let mut h = Headers::new();
+        for (hn,hv) in opts.custom_headers.clone() {
+            h.append_raw(hn,hv);
+        }
+        stage1.custom_headers(&h)
     };
-    let before_connect = if let Some(ref p) = opts.websocket_protocol {
-        stage2.add_protocol(p.to_owned())
+    let stage3 = if let Some(ref x) = opts.origin {
+        stage2.origin(x.clone())
     } else {
         stage2
+    };
+    let before_connect = if let Some(ref p) = opts.websocket_protocol {
+        stage3.add_protocol(p.to_owned())
+    } else {
+        stage3
     };
     let after_connect = f(before_connect);
     Box::new(

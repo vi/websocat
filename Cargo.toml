@@ -21,6 +21,7 @@ tokio-stdin-stdout = "0.1.1"
 structopt = { version = "0.2", default-features = false }
 tokio-process = {version = "0.1.5" , optional = true }
 slab_typesafe = "0.1"
+hyper="0.10.13"
 
 
 [target.'cfg(unix)'.dependencies]
