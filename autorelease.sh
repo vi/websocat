@@ -19,7 +19,7 @@ echo Version: $V
 mkdir -p "$D"
 
 r() {
-    cargo rustc --bin websocat $FE --release -j2 --target $T -- -C lto
+    cargo +stable rustc --bin websocat $FE --release -j2 --target $T -- -C lto
     TF="$D"/websocat${S}_${V}_${T}${E}
     cp ./target/$T/release/websocat${E} "$TF"
     ${ST} "${TF}"
