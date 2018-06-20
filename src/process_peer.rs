@@ -39,7 +39,7 @@ impl Specifier for ShC {
 specifier_class!(
     name = ShCClass,
     target = ShC,
-    prefixes = ["sh-c:", "cmd:"],
+    prefixes = ["sh-c:", "cmd:"], // TODO: change semantics of sh-c:
     arg_handling = into,
     help = r#"
 Start specified command line using `sh -c` or `cmd /C`
