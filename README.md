@@ -23,10 +23,14 @@ FLAGS:
     -t, --text                      Send text WebSocket messages instead of binary
 
 OPTIONS:
+    -H, --header <custom_headers>...       Add custom HTTP header to websocket client request. Separate header name and
+                                           value with a colon and optionally a single space. Can be used multiple times.
         --exec-args <exec_args>...         Arguments for the `exec:` specifier. Must be the last option, everything
                                            after it gets into the exec args list.
+        --origin <origin>                  Add Origin HTTP header to websocket client request
         --protocol <websocket_protocol>    Specify Sec-WebSocket-Protocol: header
         --ws-c-uri <ws_c_uri>              URI to use for ws-c: specifier [default: ws://0.0.0.0/]
+
 
 ARGS:
     <s1>    First, listening/connecting specifier. See --long-help for info about specifiers.
