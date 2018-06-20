@@ -73,6 +73,7 @@ pub struct Options {
     pub exec_args: Vec<String>,
     pub ws_c_uri: String,
     pub linemode_retain_newlines: bool,
+    pub origin: Option<String>,
 }
 
 #[derive(Default)]

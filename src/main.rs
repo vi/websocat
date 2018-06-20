@@ -113,6 +113,10 @@ struct Opt {
         short = "-l", long = "--line", help = "Make each WebSocket message correspond to one line"
     )]
     linemode: bool,
+    
+    #[structopt(long="origin",help="Add Origin HTTP header to websocket client request")]
+    origin: Option<String>,
+    
     // TODO: -v --quiet
 }
 
@@ -222,6 +226,7 @@ fn run() -> Result<()> {
             exec_args
             ws_c_uri
             linemode_retain_newlines
+            origin
         )
     };
 

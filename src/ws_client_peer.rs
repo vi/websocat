@@ -102,10 +102,15 @@ where
     };
 
     let stage1 = ClientBuilder::from_url(uri);
-    let before_connect = if let Some(ref p) = opts.websocket_protocol {
-        stage1.add_protocol(p.to_owned())
+    let stage2 = if let Some(ref x) = opts.origin {
+        stage1.origin(x.clone())
     } else {
         stage1
+    };
+    let before_connect = if let Some(ref p) = opts.websocket_protocol {
+        stage2.add_protocol(p.to_owned())
+    } else {
+        stage2
     };
     let after_connect = f(before_connect);
     Box::new(
