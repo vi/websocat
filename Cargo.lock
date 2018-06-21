@@ -642,7 +642,7 @@ dependencies = [
 
 [[package]]
 name = "tokio-stdin-stdout"
-version = "0.1.1"
+version = "0.1.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
  "futures 0.1.17 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -762,7 +762,7 @@ dependencies = [
  "tokio-io 0.1.5 (registry+https://github.com/rust-lang/crates.io-index)",
  "tokio-process 0.1.6 (registry+https://github.com/rust-lang/crates.io-index)",
  "tokio-signal 0.1.5 (registry+https://github.com/rust-lang/crates.io-index)",
- "tokio-stdin-stdout 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "tokio-stdin-stdout 0.1.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "tokio-timer 0.1.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "tokio-uds 0.1.5 (registry+https://github.com/rust-lang/crates.io-index)",
  "websocket 0.20.2 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -912,7 +912,7 @@ dependencies = [
 "checksum tokio-io 0.1.5 (registry+https://github.com/rust-lang/crates.io-index)" = "b9532748772222bf70297ec0e2ad0f17213b4a7dd0e6afb68e0a0768f69f4e4f"
 "checksum tokio-process 0.1.6 (registry+https://github.com/rust-lang/crates.io-index)" = "f282588e1373af0a4e16bddf0c215c1a68b0bfe9b2dfa9704e540f01c3866de8"
 "checksum tokio-signal 0.1.5 (registry+https://github.com/rust-lang/crates.io-index)" = "e8f46863230f9a05cf52d173721ec391b9c5782a2465f593029922b8782b9ffe"
-"checksum tokio-stdin-stdout 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)" = "b115a68ecb21a757fc0bd1f5ee1f013c7a706c1c0803d12d36505f8ed9a3797d"
+"checksum tokio-stdin-stdout 0.1.2 (registry+https://github.com/rust-lang/crates.io-index)" = "a7b751e1c6716fd1fbe933587066486d5a8ae54ddf0f70c838f945880bb23ebb"
 "checksum tokio-timer 0.1.2 (registry+https://github.com/rust-lang/crates.io-index)" = "6131e780037787ff1b3f8aad9da83bca02438b72277850dd6ad0d455e0e20efc"
 "checksum tokio-tls 0.1.4 (registry+https://github.com/rust-lang/crates.io-index)" = "772f4b04e560117fe3b0a53e490c16ddc8ba6ec437015d91fa385564996ed913"
 "checksum tokio-uds 0.1.5 (registry+https://github.com/rust-lang/crates.io-index)" = "6116c71be48f8f1656551fd16458247fdd6c03201d7893ad81189055fcde03e8"

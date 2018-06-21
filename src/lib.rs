@@ -507,18 +507,22 @@ impl Session {
         let once = self.2.one_message;
         let f1 = my_copy::copy(self.0.from, self.0.to, true, once);
         let f2 = my_copy::copy(self.1.from, self.1.to, true, once);
-        
-        let f1 = f1.map(|(_, r, mut w)| {
+
+        let f1 = f1.and_then(|(_, r, w)| {
             info!("Forward finished");
-            let _ = w.shutdown();
             std::mem::drop(r);
-            std::mem::drop(w);
+            tokio_io::io::shutdown(w).map(|w|{
+                info!("Forward shutdown finished");
+                std::mem::drop(w);
+            })
         });
-        let f2 = f2.map(|(_, r, mut w)| {
+        let f2 = f2.and_then(|(_, r, w)| {
             info!("Reverse finished");
-            let _ = w.shutdown();
             std::mem::drop(r);
-            std::mem::drop(w);
+            tokio_io::io::shutdown(w).map(|w|{
+                info!("Reverse shutdown finished");
+                std::mem::drop(w);
+            })
         });
         let (unif, unir, eeof) = (
             self.2.unidirectional,
