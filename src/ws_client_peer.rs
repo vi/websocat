@@ -119,12 +119,17 @@ where
     } else {
         stage2
     };
-    let before_connect = if let Some(ref p) = opts.websocket_protocol {
+    let stage4 = if let Some(ref p) = opts.websocket_protocol {
         stage3.add_protocol(p.to_owned())
     } else {
         stage3
     };
-    let after_connect = f(before_connect);
+    let stage5 = if let Some(ref v) = opts.websocket_version {
+        stage4.version(websocket::header::WebSocketVersion::Unknown(v.clone()))
+    } else {
+        stage4
+    };
+    let after_connect = f(stage5);
     Box::new(
         after_connect
             .map(move |(duplex, _)| {

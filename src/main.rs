@@ -125,6 +125,9 @@ struct Opt {
     )]
     custom_headers: Vec<(String,Vec<u8>)>,
     
+    #[structopt(long="websocket-version", help="Override the Sec-WebSocket-Version value")]
+    websocket_version: Option<String>,
+    
     // TODO: -v --quiet
 }
 
@@ -250,6 +253,7 @@ fn run() -> Result<()> {
             linemode_retain_newlines
             origin
             custom_headers
+            websocket_version
         )
     };
 

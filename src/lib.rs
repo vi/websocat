@@ -75,6 +75,7 @@ pub struct Options {
     pub linemode_retain_newlines: bool,
     pub origin: Option<String>,
     pub custom_headers: Vec<(String,Vec<u8>)>,
+    pub websocket_version: Option<String>,
 }
 
 #[derive(Default)]
