@@ -128,6 +128,9 @@ struct Opt {
     #[structopt(long="websocket-version", help="Override the Sec-WebSocket-Version value")]
     websocket_version: Option<String>,
     
+    #[structopt(long="no-close", help="Don't send Close message to websocket on EOF")]
+    websocket_dont_close: bool,
+    
     // TODO: -v --quiet
 }
 
@@ -254,6 +257,7 @@ fn run() -> Result<()> {
             origin
             custom_headers
             websocket_version
+            websocket_dont_close
         )
     };
 

@@ -142,7 +142,7 @@ where
                     pingreply: mpsink.clone(),
                     debt: Default::default(),
                 };
-                let ws_sin = WsWriteWrapper(mpsink, mode1);
+                let ws_sin = WsWriteWrapper(mpsink, mode1, !opts.websocket_dont_close);
 
                 let ws = Peer::new(ws_str, ws_sin);
                 ws

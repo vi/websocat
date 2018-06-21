@@ -100,7 +100,7 @@ pub fn ws_upgrade_peer(inner_peer: Peer, mode1: Mode1) -> BoxedNewPeerFuture {
                     pingreply: mpsink.clone(),
                     debt: Default::default(),
                 };
-                let ws_sin = WsWriteWrapper(mpsink, mode1);
+                let ws_sin = WsWriteWrapper(mpsink, mode1, true /* send Close on shutdown */);
 
                 let ws = Peer::new(ws_str, ws_sin);
                 ws

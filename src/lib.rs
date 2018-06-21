@@ -76,6 +76,7 @@ pub struct Options {
     pub origin: Option<String>,
     pub custom_headers: Vec<(String,Vec<u8>)>,
     pub websocket_version: Option<String>,
+    pub websocket_dont_close: bool,
 }
 
 #[derive(Default)]

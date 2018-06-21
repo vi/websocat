@@ -95,10 +95,11 @@ pub enum Mode1 {
     Binary,
 }
 
-pub struct WsWriteWrapper<T: WsStream + 'static>(pub MultiProducerWsSink<T>, pub Mode1);
+pub struct WsWriteWrapper<T: WsStream + 'static>(pub MultiProducerWsSink<T>, pub Mode1, pub bool);
 
 impl<T: WsStream + 'static> AsyncWrite for WsWriteWrapper<T> {
     fn shutdown(&mut self) -> futures::Poll<(), std::io::Error> {
+        if ! self.2 { return Ok(Ready(())); }
         let mut sink = self.0.borrow_mut();
         match sink
             .start_send(OwnedMessage::Close(None))
