@@ -70,7 +70,7 @@ struct Opt {
     )]
     websocket_text_mode: bool,
 
-    #[structopt(long = "oneshot", help = "Serve only once")]
+    #[structopt(long = "oneshot", help = "Serve only once. Not to be confused with -1 (--one-message)")]
     oneshot: bool,
 
     #[structopt(long = "long-help", help = "Show full help aboput specifiers and examples")]
@@ -130,6 +130,13 @@ struct Opt {
     
     #[structopt(long="no-close", help="Don't send Close message to websocket on EOF")]
     websocket_dont_close: bool,
+    
+    #[structopt(
+        short="1",
+        long="one-message", 
+        help="Send and/or receive only one message. Use with --no-close and/or -u/-U.",
+    )]
+    one_message : bool,
     
     // TODO: -v --quiet
 }
@@ -258,6 +265,7 @@ fn run() -> Result<()> {
             custom_headers
             websocket_version
             websocket_dont_close
+            one_message
         )
     };
 

@@ -77,6 +77,7 @@ pub struct Options {
     pub custom_headers: Vec<(String,Vec<u8>)>,
     pub websocket_version: Option<String>,
     pub websocket_dont_close: bool,
+    pub one_message: bool,
 }
 
 #[derive(Default)]
@@ -503,8 +504,10 @@ pub struct Session(Transfer, Transfer, Rc<Options>);
 
 impl Session {
     pub fn run(self) -> Box<Future<Item = (), Error = Box<std::error::Error>>> {
-        let f1 = my_copy::copy(self.0.from, self.0.to, true);
-        let f2 = my_copy::copy(self.1.from, self.1.to, true);
+        let once = self.2.one_message;
+        let f1 = my_copy::copy(self.0.from, self.0.to, true, once);
+        let f2 = my_copy::copy(self.1.from, self.1.to, true, once);
+        
         let f1 = f1.map(|(_, r, mut w)| {
             info!("Forward finished");
             let _ = w.shutdown();

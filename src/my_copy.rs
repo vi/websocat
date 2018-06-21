@@ -21,6 +21,8 @@ pub struct Copy<R, W> {
     amt: u64,
     buf: Box<[u8]>,
     stop_on_reader_zero_read: bool,
+    once: bool,
+    read_occurred: bool,
 }
 
 /// Creates a future which represents copying all the bytes from one object to
@@ -37,7 +39,7 @@ pub struct Copy<R, W> {
 ///
 /// Unlike original tokio_io::copy::copy, it does not always stop on zero length reads
 /// , handles BrokenPipe error kind as EOF and flushes after every write
-pub fn copy<R, W>(reader: R, writer: W, stop_on_reader_zero_read: bool) -> Copy<R, W>
+pub fn copy<R, W>(reader: R, writer: W, stop_on_reader_zero_read: bool, once : bool) -> Copy<R, W>
 where
     R: AsyncRead,
     W: AsyncWrite,
@@ -52,6 +54,8 @@ where
         // TODO - de-hardcode buffer size
         buf: Box::new([0; 65536]),
         stop_on_reader_zero_read,
+        once,
+        read_occurred: false,
     }
 }
 
@@ -69,6 +73,10 @@ where
             // continue.
             trace!("poll");
             if self.pos == self.cap && !self.read_done {
+                if self.read_occurred && self.once {
+                    self.read_done = true;
+                    continue;
+                }
                 let reader = self.reader.as_mut().unwrap();
                 let rr = reader.read(&mut self.buf);
                 if let Err(ref e) = rr {
@@ -90,6 +98,7 @@ where
                 } else {
                     self.pos = 0;
                     self.cap = n;
+                    self.read_occurred = true;
                 }
             }
 
