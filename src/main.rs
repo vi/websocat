@@ -119,7 +119,7 @@ struct Opt {
     
     #[structopt(
         long="header",
-        short="-H",
+        short="H",
         help="Add custom HTTP header to websocket client request. Separate header name and value with a colon and optionally a single space. Can be used multiple times.",
         parse(try_from_str="interpret_custom_header"),
     )]
@@ -128,7 +128,7 @@ struct Opt {
     #[structopt(long="websocket-version", help="Override the Sec-WebSocket-Version value")]
     websocket_version: Option<String>,
     
-    #[structopt(long="no-close", help="Don't send Close message to websocket on EOF")]
+    #[structopt(long="no-close", short="n", help="Don't send Close message to websocket on EOF")]
     websocket_dont_close: bool,
     
     #[structopt(
