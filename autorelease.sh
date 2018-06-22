@@ -57,5 +57,18 @@ E=.exe
 T=i686-pc-windows-gnu
 r
 
+
+FE=ssl
+S=
+ST=i586-mingw32msvc-strip
+E=.exe
+T=i686-pc-windows-gnu
+r
+
+ST=/mnt/src/git/osxcross/target/bin/x86_64-apple-darwin15-strip
+T=x86_64-apple-darwin
+E=
+r
+
 set +x
 echo "Next steps: 1. create tag; 2. upload release; 3. upload to crates.io"
