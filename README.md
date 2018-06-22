@@ -1,10 +1,10 @@
 # websocat
-Websocket proxy, socat-style
+netcat and socat for [WebSockets](https://en.wikipedia.org/wiki/WebSocket).
 
 ```
-websocat 1.0.0-alpha
+websocat 1.0.0-beta
 Vitaly "_Vi" Shukela <vi0oss@gmail.com>
-Connection forwarder from/to web sockets to/from usual sockets, in style of socat
+Command-line client for web sockets. Like netcat, but for WebSockets. Designed like socat.
 
 USAGE:
     websocat [FLAGS] [OPTIONS] <s1> <s2>
