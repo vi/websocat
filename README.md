@@ -10,26 +10,34 @@ USAGE:
     websocat [FLAGS] [OPTIONS] <s1> <s2>
 
 FLAGS:
-        --dump-spec                 Instead of running, dump the specifiers representation to stdout
-        --exit-on-eof               Close a data transfer direction if the other one reached EOF
-    -h, --help                      Prints help information
-        --long-help                 Show full help aboput specifiers and examples
-        --oneshot                   Serve only once
-        --udp-oneshot               udp-listen: replies only one packet per client
-    -u, --unidirectional            Inhibit copying data from right specifier to left
-    -U, --unidirectional-reverse    Inhibit copying data from left specifier to right
-        --unlink                    Unlink listening UNIX socket before binding to it
-    -V, --version                   Prints version information
-    -t, --text                      Send text WebSocket messages instead of binary
+        --dump-spec                   Instead of running, dump the specifiers representation to stdout
+    -E, --exit-on-eof                 Close a data transfer direction if the other one reached EOF
+    -h, --help                        Prints help information
+    -l, --line                        Make each WebSocket message correspond to one line
+        --linemode-retain-newlines    In --line mode, don't chop off trailing \n from messages
+        --long-help                   Show full help aboput specifiers and examples
+    -1, --one-message                 Send and/or receive only one message. Use with --no-close and/or -u/-U.
+        --oneshot                     Serve only once. Not to be confused with -1 (--one-message)
+        --udp-oneshot                 udp-listen: replies only one packet per client
+    -u, --unidirectional              Inhibit copying data from right specifier to left
+    -U, --unidirectional-reverse      Inhibit copying data from left specifier to right
+        --unlink                      Unlink listening UNIX socket before binding to it
+    -V, --version                     Prints version information
+    -n, --no-close                    Don't send Close message to websocket on EOF
+    -t, --text                        Send text WebSocket messages instead of binary
 
 OPTIONS:
-    -H, --header <custom_headers>...       Add custom HTTP header to websocket client request. Separate header name and
-                                           value with a colon and optionally a single space. Can be used multiple times.
-        --exec-args <exec_args>...         Arguments for the `exec:` specifier. Must be the last option, everything
-                                           after it gets into the exec args list.
-        --origin <origin>                  Add Origin HTTP header to websocket client request
-        --protocol <websocket_protocol>    Specify Sec-WebSocket-Protocol: header
-        --ws-c-uri <ws_c_uri>              URI to use for ws-c: specifier [default: ws://0.0.0.0/]
+    -H, --header <custom_headers>...
+            Add custom HTTP header to websocket client request. Separate header name and value with a colon and
+            optionally a single space. Can be used multiple times.
+        --exec-args <exec_args>...
+            Arguments for the `exec:` specifier. Must be the last option, everything after it gets into the exec args
+            list.
+        --origin <origin>                          Add Origin HTTP header to websocket client request
+        --protocol <websocket_protocol>            Specify Sec-WebSocket-Protocol: header
+        --websocket-version <websocket_version>    Override the Sec-WebSocket-Version value
+        --ws-c-uri <ws_c_uri>                      URI to use for ws-c: specifier [default: ws://0.0.0.0/]
+
 
 
 ARGS:
