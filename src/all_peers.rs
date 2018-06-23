@@ -16,6 +16,8 @@ macro_rules! list_of_all_specifier_classes {
         #[cfg(feature = "tokio-process")]
         $your_macro!($crate::process_peer::ShCClass);
         #[cfg(feature = "tokio-process")]
+        $your_macro!($crate::process_peer::CmdClass);
+        #[cfg(feature = "tokio-process")]
         $your_macro!($crate::process_peer::ExecClass);
 
         $your_macro!($crate::file_peer::ReadFileClass);

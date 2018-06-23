@@ -19,8 +19,8 @@ use super::{BoxedNewPeerFuture, Peer};
 use std::process::Stdio;
 
 #[derive(Debug, Clone)]
-pub struct ShC(pub String);
-impl Specifier for ShC {
+pub struct Cmd(pub String);
+impl Specifier for Cmd {
     fn construct(&self, p: ConstructParams) -> PeerConstructor {
         let args = if cfg!(target_os = "windows") {
             let mut args = Command::new("cmd");
@@ -37,16 +37,16 @@ impl Specifier for ShC {
     specifier_boilerplate!(noglobalstate singleconnect no_subspec typ=Other);
 }
 specifier_class!(
-    name = ShCClass,
-    target = ShC,
-    prefixes = ["sh-c:", "cmd:"], // TODO: change semantics of sh-c:
+    name = CmdClass,
+    target = Cmd,
+    prefixes = ["cmd:"],
     arg_handling = into,
     help = r#"
-Start specified command line using `sh -c` or `cmd /C`
+Start specified command line using `sh -c` (even on Windows)
   
 Example: serve a counter
 
-    websocat -U ws-l:127.0.0.1:8008 cmd:'for i in 0 1 2 3 4 5 6 7 8 9 10; do echo $i; sleep 1; done'
+    websocat -U ws-l:127.0.0.1:8008 sh-c:'for i in 0 1 2 3 4 5 6 7 8 9 10; do echo $i; sleep 1; done'
   
 Example: unauthenticated shell
 
@@ -56,6 +56,29 @@ Example: unauthenticated shell
 );
 // TODO: client and example output for each server example
 // TODO: chromium-based examples
+
+#[derive(Debug, Clone)]
+pub struct ShC(pub String);
+impl Specifier for ShC {
+    fn construct(&self, p: ConstructParams) -> PeerConstructor {
+        let mut args = Command::new("sh");
+        args.arg("-c").arg(self.0.clone());
+        let h = &p.tokio_handle;
+        once(Box::new(futures::future::result(process_connect_peer(h, args))) as BoxedNewPeerFuture)
+    }
+    specifier_boilerplate!(noglobalstate singleconnect no_subspec typ=Other);
+}
+specifier_class!(
+    name = ShCClass,
+    target = ShC,
+    prefixes = ["sh-c:"],
+    arg_handling = into,
+    help = r#"
+Start specified command line using `sh -c` or `cmd /C` (depending on platform)
+
+Otherwise should be the the same as `sh-c:` (see examples from there).
+"#
+);
 
 #[derive(Debug, Clone)]
 pub struct Exec(pub String);
