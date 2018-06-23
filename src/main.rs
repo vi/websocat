@@ -281,7 +281,9 @@ fn run() -> Result<()> {
         (spec(&cmd.s1)?, spec(cmds2)?)
     } else {
         if ! (cmd.s1.starts_with("ws://") || cmd.s1.starts_with("wss://")) {
-            Err("Simple one-argument mode is only for connecting to websockets. Use explicit two-argument websocat invocation for advanced features.")?;
+            // TODO: message for -s server mode
+            eprintln!("Specify ws:// or wss:// URI to connect to a websocket");
+            Err("Invalid command-line parameters")?;
         }
         // Easy mode
         cmd.linemode = true;
