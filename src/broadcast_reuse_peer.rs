@@ -38,6 +38,7 @@ impl Specifier for BroadcastReuser {
     self_0_is_subspecifier!(...);
 }
 
+// TODO: make it default
 specifier_class!(
     name = BroadcastReuserClass,
     target = BroadcastReuser,

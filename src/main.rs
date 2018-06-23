@@ -159,6 +159,7 @@ fn interpret_custom_header(x:&str) -> Result<(String,Vec<u8>)> {
 }
 
 fn longhelp() {
+    // TODO: promote first alias to title
     println!(
         r#"(see also the usual --help message)
     

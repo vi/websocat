@@ -37,6 +37,7 @@ Simply copy output to input. No arguments needed.
 Similar to `exec:cat`.
 "#
 );
+// TODO: doc example, mention echo.websocket.org
 
 #[derive(Clone)]
 pub struct LiteralReply(pub Vec<u8>);

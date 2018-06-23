@@ -41,6 +41,7 @@ Example:
     websocat ws-l:127.0.0.1:8080 literal:'{ "hello":"world"} '
 "#
 );
+// TODO: better doc
 
 #[derive(Clone)]
 pub struct Assert(pub Vec<u8>);

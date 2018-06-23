@@ -54,6 +54,8 @@ Example: unauthenticated shell
 
 "#
 );
+// TODO: client and example output for each server example
+// TODO: chromium-based examples
 
 #[derive(Debug, Clone)]
 pub struct Exec(pub String);
