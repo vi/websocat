@@ -82,8 +82,7 @@ Limitations
 ---
 
 * Replies to WebSocket pings are not tested at all
-* Windows not tested at all
-* Only partial SSL support.
+* Server for `wss://` is not implemented (you can workaround it with Nginx or socat).
 
 Full list of specifiers with examples
 ---
