@@ -25,8 +25,8 @@ type Result<T> = std::result::Result<T, Box<std::error::Error>>;
 #[structopt(
     after_help = "
 Basic examples:
-  Connect stdin/stdout to a websocket:
-    websocat - ws://echo.websocket.org/
+  Command-line websocket client:
+    websocat ws://echo.websocket.org/
     
   Listen websocket and redirect it to a TCP port:
     websocat ws-l:127.0.0.1:8080 tcp:127.0.0.1:5678
@@ -40,13 +40,13 @@ Short list of specifiers (see --long-help):
   readfile: writefile: open-fd: unix-connect: unix-listen:
   unix-dgram: abstract-connect: abstract-listen:
   exec: sh-c:
-"
+", usage="websocat [FLAGS] [OPTIONS] <s1> [s2]"
 )]
 struct Opt {
     /// First, listening/connecting specifier. See --long-help for info about specifiers.
     s1: String,
     /// Second, connecting specifier
-    s2: String,
+    s2: Option<String>,
 
     #[structopt(
         short = "u",
@@ -231,7 +231,7 @@ fn run() -> Result<()> {
         return Ok(());
     }
 
-    let cmd = Opt::from_args();
+    let mut cmd = Opt::from_args();
 
     if cmd.longhelp {
         longhelp();
@@ -248,7 +248,7 @@ fn run() -> Result<()> {
         openssl_probe::init_ssl_cert_env_vars();
     }
 
-    let opts = {
+    let mut opts = {
         macro_rules! opts {
             ($($o:ident)*) => {
                 Options {
@@ -276,8 +276,20 @@ fn run() -> Result<()> {
         )
     };
 
-    let s1 = spec(&cmd.s1)?;
-    let s2 = spec(&cmd.s2)?;
+    let (s1, s2) = if let Some(ref cmds2) = cmd.s2 {
+        (spec(&cmd.s1)?, spec(cmds2)?)
+    } else {
+        if ! (cmd.s1.starts_with("ws://") || cmd.s1.starts_with("wss://")) {
+            Err("Simple one-argument mode is only for connecting to websockets. Use explicit two-argument websocat invocation for advanced features.")?;
+        }
+        // Easy mode
+        cmd.linemode = true;
+        opts.websocket_text_mode = true;
+        if opts.websocket_protocol == None {
+            opts.websocket_protocol = Some("tcp".to_owned());
+        }
+        (spec("-")?, spec(&cmd.s1)?)
+    };
 
     let mut websocat = WebsocatConfiguration { opts, s1, s2 };
 
