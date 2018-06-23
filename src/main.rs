@@ -7,6 +7,9 @@ extern crate tokio_stdin_stdout;
 
 extern crate env_logger;
 
+#[cfg(feature="openssl-probe")]
+extern crate openssl_probe;
+
 #[macro_use]
 extern crate structopt;
 
@@ -239,6 +242,10 @@ fn run() -> Result<()> {
     //    || cmd.oneshot
     {
         Err("This mode is not implemented")?
+    }
+    
+    #[cfg(feature="openssl-probe")] {
+        openssl_probe::init_ssl_cert_env_vars();
     }
 
     let opts = {
