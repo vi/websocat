@@ -40,13 +40,17 @@ Short list of specifiers (see --long-help):
   readfile: writefile: open-fd: unix-connect: unix-listen:
   unix-dgram: abstract-connect: abstract-listen:
   exec: sh-c:
-", usage="websocat [FLAGS] [OPTIONS] <s1> [s2]"
+", usage="websocat [FLAGS] [OPTIONS] <addr1>          (simple mode)\n    websocat [FLAGS] [OPTIONS] <addr1> <addr2>  (advanced mode)"
 )]
 struct Opt {
-    /// First, listening/connecting specifier. See --long-help for info about specifiers.
-    s1: String,
-    /// Second, connecting specifier
-    s2: Option<String>,
+    /// In simple mode, WebSocket URL to connect.
+    /// In advanced mode first address (there are many kinds of addresses) to use.
+    /// See --long-help for info about address types.
+    /// If this is an address for listening, it will try serving multiple connections.
+    addr1: String,
+    /// In advanced mode, second address to connect.
+    /// If this is an address for listening, it will accept only one connection.
+    addr2: Option<String>,
 
     #[structopt(
         short = "u",
@@ -76,39 +80,53 @@ struct Opt {
     #[structopt(long = "oneshot", help = "Serve only once. Not to be confused with -1 (--one-message)")]
     oneshot: bool,
 
-    #[structopt(long = "long-help", help = "Show full help aboput specifiers and examples")]
+    #[structopt(
+        long = "long-help",
+        help = "Show the full help message, including list of all address types and advanced flags and options which are normally hidden from help (they have `[A]` marker in their help messages).",
+    )]
     longhelp: bool,
+    
+    #[structopt(short = "h", long="help", help="Short short help message")]
+    shorthelp: bool,
 
     #[structopt(
         long = "dump-spec",
-        help = "Instead of running, dump the specifiers representation to stdout"
+        help = "[A] Instead of running, dump the specifiers representation to stdout",
     )]
     dumpspec: bool,
 
     #[structopt(long = "protocol", help = "Specify Sec-WebSocket-Protocol: header")]
     websocket_protocol: Option<String>,
 
-    #[structopt(long = "udp-oneshot", help = "udp-listen: replies only one packet per client")]
+    #[structopt(
+        long = "udp-oneshot",
+        help = "[A] udp-listen: replies only one packet per client",
+    )]
     udp_oneshot_mode: bool,
 
-    #[structopt(long = "unlink", help = "Unlink listening UNIX socket before binding to it")]
+    #[structopt(
+        long = "unlink", 
+        help = "[A] Unlink listening UNIX socket before binding to it",
+    )]
     unlink_unix_socket: bool,
 
     #[structopt(
         long = "exec-args",
         raw(allow_hyphen_values = r#"true"#),
-        help = "Arguments for the `exec:` specifier. Must be the last option, everything after it gets into the exec args list."
+        help = "[A] Arguments for the `exec:` specifier. Must be the last option, everything after it gets into the exec args list."
     )]
     exec_args: Vec<String>,
 
     #[structopt(
-        long = "ws-c-uri", help = "URI to use for ws-c: specifier", default_value = "ws://0.0.0.0/"
+        long = "ws-c-uri",
+        help = "[A] URI to use for ws-c: specifier",
+        default_value = "ws://0.0.0.0/",
     )]
     ws_c_uri: String,
 
     #[structopt(
         long = "linemode-retain-newlines",
-        help = "In --line mode, don't chop off trailing \\n from messages"
+        help = "[A] In --line mode, don't chop off trailing \\n from messages",
     )]
     linemode_retain_newlines: bool,
 
@@ -158,10 +176,73 @@ fn interpret_custom_header(x:&str) -> Result<(String,Vec<u8>)> {
     Ok((hn.to_owned(), hv.as_bytes().to_vec()))
 }
 
+fn shorthelp() {
+    //use std::io::Write;
+    use std::io::{BufRead,BufReader};
+    let mut b = vec![];
+    if let Err(_) = Opt::clap().write_help(&mut b) {
+        eprintln!("Error displaying the help message");
+    }
+    let mut lines_to_display = vec![];
+    let mut do_display = true;
+    #[allow(non_snake_case)]
+    let mut special_A_permit = false;
+    for l in BufReader::new(&b[..]).lines() {
+        if let Ok(l) = l {
+            if l.trim().starts_with("--long-help") {
+                special_A_permit = true;
+            }
+            if l.contains("[A]") {
+                if special_A_permit {
+                    special_A_permit = false;
+                } else {
+                    do_display = false;
+                    if l.trim().starts_with("[A]") {
+                        // Also retroactively retract the previous line
+                        let nl = lines_to_display.len()-1;
+                        lines_to_display.truncate(nl);
+                    }
+                }
+            } else if l.trim().starts_with("-") {
+                do_display = true;
+            } else if l.trim().starts_with("--") {
+                do_display = true;
+            } else if l.is_empty() {
+                do_display = true;
+            }
+            let mut additional_line = None;
+            
+           
+            if l == "FLAGS:" {
+                additional_line=Some(format!("    (some flags are hidden, see --long-help)"));
+            }
+            if l == "OPTIONS:" {
+                additional_line=Some(format!("    (some options are hidden, see --long-help)"));
+            }
+            
+            if do_display {
+                lines_to_display.push(l);
+                if let Some(x) = additional_line {
+                    lines_to_display.push(x);
+                }
+            }
+        }
+    }
+    for l in lines_to_display {
+        println!("{}", l);
+    }
+    //let _ = std::io::stdout().write_all(&b);
+}
+
 fn longhelp() {
+    //let q = Opt::from_iter(vec!["-"]);
+    let mut a = Opt::clap();
+    
+    let _ = a.print_help();
+
     // TODO: promote first alias to title
     println!(
-        r#"(see also the usual --help message)
+        r#"
     
 Positional arguments to websocat are generally called specifiers.
 Specifiers are ways to obtain a connection from some string representation (i.e. address).
@@ -231,11 +312,20 @@ fn run() -> Result<()> {
         longhelp();
         return Ok(());
     }
+    if vec!["-?","-h", "--help"].contains(&std::env::args().nth(1).unwrap_or_default().as_str()) {
+        shorthelp();
+        return Ok(());
+    }
 
     let mut cmd = Opt::from_args();
 
     if cmd.longhelp {
         longhelp();
+        return Ok(());
+    }
+    
+    if cmd.shorthelp {
+        shorthelp();
         return Ok(());
     }
 
@@ -277,10 +367,10 @@ fn run() -> Result<()> {
         )
     };
 
-    let (s1, s2) = if let Some(ref cmds2) = cmd.s2 {
-        (spec(&cmd.s1)?, spec(cmds2)?)
+    let (s1, s2) = if let Some(ref cmds2) = cmd.addr2 {
+        (spec(&cmd.addr1)?, spec(cmds2)?)
     } else {
-        if ! (cmd.s1.starts_with("ws://") || cmd.s1.starts_with("wss://")) {
+        if ! (cmd.addr1.starts_with("ws://") || cmd.addr1.starts_with("wss://")) {
             // TODO: message for -s server mode
             eprintln!("Specify ws:// or wss:// URI to connect to a websocket");
             Err("Invalid command-line parameters")?;
@@ -291,7 +381,7 @@ fn run() -> Result<()> {
         if opts.websocket_protocol == None {
             opts.websocket_protocol = Some("tcp".to_owned());
         }
-        (spec("-")?, spec(&cmd.s1)?)
+        (spec("-")?, spec(&cmd.addr1)?)
     };
 
     let mut websocat = WebsocatConfiguration { opts, s1, s2 };
