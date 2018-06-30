@@ -42,6 +42,7 @@ specifier_class!(
             Ok(Rc::new(WsClient(full.parse()?)))
         }
     },
+    overlay = false,
     help = r#"
 WebSocket client. Argument is host and URL.
 
@@ -77,6 +78,7 @@ specifier_class!(
     target = WsConnect,
     prefixes = ["ws-c:", "c-ws:", "ws-connect:", "connect-ws:"],
     arg_handling = subspec,
+    overlay = true,
     help = r#"
 Low-level WebSocket connector. Argument is a subspecifier.
 

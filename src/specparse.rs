@@ -1,8 +1,30 @@
-use super::{Result, Specifier, SpecifierClass};
+use super::{Result, Specifier, SpecifierClass, SpecifierStack};
 use std::rc::Rc;
 
 pub fn spec(s: &str) -> Result<Rc<Specifier>> {
     Specifier::from_str(s)
+}
+
+impl SpecifierStack {
+    fn from_str(s: &str) -> Result<SpecifierStack> {
+        let mut cls = vec![];
+        let need_more = false;
+        
+        macro_rules! my {
+            ($x:expr) => {
+                for pre in $x.get_prefixes() {
+                    if s.starts_with(pre) {
+                        let _rest = &s[pre.len()..];
+                        cls.push(Rc::new($x) as Rc<SpecifierClass>);
+                    }
+                }
+            };
+        }
+        list_of_all_specifier_classes!(my);
+        
+        
+        Ok(SpecifierStack { classes: cls, final_arg: None })
+    }
 }
 
 impl Specifier {

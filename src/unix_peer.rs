@@ -43,6 +43,7 @@ specifier_class!(
         "c-unix:"
     ],
     arg_handling = into,
+    overlay = false,
     help = r#"
 Connect to UNIX socket. Argument is filesystem path.
 
@@ -69,6 +70,7 @@ specifier_class!(
     target = UnixListen,
     prefixes = ["unix-listen:", "listen-unix:", "unix-l:", "l-unix:"],
     arg_handling = into,
+    overlay = false,
     help = r#"
 Listen for connections on a specified UNIX socket
 
@@ -134,6 +136,7 @@ specifier_class!(
             Ok(Rc::new(UnixDgram(splits[0].into(), splits[1].into())))
         }
     },
+    overlay = false,
     help = r#"
 Send packets to one path, receive from the other.
 A socket for sending must be already openend.
@@ -170,6 +173,7 @@ specifier_class!(
         "c-abstract:"
     ],
     arg_handling = into,
+    overlay = false,
     help = r#"
 Connect to UNIX abstract-namespaced socket. Argument is some string used as address.
 
@@ -206,6 +210,7 @@ specifier_class!(
         "l-abstract:"
     ],
     arg_handling = into,
+    overlay = false,
     help = r#"
 Listen for connections on a specified abstract UNIX socket
 
@@ -260,6 +265,7 @@ specifier_class!(
             Ok(Rc::new(UnixDgram(splits[0].into(), splits[1].into())))
         }
     },
+    overlay = false,
     help = r#"
 Send packets to one address, receive from the other.
 A socket for sending must be already openend.
@@ -298,6 +304,7 @@ specifier_class!(
         "c-seqpacket:"
     ],
     arg_handling = into,
+    overlay = false,
     help = r#"
 Connect to AF_UNIX SOCK_SEQPACKET socket. Argument is a filesystem path.
 
@@ -336,6 +343,7 @@ specifier_class!(
         "l-seqpacket:"
     ],
     arg_handling = into,
+    overlay = false,
     help = r#"
 Listen for connections on a specified AF_UNIX SOCK_SEQPACKET socket
 

@@ -50,6 +50,7 @@ specifier_class!(
             Ok(Rc::new(WsServer(super::spec(just_arg)?)))
         }
     },
+    overlay = true,
     help = r#"
 WebSocket server. Argument is either IPv4 host and port to listen
 or a subspecifier.

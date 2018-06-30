@@ -40,6 +40,7 @@ specifier_class!(
     target = Stdio,
     prefixes = ["-", "stdio:", "inetd:"],
     arg_handling = noarg,
+    overlay = false,
     help = r#"
 Read input from console, print to console.
 
@@ -79,6 +80,7 @@ specifier_class!(
     target = OpenAsync,
     prefixes = ["open-async:"],
     arg_handling = into,
+    overlay = false,
     help = r#"
 Open file for read and write and use it like a socket.
 Not for regular files, see readfile/writefile instead.
@@ -105,6 +107,7 @@ specifier_class!(
     target = OpenFdAsync,
     prefixes = ["open-fd:"],
     arg_handling = parse,
+    overlay = false,
     help = r#"
 Use specified file descriptor like a socket
 

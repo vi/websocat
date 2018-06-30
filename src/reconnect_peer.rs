@@ -47,6 +47,7 @@ specifier_class!(
     target = AutoReconnect,
     prefixes = ["autoreconnect:"],
     arg_handling = subspec,
+    overlay = true,
     help = r#"
 Re-establish underlying specifier on any error or EOF
 

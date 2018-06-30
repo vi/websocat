@@ -41,6 +41,7 @@ specifier_class!(
     target = Cmd,
     prefixes = ["cmd:"],
     arg_handling = into,
+    overlay = false,
     help = r#"
 Start specified command line using `sh -c` (even on Windows)
   
@@ -73,6 +74,7 @@ specifier_class!(
     target = ShC,
     prefixes = ["sh-c:"],
     arg_handling = into,
+    overlay = false,
     help = r#"
 Start specified command line using `sh -c` or `cmd /C` (depending on platform)
 
@@ -96,6 +98,7 @@ specifier_class!(
     target = Exec,
     prefixes = ["exec:"],
     arg_handling = into,
+    overlay = false,
     help = r#"
 Execute a program directly (without a subshell), providing array of arguments on Unix
 

@@ -31,6 +31,7 @@ specifier_class!(
     target = Mirror,
     prefixes = ["mirror:"],
     arg_handling = noarg,
+    overlay = false,
     help = r#"
 Simply copy output to input. No arguments needed.
 
@@ -57,6 +58,7 @@ specifier_class!(
     target = LiteralReply,
     prefixes = ["literalreply:"],
     arg_handling = into,
+    overlay = false,
     help = r#"
 Reply with a specified string for each input packet.
 

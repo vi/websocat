@@ -31,6 +31,7 @@ specifier_class!(
     target = Reuser,
     prefixes = ["reuse:"],
     arg_handling = subspec,
+    overlay = true,
     help = r#"
 Reuse subspecifier for serving multiple clients: unpredictable mode.
 

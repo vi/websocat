@@ -20,6 +20,7 @@ specifier_class!(
     target = ThreadedStdio,
     prefixes = ["threadedstdio:"],
     arg_handling = noarg,
+    overlay = false,
     help = r#"
 Stdin/stdout, spawning a thread.
 
@@ -34,6 +35,7 @@ specifier_class!(
     target = ThreadedStdio,
     prefixes = ["-", "stdio:", "inetd:"],
     arg_handling = noarg,
+    overlay = false,
     help = r#"
 Read input from console, print to console (threaded version).
 

@@ -116,7 +116,7 @@ pub enum SpecifierType {
 /// A trait for a each specified type's accompanying object
 ///
 /// Don't forget to register each instance at the `list_of_all_specifier_classes` macro.
-pub trait SpecifierClass {
+pub trait SpecifierClass : std::fmt::Debug {
     /// The primary name of the class
     fn get_name(&self) -> &'static str;
     /// Names to match command line parameters against, with a `:` colon if needed
@@ -129,14 +129,20 @@ pub trait SpecifierClass {
     ///
     /// Just arg is like `127.0.0.1:8080` in `tcp-l:127.0.0.1:8080`
     fn construct(&self, full: &str, just_arg: &str) -> Result<Rc<Specifier>>;
+    /// Returns if this specifier is an overlay
+    fn is_overlay(&self) -> bool;
 }
 macro_rules! specifier_class {
-    (name=$n:ident, target=$t:ident, prefixes=[$($p:expr),*], arg_handling=$c:tt, help=$h:expr) => {
+    (name=$n:ident, target=$t:ident, prefixes=[$($p:expr),*], arg_handling=$c:tt, overlay=$o:expr, help=$h:expr) => {
+        #[derive(Debug)]
         pub struct $n;
         impl $crate::SpecifierClass for $n {
             fn get_name(&self) -> &'static str { stringify!($n) }
             fn get_prefixes(&self) -> Vec<&'static str> { vec![$($p),*] }
             fn help(&self) -> &'static str { $h }
+            fn is_overlay(&self) -> bool {
+                $o
+            }
             specifier_class!(construct target=$t $c);
         }
     };
@@ -167,6 +173,12 @@ macro_rules! specifier_class {
     (construct target=$t:ident {$($x:tt)*}) => {
         $($x)*
     };
+}
+
+#[derive(Debug)]
+pub struct SpecifierStack {
+    pub classes: Vec<Rc<SpecifierClass>>,
+    pub final_arg: Option<String>,
 }
 
 #[macro_use]
@@ -218,6 +230,7 @@ pub trait Specifier: std::fmt::Debug {
     fn is_multiconnect(&self) -> bool;
     fn uses_global_state(&self) -> bool;
     fn get_type(&self) -> SpecifierType;
+    //fn get_class(&self) -> SpecifierClass;
 
     // May be overridden by `self_0_is_subspecifier`:
     fn get_info(&self) -> SpecifierInfo {

@@ -44,6 +44,7 @@ specifier_class!(
     target = BroadcastReuser,
     prefixes = ["reuse-broadcast:", "broadcast-reuse:", "broadcast:"],
     arg_handling = subspec,
+    overlay = true,
     help = r#"
 Reuse subspecifier for serving multiple clients: broadcast mode.
 
