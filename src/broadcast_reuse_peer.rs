@@ -92,10 +92,10 @@ impl Future for InnerPeerReader {
                     return Ok(futures::Async::Ready(()));
                 }
                 Ok(n) => {
-                    if me.clients.len() == 0 {
+                    if me.clients.is_empty() {
                         info!("Dropping broadcast due to no clients being connected");
                         continue;
-                    }
+                    };
                     let sb = Rc::new(self.1[0..n].to_vec());
                     for (_, client) in me.clients.iter_mut() {
                         match client.start_send(sb.clone()) {
@@ -169,14 +169,14 @@ impl AsyncRead for PeerHandleR {}
 
 impl Write for PeerHandleW {
     fn write(&mut self, b: &[u8]) -> Result<usize, IoError> {
-        if let &mut Some(ref mut x) = self.0.borrow_mut().deref_mut() {
+        if let Some(ref mut x) = *self.0.borrow_mut().deref_mut() {
             x.inner_peer.1.write(b)
         } else {
             unreachable!()
         }
     }
     fn flush(&mut self) -> Result<(), IoError> {
-        if let &mut Some(ref mut x) = self.0.borrow_mut().deref_mut() {
+        if let Some(ref mut x) = *self.0.borrow_mut().deref_mut() {
             x.inner_peer.1.flush()
         } else {
             unreachable!()
@@ -185,7 +185,7 @@ impl Write for PeerHandleW {
 }
 impl AsyncWrite for PeerHandleW {
     fn shutdown(&mut self) -> futures::Poll<(), IoError> {
-        if let &mut Some(ref mut _x) = self.0.borrow_mut().deref_mut() {
+        if let Some(ref mut _x) = *self.0.borrow_mut().deref_mut() {
             // Ignore shutdown attempts
             Ok(futures::Async::Ready(()))
         //_x.1.shutdown()

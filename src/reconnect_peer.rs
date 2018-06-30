@@ -88,7 +88,7 @@ impl State {
 
         loop {
             let cp = self.cp.clone();
-            if let &mut Some(ref mut p) = pp {
+            if let Some(ref mut p) = *pp {
                 return Ok(Async::Ready(p));
             }
 

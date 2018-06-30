@@ -18,7 +18,8 @@ use std::path::{Path, PathBuf};
 
 use self::tokio_uds::{UnixDatagram, UnixListener, UnixStream};
 
-#[allow(unused)]
+//#[cfg_attr(feature="cargo-clippy",allow(unused_imports))]
+#[allow(unused_imports)]
 use super::simple_err;
 use super::{box_up_err, peer_err_s, BoxedNewPeerFuture, BoxedNewPeerStream, Peer};
 use super::{multi, once, ConstructParams, Options, PeerConstructor, Specifier};
@@ -58,7 +59,7 @@ impl Specifier for UnixListen {
         multi(unix_listen_peer(
             &p.tokio_handle,
             &self.0,
-            p.program_options,
+            &p.program_options,
         ))
     }
     specifier_boilerplate!(noglobalstate multiconnect no_subspec typ=Other);
@@ -111,7 +112,7 @@ impl Specifier for UnixDgram {
             &p.tokio_handle,
             &self.0,
             &self.1,
-            p.program_options,
+            &p.program_options,
         ))
     }
     specifier_boilerplate!(noglobalstate singleconnect no_subspec typ=Other);
@@ -126,7 +127,7 @@ specifier_class!(
             _full: &str,
             just_arg: &str,
         ) -> super::Result<Rc<Specifier>> {
-            let splits: Vec<&str> = just_arg.split(":").collect();
+            let splits: Vec<&str> = just_arg.split(':').collect();
             if splits.len() != 2 {
                 Err("Expected two colon-separted paths")?;
             }
@@ -190,7 +191,7 @@ impl Specifier for AbstractListen {
         multi(unix_listen_peer(
             &p.tokio_handle,
             &to_abstract(&self.0),
-            Rc::new(Default::default()),
+            &Rc::new(Default::default()),
         ))
     }
     specifier_boilerplate!(noglobalstate multiconnect no_subspec typ=Other);
@@ -227,7 +228,7 @@ impl Specifier for AbstractDgram {
                 &p.tokio_handle,
                 &to_abstract(&self.0),
                 &to_abstract(&self.1),
-                p.program_options,
+                &p.program_options,
             ))
         }
         #[cfg(feature = "workaround1")]
@@ -236,7 +237,7 @@ impl Specifier for AbstractDgram {
                 &p.tokio_handle,
                 &to_abstract(&self.0),
                 &to_abstract(&self.1),
-                p.program_options,
+                &p.program_options,
             ))
         }
     }
@@ -252,7 +253,7 @@ specifier_class!(
             _full: &str,
             just_arg: &str,
         ) -> super::Result<Rc<Specifier>> {
-            let splits: Vec<&str> = just_arg.split(":").collect();
+            let splits: Vec<&str> = just_arg.split(':').collect();
             if splits.len() != 2 {
                 Err("Expected two colon-separted addresses")?;
             }
@@ -316,7 +317,7 @@ pub struct SeqpacketListen(pub PathBuf);
 #[cfg(feature = "seqpacket")]
 impl Specifier for SeqpacketListen {
     fn construct(&self, p: ConstructParams) -> PeerConstructor {
-        multi(seqpacket_listen_peer(&p.tokio_handle, &self.0, p.program_options))
+        multi(seqpacket_listen_peer(&p.tokio_handle, &self.0, &p.program_options))
     }
     specifier_boilerplate!(noglobalstate multiconnect no_subspec typ=Other);
 }
@@ -397,7 +398,7 @@ pub fn unix_connect_peer(handle: &Handle, addr: &Path) -> BoxedNewPeerFuture {
     )) as BoxedNewPeerFuture
 }
 
-pub fn unix_listen_peer(handle: &Handle, addr: &Path, opts: Rc<Options>) -> BoxedNewPeerStream {
+pub fn unix_listen_peer(handle: &Handle, addr: &Path, opts: &Rc<Options>) -> BoxedNewPeerStream {
     if opts.unlink_unix_socket {
         let _ = ::std::fs::remove_file(addr);
     };
@@ -417,7 +418,7 @@ pub fn unix_listen_peer(handle: &Handle, addr: &Path, opts: Rc<Options>) -> Boxe
                     MyUnixStream(x.clone(), false),
                 )
             })
-            .map_err(|e| box_up_err(e)),
+            .map_err(box_up_err),
     ) as BoxedNewPeerStream
 }
 
@@ -434,7 +435,7 @@ pub fn dgram_peer(
     handle: &Handle,
     bindaddr: &Path,
     connectaddr: &Path,
-    opts: Rc<Options>,
+    opts: &Rc<Options>,
 ) -> BoxedNewPeerFuture {
     Box::new(futures::future::result(
         UnixDatagram::bind(bindaddr, handle)
@@ -457,7 +458,7 @@ pub fn dgram_peer_workaround(
     handle: &Handle,
     bindaddr: &Path,
     connectaddr: &Path,
-    opts: Rc<Options>,
+    opts: &Rc<Options>,
 ) -> BoxedNewPeerFuture {
     info!("Workaround method for getting abstract datagram socket");
     fn getfd(bindaddr: &Path, connectaddr: &Path) -> Option<i32> {
@@ -465,7 +466,7 @@ pub fn dgram_peer_workaround(
             bind, c_char, close, connect, sa_family_t, sockaddr_un, socket, socklen_t, AF_UNIX,
             SOCK_DGRAM,
         };
-        use std::mem::{size_of, transmute};
+        use std::mem::{size_of};
         use std::os::unix::ffi::OsStrExt;
         unsafe {
             let s = socket(AF_UNIX, SOCK_DGRAM, 0);
@@ -477,11 +478,13 @@ pub fn dgram_peer_workaround(
                     sun_family: AF_UNIX as sa_family_t,
                     sun_path: [0; 108],
                 };
-                let bp: &[c_char] = transmute(bindaddr.as_os_str().as_bytes());
+                let bp: &[c_char] = &*(bindaddr.as_os_str().as_bytes()
+                    as *const [u8] as *const [c_char]);
                 let l = 108.min(bp.len());
                 sa.sun_path[..l].copy_from_slice(&bp[..l]);
                 let sa_len = l + size_of::<sa_family_t>();
-                let ret = bind(s, transmute(&sa), sa_len as socklen_t);
+                let sa_ = &sa as *const self::libc::sockaddr_un as *const self::libc::sockaddr;
+                let ret = bind(s, sa_, sa_len as socklen_t);
                 if ret == -1 {
                     close(s);
                     return None;
@@ -492,11 +495,13 @@ pub fn dgram_peer_workaround(
                     sun_family: AF_UNIX as sa_family_t,
                     sun_path: [0; 108],
                 };
-                let bp: &[c_char] = transmute(connectaddr.as_os_str().as_bytes());
+                let bp: &[c_char] = &*(connectaddr.as_os_str().as_bytes()
+                    as *const [u8] as *const [c_char]);
                 let l = 108.min(bp.len());
                 sa.sun_path[..l].copy_from_slice(&bp[..l]);
                 let sa_len = l + size_of::<sa_family_t>();
-                let ret = connect(s, transmute(&sa), sa_len as socklen_t);
+                let sa_ = &sa as *const self::libc::sockaddr_un as *const self::libc::sockaddr;
+                let ret = connect(s, sa_, sa_len as socklen_t);
                 if ret == -1 {
                     close(s);
                     return None;
@@ -509,7 +514,7 @@ pub fn dgram_peer_workaround(
         handle: &Handle,
         bindaddr: &Path,
         connectaddr: &Path,
-        opts: Rc<Options>,
+        opts: &Rc<Options>,
     ) -> Result<Peer, Box<::std::error::Error>> {
         if let Some(fd) = getfd(bindaddr, connectaddr) {
             let s: ::std::os::unix::net::UnixDatagram =
@@ -563,7 +568,7 @@ pub fn seqpacket_connect_peer(handle: &Handle, addr: &Path) -> BoxedNewPeerFutur
             c_char, close, connect, sa_family_t, sockaddr_un, socket, socklen_t, AF_UNIX,
             SOCK_SEQPACKET,
         };
-        use std::mem::{size_of, transmute};
+        use std::mem::{size_of};
         use std::os::unix::ffi::OsStrExt;
         unsafe {
             let s = socket(AF_UNIX, SOCK_SEQPACKET, 0);
@@ -575,14 +580,16 @@ pub fn seqpacket_connect_peer(handle: &Handle, addr: &Path) -> BoxedNewPeerFutur
                     sun_family: AF_UNIX as sa_family_t,
                     sun_path: [0; 108],
                 };
-                let bp: &[c_char] = transmute(addr.as_os_str().as_bytes());
+                let bp: &[c_char] = &*(addr.as_os_str().as_bytes()
+                    as *const [u8] as *const [c_char]);
                 let l = 108.min(bp.len());
                 sa.sun_path[..l].copy_from_slice(&bp[..l]);
                 if sa.sun_path[0] == b'@' as c_char {
                     sa.sun_path[0] = b'\x00' as c_char;
                 }
                 let sa_len = l + size_of::<sa_family_t>();
-                let ret = connect(s, transmute(&sa), sa_len as socklen_t);
+                let sa_ = &sa as *const self::libc::sockaddr_un as *const self::libc::sockaddr;
+                let ret = connect(s, sa_, sa_len as socklen_t);
                 if ret == -1 {
                     close(s);
                     return None;
@@ -612,14 +619,14 @@ pub fn seqpacket_connect_peer(handle: &Handle, addr: &Path) -> BoxedNewPeerFutur
 pub fn seqpacket_listen_peer(
     handle: &Handle,
     addr: &Path,
-    opts: Rc<Options>,
+    opts: &Rc<Options>,
 ) -> BoxedNewPeerStream {
-    fn getfd(addr: &Path, opts: Rc<Options>) -> Option<i32> {
+    fn getfd(addr: &Path, opts: &Rc<Options>) -> Option<i32> {
         use self::libc::{
             bind, c_char, close, listen, sa_family_t, sockaddr_un, socket, socklen_t, unlink,
             AF_UNIX, SOCK_SEQPACKET,
         };
-        use std::mem::{size_of, transmute};
+        use std::mem::{size_of};
         use std::os::unix::ffi::OsStrExt;
         unsafe {
             let s = socket(AF_UNIX, SOCK_SEQPACKET, 0);
@@ -631,20 +638,20 @@ pub fn seqpacket_listen_peer(
                     sun_family: AF_UNIX as sa_family_t,
                     sun_path: [0; 108],
                 };
-                let bp: &[c_char] = transmute(addr.as_os_str().as_bytes());
+                let bp: &[c_char] = &*(addr.as_os_str().as_bytes()
+                    as *const [u8] as *const [c_char]);
 
                 let l = 108.min(bp.len());
                 sa.sun_path[..l].copy_from_slice(&bp[..l]);
                 if sa.sun_path[0] == b'@' as c_char {
                     sa.sun_path[0] = b'\x00' as c_char;
-                } else {
-                    if opts.unlink_unix_socket {
-                        sa.sun_path[107] = 0;
-                        unlink(&sa.sun_path as *const c_char);
-                    }
+                } else if opts.unlink_unix_socket {
+                    sa.sun_path[107] = 0;
+                    unlink(&sa.sun_path as *const c_char);
                 }
                 let sa_len = l + size_of::<sa_family_t>();
-                let ret = bind(s, transmute(&sa), sa_len as socklen_t);
+                let sa_ = &sa as *const self::libc::sockaddr_un as *const self::libc::sockaddr;
+                let ret = bind(s, sa_, sa_len as socklen_t);
                 if ret == -1 {
                     close(s);
                     return None;
@@ -681,6 +688,6 @@ pub fn seqpacket_listen_peer(
                     MyUnixStream(x.clone(), false),
                 )
             })
-            .map_err(|e| box_up_err(e)),
+            .map_err(box_up_err),
     ) as BoxedNewPeerStream
 }

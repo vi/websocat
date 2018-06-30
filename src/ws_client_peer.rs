@@ -144,8 +144,7 @@ where
                 };
                 let ws_sin = WsWriteWrapper(mpsink, mode1, !opts.websocket_dont_close);
 
-                let ws = Peer::new(ws_str, ws_sin);
-                ws
+                Peer::new(ws_str, ws_sin)
             })
             .map_err(box_up_err),
     ) as BoxedNewPeerFuture
@@ -169,7 +168,6 @@ unsafe impl Send for PeerForWs {
 pub fn get_ws_client_peer_wrapped(uri: &Url, inner: Peer, opts: Rc<Options>) -> BoxedNewPeerFuture {
     info!("get_ws_client_peer_wrapped");
     get_ws_client_peer_impl(uri, opts, |before_connect| {
-        let after_connect = before_connect.async_connect_on(PeerForWs(inner));
-        after_connect
+        before_connect.async_connect_on(PeerForWs(inner))
     })
 }

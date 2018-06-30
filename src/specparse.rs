@@ -6,6 +6,7 @@ pub fn spec(s: &str) -> Result<Rc<Specifier>> {
 }
 
 impl Specifier {
+    #[cfg_attr(feature="cargo-clippy",allow(cyclomatic_complexity))]
     fn from_str(s: &str) -> Result<Rc<Specifier>> {
         #[cfg(not(feature = "ssl"))]
         {

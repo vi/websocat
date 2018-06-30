@@ -76,7 +76,7 @@ impl Specifier for UdpConnect {
         once(udp_connect_peer(
             &p.tokio_handle,
             &self.0,
-            p.program_options,
+            &p.program_options,
         ))
     }
     specifier_boilerplate!(noglobalstate singleconnect no_subspec typ=Other);
@@ -95,7 +95,7 @@ Send and receive packets to specified UDP socket, from random UDP port
 pub struct UdpListen(pub SocketAddr);
 impl Specifier for UdpListen {
     fn construct(&self, p: ConstructParams) -> PeerConstructor {
-        once(udp_listen_peer(&p.tokio_handle, &self.0, p.program_options))
+        once(udp_listen_peer(&p.tokio_handle, &self.0, &p.program_options))
     }
     specifier_boilerplate!(noglobalstate singleconnect no_subspec typ=Other);
 }
@@ -206,7 +206,7 @@ pub fn tcp_listen_peer(handle: &Handle, addr: &SocketAddr) -> BoxedNewPeerStream
                 let x = Rc::new(x);
                 Peer::new(MyTcpStream(x.clone(), true), MyTcpStream(x.clone(), false))
             })
-            .map_err(|e| box_up_err(e)),
+            .map_err(box_up_err),
     ) as BoxedNewPeerStream
 }
 
@@ -238,7 +238,7 @@ fn get_zero_address(addr: &SocketAddr) -> SocketAddr {
 pub fn udp_connect_peer(
     handle: &Handle,
     addr: &SocketAddr,
-    opts: Rc<Options>,
+    opts: &Rc<Options>,
 ) -> BoxedNewPeerFuture {
     let za = get_zero_address(addr);
 
@@ -262,7 +262,7 @@ pub fn udp_connect_peer(
 pub fn udp_listen_peer(
     handle: &Handle,
     addr: &SocketAddr,
-    opts: Rc<Options>,
+    opts: &Rc<Options>,
 ) -> BoxedNewPeerFuture {
     Box::new(futures::future::result(
         UdpSocket::bind(addr, handle)

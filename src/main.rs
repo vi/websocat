@@ -170,17 +170,19 @@ fn interpret_custom_header(x:&str) -> Result<(String,Vec<u8>)> {
     };
     let hn = &x[0..colon];
     let mut hv = &x[colon+1..];
-    if hv.chars().next() == Some(' ') {
+    if hv.starts_with(' ') {
         hv = &x[colon+2..];
     }
     Ok((hn.to_owned(), hv.as_bytes().to_vec()))
 }
 
+// https://github.com/rust-lang/rust/issues/51942
+#[cfg_attr(feature="cargo-clippy",allow(nonminimal_bool))]
 fn shorthelp() {
     //use std::io::Write;
     use std::io::{BufRead,BufReader};
     let mut b = vec![];
-    if let Err(_) = Opt::clap().write_help(&mut b) {
+    if Opt::clap().write_help(&mut b).is_err() {
         eprintln!("Error displaying the help message");
     }
     let mut lines_to_display = vec![];
@@ -189,43 +191,45 @@ fn shorthelp() {
     let mut special_A_permit = false;
     for l in BufReader::new(&b[..]).lines() {
         if let Ok(l) = l {
-            if l.trim().starts_with("--long-help") {
-                special_A_permit = true;
-            }
-            if l.contains("[A]") {
-                if special_A_permit {
-                    special_A_permit = false;
-                } else {
-                    do_display = false;
-                    if l.trim().starts_with("[A]") {
-                        // Also retroactively retract the previous line
-                        let nl = lines_to_display.len()-1;
-                        lines_to_display.truncate(nl);
-                    }
+            {
+                let lt = l.trim();
+                let new_paragraph_start = false
+                           || lt.starts_with('-')
+                           || l.is_empty();
+                if lt.starts_with("--long-help") {
+                    special_A_permit = true;
                 }
-            } else if l.trim().starts_with("-") {
-                do_display = true;
-            } else if l.trim().starts_with("--") {
-                do_display = true;
-            } else if l.is_empty() {
-                do_display = true;
+                if l.contains("[A]") {
+                    if special_A_permit {
+                        special_A_permit = false;
+                    } else {
+                        do_display = false;
+                        if l.trim().starts_with("[A]") {
+                            // Also retroactively retract the previous line
+                            let nl = lines_to_display.len()-1;
+                            lines_to_display.truncate(nl);
+                        }
+                    }
+                } else if new_paragraph_start {
+                    do_display = true;
+                };
             }
             let mut additional_line = None;
             
            
             if l == "FLAGS:" {
-                additional_line=Some(format!("    (some flags are hidden, see --long-help)"));
-            }
+                additional_line=Some("    (some flags are hidden, see --long-help)".to_string());
+            };
             if l == "OPTIONS:" {
-                additional_line=Some(format!("    (some options are hidden, see --long-help)"));
-            }
+                additional_line=Some("    (some options are hidden, see --long-help)".to_string());
+            };
             
             if do_display {
                 lines_to_display.push(l);
                 if let Some(x) = additional_line {
                     lines_to_display.push(x);
                 }
-            }
+            };
         }
     }
     for l in lines_to_display {

@@ -157,8 +157,7 @@ impl AsyncWrite for LiteralReplyHandle {
 
 impl Write for LiteralReplyHandle {
     fn write(&mut self, buf: &[u8]) -> IoResult<usize> {
-        let om = ();
-        match self.0.start_send(om).map_err(io_other_error)? {
+        match self.0.start_send(()).map_err(io_other_error)? {
             futures::AsyncSink::NotReady(_) => wouldblock(),
             futures::AsyncSink::Ready => Ok(buf.len()),
         }

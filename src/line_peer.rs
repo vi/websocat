@@ -97,9 +97,9 @@ impl Read for Packet2LineWrapper {
             n -= 1;
         }
         // replace those with spaces
-        for i in 0..n {
-            if b[i] == b'\n' || b[i] == b'\r' {
-                b[i] = b' ';
+        for c in b.iter_mut().take(n) {
+            if *c == b'\n' || *c == b'\r' {
+                *c = b' ';
             }
         }
         // add back one \n
@@ -159,7 +159,7 @@ impl Read for Line2PacketWrapper {
             };
 
             if n == 0 {
-                if self.queue.len() != 0 {
+                if self.queue.is_empty() {
                     warn!(
                         "Throwing away {} bytes of incomplete line",
                         self.queue.len()
@@ -169,7 +169,7 @@ impl Read for Line2PacketWrapper {
             }
 
             let mut happy_case =
-                self.queue.len() == 0 && (!buf[0..(n - 1)].contains(&b'\n')) && buf[n - 1] == b'\n';
+                self.queue.is_empty() && (!buf[0..(n - 1)].contains(&b'\n')) && buf[n - 1] == b'\n';
 
             if happy_case {
                 // Specifically to avoid allocations when data is already nice

@@ -179,11 +179,9 @@ impl AsyncWrite for AssertPeer {
     fn shutdown(&mut self) -> futures::Poll<(), std::io::Error> {
         if self.2 {
             assert_eq!(self.0, self.1);
-        } else {
-            if self.0 != self.1 {
-                error!("Assertion failed");
-                return Err(simple_err("Assertion failed".into()));
-            }
+        } else if self.0 != self.1 {
+            error!("Assertion failed");
+            return Err(simple_err("Assertion failed".into()));
         }
         info!("Assertion succeed");
         Ok(Ready(()))

@@ -343,6 +343,7 @@ pub enum PeerConstructor {
     OverlayM(BoxedNewPeerStream, PeerOverlay),
 }
 
+#[cfg_attr(feature="cargo-clippy",allow(redundant_closure))]
 impl PeerConstructor {
     pub fn map<F: 'static>(self, func: F) -> Self
     where
@@ -376,15 +377,14 @@ impl PeerConstructor {
             //}
         }
     }
-
+    
     pub fn get_only_first_conn(self) -> BoxedNewPeerFuture {
         use PeerConstructor::*;
         match self {
             ServeMultipleTimes(stre) => Box::new(
                 stre.into_future()
                     .map(move |(std_peer, _)| {
-                        let peer2 = std_peer.expect("Nowhere to connect it");
-                        peer2
+                        std_peer.expect("Nowhere to connect it")
                     })
                     .map_err(|(e, _)| e),
             ) as BoxedNewPeerFuture,
@@ -395,8 +395,7 @@ impl PeerConstructor {
             OverlayM(stre, mapper) => Box::new(
                 stre.into_future()
                     .map(move |(std_peer, _)| {
-                        let peer2 = std_peer.expect("Nowhere to connect it");
-                        peer2
+                        std_peer.expect("Nowhere to connect it")
                     })
                     .map_err(|(e, _)| e)
                     .and_then(move |p| mapper(p)),
@@ -458,8 +457,7 @@ pub fn peer_strerr(e: &str) -> BoxedNewPeerFuture {
 }
 pub fn simple_err(e: String) -> std::io::Error {
     let e1: Box<std::error::Error + Send + Sync> = e.into();
-    let e2 = ::std::io::Error::new(::std::io::ErrorKind::Other, e1);
-    e2
+    ::std::io::Error::new(::std::io::ErrorKind::Other, e1)
 }
 pub fn box_up_err<E: std::error::Error + 'static>(e: E) -> Box<std::error::Error> {
     Box::new(e) as Box<std::error::Error>
@@ -576,6 +574,7 @@ impl Session {
     }
 }
 
+#[cfg_attr(feature="cargo-clippy",allow(needless_pass_by_value))]
 pub fn serve<OE>(
     h: Handle,
     s1: Rc<Specifier>,
@@ -619,7 +618,7 @@ where
         left = PeerConstructor::ServeOnce(left.get_only_first_conn());
     }
 
-    let prog = match left {
+    match left {
         ServeMultipleTimes(stream) => {
             let runner = stream
                 .map(move |peer1| {
@@ -697,6 +696,5 @@ where
             });
             Box::new(runner.map_err(move |e| e3(e))) as Box<Future<Item = (), Error = ()>>
         }
-    };
-    prog
+    }
 }
