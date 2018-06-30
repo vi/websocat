@@ -78,16 +78,16 @@ macro_rules! run {
 #[test]
 fn trivial() {
     prepare!(core);
-    let prog = wt!(core,
-        "literal:qwerty", 
-        "assert:qwerty", 
-        nodelay, 
+    let prog = wt!(
+        core,
+        "literal:qwerty",
+        "assert:qwerty",
+        nodelay,
         noopts,
         errpanic,
     );
     run!(core, prog);
 }
-
 
 #[test]
 fn tcp() {
@@ -186,10 +186,11 @@ fn unix() {
         },
         errpanic,
     );
-    let prog2 = wt!(core,
-        "unix-c:zxc", 
-        "assert:qwert3y", 
-        delay = 200, 
+    let prog2 = wt!(
+        core,
+        "unix-c:zxc",
+        "assert:qwert3y",
+        delay = 200,
         noopts,
         errpanic,
     );
@@ -203,11 +204,12 @@ fn unix() {
 #[cfg(any(target_os = "linux", target_os = "android"))]
 fn abstract_() {
     prepare!(core);
-    let prog1 = wt!(core, 
-        "literal:qwert4y", 
-        "abstract-l:zxc", 
+    let prog1 = wt!(
+        core,
+        "literal:qwert4y",
+        "abstract-l:zxc",
         nodelay,
-        noopts, 
+        noopts,
         errpanic,
     );
     let prog2 = wt!(
@@ -222,4 +224,3 @@ fn abstract_() {
     let prog = prog1.join(prog2);
     run!(core, prog);
 }
-

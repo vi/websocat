@@ -39,7 +39,7 @@ pub struct Copy<R, W> {
 ///
 /// Unlike original tokio_io::copy::copy, it does not always stop on zero length reads
 /// , handles BrokenPipe error kind as EOF and flushes after every write
-pub fn copy<R, W>(reader: R, writer: W, stop_on_reader_zero_read: bool, once : bool) -> Copy<R, W>
+pub fn copy<R, W>(reader: R, writer: W, stop_on_reader_zero_read: bool, once: bool) -> Copy<R, W>
 where
     R: AsyncRead,
     W: AsyncWrite,

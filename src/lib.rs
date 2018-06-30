@@ -74,7 +74,7 @@ pub struct Options {
     pub ws_c_uri: String,
     pub linemode_retain_newlines: bool,
     pub origin: Option<String>,
-    pub custom_headers: Vec<(String,Vec<u8>)>,
+    pub custom_headers: Vec<(String, Vec<u8>)>,
     pub websocket_version: Option<String>,
     pub websocket_dont_close: bool,
     pub one_message: bool,
@@ -343,7 +343,7 @@ pub enum PeerConstructor {
     OverlayM(BoxedNewPeerStream, PeerOverlay),
 }
 
-#[cfg_attr(feature="cargo-clippy",allow(redundant_closure))]
+#[cfg_attr(feature = "cargo-clippy", allow(redundant_closure))]
 impl PeerConstructor {
     pub fn map<F: 'static>(self, func: F) -> Self
     where
@@ -377,15 +377,13 @@ impl PeerConstructor {
             //}
         }
     }
-    
+
     pub fn get_only_first_conn(self) -> BoxedNewPeerFuture {
         use PeerConstructor::*;
         match self {
             ServeMultipleTimes(stre) => Box::new(
                 stre.into_future()
-                    .map(move |(std_peer, _)| {
-                        std_peer.expect("Nowhere to connect it")
-                    })
+                    .map(move |(std_peer, _)| std_peer.expect("Nowhere to connect it"))
                     .map_err(|(e, _)| e),
             ) as BoxedNewPeerFuture,
             ServeOnce(futur) => futur,
@@ -394,9 +392,7 @@ impl PeerConstructor {
             }
             OverlayM(stre, mapper) => Box::new(
                 stre.into_future()
-                    .map(move |(std_peer, _)| {
-                        std_peer.expect("Nowhere to connect it")
-                    })
+                    .map(move |(std_peer, _)| std_peer.expect("Nowhere to connect it"))
                     .map_err(|(e, _)| e)
                     .and_then(move |p| mapper(p)),
             ) as BoxedNewPeerFuture,
@@ -509,7 +505,7 @@ impl Session {
         let f1 = f1.and_then(|(_, r, w)| {
             info!("Forward finished");
             std::mem::drop(r);
-            tokio_io::io::shutdown(w).map(|w|{
+            tokio_io::io::shutdown(w).map(|w| {
                 info!("Forward shutdown finished");
                 std::mem::drop(w);
             })
@@ -517,7 +513,7 @@ impl Session {
         let f2 = f2.and_then(|(_, r, w)| {
             info!("Reverse finished");
             std::mem::drop(r);
-            tokio_io::io::shutdown(w).map(|w|{
+            tokio_io::io::shutdown(w).map(|w| {
                 info!("Reverse shutdown finished");
                 std::mem::drop(w);
             })
@@ -574,7 +570,7 @@ impl Session {
     }
 }
 
-#[cfg_attr(feature="cargo-clippy",allow(needless_pass_by_value))]
+#[cfg_attr(feature = "cargo-clippy", allow(needless_pass_by_value))]
 pub fn serve<OE>(
     h: Handle,
     s1: Rc<Specifier>,

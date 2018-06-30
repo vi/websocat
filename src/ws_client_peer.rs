@@ -1,5 +1,5 @@
-extern crate websocket;
 extern crate hyper;
+extern crate websocket;
 
 use self::websocket::client::async::ClientNew;
 use self::websocket::stream::async::Stream as WsStream;
@@ -109,8 +109,8 @@ where
         stage1
     } else {
         let mut h = Headers::new();
-        for (hn,hv) in opts.custom_headers.clone() {
-            h.append_raw(hn,hv);
+        for (hn, hv) in opts.custom_headers.clone() {
+            h.append_raw(hn, hv);
         }
         stage1.custom_headers(&h)
     };

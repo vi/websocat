@@ -7,7 +7,7 @@ extern crate tokio_stdin_stdout;
 
 extern crate env_logger;
 
-#[cfg(feature="openssl-probe")]
+#[cfg(feature = "openssl-probe")]
 extern crate openssl_probe;
 
 #[macro_use]
@@ -40,7 +40,8 @@ Short list of specifiers (see --long-help):
   readfile: writefile: open-fd: unix-connect: unix-listen:
   unix-dgram: abstract-connect: abstract-listen:
   exec: sh-c:
-", usage="websocat [FLAGS] [OPTIONS] <addr1>          (simple mode)\n    websocat [FLAGS] [OPTIONS] <addr1> <addr2>  (advanced mode)"
+",
+    usage = "websocat [FLAGS] [OPTIONS] <addr1>          (simple mode)\n    websocat [FLAGS] [OPTIONS] <addr1> <addr2>  (advanced mode)"
 )]
 struct Opt {
     /// In simple mode, WebSocket URL to connect.
@@ -77,37 +78,33 @@ struct Opt {
     )]
     websocket_text_mode: bool,
 
-    #[structopt(long = "oneshot", help = "Serve only once. Not to be confused with -1 (--one-message)")]
+    #[structopt(
+        long = "oneshot", help = "Serve only once. Not to be confused with -1 (--one-message)"
+    )]
     oneshot: bool,
 
     #[structopt(
         long = "long-help",
-        help = "Show the full help message, including list of all address types and advanced flags and options which are normally hidden from help (they have `[A]` marker in their help messages).",
+        help = "Show the full help message, including list of all address types and advanced flags and options which are normally hidden from help (they have `[A]` marker in their help messages)."
     )]
     longhelp: bool,
-    
-    #[structopt(short = "h", long="help", help="Short short help message")]
+
+    #[structopt(short = "h", long = "help", help = "Short short help message")]
     shorthelp: bool,
 
     #[structopt(
         long = "dump-spec",
-        help = "[A] Instead of running, dump the specifiers representation to stdout",
+        help = "[A] Instead of running, dump the specifiers representation to stdout"
     )]
     dumpspec: bool,
 
     #[structopt(long = "protocol", help = "Specify Sec-WebSocket-Protocol: header")]
     websocket_protocol: Option<String>,
 
-    #[structopt(
-        long = "udp-oneshot",
-        help = "[A] udp-listen: replies only one packet per client",
-    )]
+    #[structopt(long = "udp-oneshot", help = "[A] udp-listen: replies only one packet per client")]
     udp_oneshot_mode: bool,
 
-    #[structopt(
-        long = "unlink", 
-        help = "[A] Unlink listening UNIX socket before binding to it",
-    )]
+    #[structopt(long = "unlink", help = "[A] Unlink listening UNIX socket before binding to it")]
     unlink_unix_socket: bool,
 
     #[structopt(
@@ -120,13 +117,13 @@ struct Opt {
     #[structopt(
         long = "ws-c-uri",
         help = "[A] URI to use for ws-c: specifier",
-        default_value = "ws://0.0.0.0/",
+        default_value = "ws://0.0.0.0/"
     )]
     ws_c_uri: String,
 
     #[structopt(
         long = "linemode-retain-newlines",
-        help = "[A] In --line mode, don't chop off trailing \\n from messages",
+        help = "[A] In --line mode, don't chop off trailing \\n from messages"
     )]
     linemode_retain_newlines: bool,
 
@@ -134,53 +131,56 @@ struct Opt {
         short = "-l", long = "--line", help = "Make each WebSocket message correspond to one line"
     )]
     linemode: bool,
-    
-    #[structopt(long="origin",help="Add Origin HTTP header to websocket client request")]
+
+    #[structopt(long = "origin", help = "Add Origin HTTP header to websocket client request")]
     origin: Option<String>,
-    
+
     #[structopt(
-        long="header",
-        short="H",
-        help="Add custom HTTP header to websocket client request. Separate header name and value with a colon and optionally a single space. Can be used multiple times.",
-        parse(try_from_str="interpret_custom_header"),
+        long = "header",
+        short = "H",
+        help = "Add custom HTTP header to websocket client request. Separate header name and value with a colon and optionally a single space. Can be used multiple times.",
+        parse(try_from_str = "interpret_custom_header")
     )]
-    custom_headers: Vec<(String,Vec<u8>)>,
-    
-    #[structopt(long="websocket-version", help="Override the Sec-WebSocket-Version value")]
+    custom_headers: Vec<(String, Vec<u8>)>,
+
+    #[structopt(long = "websocket-version", help = "Override the Sec-WebSocket-Version value")]
     websocket_version: Option<String>,
-    
-    #[structopt(long="no-close", short="n", help="Don't send Close message to websocket on EOF")]
-    websocket_dont_close: bool,
-    
+
     #[structopt(
-        short="1",
-        long="one-message", 
-        help="Send and/or receive only one message. Use with --no-close and/or -u/-U.",
+        long = "no-close", short = "n", help = "Don't send Close message to websocket on EOF"
     )]
-    one_message : bool,
-    
+    websocket_dont_close: bool,
+
+    #[structopt(
+        short = "1",
+        long = "one-message",
+        help = "Send and/or receive only one message. Use with --no-close and/or -u/-U."
+    )]
+    one_message: bool,
     // TODO: -v --quiet
 }
 
 // TODO: make it byte-oriented/OsStr?
-fn interpret_custom_header(x:&str) -> Result<(String,Vec<u8>)> {
+fn interpret_custom_header(x: &str) -> Result<(String, Vec<u8>)> {
     let colon = x.find(':');
-    let colon = if let Some(colon) = colon { colon } else {
+    let colon = if let Some(colon) = colon {
+        colon
+    } else {
         Err("Argument to --header must contain `:` character")?
     };
     let hn = &x[0..colon];
-    let mut hv = &x[colon+1..];
+    let mut hv = &x[colon + 1..];
     if hv.starts_with(' ') {
-        hv = &x[colon+2..];
+        hv = &x[colon + 2..];
     }
     Ok((hn.to_owned(), hv.as_bytes().to_vec()))
 }
 
 // https://github.com/rust-lang/rust/issues/51942
-#[cfg_attr(feature="cargo-clippy",allow(nonminimal_bool))]
+#[cfg_attr(feature = "cargo-clippy", allow(nonminimal_bool))]
 fn shorthelp() {
     //use std::io::Write;
-    use std::io::{BufRead,BufReader};
+    use std::io::{BufRead, BufReader};
     let mut b = vec![];
     if Opt::clap().write_help(&mut b).is_err() {
         eprintln!("Error displaying the help message");
@@ -193,9 +193,7 @@ fn shorthelp() {
         if let Ok(l) = l {
             {
                 let lt = l.trim();
-                let new_paragraph_start = false
-                           || lt.starts_with('-')
-                           || l.is_empty();
+                let new_paragraph_start = false || lt.starts_with('-') || l.is_empty();
                 if lt.starts_with("--long-help") {
                     special_A_permit = true;
                 }
@@ -206,7 +204,7 @@ fn shorthelp() {
                         do_display = false;
                         if l.trim().starts_with("[A]") {
                             // Also retroactively retract the previous line
-                            let nl = lines_to_display.len()-1;
+                            let nl = lines_to_display.len() - 1;
                             lines_to_display.truncate(nl);
                         }
                     }
@@ -215,15 +213,15 @@ fn shorthelp() {
                 };
             }
             let mut additional_line = None;
-            
-           
+
             if l == "FLAGS:" {
-                additional_line=Some("    (some flags are hidden, see --long-help)".to_string());
+                additional_line = Some("    (some flags are hidden, see --long-help)".to_string());
             };
             if l == "OPTIONS:" {
-                additional_line=Some("    (some options are hidden, see --long-help)".to_string());
+                additional_line =
+                    Some("    (some options are hidden, see --long-help)".to_string());
             };
-            
+
             if do_display {
                 lines_to_display.push(l);
                 if let Some(x) = additional_line {
@@ -241,7 +239,7 @@ fn shorthelp() {
 fn longhelp() {
     //let q = Opt::from_iter(vec!["-"]);
     let mut a = Opt::clap();
-    
+
     let _ = a.print_help();
 
     // TODO: promote first alias to title
@@ -316,7 +314,7 @@ fn run() -> Result<()> {
         longhelp();
         return Ok(());
     }
-    if vec!["-?","-h", "--help"].contains(&std::env::args().nth(1).unwrap_or_default().as_str()) {
+    if vec!["-?", "-h", "--help"].contains(&std::env::args().nth(1).unwrap_or_default().as_str()) {
         shorthelp();
         return Ok(());
     }
@@ -327,7 +325,7 @@ fn run() -> Result<()> {
         longhelp();
         return Ok(());
     }
-    
+
     if cmd.shorthelp {
         shorthelp();
         return Ok(());
@@ -338,8 +336,9 @@ fn run() -> Result<()> {
     {
         Err("This mode is not implemented")?
     }
-    
-    #[cfg(feature="openssl-probe")] {
+
+    #[cfg(feature = "openssl-probe")]
+    {
         openssl_probe::init_ssl_cert_env_vars();
     }
 
@@ -374,7 +373,7 @@ fn run() -> Result<()> {
     let (s1, s2) = if let Some(ref cmds2) = cmd.addr2 {
         (spec(&cmd.addr1)?, spec(cmds2)?)
     } else {
-        if ! (cmd.addr1.starts_with("ws://") || cmd.addr1.starts_with("wss://")) {
+        if !(cmd.addr1.starts_with("ws://") || cmd.addr1.starts_with("wss://")) {
             // TODO: message for -s server mode
             eprintln!("Specify ws:// or wss:// URI to connect to a websocket");
             Err("Invalid command-line parameters")?;

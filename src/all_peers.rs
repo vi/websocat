@@ -68,9 +68,9 @@ macro_rules! list_of_all_specifier_classes {
         $your_macro!($crate::unix_peer::SeqpacketListenClass);
 
         /*
-                $your_macro!($crate:: :: );
-                $your_macro!($crate:: :: );
-                $your_macro!($crate:: :: );
-                */
+                                $your_macro!($crate:: :: );
+                                $your_macro!($crate:: :: );
+                                $your_macro!($crate:: :: );
+                                */
     };
 }

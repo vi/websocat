@@ -156,12 +156,12 @@ impl WebsocatConfiguration {
                 })
             }
         } else if self.s2.contains(WebSocket) {
-                let WebsocatConfiguration { opts, s1, s2 } = self;
-                Ok(WebsocatConfiguration {
-                    opts,
-                    s1: Rc::new(line_peer::Line2Message(s1)),
-                    s2: Rc::new(line_peer::Message2Line(s2)),
-                })
+            let WebsocatConfiguration { opts, s1, s2 } = self;
+            Ok(WebsocatConfiguration {
+                opts,
+                s1: Rc::new(line_peer::Line2Message(s1)),
+                s2: Rc::new(line_peer::Message2Line(s2)),
+            })
         } else {
             Err((NoWebsocket, self))
         }

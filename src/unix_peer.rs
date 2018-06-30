@@ -317,7 +317,11 @@ pub struct SeqpacketListen(pub PathBuf);
 #[cfg(feature = "seqpacket")]
 impl Specifier for SeqpacketListen {
     fn construct(&self, p: ConstructParams) -> PeerConstructor {
-        multi(seqpacket_listen_peer(&p.tokio_handle, &self.0, &p.program_options))
+        multi(seqpacket_listen_peer(
+            &p.tokio_handle,
+            &self.0,
+            &p.program_options,
+        ))
     }
     specifier_boilerplate!(noglobalstate multiconnect no_subspec typ=Other);
 }
@@ -466,7 +470,7 @@ pub fn dgram_peer_workaround(
             bind, c_char, close, connect, sa_family_t, sockaddr_un, socket, socklen_t, AF_UNIX,
             SOCK_DGRAM,
         };
-        use std::mem::{size_of};
+        use std::mem::size_of;
         use std::os::unix::ffi::OsStrExt;
         unsafe {
             let s = socket(AF_UNIX, SOCK_DGRAM, 0);
@@ -478,8 +482,8 @@ pub fn dgram_peer_workaround(
                     sun_family: AF_UNIX as sa_family_t,
                     sun_path: [0; 108],
                 };
-                let bp: &[c_char] = &*(bindaddr.as_os_str().as_bytes()
-                    as *const [u8] as *const [c_char]);
+                let bp: &[c_char] =
+                    &*(bindaddr.as_os_str().as_bytes() as *const [u8] as *const [c_char]);
                 let l = 108.min(bp.len());
                 sa.sun_path[..l].copy_from_slice(&bp[..l]);
                 let sa_len = l + size_of::<sa_family_t>();
@@ -495,8 +499,8 @@ pub fn dgram_peer_workaround(
                     sun_family: AF_UNIX as sa_family_t,
                     sun_path: [0; 108],
                 };
-                let bp: &[c_char] = &*(connectaddr.as_os_str().as_bytes()
-                    as *const [u8] as *const [c_char]);
+                let bp: &[c_char] =
+                    &*(connectaddr.as_os_str().as_bytes() as *const [u8] as *const [c_char]);
                 let l = 108.min(bp.len());
                 sa.sun_path[..l].copy_from_slice(&bp[..l]);
                 let sa_len = l + size_of::<sa_family_t>();
@@ -568,7 +572,7 @@ pub fn seqpacket_connect_peer(handle: &Handle, addr: &Path) -> BoxedNewPeerFutur
             c_char, close, connect, sa_family_t, sockaddr_un, socket, socklen_t, AF_UNIX,
             SOCK_SEQPACKET,
         };
-        use std::mem::{size_of};
+        use std::mem::size_of;
         use std::os::unix::ffi::OsStrExt;
         unsafe {
             let s = socket(AF_UNIX, SOCK_SEQPACKET, 0);
@@ -580,8 +584,8 @@ pub fn seqpacket_connect_peer(handle: &Handle, addr: &Path) -> BoxedNewPeerFutur
                     sun_family: AF_UNIX as sa_family_t,
                     sun_path: [0; 108],
                 };
-                let bp: &[c_char] = &*(addr.as_os_str().as_bytes()
-                    as *const [u8] as *const [c_char]);
+                let bp: &[c_char] =
+                    &*(addr.as_os_str().as_bytes() as *const [u8] as *const [c_char]);
                 let l = 108.min(bp.len());
                 sa.sun_path[..l].copy_from_slice(&bp[..l]);
                 if sa.sun_path[0] == b'@' as c_char {
@@ -626,7 +630,7 @@ pub fn seqpacket_listen_peer(
             bind, c_char, close, listen, sa_family_t, sockaddr_un, socket, socklen_t, unlink,
             AF_UNIX, SOCK_SEQPACKET,
         };
-        use std::mem::{size_of};
+        use std::mem::size_of;
         use std::os::unix::ffi::OsStrExt;
         unsafe {
             let s = socket(AF_UNIX, SOCK_SEQPACKET, 0);
@@ -638,8 +642,8 @@ pub fn seqpacket_listen_peer(
                     sun_family: AF_UNIX as sa_family_t,
                     sun_path: [0; 108],
                 };
-                let bp: &[c_char] = &*(addr.as_os_str().as_bytes()
-                    as *const [u8] as *const [c_char]);
+                let bp: &[c_char] =
+                    &*(addr.as_os_str().as_bytes() as *const [u8] as *const [c_char]);
 
                 let l = 108.min(bp.len());
                 sa.sun_path[..l].copy_from_slice(&bp[..l]);

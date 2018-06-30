@@ -99,7 +99,9 @@ pub struct WsWriteWrapper<T: WsStream + 'static>(pub MultiProducerWsSink<T>, pub
 
 impl<T: WsStream + 'static> AsyncWrite for WsWriteWrapper<T> {
     fn shutdown(&mut self) -> futures::Poll<(), std::io::Error> {
-        if ! self.2 { return Ok(Ready(())); }
+        if !self.2 {
+            return Ok(Ready(()));
+        }
         let mut sink = self.0.borrow_mut();
         match sink
             .start_send(OwnedMessage::Close(None))

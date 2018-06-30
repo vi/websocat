@@ -95,7 +95,11 @@ Send and receive packets to specified UDP socket, from random UDP port
 pub struct UdpListen(pub SocketAddr);
 impl Specifier for UdpListen {
     fn construct(&self, p: ConstructParams) -> PeerConstructor {
-        once(udp_listen_peer(&p.tokio_handle, &self.0, &p.program_options))
+        once(udp_listen_peer(
+            &p.tokio_handle,
+            &self.0,
+            &p.program_options,
+        ))
     }
     specifier_boilerplate!(noglobalstate singleconnect no_subspec typ=Other);
 }
