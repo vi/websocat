@@ -35,16 +35,12 @@ specifier_class!(
     arg_handling = subspec,
     overlay = true,
     help = r#"
-WebSocket server. Argument is either IPv4 host and port to listen
+WebSocket upgrader / raw server. Specify your own protocol instead of usual TCP.
 or a subspecifier.
 
-Example: Dump all incoming websocket data to console
+All other WebSocket server modes actually use this overlay under the hood.
 
-    websocat ws-l:127.0.0.1:8808 -
-
-Example: the same, but more verbose:
-
-    websocat ws-l:tcp-l:127.0.0.1:8808 reuse:-
+Example: TODO
 "#
 );
 
@@ -53,18 +49,7 @@ specifier_class!(
     name = WsTcpServerClass,
     target = WsServer,
     prefixes = ["ws-listen:", "ws-l:", "l-ws:", "listen-ws:"],
-    arg_handling = {
-        fn construct(
-            self: &WsTcpServerClass,
-            arg: &str,
-        ) -> super::Result<Rc<Specifier>> {
-            super::spec(&("ws-u:tcp-l:".to_owned() + arg))
-        }
-        
-        fn construct_overlay(self: &WsTcpServerClass, _inner : Rc<Specifier>) -> super::Result<Rc<Specifier>> {
-            panic!("Error: construct_overlay called on non-overlay specifier class")
-        }
-    },
+    arg_handling = (alias "ws-u:tcp-l:"),
     overlay = false,
     help = r#"
 WebSocket server. Argument is either IPv4 host and port to listen
@@ -81,6 +66,40 @@ Example: the same, but more verbose:
 );
 
 
+specifier_class!(
+    name = WsInetdServerClass,
+    target = WsServer,
+    prefixes = ["inetd-ws:", "ws-inetd:"],
+    arg_handling = (alias "ws-u:inetd:"),
+    overlay = false,
+    help = r#"
+WebSocket inetd server.
+
+TODO: transfer the example here
+"#
+);
+
+specifier_class!(
+    name = WsUnixServerClass,
+    target = WsServer,
+    prefixes = ["l-ws-unix:"],
+    arg_handling = (alias "ws-l:unix-l:"),
+    overlay = false,
+    help = r#"
+WebSocket UNIX socket-based server.
+"#
+);
+
+specifier_class!(
+    name = WsAbstractUnixServerClass,
+    target = WsServer,
+    prefixes = ["l-ws-abstract:"],
+    arg_handling = (alias "ws-l:abstract-l:"),
+    overlay = false,
+    help = r#"
+WebSocket abstract-namespaced UNIX socket server.
+"#
+);
 
 /* 
 

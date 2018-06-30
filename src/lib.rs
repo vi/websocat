@@ -130,6 +130,8 @@ pub trait SpecifierClass : std::fmt::Debug {
     fn construct_overlay(&self, inner: Rc<Specifier>) -> Result<Rc<Specifier>>;
     /// Returns if this specifier is an overlay
     fn is_overlay(&self) -> bool;
+    /// If it is Some then is_overlay and construct are ignored and prefix get replaced...
+    fn alias_info(&self) -> Option<&'static str>;
 }
 macro_rules! specifier_class {
     (name=$n:ident, target=$t:ident, prefixes=[$($p:expr),*], arg_handling=$c:tt, overlay=$o:expr, help=$h:expr) => {
@@ -156,6 +158,7 @@ macro_rules! specifier_class {
         fn construct_overlay(&self, _inner : Rc<Specifier>) -> $crate::Result<Rc<Specifier>> {
             panic!("Error: construct_overlay called on non-overlay specifier class")
         }
+        fn alias_info(&self) -> Option<&'static str> { None }
     };
     (construct target=$t:ident into) => {
         fn construct(&self, just_arg:&str) -> $crate::Result<Rc<Specifier>> {
@@ -164,6 +167,7 @@ macro_rules! specifier_class {
         fn construct_overlay(&self, _inner : Rc<Specifier>) -> $crate::Result<Rc<Specifier>> {
             panic!("Error: construct_overlay called on non-overlay specifier class")
         }
+        fn alias_info(&self) -> Option<&'static str> { None }
     };
     (construct target=$t:ident parse) => {
         fn construct(&self, just_arg:&str) -> $crate::Result<Rc<Specifier>> {
@@ -172,6 +176,7 @@ macro_rules! specifier_class {
         fn construct_overlay(&self, _inner : Rc<Specifier>) -> $crate::Result<Rc<Specifier>> {
             panic!("Error: construct_overlay called on non-overlay specifier class")
         }
+        fn alias_info(&self) -> Option<&'static str> { None }
     };
     (construct target=$t:ident subspec) => {
         fn construct(&self, just_arg:&str) -> $crate::Result<Rc<Specifier>> {
@@ -180,9 +185,20 @@ macro_rules! specifier_class {
         fn construct_overlay(&self, _inner : Rc<Specifier>) -> $crate::Result<Rc<Specifier>> {
             Ok(Rc::new($t(_inner)))
         }
+        fn alias_info(&self) -> Option<&'static str> { None }
+    };
+    (construct target=$t:ident (alias $x:expr)) => {
+        fn construct(&self, _arg:&str) -> $crate::Result<Rc<Specifier>> {
+            panic!("Error: construct called on alias class")
+        }
+        fn construct_overlay(&self, _inner : Rc<Specifier>) -> $crate::Result<Rc<Specifier>> {
+            panic!("Error: construct_overlay called on alias class")
+        }
+        fn alias_info(&self) -> Option<&'static str> { Some($x) }
     };
     (construct target=$t:ident {$($x:tt)*}) => {
         $($x)*
+        fn alias_info(&self) -> Option<&'static str> { None }
     };
 }
 
