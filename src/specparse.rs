@@ -6,28 +6,49 @@ pub fn spec(s: &str) -> Result<Rc<Specifier>> {
 }
 
 impl SpecifierStack {
-    fn from_str(s: &str) -> Result<SpecifierStack> {
-        let mut cls = vec![];
-        let need_more = false;
+    #[allow(dead_code)]
+    fn from_str(mut s: &str) -> Result<SpecifierStack> {
+        let mut overlays = vec![];
+        let addrtype;
+        let addr;
         
-        macro_rules! my {
-            ($x:expr) => {
-                for pre in $x.get_prefixes() {
-                    if s.starts_with(pre) {
-                        let _rest = &s[pre.len()..];
-                        cls.push(Rc::new($x) as Rc<SpecifierClass>);
+        'a: loop {
+            macro_rules! my {
+                ($x:expr) => {
+                    for pre in $x.get_prefixes() {
+                        if s.starts_with(pre) {
+                            let rest = &s[pre.len()..];
+                            if $x.is_overlay() {
+                                overlays.push(Rc::new($x) as Rc<SpecifierClass>);
+                                s = rest;
+                                continue 'a;
+                            } else {
+                                addr = rest.to_string();
+                                addrtype = Rc::new($x) as Rc<SpecifierClass>;
+                                break 'a;
+                            }
+                        }
                     }
-                }
-            };
+                    Err(format!("Unknown address or overlay type of `{}`", s))?;
+                };
+            }
+            list_of_all_specifier_classes!(my);
         }
-        list_of_all_specifier_classes!(my);
         
-        
-        Ok(SpecifierStack { classes: cls, final_arg: None })
+        Ok(SpecifierStack { addr, addrtype, overlays })
     }
 }
 
 impl Specifier {
+    #[allow(dead_code)]
+    fn from_stack(st: SpecifierStack) -> Result<Rc<Specifier>> {
+        let mut x = st.addrtype.construct("FIXME", st.addr.as_str())?;
+        for overlay in st.overlays {
+            x = overlay.construct_overlay(x)?;
+        }
+        Ok(x)
+    }
+
     #[cfg_attr(feature = "cargo-clippy", allow(cyclomatic_complexity))]
     fn from_str(s: &str) -> Result<Rc<Specifier>> {
         #[cfg(not(feature = "ssl"))]

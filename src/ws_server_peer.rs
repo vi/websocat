@@ -49,6 +49,10 @@ specifier_class!(
             }
             Ok(Rc::new(WsServer(super::spec(just_arg)?)))
         }
+        
+        fn construct_overlay(self: &WsServerClass, inner : Rc<Specifier>) -> super::Result<Rc<Specifier>> {
+            Ok(Rc::new(WsServer(inner)))
+        }
     },
     overlay = true,
     help = r#"

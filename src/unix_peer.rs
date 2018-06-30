@@ -135,6 +135,9 @@ specifier_class!(
             }
             Ok(Rc::new(UnixDgram(splits[0].into(), splits[1].into())))
         }
+        fn construct_overlay(self: &UnixDgramClass, _inner : Rc<Specifier>) -> super::Result<Rc<Specifier>> {
+            panic!("Error: construct_overlay called on non-overlay specifier class")
+        }
     },
     overlay = false,
     help = r#"
@@ -263,6 +266,9 @@ specifier_class!(
                 Err("Expected two colon-separted addresses")?;
             }
             Ok(Rc::new(UnixDgram(splits[0].into(), splits[1].into())))
+        }
+        fn construct_overlay(self: &AbstractDgramClass, _inner : Rc<Specifier>) -> super::Result<Rc<Specifier>> {
+            panic!("Error: construct_overlay called on non-overlay specifier class")
         }
     },
     overlay = false,

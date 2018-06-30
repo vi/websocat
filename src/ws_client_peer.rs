@@ -41,6 +41,9 @@ specifier_class!(
         ) -> super::Result<Rc<Specifier>> {
             Ok(Rc::new(WsClient(full.parse()?)))
         }
+        fn construct_overlay(self: &WsClientClass, _inner : Rc<Specifier>) -> super::Result<Rc<Specifier>> {
+            panic!("Error: construct_overlay called on non-overlay specifier class")
+        }
     },
     overlay = false,
     help = r#"

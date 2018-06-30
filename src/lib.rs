@@ -129,6 +129,8 @@ pub trait SpecifierClass : std::fmt::Debug {
     ///
     /// Just arg is like `127.0.0.1:8080` in `tcp-l:127.0.0.1:8080`
     fn construct(&self, full: &str, just_arg: &str) -> Result<Rc<Specifier>>;
+    /// Given the inner specifier, construct this specifier.
+    fn construct_overlay(&self, inner: Rc<Specifier>) -> Result<Rc<Specifier>>;
     /// Returns if this specifier is an overlay
     fn is_overlay(&self) -> bool;
 }
@@ -154,20 +156,32 @@ macro_rules! specifier_class {
             }
             Ok(Rc::new($t)) 
         }
+        fn construct_overlay(&self, _inner : Rc<Specifier>) -> $crate::Result<Rc<Specifier>> {
+            panic!("Error: construct_overlay called on non-overlay specifier class")
+        }
     };
     (construct target=$t:ident into) => {
         fn construct(&self, _full:&str, just_arg:&str) -> $crate::Result<Rc<Specifier>> {
             Ok(Rc::new($t(just_arg.into()))) 
+        }
+        fn construct_overlay(&self, _inner : Rc<Specifier>) -> $crate::Result<Rc<Specifier>> {
+            panic!("Error: construct_overlay called on non-overlay specifier class")
         }
     };
     (construct target=$t:ident parse) => {
         fn construct(&self, _full:&str, just_arg:&str) -> $crate::Result<Rc<Specifier>> {
             Ok(Rc::new($t(just_arg.parse()?))) 
         }
+        fn construct_overlay(&self, _inner : Rc<Specifier>) -> $crate::Result<Rc<Specifier>> {
+            panic!("Error: construct_overlay called on non-overlay specifier class")
+        }
     };
     (construct target=$t:ident subspec) => {
         fn construct(&self, _full:&str, just_arg:&str) -> $crate::Result<Rc<Specifier>> {
             Ok(Rc::new($t($crate::spec(just_arg)?))) 
+        }
+        fn construct_overlay(&self, _inner : Rc<Specifier>) -> $crate::Result<Rc<Specifier>> {
+            unimplemented!()
         }
     };
     (construct target=$t:ident {$($x:tt)*}) => {
@@ -177,8 +191,9 @@ macro_rules! specifier_class {
 
 #[derive(Debug)]
 pub struct SpecifierStack {
-    pub classes: Vec<Rc<SpecifierClass>>,
-    pub final_arg: Option<String>,
+    pub addr: String,
+    pub addrtype: Rc<SpecifierClass>,
+    pub overlays: Vec<Rc<SpecifierClass>>,
 }
 
 #[macro_use]
