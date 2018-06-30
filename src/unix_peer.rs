@@ -126,7 +126,6 @@ specifier_class!(
     arg_handling = {
         fn construct(
             self: &UnixDgramClass,
-            _full: &str,
             just_arg: &str,
         ) -> super::Result<Rc<Specifier>> {
             let splits: Vec<&str> = just_arg.split(':').collect();
@@ -258,7 +257,6 @@ specifier_class!(
     arg_handling = {
         fn construct(
             self: &AbstractDgramClass,
-            _full: &str,
             just_arg: &str,
         ) -> super::Result<Rc<Specifier>> {
             let splits: Vec<&str> = just_arg.split(':').collect();

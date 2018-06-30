@@ -31,29 +31,8 @@ impl<T: Specifier> Specifier for WsServer<T> {
 specifier_class!(
     name = WsServerClass,
     target = WsServer,
-    prefixes = ["ws-l:", "l-ws:", "ws-listen:", "listen-ws:"],
-    arg_handling = {
-        fn construct(
-            self: &WsServerClass,
-            _full: &str,
-            just_arg: &str,
-        ) -> super::Result<Rc<Specifier>> {
-            if just_arg == "" {
-                Err("Specify underlying protocol for ws-l:")?;
-            }
-            if let Some(c) = just_arg.chars().next() {
-                if c.is_numeric() || c == '[' {
-                    // Assuming user uses old format like ws-l:127.0.0.1:8080
-                    return super::spec(&("ws-l:tcp-l:".to_owned() + just_arg));
-                }
-            }
-            Ok(Rc::new(WsServer(super::spec(just_arg)?)))
-        }
-        
-        fn construct_overlay(self: &WsServerClass, inner : Rc<Specifier>) -> super::Result<Rc<Specifier>> {
-            Ok(Rc::new(WsServer(inner)))
-        }
-    },
+    prefixes = ["ws-upgrade:", "upgrade-ws:", "ws-u:", "u-ws:"],
+    arg_handling = subspec,
     overlay = true,
     help = r#"
 WebSocket server. Argument is either IPv4 host and port to listen
@@ -68,6 +47,40 @@ Example: the same, but more verbose:
     websocat ws-l:tcp-l:127.0.0.1:8808 reuse:-
 "#
 );
+
+
+specifier_class!(
+    name = WsTcpServerClass,
+    target = WsServer,
+    prefixes = ["ws-listen:", "ws-l:", "l-ws:", "listen-ws:"],
+    arg_handling = {
+        fn construct(
+            self: &WsTcpServerClass,
+            arg: &str,
+        ) -> super::Result<Rc<Specifier>> {
+            super::spec(&("ws-u:tcp-l:".to_owned() + arg))
+        }
+        
+        fn construct_overlay(self: &WsTcpServerClass, _inner : Rc<Specifier>) -> super::Result<Rc<Specifier>> {
+            panic!("Error: construct_overlay called on non-overlay specifier class")
+        }
+    },
+    overlay = false,
+    help = r#"
+WebSocket server. Argument is either IPv4 host and port to listen
+or a subspecifier.
+
+Example: Dump all incoming websocket data to console
+
+    websocat ws-l:127.0.0.1:8808 -
+
+Example: the same, but more verbose:
+
+    websocat ws-l:tcp-l:127.0.0.1:8808 reuse:-
+"#
+);
+
+
 
 /* 
 

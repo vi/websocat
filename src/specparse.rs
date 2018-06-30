@@ -10,6 +10,7 @@ impl SpecifierStack {
         let mut overlays = vec![];
         let addrtype;
         let addr;
+        let mut found = false;
         
         'a: loop {
             macro_rules! my {
@@ -24,14 +25,19 @@ impl SpecifierStack {
                             } else {
                                 addr = rest.to_string();
                                 addrtype = Rc::new($x) as Rc<SpecifierClass>;
+                                #[allow(unused_assignments)] {
+                                    found = true;
+                                }
                                 break 'a;
                             }
                         }
                     }
-                    Err(format!("Unknown address or overlay type of `{}`", s))?;
                 };
             }
             list_of_all_specifier_classes!(my);
+            if ! found {
+                Err(format!("Unknown address or overlay type of `{}`", s))?;
+            }
         }
         
         Ok(SpecifierStack { addr, addrtype, overlays })
@@ -40,7 +46,7 @@ impl SpecifierStack {
 
 impl Specifier {
     fn from_stack(st: SpecifierStack) -> Result<Rc<Specifier>> {
-        let mut x = st.addrtype.construct("FIXME", st.addr.as_str())?;
+        let mut x = st.addrtype.construct(st.addr.as_str())?;
         for overlay in st.overlays {
             x = overlay.construct_overlay(x)?;
         }
@@ -69,7 +75,7 @@ impl Specifier {
                 for pre in $x.get_prefixes() {
                     if s.starts_with(pre) {
                         let rest = &s[pre.len()..];
-                        return $x.construct(s, rest);
+                        return $x.construct(rest);
                     }
                 }
             };

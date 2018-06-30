@@ -3,6 +3,9 @@
 macro_rules! list_of_all_specifier_classes {
     ($your_macro:ident) => {
         $your_macro!($crate::ws_client_peer::WsClientClass);
+        #[cfg(all(unix, feature = "ssl"))]
+        $your_macro!($crate::ws_client_peer::WsClientSecureClass);
+        $your_macro!($crate::ws_server_peer::WsTcpServerClass);
         $your_macro!($crate::ws_server_peer::WsServerClass);
 
         #[cfg(all(unix, feature = "unix_stdio"))]

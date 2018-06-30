@@ -32,14 +32,13 @@ impl Specifier for WsClient {
 specifier_class!(
     name = WsClientClass,
     target = WsClient,
-    prefixes = ["ws://", "wss://"],
+    prefixes = ["ws://"],
     arg_handling = {
         fn construct(
             self: &WsClientClass,
-            full: &str,
-            _just_arg: &str,
+            arg: &str,
         ) -> super::Result<Rc<Specifier>> {
-            Ok(Rc::new(WsClient(full.parse()?)))
+            Ok(Rc::new(WsClient(format!("ws:{}",arg).parse()?)))
         }
         fn construct_overlay(self: &WsClientClass, _inner : Rc<Specifier>) -> super::Result<Rc<Specifier>> {
             panic!("Error: construct_overlay called on non-overlay specifier class")
@@ -47,16 +46,51 @@ specifier_class!(
     },
     overlay = false,
     help = r#"
-WebSocket client. Argument is host and URL.
+Insecure (ws://) WebSocket client. Argument is host and URL.
 
-Example: manually interact with a web socket
+Example: connect to public WebSocket loopback and copy binary chunks from stdin to the websocket.
 
     websocat - ws://echo.websocket.org/
+"#
+);
+
+
+#[cfg(feature="ssl")]
+#[derive(Debug, Clone)]
+pub struct WsClientSecure(pub Url);
+#[cfg(feature="ssl")]
+impl Specifier for WsClientSecure {
+    fn construct(&self, p: ConstructParams) -> PeerConstructor {
+        let url = self.0.clone();
+        once(get_ws_client_peer(&p.tokio_handle, &url, p.program_options))
+    }
+    specifier_boilerplate!(noglobalstate singleconnect no_subspec typ=WebSocket);
+}
+#[cfg(feature="ssl")]
+specifier_class!(
+    name = WsClientSecureClass,
+    target = WsClientSecure,
+    prefixes = ["wss://"],
+    arg_handling = {
+        fn construct(
+            self: &WsClientSecureClass,
+            arg: &str,
+        ) -> super::Result<Rc<Specifier>> {
+            Ok(Rc::new(WsClient(format!("wss:{}",arg).parse()?)))
+        }
+        fn construct_overlay(self: &WsClientSecureClass, _inner : Rc<Specifier>) -> super::Result<Rc<Specifier>> {
+            panic!("Error: construct_overlay called on non-overlay specifier class")
+        }
+    },
+    overlay = false,
+    help = r#"
+Secure (wss://) WebSocket client. Argument is host and URL.
 
 Example: forward TCP port 4554 to a websocket
 
     websocat tcp-l:127.0.0.1:4554 wss://127.0.0.1/some_websocket"#
 );
+
 
 #[derive(Debug)]
 pub struct WsConnect<T: Specifier>(pub T);

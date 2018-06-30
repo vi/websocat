@@ -124,11 +124,8 @@ pub trait SpecifierClass : std::fmt::Debug {
     /// --long-help snippet about this specifier
     fn help(&self) -> &'static str;
     /// Given the command line text, construct the specifier
-    ///
-    /// Full str is like `ws://qwe` in `ws://qwe`
-    ///
-    /// Just arg is like `127.0.0.1:8080` in `tcp-l:127.0.0.1:8080`
-    fn construct(&self, full: &str, just_arg: &str) -> Result<Rc<Specifier>>;
+    /// arg is what comes after the colon (e.g. `//echo.websocket.org` in `ws://echo.websocket.org`)
+    fn construct(&self, arg: &str) -> Result<Rc<Specifier>>;
     /// Given the inner specifier, construct this specifier.
     fn construct_overlay(&self, inner: Rc<Specifier>) -> Result<Rc<Specifier>>;
     /// Returns if this specifier is an overlay
@@ -149,7 +146,7 @@ macro_rules! specifier_class {
         }
     };
     (construct target=$t:ident noarg) => {
-        fn construct(&self, _full:&str, just_arg:&str) -> $crate::Result<Rc<Specifier>> {
+        fn construct(&self, just_arg:&str) -> $crate::Result<Rc<Specifier>> {
             if just_arg != "" {
                 Err(format!("{}-specifer requires no parameters. `{}` is not needed", 
                     self.get_name(), just_arg))?;
@@ -161,7 +158,7 @@ macro_rules! specifier_class {
         }
     };
     (construct target=$t:ident into) => {
-        fn construct(&self, _full:&str, just_arg:&str) -> $crate::Result<Rc<Specifier>> {
+        fn construct(&self, just_arg:&str) -> $crate::Result<Rc<Specifier>> {
             Ok(Rc::new($t(just_arg.into()))) 
         }
         fn construct_overlay(&self, _inner : Rc<Specifier>) -> $crate::Result<Rc<Specifier>> {
@@ -169,7 +166,7 @@ macro_rules! specifier_class {
         }
     };
     (construct target=$t:ident parse) => {
-        fn construct(&self, _full:&str, just_arg:&str) -> $crate::Result<Rc<Specifier>> {
+        fn construct(&self, just_arg:&str) -> $crate::Result<Rc<Specifier>> {
             Ok(Rc::new($t(just_arg.parse()?))) 
         }
         fn construct_overlay(&self, _inner : Rc<Specifier>) -> $crate::Result<Rc<Specifier>> {
@@ -177,11 +174,11 @@ macro_rules! specifier_class {
         }
     };
     (construct target=$t:ident subspec) => {
-        fn construct(&self, _full:&str, just_arg:&str) -> $crate::Result<Rc<Specifier>> {
+        fn construct(&self, just_arg:&str) -> $crate::Result<Rc<Specifier>> {
             Ok(Rc::new($t($crate::spec(just_arg)?))) 
         }
         fn construct_overlay(&self, _inner : Rc<Specifier>) -> $crate::Result<Rc<Specifier>> {
-            unimplemented!()
+            Ok(Rc::new($t(_inner)))
         }
     };
     (construct target=$t:ident {$($x:tt)*}) => {
