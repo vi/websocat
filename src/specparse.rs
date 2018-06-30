@@ -44,7 +44,7 @@ fn some_checks(s:&str) -> Result<()> {
 }
 
 impl SpecifierStack {
-    fn from_str(s: &str) -> Result<SpecifierStack> {
+    pub fn from_str(s: &str) -> Result<SpecifierStack> {
         some_checks(s)?;
     
         let mut s = s.to_string();
@@ -89,7 +89,7 @@ impl SpecifierStack {
 }
 
 impl Specifier {
-    fn from_stack(st: SpecifierStack) -> Result<Rc<Specifier>> {
+    pub fn from_stack(st: SpecifierStack) -> Result<Rc<Specifier>> {
         let mut x = st.addrtype.construct(st.addr.as_str())?;
         for overlay in st.overlays {
             x = overlay.construct_overlay(x)?;

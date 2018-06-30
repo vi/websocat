@@ -1,5 +1,5 @@
 use super::line_peer;
-use super::{primitive_reuse_peer, Specifier, SpecifierType, WebsocatConfiguration};
+use super::{primitive_reuse_peer, Specifier, SpecifierType, WebsocatConfiguration3};
 use std::rc::Rc;
 
 /// Diagnostics for specifiers and options combinations
@@ -83,7 +83,7 @@ impl<T: Specifier> SpecifierExt for T {
     }
 }
 
-impl WebsocatConfiguration {
+impl WebsocatConfiguration3 {
     pub fn get_concern(&self) -> Option<ConfigurationConcern> {
         use self::ConfigurationConcern::*;
         use self::StdioUsageStatus::{IsItself, WithReuser};
@@ -127,8 +127,8 @@ impl WebsocatConfiguration {
     }
 
     pub fn auto_install_reuser(self) -> Self {
-        let WebsocatConfiguration { opts, s1, s2 } = self;
-        WebsocatConfiguration {
+        let WebsocatConfiguration3 { opts, s1, s2 } = self;
+        WebsocatConfiguration3 {
             opts,
             s1,
             s2: Rc::new(primitive_reuse_peer::Reuser(s2)),
@@ -148,16 +148,16 @@ impl WebsocatConfiguration {
             if self.s2.contains(WebSocket) {
                 Err((MultipleWebsocket, self))
             } else {
-                let WebsocatConfiguration { opts, s1, s2 } = self;
-                Ok(WebsocatConfiguration {
+                let WebsocatConfiguration3 { opts, s1, s2 } = self;
+                Ok(WebsocatConfiguration3 {
                     opts,
                     s1: Rc::new(line_peer::Message2Line(s1)),
                     s2: Rc::new(line_peer::Line2Message(s2)),
                 })
             }
         } else if self.s2.contains(WebSocket) {
-            let WebsocatConfiguration { opts, s1, s2 } = self;
-            Ok(WebsocatConfiguration {
+            let WebsocatConfiguration3 { opts, s1, s2 } = self;
+            Ok(WebsocatConfiguration3 {
                 opts,
                 s1: Rc::new(line_peer::Line2Message(s1)),
                 s2: Rc::new(line_peer::Message2Line(s2)),

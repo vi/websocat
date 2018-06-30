@@ -17,7 +17,7 @@ use structopt::StructOpt;
 
 use tokio_core::reactor::Core;
 
-use websocat::{spec, Options, SpecifierClass, WebsocatConfiguration};
+use websocat::{spec, Options, SpecifierClass, WebsocatConfiguration3};
 
 type Result<T> = std::result::Result<T, Box<std::error::Error>>;
 
@@ -387,7 +387,7 @@ fn run() -> Result<()> {
         (spec("-")?, spec(&cmd.addr1)?)
     };
 
-    let mut websocat = WebsocatConfiguration { opts, s1, s2 };
+    let mut websocat = WebsocatConfiguration3 { opts, s1, s2 };
 
     if cmd.linemode {
         use websocat::lints::AutoInstallLinemodeConcern::*;

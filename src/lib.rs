@@ -41,13 +41,48 @@ fn io_other_error<E: std::error::Error + Send + Sync + 'static>(e: E) -> std::io
     std::io::Error::new(std::io::ErrorKind::Other, e)
 }
 
-pub struct WebsocatConfiguration {
+pub struct WebsocatConfiguration1 {
+    pub opts: Options,
+    pub addr1: String,
+    pub addr2: String,
+}
+
+impl WebsocatConfiguration1 {
+    pub fn parse1(self) -> Result<WebsocatConfiguration2> {
+        Ok(WebsocatConfiguration2 {
+            opts: self.opts,
+            s1: SpecifierStack::from_str(self.addr1.as_str())?,
+            s2: SpecifierStack::from_str(self.addr2.as_str())?,
+        })
+    }
+}
+
+pub struct WebsocatConfiguration2 {
+    pub opts: Options,
+    pub s1: SpecifierStack,
+    pub s2: SpecifierStack,
+}
+
+impl WebsocatConfiguration2 {
+    pub fn parse2(self) -> Result<WebsocatConfiguration3> {
+        Ok(WebsocatConfiguration3 {
+            opts: self.opts,
+            s1: Specifier::from_stack(self.s1)?,
+            s2: Specifier::from_stack(self.s2)?,
+        })
+    }
+    pub fn lint_and_fixup(&mut self) {
+        unimplemented!()
+    }
+}
+
+pub struct WebsocatConfiguration3 {
     pub opts: Options,
     pub s1: Rc<Specifier>,
     pub s2: Rc<Specifier>,
 }
 
-impl WebsocatConfiguration {
+impl WebsocatConfiguration3 {
     pub fn serve<OE>(
         self,
         h: Handle,
