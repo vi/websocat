@@ -2,11 +2,10 @@ use super::{Result, Specifier, SpecifierClass, SpecifierStack};
 use std::rc::Rc;
 
 pub fn spec(s: &str) -> Result<Rc<Specifier>> {
-    Specifier::from_str(s)
+    Specifier::from_stack(SpecifierStack::from_str(s)?)
 }
 
 impl SpecifierStack {
-    #[allow(dead_code)]
     fn from_str(mut s: &str) -> Result<SpecifierStack> {
         let mut overlays = vec![];
         let addrtype;
@@ -40,7 +39,6 @@ impl SpecifierStack {
 }
 
 impl Specifier {
-    #[allow(dead_code)]
     fn from_stack(st: SpecifierStack) -> Result<Rc<Specifier>> {
         let mut x = st.addrtype.construct("FIXME", st.addr.as_str())?;
         for overlay in st.overlays {
@@ -50,6 +48,7 @@ impl Specifier {
     }
 
     #[cfg_attr(feature = "cargo-clippy", allow(cyclomatic_complexity))]
+    #[allow(dead_code)]
     fn from_str(s: &str) -> Result<Rc<Specifier>> {
         #[cfg(not(feature = "ssl"))]
         {
