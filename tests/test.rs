@@ -8,7 +8,7 @@ extern crate tokio_timer;
 use futures::future::Future;
 
 use tokio_core::reactor::Core;
-use websocat::{spec, Options, WebsocatConfiguration};
+use websocat::{spec, Options, WebsocatConfiguration3};
 
 fn dflt() -> Options {
     Default::default()
@@ -39,7 +39,7 @@ macro_rules! wt {
     };
     (stage2, $h2:ident, $s1:ident, $s2:ident, opts=$opts:expr,$($rest:tt)*) => {{
         
-        let websocat = WebsocatConfiguration {
+        let websocat = WebsocatConfiguration3 {
             opts: $opts,
             $s1,
             $s2,
