@@ -91,7 +91,7 @@ impl SpecifierStack {
 impl Specifier {
     pub fn from_stack(st: SpecifierStack) -> Result<Rc<Specifier>> {
         let mut x = st.addrtype.construct(st.addr.as_str())?;
-        for overlay in st.overlays {
+        for overlay in st.overlays.iter().rev() {
             x = overlay.construct_overlay(x)?;
         }
         Ok(x)
