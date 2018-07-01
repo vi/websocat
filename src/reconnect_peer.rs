@@ -48,6 +48,8 @@ specifier_class!(
     prefixes = ["autoreconnect:"],
     arg_handling = subspec,
     overlay = true,
+    MessageBoundaryStatusDependsOnInnerType,
+    SingleConnect,
     help = r#"
 Re-establish underlying specifier on any error or EOF
 

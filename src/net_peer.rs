@@ -31,6 +31,8 @@ specifier_class!(
     prefixes = ["tcp:", "tcp-connect:", "connect-tcp:", "tcp-c:", "c-tcp:"],
     arg_handling = parse,
     overlay = false,
+    StreamOriented,
+    SingleConnect,
     help = r#"
 Connect to specified TCP host and port. Argument is a socket address.
 
@@ -58,6 +60,8 @@ specifier_class!(
     prefixes = ["tcp-listen:", "listen-tcp:", "tcp-l:", "l-tcp:"],
     arg_handling = parse,
     overlay = false,
+    StreamOriented,
+    MultiConnect,
     help = r#"
 Listen TCP port on specified address.
     
@@ -89,6 +93,8 @@ specifier_class!(
     prefixes = ["udp:", "udp-connect:", "connect-udp:", "udp-c:", "c-udp:"],
     arg_handling = parse,
     overlay = false,
+    MessageOriented,
+    SingleConnect,
     help = r#"
 Send and receive packets to specified UDP socket, from random UDP port  
 "#
@@ -112,6 +118,8 @@ specifier_class!(
     prefixes = ["udp-listen:", "listen-udp:", "udp-l:", "l-udp:"],
     arg_handling = parse,
     overlay = false,
+    MessageOriented,
+    SingleConnect,
     help = r#"
 Bind an UDP socket to specifier host:port, receive packet
 from any remote UDP socket, send replies to recently observed

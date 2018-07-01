@@ -1,5 +1,5 @@
 use super::line_peer;
-use super::{primitive_reuse_peer, Specifier, SpecifierType, WebsocatConfiguration3};
+use super::{primitive_reuse_peer, Specifier, SpecifierType, WebsocatConfiguration3, WebsocatConfiguration2, SpecifierStack, SpecifierClass};
 use std::rc::Rc;
 
 /// Diagnostics for specifiers and options combinations
@@ -167,3 +167,84 @@ impl WebsocatConfiguration3 {
         }
     }
 }
+
+trait ClassExt {
+    fn is_stdio(&self) -> bool;
+    fn is_reuser(&self) -> bool;
+}
+
+#[cfg_attr(rustfmt, rustfmt_skip)]
+impl ClassExt for Rc<SpecifierClass> {
+    fn is_stdio(&self) -> bool {
+        [
+            "StdioClass",
+            "ThreadedStdioClass",
+            "ThreadedStdioSubstituteClass",
+        ].contains(&self.get_name())
+    }
+    fn is_reuser(&self) -> bool {
+        [
+            "ReuserClass",
+            "BroadcastReuserClass",
+        ].contains(&self.get_name())
+    }
+}
+
+trait SpecifierStackExt {
+    fn stdio_usage_status(&self) -> StdioUsageStatus;
+    fn reuser_count(&self) -> usize;
+    fn contains(&self, t: &'static str) -> bool;
+}
+impl SpecifierStackExt for SpecifierStack {
+    fn stdio_usage_status(&self) -> StdioUsageStatus {
+        use self::StdioUsageStatus::*;
+        
+        if ! self.addrtype.is_stdio() {
+            return None;
+        }
+        
+        let mut sus: StdioUsageStatus = IsItself;
+
+        for overlay in self.overlays.iter().rev() {
+            if overlay.is_reuser() {
+                sus = WithReuser;
+            } else if sus == IsItself {
+                sus = Indirectly;
+            }
+        }
+        sus
+    }
+    fn reuser_count(&self) -> usize {
+        let mut c = 0;
+        for overlay in self.overlays.iter() {
+            if overlay.is_reuser() {
+                c += 1;
+            }
+        }
+        c
+    }
+    fn contains(&self, t: &'static str) -> bool {
+        for overlay in self.overlays.iter() {
+            if overlay.get_name() == t {
+                return true;
+            }
+        }
+        self.addrtype.get_name() == t
+    }
+}
+
+impl WebsocatConfiguration2 {
+    pub fn lint_and_fixup<F>(&mut self, _on_warning: Rc<F>) -> super::Result<()> 
+        where F: for<'a> Fn(&'a str) -> () + 'static
+    {
+        // TODO: stdio usage status
+        // TODO: auto linemode
+        // 
+        unimplemented!()
+    }
+    
+    pub fn linemode(&mut self) ->  super::Result<()>  {
+        unimplemented!()
+    }
+}
+

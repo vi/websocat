@@ -17,7 +17,7 @@ use structopt::StructOpt;
 
 use tokio_core::reactor::Core;
 
-use websocat::{spec, Options, SpecifierClass, WebsocatConfiguration3};
+use websocat::{Options, SpecifierClass, WebsocatConfiguration1};
 
 type Result<T> = std::result::Result<T, Box<std::error::Error>>;
 
@@ -370,8 +370,8 @@ fn run() -> Result<()> {
         )
     };
 
-    let (s1, s2) = if let Some(ref cmds2) = cmd.addr2 {
-        (spec(&cmd.addr1)?, spec(cmds2)?)
+    let (s1, s2) : (String,String) = if let Some(cmds2) = cmd.addr2 {
+        (cmd.addr1, cmds2)
     } else {
         if !(cmd.addr1.starts_with("ws://") || cmd.addr1.starts_with("wss://")) {
             // TODO: message for -s server mode
@@ -381,13 +381,15 @@ fn run() -> Result<()> {
         // Easy mode
         cmd.linemode = true;
         opts.websocket_text_mode = true;
-        if opts.websocket_protocol == None {
-            opts.websocket_protocol = Some("tcp".to_owned());
-        }
-        (spec("-")?, spec(&cmd.addr1)?)
+        ("-".to_string(), cmd.addr1)
     };
 
-    let mut websocat = WebsocatConfiguration3 { opts, s1, s2 };
+    let websocat1 = WebsocatConfiguration1 { opts, addr1:s1, addr2:s2 };
+    let mut websocat2 = websocat1.parse1()?;
+    websocat2.lint_and_fixup(std::rc::Rc::new(|e:&str| {
+        eprintln!("{}", e);
+    }))?;
+    let mut websocat = websocat2.parse2()?;
 
     if cmd.linemode {
         use websocat::lints::AutoInstallLinemodeConcern::*;

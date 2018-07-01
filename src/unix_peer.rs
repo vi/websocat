@@ -44,6 +44,8 @@ specifier_class!(
     ],
     arg_handling = into,
     overlay = false,
+    StreamOriented,
+    SingleConnect,
     help = r#"
 Connect to UNIX socket. Argument is filesystem path.
 
@@ -71,6 +73,8 @@ specifier_class!(
     prefixes = ["unix-listen:", "listen-unix:", "unix-l:", "l-unix:"],
     arg_handling = into,
     overlay = false,
+    StreamOriented,
+    MultiConnect,
     help = r#"
 Listen for connections on a specified UNIX socket
 
@@ -139,6 +143,8 @@ specifier_class!(
         }
     },
     overlay = false,
+    MessageOriented,
+    SingleConnect,
     help = r#"
 Send packets to one path, receive from the other.
 A socket for sending must be already openend.
@@ -176,6 +182,8 @@ specifier_class!(
     ],
     arg_handling = into,
     overlay = false,
+    StreamOriented,
+    SingleConnect,
     help = r#"
 Connect to UNIX abstract-namespaced socket. Argument is some string used as address.
 
@@ -213,6 +221,8 @@ specifier_class!(
     ],
     arg_handling = into,
     overlay = false,
+    StreamOriented,
+    MultiConnect,
     help = r#"
 Listen for connections on a specified abstract UNIX socket
 
@@ -270,6 +280,8 @@ specifier_class!(
         }
     },
     overlay = false,
+    MessageOriented,
+    SingleConnect,
     help = r#"
 Send packets to one address, receive from the other.
 A socket for sending must be already openend.
@@ -309,6 +321,8 @@ specifier_class!(
     ],
     arg_handling = into,
     overlay = false,
+    MessageOriented,
+    SingleConnect,
     help = r#"
 Connect to AF_UNIX SOCK_SEQPACKET socket. Argument is a filesystem path.
 
@@ -348,6 +362,8 @@ specifier_class!(
     ],
     arg_handling = into,
     overlay = false,
+    MessageOriented,
+    MultiConnect,
     help = r#"
 Listen for connections on a specified AF_UNIX SOCK_SEQPACKET socket
 

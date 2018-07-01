@@ -26,6 +26,8 @@ specifier_class!(
     prefixes = ["msg2line:"],
     arg_handling = subspec,
     overlay = true,
+    StreamOriented,
+    MulticonnectnessDependsOnInnerType,
     help = r#"
 Line filter: ensure each message (a chunk from one read call from underlying specifier)
 contains no inner newlines and terminates with one newline.
@@ -59,6 +61,8 @@ specifier_class!(
     prefixes=["line2msg:"], 
     arg_handling=subspec,
     overlay = true,
+    MessageOriented,
+    MulticonnectnessDependsOnInnerType,
     help=r#"
 Line filter: encure that each message (a successful read call) is obtained from a line
 coming from underlying specifier, buffering up or splitting content as needed.

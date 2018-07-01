@@ -31,6 +31,8 @@ specifier_class!(
     prefixes = ["readfile:"],
     arg_handling = into,
     overlay = false,
+    StreamOriented,
+    SingleConnect,
     help = r#"
 Synchronously read a file. Argumen is a file path.
 
@@ -61,6 +63,8 @@ specifier_class!(
     prefixes = ["writefile:"],
     arg_handling = into,
     overlay = false,
+    StreamOriented,
+    SingleConnect,
     help = r#"
 
 Synchronously truncate and write a file.
@@ -92,6 +96,8 @@ specifier_class!(
     prefixes = ["appendfile:"],
     arg_handling = into,
     overlay = false,
+    StreamOriented,
+    SingleConnect,
     help = r#"
 
 Synchronously append a file.

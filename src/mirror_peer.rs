@@ -32,6 +32,8 @@ specifier_class!(
     prefixes = ["mirror:"],
     arg_handling = noarg,
     overlay = false,
+    MessageOriented,
+    SingleConnect,
     help = r#"
 Simply copy output to input. No arguments needed.
 
@@ -59,6 +61,8 @@ specifier_class!(
     prefixes = ["literalreply:"],
     arg_handling = into,
     overlay = false,
+    MessageOriented,
+    SingleConnect,
     help = r#"
 Reply with a specified string for each input packet.
 

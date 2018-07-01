@@ -34,6 +34,8 @@ specifier_class!(
     prefixes = ["literal:"],
     arg_handling = into,
     overlay = false,
+    MessageOriented,
+    SingleConnect,
     help = r#"
 Output a string, discard input.
 
@@ -63,6 +65,8 @@ specifier_class!(
     prefixes = ["assert:"],
     arg_handling = into,
     overlay = false,
+    MessageOriented,
+    SingleConnect,
     help = r#"
 Check the input. Read entire input and panic the program if the input is not equal
 to the specified string. Used in tests.
@@ -88,6 +92,8 @@ specifier_class!(
     prefixes = ["assert2:"],
     arg_handling = into,
     overlay = false,
+    MessageOriented,
+    SingleConnect,
     help = r#"
 Check the input. Read entire input and emit an error if the input is not equal
 to the specified string.
@@ -108,6 +114,8 @@ specifier_class!(
     prefixes = ["clogged:"],
     arg_handling = noarg,
     overlay = false,
+    MessageOriented,
+    SingleConnect,
     help = r#"
 Do nothing. Don't read or write any bytes. Keep connections in "hung" state.
 "#

@@ -45,6 +45,8 @@ specifier_class!(
     prefixes = ["reuse-broadcast:", "broadcast-reuse:", "broadcast:"],
     arg_handling = subspec,
     overlay = true,
+    MessageBoundaryStatusDependsOnInnerType,
+    SingleConnect,
     help = r#"
 Reuse subspecifier for serving multiple clients: broadcast mode.
 

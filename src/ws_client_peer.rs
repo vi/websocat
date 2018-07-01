@@ -45,6 +45,8 @@ specifier_class!(
         }
     },
     overlay = false,
+    MessageOriented,
+    SingleConnect,
     help = r#"
 Insecure (ws://) WebSocket client. Argument is host and URL.
 
@@ -83,6 +85,8 @@ specifier_class!(
         }
     },
     overlay = false,
+    MessageOriented,
+    SingleConnect,
     help = r#"
 Secure (wss://) WebSocket client. Argument is host and URL.
 
@@ -116,6 +120,8 @@ specifier_class!(
     prefixes = ["ws-c:", "c-ws:", "ws-connect:", "connect-ws:"],
     arg_handling = subspec,
     overlay = true,
+    MessageOriented,
+    MulticonnectnessDependsOnInnerType,
     help = r#"
 Low-level WebSocket connector. Argument is a subspecifier.
 

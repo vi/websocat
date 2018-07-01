@@ -32,6 +32,8 @@ specifier_class!(
     prefixes = ["reuse:"],
     arg_handling = subspec,
     overlay = true,
+    MessageBoundaryStatusDependsOnInnerType,
+    SingleConnect,
     help = r#"
 Reuse subspecifier for serving multiple clients: unpredictable mode.
 

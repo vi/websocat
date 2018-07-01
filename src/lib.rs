@@ -71,9 +71,7 @@ impl WebsocatConfiguration2 {
             s2: Specifier::from_stack(self.s2)?,
         })
     }
-    pub fn lint_and_fixup(&mut self) {
-        unimplemented!()
-    }
+    //pub fn lint_and_fixup ...;
 }
 
 pub struct WebsocatConfiguration3 {
@@ -148,6 +146,18 @@ pub enum SpecifierType {
     WebSocket,
 }
 
+pub enum ClassMessageBoundaryStatus {
+    StreamOriented,
+    MessageOriented,
+    MessageBoundaryStatusDependsOnInnerType,
+}
+
+pub enum ClassMulticonnectStatus {
+    MultiConnect,
+    SingleConnect,
+    MulticonnectnessDependsOnInnerType,
+}
+
 /// A trait for a each specified type's accompanying object
 ///
 /// Don't forget to register each instance at the `list_of_all_specifier_classes` macro.
@@ -165,17 +175,68 @@ pub trait SpecifierClass : std::fmt::Debug {
     fn construct_overlay(&self, inner: Rc<Specifier>) -> Result<Rc<Specifier>>;
     /// Returns if this specifier is an overlay
     fn is_overlay(&self) -> bool;
-    /// If it is Some then is_overlay and construct are ignored and prefix get replaced...
+    /// True if it is not expected to preserve message boundaries on reads
+    fn message_boundary_status(&self) -> ClassMessageBoundaryStatus;
+    
+    fn multiconnect_status(&self) -> ClassMulticonnectStatus;
+    /// If it is Some then is_overlay, construct and most other things are ignored and prefix get replaced...
     fn alias_info(&self) -> Option<&'static str>;
 }
-macro_rules! specifier_class {
-    (name=$n:ident, target=$t:ident, prefixes=[$($p:expr),*], arg_handling=$c:tt, overlay=$o:expr, help=$h:expr) => {
+
+macro_rules! specifier_alias {
+    (name=$n:ident, 
+            prefixes=[$($p:expr),*], 
+            alias=$x:expr, 
+            help=$h:expr) => {
         #[derive(Debug)]
         pub struct $n;
         impl $crate::SpecifierClass for $n {
             fn get_name(&self) -> &'static str { stringify!($n) }
             fn get_prefixes(&self) -> Vec<&'static str> { vec![$($p),*] }
             fn help(&self) -> &'static str { $h }
+            fn message_boundary_status(&self) -> $crate::ClassMessageBoundaryStatus {
+                panic!("Error: message_boundary_status called on alias class")
+            }
+            fn multiconnect_status(&self) -> $crate::ClassMulticonnectStatus {
+                panic!("Error: multiconnect_status called on alias class")
+            }
+            fn is_overlay(&self) -> bool {
+                panic!("Error: is_overlay called on alias class")
+            }
+            fn construct(&self, _arg:&str) -> $crate::Result<Rc<Specifier>> {
+                panic!("Error: construct called on alias class")
+            }
+            fn construct_overlay(&self, _inner : Rc<Specifier>) -> $crate::Result<Rc<Specifier>> {
+                panic!("Error: construct_overlay called on alias class")
+            }
+            fn alias_info(&self) -> Option<&'static str> { Some($x) }
+        }
+    };
+}
+
+macro_rules! specifier_class {
+    (name=$n:ident, 
+            target=$t:ident, 
+            prefixes=[$($p:expr),*], 
+            arg_handling=$c:tt, 
+            overlay=$o:expr, 
+            $so:expr,
+            $ms:expr,
+            help=$h:expr) => {
+        #[derive(Debug)]
+        pub struct $n;
+        impl $crate::SpecifierClass for $n {
+            fn get_name(&self) -> &'static str { stringify!($n) }
+            fn get_prefixes(&self) -> Vec<&'static str> { vec![$($p),*] }
+            fn help(&self) -> &'static str { $h }
+            fn message_boundary_status(&self) -> $crate::ClassMessageBoundaryStatus {
+                use $crate::ClassMessageBoundaryStatus::*;
+                $so
+            }
+            fn multiconnect_status(&self) -> $crate::ClassMulticonnectStatus {
+                use $crate::ClassMulticonnectStatus::*;
+                $ms
+            }
             fn is_overlay(&self) -> bool {
                 $o
             }
@@ -221,15 +282,6 @@ macro_rules! specifier_class {
             Ok(Rc::new($t(_inner)))
         }
         fn alias_info(&self) -> Option<&'static str> { None }
-    };
-    (construct target=$t:ident (alias $x:expr)) => {
-        fn construct(&self, _arg:&str) -> $crate::Result<Rc<Specifier>> {
-            panic!("Error: construct called on alias class")
-        }
-        fn construct_overlay(&self, _inner : Rc<Specifier>) -> $crate::Result<Rc<Specifier>> {
-            panic!("Error: construct_overlay called on alias class")
-        }
-        fn alias_info(&self) -> Option<&'static str> { Some($x) }
     };
     (construct target=$t:ident {$($x:tt)*}) => {
         $($x)*

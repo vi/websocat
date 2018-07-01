@@ -34,6 +34,8 @@ specifier_class!(
     prefixes = ["ws-upgrade:", "upgrade-ws:", "ws-u:", "u-ws:"],
     arg_handling = subspec,
     overlay = true,
+    MessageOriented,
+    MulticonnectnessDependsOnInnerType,
     help = r#"
 WebSocket upgrader / raw server. Specify your own protocol instead of usual TCP.
 or a subspecifier.
@@ -45,12 +47,10 @@ Example: TODO
 );
 
 
-specifier_class!(
+specifier_alias!(
     name = WsTcpServerClass,
-    target = WsServer,
     prefixes = ["ws-listen:", "ws-l:", "l-ws:", "listen-ws:"],
-    arg_handling = (alias "ws-u:tcp-l:"),
-    overlay = false,
+    alias="ws-u:tcp-l:",
     help = r#"
 WebSocket server. Argument is either IPv4 host and port to listen
 or a subspecifier.
@@ -66,12 +66,10 @@ Example: the same, but more verbose:
 );
 
 
-specifier_class!(
+specifier_alias!(
     name = WsInetdServerClass,
-    target = WsServer,
     prefixes = ["inetd-ws:", "ws-inetd:"],
-    arg_handling = (alias "ws-u:inetd:"),
-    overlay = false,
+    alias="ws-u:inetd:",
     help = r#"
 WebSocket inetd server.
 
@@ -79,23 +77,19 @@ TODO: transfer the example here
 "#
 );
 
-specifier_class!(
+specifier_alias!(
     name = WsUnixServerClass,
-    target = WsServer,
     prefixes = ["l-ws-unix:"],
-    arg_handling = (alias "ws-l:unix-l:"),
-    overlay = false,
+    alias="ws-l:unix-l:",
     help = r#"
 WebSocket UNIX socket-based server.
 "#
 );
 
-specifier_class!(
+specifier_alias!(
     name = WsAbstractUnixServerClass,
-    target = WsServer,
     prefixes = ["l-ws-abstract:"],
-    arg_handling = (alias "ws-l:abstract-l:"),
-    overlay = false,
+    alias="ws-l:abstract-l:",
     help = r#"
 WebSocket abstract-namespaced UNIX socket server.
 "#

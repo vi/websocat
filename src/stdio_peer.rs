@@ -41,6 +41,8 @@ specifier_class!(
     prefixes = ["-", "stdio:", "inetd:"],
     arg_handling = noarg,
     overlay = false,
+    StreamOriented,
+    SingleConnect,
     help = r#"
 Read input from console, print to console.
 
@@ -81,6 +83,8 @@ specifier_class!(
     prefixes = ["open-async:"],
     arg_handling = into,
     overlay = false,
+    MessageOriented, // ?
+    SingleConnect,
     help = r#"
 Open file for read and write and use it like a socket.
 Not for regular files, see readfile/writefile instead.
@@ -108,6 +112,8 @@ specifier_class!(
     prefixes = ["open-fd:"],
     arg_handling = parse,
     overlay = false,
+    MessageOriented, // ?
+    SingleConnect,
     help = r#"
 Use specified file descriptor like a socket
 

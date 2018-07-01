@@ -21,6 +21,8 @@ specifier_class!(
     prefixes = ["threadedstdio:"],
     arg_handling = noarg,
     overlay = false,
+    StreamOriented,
+    SingleConnect,
     help = r#"
 Stdin/stdout, spawning a thread.
 
@@ -36,6 +38,8 @@ specifier_class!(
     prefixes = ["-", "stdio:", "inetd:"],
     arg_handling = noarg,
     overlay = false,
+    StreamOriented,
+    SingleConnect,
     help = r#"
 Read input from console, print to console (threaded version).
 
