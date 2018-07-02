@@ -122,10 +122,10 @@ struct Opt {
     ws_c_uri: String,
 
     #[structopt(
-        long = "linemode-retain-newlines",
-        help = "[A] In --line mode, don't chop off trailing \\n from messages"
+        long = "linemode-strip-newlines",
+        help = "[A] Don't include trailing \\n or \\r\\n coming from streams in WebSocket messages"
     )]
-    linemode_retain_newlines: bool,
+    linemode_strip_newlines: bool,
 
     #[structopt(
         short = "-l", long = "--line", help = "Make each WebSocket message correspond to one line"
@@ -342,13 +342,12 @@ fn run() -> Result<()> {
         openssl_probe::init_ssl_cert_env_vars();
     }
 
-    let mut opts = {
+    let mut opts : Options = Default::default();
+    {
         macro_rules! opts {
-            ($($o:ident)*) => {
-                Options {
-                    $($o : cmd.$o,)*
-                }
-            };
+            ($($o:ident)*) => {{
+                $(opts.$o = cmd.$o;)*
+            }};
         }
         opts!(
             websocket_text_mode
@@ -361,7 +360,7 @@ fn run() -> Result<()> {
             unlink_unix_socket
             exec_args
             ws_c_uri
-            linemode_retain_newlines
+            linemode_strip_newlines
             origin
             custom_headers
             websocket_version
@@ -389,59 +388,7 @@ fn run() -> Result<()> {
     websocat2.lint_and_fixup(std::rc::Rc::new(|e:&str| {
         eprintln!("{}", e);
     }))?;
-    let mut websocat = websocat2.parse2()?;
-
-    if cmd.linemode {
-        use websocat::lints::AutoInstallLinemodeConcern::*;
-        websocat = match websocat.auto_install_linemode() {
-            Ok(x) => x,
-            Err((NoWebsocket,_)) => Err("No websocket usage is specified. Use line2msg: and msg2line: specifiers manually if needed.")?,
-            Err((MultipleWebsocket,_)) => Err("Multiple websocket usages are specified. Use line2msg: and msg2line: specifiers manually if needed.")?,
-            Err((AlreadyLine,_)) => Err("Can't auto-insert msg2line:/line2msg: if you have already manually specified some of them")?,
-        }
-    }
-
-    while let Some(concern) = websocat.get_concern() {
-        use websocat::lints::ConfigurationConcern::*;
-        if concern == StdinToStdout {
-            if cmd.dumpspec {
-                println!("cat mode");
-                return Ok(());
-            }
-
-            // Degenerate mode: just copy stdin to stdout and call it a day
-            ::std::io::copy(&mut ::std::io::stdin(), &mut ::std::io::stdout())?;
-            return Ok(());
-        }
-
-        if concern == DegenerateMode {
-            if cmd.dumpspec {
-                println!("noop");
-            }
-            return Ok(());
-        }
-
-        if concern == StdioConflict {
-            Err("Too many usages of stdin/stdout")?;
-        }
-
-        if concern == NeedsStdioReuser {
-            eprintln!("Warning: replies on stdio get directed at random connected client");
-            websocat = websocat.auto_install_reuser();
-            continue;
-        }
-
-        if concern == NeedsStdioReuser2 {
-            websocat = websocat.auto_install_reuser();
-            continue;
-        }
-
-        if concern == MultipleReusers {
-            eprintln!("Specifier dump: {:?} {:?}", websocat.s1, websocat.s2);
-            Err("Multiple reusers is not allowed")?;
-        }
-        break;
-    }
+    let websocat = websocat2.parse2()?;
 
     if cmd.dumpspec {
         println!("{:?}", websocat.s1);

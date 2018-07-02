@@ -105,12 +105,13 @@ pub struct Options {
     pub unlink_unix_socket: bool,
     pub exec_args: Vec<String>,
     pub ws_c_uri: String,
-    pub linemode_retain_newlines: bool,
+    pub linemode_strip_newlines: bool,
     pub origin: Option<String>,
     pub custom_headers: Vec<(String, Vec<u8>)>,
     pub websocket_version: Option<String>,
     pub websocket_dont_close: bool,
     pub one_message: bool,
+    pub no_auto_linemode: bool,
 }
 
 #[derive(Default)]

@@ -190,10 +190,12 @@ impl ClassExt for Rc<SpecifierClass> {
     }
 }
 
-trait SpecifierStackExt {
+pub trait SpecifierStackExt {
     fn stdio_usage_status(&self) -> StdioUsageStatus;
     fn reuser_count(&self) -> usize;
     fn contains(&self, t: &'static str) -> bool;
+    fn is_multiconnect(&self) -> bool;
+    fn is_stream_oriented(&self) -> bool;
 }
 impl SpecifierStackExt for SpecifierStack {
     fn stdio_usage_status(&self) -> StdioUsageStatus {
@@ -231,20 +233,99 @@ impl SpecifierStackExt for SpecifierStack {
         }
         self.addrtype.get_name() == t
     }
+    fn is_multiconnect(&self) -> bool {
+        use super::ClassMulticonnectStatus::*;
+        match self.addrtype.multiconnect_status() {
+            MultiConnect => (),
+            SingleConnect => return false,
+            MulticonnectnessDependsOnInnerType => unreachable!(),
+        }
+        for overlay in self.overlays.iter().rev() {
+            match overlay.multiconnect_status() {
+                MultiConnect => (),
+                SingleConnect => return false,
+                MulticonnectnessDependsOnInnerType => (),
+            }
+        }
+        return true;
+    }
+    fn is_stream_oriented(&self) -> bool {
+        use super::ClassMessageBoundaryStatus::*;
+        let mut q = match self.addrtype.message_boundary_status() {
+            StreamOriented => true,
+            MessageOriented => false,
+            MessageBoundaryStatusDependsOnInnerType => unreachable!(),
+        };
+        for overlay in self.overlays.iter().rev() {
+            match overlay.message_boundary_status() {
+                StreamOriented => q=true,
+                MessageOriented => q=false,
+                MessageBoundaryStatusDependsOnInnerType => (),
+            }
+        }
+        return q;
+    }
 }
 
 impl WebsocatConfiguration2 {
     pub fn lint_and_fixup<F>(&mut self, _on_warning: Rc<F>) -> super::Result<()> 
         where F: for<'a> Fn(&'a str) -> () + 'static
     {
-        // TODO: stdio usage status
-        // TODO: auto linemode
-        // 
-        unimplemented!()
-    }
-    
-    pub fn linemode(&mut self) ->  super::Result<()>  {
-        unimplemented!()
+        let mut reuser_has_been_inserted = false;
+        use self::StdioUsageStatus::{IsItself, WithReuser, Indirectly, None};
+        match (self.s1.stdio_usage_status(), self.s2.stdio_usage_status()) {
+            (_, None) => (),
+            (None, WithReuser) => (),
+            (None, IsItself) | (None, Indirectly) => {
+                if !self.opts.oneshot && self.s1.is_multiconnect() {
+                    self.s2.overlays.insert(0,
+                        Rc::new(super::broadcast_reuse_peer::BroadcastReuserClass));
+                    reuser_has_been_inserted = true;
+                }
+            },
+            (IsItself, IsItself) => {
+                info!("Special mode, expection from usual one-stdio rule. Acting like `cat(1)`");
+                self.s2 = SpecifierStack::from_str("mirror:")?;
+                if self.opts.unidirectional ^ self.opts.unidirectional_reverse {
+                    self.opts.unidirectional = false;
+                    self.opts.unidirectional_reverse = false;
+                }
+                return Ok(());
+            },
+            (_, _) => {
+                Err("Too many usages of stdin/stdout. Specify it either on left or right address, not on both.")?;
+            }
+        }
+        
+        if self.s1.reuser_count() + self.s2.reuser_count() > 1 {
+            if reuser_has_been_inserted {
+                error!("The reuser you specified conflicts with automatically inserted reuser based on usage of stdin/stdout in multiconnect mode.");
+            }
+            Err("Too many usages of connection reuser. Please limit to only one instance.")?;
+        }
+        
+        if !self.opts.no_auto_linemode {
+            match (self.s1.is_stream_oriented(), self.s2.is_stream_oriented()) {
+                (false,false) => {},
+                (true,true) => {},
+                (true,false) => {
+                    info!("Auto-inserting the line mode");
+                    self.s1.overlays.insert(0,
+                        Rc::new(super::line_peer::Line2MessageClass));
+                    self.s2.overlays.insert(0,
+                        Rc::new(super::line_peer::Message2LineClass));
+                },
+                (false, true) => {
+                    info!("Auto-inserting the line mode");
+                    self.s2.overlays.insert(0,
+                        Rc::new(super::line_peer::Line2MessageClass));
+                    self.s1.overlays.insert(0,
+                        Rc::new(super::line_peer::Message2LineClass));
+                }
+            }
+        }
+        
+        Ok(())
     }
 }
 

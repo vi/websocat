@@ -48,7 +48,7 @@ Example: TODO
 pub struct Line2Message<T: Specifier>(pub T);
 impl<T: Specifier> Specifier for Line2Message<T> {
     fn construct(&self, cp: ConstructParams) -> PeerConstructor {
-        let retain_newlines = cp.program_options.linemode_retain_newlines;
+        let retain_newlines = !cp.program_options.linemode_strip_newlines;
         let inner = self.0.construct(cp.clone());
         inner.map(move |p| line2packet_peer(p, retain_newlines))
     }
