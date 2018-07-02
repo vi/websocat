@@ -180,6 +180,7 @@ impl WebsocatConfiguration2 {
                 (true,true) => {},
                 (true,false) => {
                     info!("Auto-inserting the line mode");
+                    // TODO: insert after reuser, not before
                     self.s1.overlays.insert(0,
                         Rc::new(super::line_peer::Line2MessageClass));
                     self.s2.overlays.insert(0,
