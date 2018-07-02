@@ -41,7 +41,7 @@ Short list of specifiers (see --long-help):
   unix-dgram: abstract-connect: abstract-listen:
   exec: sh-c:
 ",
-    usage = "websocat [FLAGS] [OPTIONS] <addr1>          (simple mode)\n    websocat [FLAGS] [OPTIONS] <addr1> <addr2>  (advanced mode)"
+    usage = "websocat ws://URL | wss://URL               (simple client)\n    websocat -s port                            (simple server)\n    websocat [FLAGS] [OPTIONS] <addr1> <addr2>  (advanced mode)"
 )]
 struct Opt {
     /// In simple mode, WebSocket URL to connect.
@@ -74,9 +74,14 @@ struct Opt {
     exit_on_eof: bool,
 
     #[structopt(
-        short = "t", long = "text", help = "Send text WebSocket messages instead of binary"
+        short = "t", long = "text", help = "Send message to WebSockets as text messages"
     )]
     websocket_text_mode: bool,
+    
+    #[structopt(
+        short = "b", long = "binary", help = "Send message to WebSockets as binary messages"
+    )]
+    websocket_binary_mode: bool,
 
     #[structopt(
         long = "oneshot", help = "Serve only once. Not to be confused with -1 (--one-message)"
@@ -128,9 +133,9 @@ struct Opt {
     linemode_strip_newlines: bool,
 
     #[structopt(
-        short = "-l", long = "--line", help = "Make each WebSocket message correspond to one line"
+        long = "--no-line", help = "Don't automatically insert line-to-message transformation"
     )]
-    linemode: bool,
+    no_auto_linemode: bool,
 
     #[structopt(long = "origin", help = "Add Origin HTTP header to websocket client request")]
     origin: Option<String>,
@@ -157,6 +162,14 @@ struct Opt {
         help = "Send and/or receive only one message. Use with --no-close and/or -u/-U."
     )]
     one_message: bool,
+    
+    #[structopt(
+        short = "s",
+        long = "server-mode",
+        help = "Simple server mode: specify TCP port or addr:port as single argument"
+    )]
+    server_mode: bool,
+    
     // TODO: -v --quiet
 }
 
@@ -331,6 +344,16 @@ fn run() -> Result<()> {
         return Ok(());
     }
 
+    let mut default_text = false;
+
+    if cmd.websocket_binary_mode && cmd.websocket_text_mode {
+        Err("--binary and --text are mutually exclusive")?;
+    }
+    if !cmd.websocket_binary_mode && !cmd.websocket_text_mode {
+        cmd.websocket_text_mode = true;
+        default_text = true;
+    }
+
     if false
     //    || cmd.oneshot
     {
@@ -366,21 +389,36 @@ fn run() -> Result<()> {
             websocket_version
             websocket_dont_close
             one_message
+            no_auto_linemode
         )
     };
 
     let (s1, s2) : (String,String) = if let Some(cmds2) = cmd.addr2 {
+        // Advanced mode
+        if default_text {
+            eprintln!("It is recommended to either set --binary or --text explicitly");
+        }
+        if cmd.server_mode {
+            Err("--server and two positional arguments are incompatible.\nBuild server command line without -s option, but with `listen` address types")?
+        }
         (cmd.addr1, cmds2)
     } else {
-        if !(cmd.addr1.starts_with("ws://") || cmd.addr1.starts_with("wss://")) {
-            // TODO: message for -s server mode
-            eprintln!("Specify ws:// or wss:// URI to connect to a websocket");
-            Err("Invalid command-line parameters")?;
-        }
         // Easy mode
-        cmd.linemode = true;
-        opts.websocket_text_mode = true;
-        ("-".to_string(), cmd.addr1)
+        if cmd.server_mode {
+            if cmd.addr1.contains(':') {
+                eprintln!("Listening on ws://{}/", cmd.addr1);
+                (format!("ws-l:{}", cmd.addr1), "-".to_string())
+            } else {
+                eprintln!("Listening on ws://127.0.0.1:{}/", cmd.addr1);
+                (format!("ws-l:127.0.0.1:{}", cmd.addr1), "-".to_string())
+            }
+        } else {
+            if !(cmd.addr1.starts_with("ws://") || cmd.addr1.starts_with("wss://")) {
+                eprintln!("Specify ws:// or wss:// URI to connect to a websocket");
+                Err("Invalid command-line parameters")?;
+            }
+            ("-".to_string(), cmd.addr1)
+        }
     };
 
     let websocat1 = WebsocatConfiguration1 { opts, addr1:s1, addr2:s2 };

@@ -304,7 +304,7 @@ impl WebsocatConfiguration2 {
             Err("Too many usages of connection reuser. Please limit to only one instance.")?;
         }
         
-        if !self.opts.no_auto_linemode {
+        if !self.opts.no_auto_linemode && self.opts.websocket_text_mode {
             match (self.s1.is_stream_oriented(), self.s2.is_stream_oriented()) {
                 (false,false) => {},
                 (true,true) => {},
