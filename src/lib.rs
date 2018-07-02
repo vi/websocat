@@ -20,6 +20,9 @@ extern crate log;
 #[macro_use]
 extern crate slab_typesafe;
 
+#[macro_use]
+extern crate smart_default;
+
 use futures::future::Future;
 use tokio_core::reactor::Handle;
 use tokio_io::{AsyncRead, AsyncWrite};
@@ -93,7 +96,7 @@ impl WebsocatConfiguration3 {
     }
 }
 
-#[derive(Default, Debug, Clone)]
+#[derive(SmartDefault, Debug, Clone)]
 pub struct Options {
     pub websocket_text_mode: bool,
     pub websocket_protocol: Option<String>,
@@ -112,6 +115,7 @@ pub struct Options {
     pub websocket_dont_close: bool,
     pub one_message: bool,
     pub no_auto_linemode: bool,
+    #[default = "65536"]
     pub buffer_size: usize,
 }
 
@@ -566,7 +570,7 @@ impl Session {
         };
         let f1 = my_copy::copy(self.0.from, self.0.to, co);
         let f2 = my_copy::copy(self.1.from, self.1.to, co);
-
+        // TODO: properly shutdown in unidirectional mode
         let f1 = f1.and_then(|(_, r, w)| {
             info!("Forward finished");
             std::mem::drop(r);
