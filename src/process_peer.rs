@@ -164,11 +164,11 @@ impl AsyncRead for ProcessPeer {}
 
 impl AsyncWrite for ProcessPeer {
     fn shutdown(&mut self) -> futures::Poll<(), std::io::Error> {
-        self.0
+        let mut c : tokio_process::ChildStdin = self.0
             .borrow_mut()
             .stdin()
-            .as_mut()
-            .expect("assertion failed 1425")
-            .shutdown()
+            .take()
+            .expect("assertion failed 1425");
+        c.shutdown()
     }
 }

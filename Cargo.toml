@@ -39,6 +39,10 @@ signal_handler = ["tokio-signal"]
 workaround1=["libc"]
 seqpacket=["libc"]
 
+[replace]
+#"tokio-process:0.1.6" = {path="/mnt/src/git/tokio-process"}
+#"tokio-core:0.1.12" = {path="/mnt/src/git/tokio-core"}
+
 [dev-dependencies]
 tokio-timer = "=0.1.2"
 
