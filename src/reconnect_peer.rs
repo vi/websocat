@@ -20,24 +20,7 @@ use futures::{Async, Future, Poll};
 pub struct AutoReconnect(pub Rc<Specifier>);
 impl Specifier for AutoReconnect {
     fn construct(&self, cp: ConstructParams) -> PeerConstructor {
-        let mut subspec_globalstate = false;
-
-        for i in self.0.get_info().collect() {
-            if i.uses_global_state {
-                subspec_globalstate = true;
-            }
-        }
-
-        if subspec_globalstate {
-            let e: Box<::std::error::Error> =
-                "Can't use autoreconnect on a specifier that uses global state"
-                    .to_owned()
-                    .into();
-            once(Box::new(::futures::future::err(e)) as BoxedNewPeerFuture)
-        } else {
-            //let inner = self.0.construct(h, ps).get_only_first_conn();
-            once(autoreconnector(self.0.clone(), cp))
-        }
+        once(autoreconnector(self.0.clone(), cp))
     }
     specifier_boilerplate!(singleconnect noglobalstate has_subspec typ=Other);
     self_0_is_subspecifier!(...);

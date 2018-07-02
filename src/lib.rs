@@ -137,16 +137,6 @@ pub struct Peer(Box<AsyncRead>, Box<AsyncWrite>);
 pub type BoxedNewPeerFuture = Box<Future<Item = Peer, Error = Box<std::error::Error>>>;
 pub type BoxedNewPeerStream = Box<Stream<Item = Peer, Error = Box<std::error::Error>>>;
 
-/// For checking specifier combinations for problems
-#[derive(Eq, PartialEq, Debug, Clone, Copy)]
-pub enum SpecifierType {
-    Stdio,
-    Reuser,
-    Other,
-    Line,
-    WebSocket,
-}
-
 pub enum ClassMessageBoundaryStatus {
     StreamOriented,
     MessageOriented,
@@ -300,32 +290,6 @@ pub struct SpecifierStack {
 #[macro_use]
 pub mod all_peers;
 
-#[derive(Debug, Clone, Copy)]
-pub struct OneSpecifierInfo {
-    pub multiconnect: bool,
-    pub uses_global_state: bool,
-    pub typ: SpecifierType,
-}
-
-#[derive(Debug, Clone)]
-pub struct SpecifierInfo {
-    pub this: OneSpecifierInfo,
-    pub subspecifier: Option<Box<SpecifierInfo>>,
-}
-
-impl SpecifierInfo {
-    fn collect(&self) -> Vec<OneSpecifierInfo> {
-        let mut r = vec![];
-        r.push(self.this);
-        // on newer Rust can do without cloning
-        let mut ss = self.clone().subspecifier;
-        while let Some(sub) = ss {
-            r.push(sub.this);
-            ss = sub.subspecifier;
-        }
-        r
-    }
-}
 
 #[derive(Clone)]
 pub struct ConstructParams {
@@ -345,25 +309,6 @@ pub trait Specifier: std::fmt::Debug {
     // Specified by `specifier_boilerplate!`:
     fn is_multiconnect(&self) -> bool;
     fn uses_global_state(&self) -> bool;
-    fn get_type(&self) -> SpecifierType;
-    //fn get_class(&self) -> SpecifierClass;
-
-    // May be overridden by `self_0_is_subspecifier`:
-    fn get_info(&self) -> SpecifierInfo {
-        SpecifierInfo {
-            this: self.get_info_without_subspecs(),
-            subspecifier: None,
-        }
-    }
-
-    // Provided:
-    fn get_info_without_subspecs(&self) -> OneSpecifierInfo {
-        OneSpecifierInfo {
-            multiconnect: self.is_multiconnect(),
-            uses_global_state: self.uses_global_state(),
-            typ: self.get_type(),
-        }
-    }
 }
 
 impl Specifier for Rc<Specifier> {
@@ -374,18 +319,8 @@ impl Specifier for Rc<Specifier> {
     fn is_multiconnect(&self) -> bool {
         (**self).is_multiconnect()
     }
-    fn get_type(&self) -> SpecifierType {
-        (**self).get_type()
-    }
     fn uses_global_state(&self) -> bool {
         (**self).uses_global_state()
-    }
-
-    fn get_info_without_subspecs(&self) -> OneSpecifierInfo {
-        (**self).get_info_without_subspecs()
-    }
-    fn get_info(&self) -> SpecifierInfo {
-        (**self).get_info()
     }
 }
 
@@ -405,7 +340,7 @@ macro_rules! specifier_boilerplate {
         specifier_boilerplate!($($e)*);
     };
     (typ=$tn:ident $($e:tt)*) => {
-        fn get_type(&self) -> $crate::SpecifierType { $crate::SpecifierType::$tn }
+        //fn get_type(&self) -> $crate::SpecifierType { $crate::SpecifierType::$tn }
         specifier_boilerplate!($($e)*);
     };
     () => {
@@ -422,12 +357,7 @@ macro_rules! specifier_boilerplate {
 
 macro_rules! self_0_is_subspecifier {
     (...) => {
-        fn get_info(&self) -> $crate::SpecifierInfo {
-            $crate::SpecifierInfo {
-                this: self.get_info_without_subspecs(),
-                subspecifier: Some(Box::new(self.0.get_info())),
-            }
-        }
+       // removed with old linter
     };
     (proxy_is_multiconnect) => {
         self_0_is_subspecifier!(...);
