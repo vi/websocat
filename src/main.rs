@@ -175,7 +175,15 @@ struct Opt {
         long = "no-fixups",
         help = "[A] Don't perform automatic command-line fixups. May destabilize websocat operation. Use --dump-spec without --no-fixups to discover what is being inserted automatically and read the full manual about Websocat internal workings.",
     )]
-    no_lints: bool
+    no_lints: bool,
+    
+    #[structopt(
+        short = "B",
+        long = "buffer-size",
+        help = "Maximum message size, in bytes",
+        default_value = "65536",
+    )]
+    buffer_size: usize,
     // TODO: -v --quiet
 }
 
@@ -396,6 +404,7 @@ fn run() -> Result<()> {
             websocket_dont_close
             one_message
             no_auto_linemode
+            buffer_size
         )
     };
 

@@ -1,5 +1,3 @@
-#![allow(unused)]
-
 extern crate futures;
 extern crate tokio_io;
 
@@ -7,12 +5,12 @@ use futures::future::ok;
 use std::cell::RefCell;
 use std::rc::Rc;
 
-use super::{brokenpipe, io_other_error, simple_err, wouldblock, BoxedNewPeerFuture, Peer};
+use super::{brokenpipe, simple_err, wouldblock, BoxedNewPeerFuture, Peer};
 
 use std::io::{Error as IoError, Read, Write};
 use tokio_io::{AsyncRead, AsyncWrite};
 
-use super::{once, ConstructParams, Handle, Options, PeerConstructor, ProgramState, Specifier};
+use super::{once, ConstructParams, Handle, PeerConstructor, Specifier};
 use futures::Async;
 use futures::AsyncSink;
 use futures::Future;
@@ -31,8 +29,9 @@ impl Specifier for BroadcastReuser {
     fn construct(&self, p: ConstructParams) -> PeerConstructor {
         let mut reuser = p.global_state.borrow_mut().reuser2.clone();
         let h = p.tokio_handle.clone();
+        let bs = p.program_options.buffer_size;
         let inner = || self.0.construct(p).get_only_first_conn();
-        once(connection_reuser(&h, &mut reuser, inner))
+        once(connection_reuser(&h, &mut reuser, inner, bs))
     }
     specifier_boilerplate!(singleconnect has_subspec typ=Reuser globalstate);
     self_0_is_subspecifier!(...);
@@ -88,7 +87,7 @@ impl Future for InnerPeerReader {
     fn poll(&mut self) -> futures::Poll<(), ()> {
         loop {
             let mut meb = self.0.borrow_mut();
-            let mut me = meb.as_mut().expect("Assertion failed 16293");
+            let me = meb.as_mut().expect("Assertion failed 16293");
             match me.inner_peer.0.read(&mut self.1[..]) {
                 Ok(0) => {
                     info!("Underlying peer finished");
@@ -216,6 +215,7 @@ pub fn connection_reuser<F: FnOnce() -> BoxedNewPeerFuture>(
     h: &Handle,
     s: &mut GlobalState,
     inner_peer: F,
+    buffer_size : usize,
 ) -> BoxedNewPeerFuture {
     let need_init = s.borrow().is_none();
 
@@ -231,7 +231,7 @@ pub fn connection_reuser<F: FnOnce() -> BoxedNewPeerFuture>(
                     inner_peer: inner,
                     clients: Clients::new(),
                 });
-                hh.spawn(InnerPeerReader(rc.clone(), vec![0; 65536]));
+                hh.spawn(InnerPeerReader(rc.clone(), vec![0; buffer_size]));
             }
 
             let ps: HBroadCaster = rc.clone();

@@ -112,6 +112,7 @@ pub struct Options {
     pub websocket_dont_close: bool,
     pub one_message: bool,
     pub no_auto_linemode: bool,
+    pub buffer_size: usize,
 }
 
 #[derive(Default)]
@@ -558,8 +559,13 @@ pub struct Session(Transfer, Transfer, Rc<Options>);
 impl Session {
     pub fn run(self) -> Box<Future<Item = (), Error = Box<std::error::Error>>> {
         let once = self.2.one_message;
-        let f1 = my_copy::copy(self.0.from, self.0.to, true, once);
-        let f2 = my_copy::copy(self.1.from, self.1.to, true, once);
+        let co = my_copy::CopyOptions {
+            stop_on_reader_zero_read: true,
+            once,
+            buffer_size: self.2.buffer_size,
+        };
+        let f1 = my_copy::copy(self.0.from, self.0.to, co);
+        let f2 = my_copy::copy(self.1.from, self.1.to, co);
 
         let f1 = f1.and_then(|(_, r, w)| {
             info!("Forward finished");
@@ -577,6 +583,7 @@ impl Session {
                 std::mem::drop(w);
             })
         });
+        
         let (unif, unir, eeof) = (
             self.2.unidirectional,
             self.2.unidirectional_reverse,

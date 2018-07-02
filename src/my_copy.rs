@@ -4,6 +4,13 @@ use futures::{Future, Poll};
 
 use {AsyncRead, AsyncWrite};
 
+#[derive(Debug,Copy,Clone)]
+pub struct CopyOptions {
+    pub stop_on_reader_zero_read: bool, 
+    pub once: bool,
+    pub buffer_size: usize,
+}
+
 /// A future which will copy all data from a reader into a writer.
 /// A modified version of tokio_io::copy::Copy.
 ///
@@ -20,8 +27,7 @@ pub struct Copy<R, W> {
     cap: usize,
     amt: u64,
     buf: Box<[u8]>,
-    stop_on_reader_zero_read: bool,
-    once: bool,
+    opts: CopyOptions,
     read_occurred: bool,
 }
 
@@ -39,7 +45,7 @@ pub struct Copy<R, W> {
 ///
 /// Unlike original tokio_io::copy::copy, it does not always stop on zero length reads
 /// , handles BrokenPipe error kind as EOF and flushes after every write
-pub fn copy<R, W>(reader: R, writer: W, stop_on_reader_zero_read: bool, once: bool) -> Copy<R, W>
+pub fn copy<R, W>(reader: R, writer: W, opts: CopyOptions) -> Copy<R, W>
 where
     R: AsyncRead,
     W: AsyncWrite,
@@ -52,9 +58,8 @@ where
         pos: 0,
         cap: 0,
         // TODO - de-hardcode buffer size
-        buf: Box::new([0; 65536]),
-        stop_on_reader_zero_read,
-        once,
+        buf: vec![0; opts.buffer_size].into_boxed_slice(),
+        opts,
         read_occurred: false,
     }
 }
@@ -73,7 +78,7 @@ where
             // continue.
             trace!("poll");
             if self.pos == self.cap && !self.read_done {
-                if self.read_occurred && self.once {
+                if self.read_occurred && self.opts.once {
                     self.read_done = true;
                     continue;
                 }
@@ -90,7 +95,7 @@ where
                 trace!("read {}", n);
                 if n == 0 {
                     debug!("zero len");
-                    if self.stop_on_reader_zero_read {
+                    if self.opts.stop_on_reader_zero_read {
                         debug!("read_done");
                         self.read_done = true;
                     }
