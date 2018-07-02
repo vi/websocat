@@ -29,7 +29,7 @@ impl Specifier for Reuser {
 specifier_class!(
     name = ReuserClass,
     target = Reuser,
-    prefixes = ["reuse:"],
+    prefixes = ["reuse-raw:","raw-reuse:"],
     arg_handling = subspec,
     overlay = true,
     MessageBoundaryStatusDependsOnInnerType,

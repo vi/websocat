@@ -42,7 +42,7 @@ impl Specifier for BroadcastReuser {
 specifier_class!(
     name = BroadcastReuserClass,
     target = BroadcastReuser,
-    prefixes = ["reuse-broadcast:", "broadcast-reuse:", "broadcast:"],
+    prefixes = ["reuse:", "reuse-broadcast:", "broadcast-reuse:", "broadcast:"],
     arg_handling = subspec,
     overlay = true,
     MessageBoundaryStatusDependsOnInnerType,

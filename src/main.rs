@@ -133,7 +133,7 @@ struct Opt {
     linemode_strip_newlines: bool,
 
     #[structopt(
-        long = "--no-line", help = "Don't automatically insert line-to-message transformation"
+        long = "--no-line", help = "[A] Don't automatically insert line-to-message transformation"
     )]
     no_auto_linemode: bool,
 
@@ -170,6 +170,12 @@ struct Opt {
     )]
     server_mode: bool,
     
+    
+    #[structopt(
+        long = "no-fixups",
+        help = "[A] Don't perform automatic command-line fixups. May destabilize websocat operation. Use --dump-spec without --no-fixups to discover what is being inserted automatically and read the full manual about Websocat internal workings.",
+    )]
+    no_lints: bool
     // TODO: -v --quiet
 }
 
@@ -423,9 +429,11 @@ fn run() -> Result<()> {
 
     let websocat1 = WebsocatConfiguration1 { opts, addr1:s1, addr2:s2 };
     let mut websocat2 = websocat1.parse1()?;
-    websocat2.lint_and_fixup(std::rc::Rc::new(|e:&str| {
-        eprintln!("{}", e);
-    }))?;
+    if ! cmd.no_lints {
+        websocat2.lint_and_fixup(std::rc::Rc::new(|e:&str| {
+            eprintln!("{}", e);
+        }))?;
+    }
     let websocat = websocat2.parse2()?;
 
     if cmd.dumpspec {

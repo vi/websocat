@@ -114,16 +114,40 @@ impl SpecifierStackExt for SpecifierStack {
 }
 
 impl WebsocatConfiguration2 {
-    pub fn lint_and_fixup<F>(&mut self, _on_warning: Rc<F>) -> super::Result<()> 
+    #[cfg_attr(rustfmt, rustfmt_skip)]
+    pub fn websocket_used(&self) -> bool {
+        false 
+        || self.contains_class("WsConnectClass")
+        || self.contains_class("WsClientClass")
+        || self.contains_class("WsClientSecureClass")
+        || self.contains_class("WsServerClass")
+    }
+    
+    pub fn contains_class(&self, x:&'static str) -> bool {
+        self.s1.contains(x) || self.s2.contains(x)
+    }
+    
+    pub fn get_exec_parameter(&self) -> Option<&str> {
+        if self.s1.addrtype.get_name() == "ExecClass" {
+            return Some(self.s1.addr.as_str());
+        } 
+        if self.s2.addrtype.get_name() == "ExecClass" {
+            return Some(self.s2.addr.as_str());
+        }
+        None
+    }
+
+    pub fn lint_and_fixup<F>(&mut self, on_warning: Rc<F>) -> super::Result<()> 
         where F: for<'a> Fn(&'a str) -> () + 'static
     {
         let mut reuser_has_been_inserted = false;
+        let multiconnect = !self.opts.oneshot && self.s1.is_multiconnect();
         use self::StdioUsageStatus::{IsItself, WithReuser, Indirectly, None};
         match (self.s1.stdio_usage_status(), self.s2.stdio_usage_status()) {
             (_, None) => (),
             (None, WithReuser) => (),
             (None, IsItself) | (None, Indirectly) => {
-                if !self.opts.oneshot && self.s1.is_multiconnect() {
+                if multiconnect {
                     self.s2.overlays.insert(0,
                         Rc::new(super::broadcast_reuse_peer::BroadcastReuserClass));
                     reuser_has_been_inserted = true;
@@ -171,14 +195,29 @@ impl WebsocatConfiguration2 {
             }
         }
         
-        // TODO: listener at right
-        // TODO: UDP connect oneshot mode
-        // TODO: early fail for reuse:
-        // TODO: writefile and reuse:
-        // TODO: warn about reuse: for non-stdio
-        // TODO: multiple exec:s
-        // TODO: exec: without --exec-args
+        if !self.opts.oneshot && self.s2.is_multiconnect() && !self.s1.is_multiconnect() {
+            on_warning("You have specified a listener on the right (as the second positional argument) instead of on the left. It will only serve one connection.\nChange arguments order to enable multiple parallel connections or use --oneshot argument to make single connection explicit.");
+        }
         
+        if multiconnect && (self.s2.addrtype.get_name() == "WriteFileClass" || self.s2.addrtype.get_name() == "AppendFileClass") && self.s2.reuser_count() == 0 {
+            info!("Auto-inserting the reuser");
+            self.s2.overlays.push(Rc::new(super::primitive_reuse_peer::ReuserClass));
+        }
+        
+        
+        if self.s1.addrtype.get_name() == "ExecClass" && self.s2.addrtype.get_name() == "ExecClass" {
+            Err("Can't use exec: more than one time. Replace one of them with sh-c: or cmd:.")?;
+        }
+        
+        if let Some(x) = self.get_exec_parameter() {
+            if self.opts.exec_args.is_empty() && x.contains(' ') {
+                on_warning("Warning: you specified exec: without the corresponding --exec-args at the end of command line. Unlike in cmd: or sh-c:, spaces inside exec:'s direct parameter are interpreted as part of program name, not as separator.");
+            }
+        }
+        
+        // TODO: UDP connect oneshot mode
+        
+        // TODO: tests for the linter
         Ok(())
     }
 }
