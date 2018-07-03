@@ -9,9 +9,9 @@ use std::rc::Rc;
 
 use self::websocket::server::upgrade::async::IntoWs;
 
+use super::readdebt::{DebtHandling, ReadDebt};
 use super::ws_peer::{Mode1, PeerForWs, WsReadWrapper, WsWriteWrapper};
 use super::{box_up_err, io_other_error, BoxedNewPeerFuture, Peer};
-use super::readdebt::{DebtHandling,ReadDebt};
 use super::{ConstructParams, PeerConstructor, Specifier};
 
 #[derive(Debug)]
@@ -48,11 +48,10 @@ Example: serve incoming connection from socat
 "#
 );
 
-
 specifier_alias!(
     name = WsTcpServerClass,
     prefixes = ["ws-listen:", "ws-l:", "l-ws:", "listen-ws:"],
-    alias="ws-u:tcp-l:",
+    alias = "ws-u:tcp-l:",
     help = r#"
 WebSocket server. Argument is host and port to listen.
 
@@ -66,11 +65,10 @@ Example: the same, but more verbose:
 "#
 );
 
-
 specifier_alias!(
     name = WsInetdServerClass,
     prefixes = ["inetd-ws:", "ws-inetd:"],
-    alias="ws-u:inetd:",
+    alias = "ws-u:inetd:",
     help = r#"
 WebSocket inetd server. [A]
 
@@ -81,7 +79,7 @@ TODO: transfer the example here
 specifier_alias!(
     name = WsUnixServerClass,
     prefixes = ["l-ws-unix:"],
-    alias="ws-l:unix-l:",
+    alias = "ws-l:unix-l:",
     help = r#"
 WebSocket UNIX socket-based server. [A]
 "#
@@ -90,7 +88,7 @@ WebSocket UNIX socket-based server. [A]
 specifier_alias!(
     name = WsAbstractUnixServerClass,
     prefixes = ["l-ws-abstract:"],
-    alias="ws-l:abstract-l:",
+    alias = "ws-l:abstract-l:",
     help = r#"
 WebSocket abstract-namespaced UNIX socket server. [A]
 "#
@@ -110,7 +108,11 @@ WebSocket abstract-namespaced UNIX socket server. [A]
             boxup(super::ws_server_peer::WsUpgrade(spec(x)?))
 */
 
-pub fn ws_upgrade_peer(inner_peer: Peer, mode1: Mode1, ws_read_debt_handling:DebtHandling) -> BoxedNewPeerFuture {
+pub fn ws_upgrade_peer(
+    inner_peer: Peer,
+    mode1: Mode1,
+    ws_read_debt_handling: DebtHandling,
+) -> BoxedNewPeerFuture {
     let step1 = PeerForWs(inner_peer);
     let step2: Box<
         Future<Item = self::websocket::server::upgrade::async::Upgrade<_>, Error = _>,

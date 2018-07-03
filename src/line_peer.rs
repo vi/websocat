@@ -16,7 +16,7 @@ impl<T: Specifier> Specifier for Message2Line<T> {
     fn construct(&self, cp: ConstructParams) -> PeerConstructor {
         let inner = self.0.construct(cp.clone());
         let zt = cp.program_options.linemode_zero_terminated;
-        inner.map(move |p| packet2line_peer(p,zt))
+        inner.map(move |p| packet2line_peer(p, zt))
     }
     specifier_boilerplate!(typ=Line noglobalstate has_subspec);
     self_0_is_subspecifier!(proxy_is_multiconnect);
@@ -55,7 +55,7 @@ impl<T: Specifier> Specifier for Line2Message<T> {
         let strict = cp.program_options.linemode_strict;
         let nullt = cp.program_options.linemode_zero_terminated;
         let inner = self.0.construct(cp.clone());
-        inner.map(move |p| line2packet_peer(p, retain_newlines,strict,nullt))
+        inner.map(move |p| line2packet_peer(p, retain_newlines, strict, nullt))
     }
     specifier_boilerplate!(typ=Line noglobalstate has_subspec);
     self_0_is_subspecifier!(proxy_is_multiconnect);
@@ -102,9 +102,9 @@ impl Read for Packet2LineWrapper {
         if n == 0 {
             return Ok(n);
         }
-        if ! self.1 {
+        if !self.1 {
             // newline-terminated
-            
+
             // chomp away \n or \r\n
             if n > 0 && b[n - 1] == b'\n' {
                 n -= 1;
@@ -140,7 +140,12 @@ impl Read for Packet2LineWrapper {
 }
 impl AsyncRead for Packet2LineWrapper {}
 
-pub fn line2packet_peer(inner_peer: Peer, retain_newlines: bool, strict:bool, null_terminated:bool) -> BoxedNewPeerFuture {
+pub fn line2packet_peer(
+    inner_peer: Peer,
+    retain_newlines: bool,
+    strict: bool,
+    null_terminated: bool,
+) -> BoxedNewPeerFuture {
     let filtered = Line2PacketWrapper {
         inner: inner_peer.0,
         queue: vec![],
@@ -164,7 +169,7 @@ struct Line2PacketWrapper {
 }
 
 impl Line2PacketWrapper {
-    #[cfg_attr(feature="cargo-clippy",allow(collapsible_if))]
+    #[cfg_attr(feature = "cargo-clippy", allow(collapsible_if))]
     fn deliver_the_line(&mut self, buf: &mut [u8], mut n: usize) -> Option<usize> {
         if n > buf.len() {
             if self.drop_too_long_lines {
@@ -190,7 +195,7 @@ impl Line2PacketWrapper {
                 }
             }
         }
-        
+
         buf[0..n].copy_from_slice(&self.queue[0..n]);
         drop(self.queue.drain(0..n));
         Some(n)
@@ -198,18 +203,14 @@ impl Line2PacketWrapper {
 }
 
 impl Read for Line2PacketWrapper {
-    #[cfg_attr(feature="cargo-clippy",allow(collapsible_if))]
+    #[cfg_attr(feature = "cargo-clippy", allow(collapsible_if))]
     fn read(&mut self, buf: &mut [u8]) -> Result<usize, IoError> {
         //eprint!("ql={} ", self.queue.len());
         if self.eof {
             return Ok(0);
         }
-        
-        let char_to_look_at = if self.null_terminated {
-            b'\x00'
-        } else {
-            b'\n'
-        };
+
+        let char_to_look_at = if self.null_terminated { b'\x00' } else { b'\n' };
         let mut queued_line_len = None;
         for i in 0..self.queue.len() {
             if self.queue[i] == char_to_look_at {
@@ -255,7 +256,9 @@ impl Read for Line2PacketWrapper {
             let happy_case = if !self.null_terminated {
                 self.queue.is_empty() && (!buf[0..(n - 1)].contains(&b'\n')) && buf[n - 1] == b'\n'
             } else {
-                self.queue.is_empty() && (!buf[0..(n - 1)].contains(&b'\x00')) && buf[n - 1] == b'\x00'
+                self.queue.is_empty()
+                    && (!buf[0..(n - 1)].contains(&b'\x00'))
+                    && buf[n - 1] == b'\x00'
             };
 
             if happy_case {

@@ -4,9 +4,9 @@ use futures::{Future, Poll};
 
 use {AsyncRead, AsyncWrite};
 
-#[derive(Debug,Copy,Clone)]
+#[derive(Debug, Copy, Clone)]
 pub struct CopyOptions {
-    pub stop_on_reader_zero_read: bool, 
+    pub stop_on_reader_zero_read: bool,
     pub once: bool,
     pub buffer_size: usize,
 }

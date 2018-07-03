@@ -17,7 +17,7 @@ use futures::Async::{NotReady, Ready};
 
 use super::{brokenpipe, io_other_error, wouldblock, Peer};
 
-use super::readdebt::{ReadDebt,ProcessMessageResult};
+use super::readdebt::{ProcessMessageResult, ReadDebt};
 
 type MultiProducerWsSink<T> = Rc<
     RefCell<
@@ -61,7 +61,9 @@ impl<T: WsStream + 'static> Read for WsReadWrapper<T> {
                     // And pings and their replies are not tested yet
                     match sink.start_send(om).map_err(io_other_error)? {
                         futures::AsyncSink::NotReady(_) => {
-                            warn!("dropped a ping request from websocket due to channel contention");
+                            warn!(
+                                "dropped a ping request from websocket due to channel contention"
+                            );
                         }
                         futures::AsyncSink::Ready => {
                             proceed = true;
@@ -70,7 +72,7 @@ impl<T: WsStream + 'static> Read for WsReadWrapper<T> {
                     if proceed {
                         let _ = sink.poll_complete().map_err(io_other_error)?;
                     }
-    
+
                     Ok(0)
                 }
                 Ready(Some(OwnedMessage::Pong(_))) => {

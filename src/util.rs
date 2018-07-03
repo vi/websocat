@@ -1,5 +1,8 @@
-use super::{PeerConstructor,Peer,Rc,BoxedNewPeerFuture,BoxedNewPeerStream,std,futures,AsyncRead,AsyncWrite};
-use super::{Future,Stream};
+use super::{
+    futures, std, AsyncRead, AsyncWrite, BoxedNewPeerFuture, BoxedNewPeerStream, Peer,
+    PeerConstructor, Rc,
+};
+use super::{Future, Stream};
 
 pub fn wouldblock<T>() -> std::io::Result<T> {
     Err(std::io::Error::new(std::io::ErrorKind::WouldBlock, ""))

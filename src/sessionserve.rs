@@ -1,22 +1,13 @@
-use super::futures::{Future,Stream};
-use ::std::cell::RefCell;
-use ::std::rc::Rc;
-use ::tokio_io;
-use ::tokio_core::reactor::Handle;
-use ::std;
+use super::futures::{Future, Stream};
 use super::{
-    my_copy,
-    futures,
-    ProgramState,
-    L2rUser,
-    PeerConstructor,
-    Session,
-    Peer,
-    Options,
-    Transfer,
-    Specifier,
-    ConstructParams,
+    futures, my_copy, ConstructParams, L2rUser, Options, Peer, PeerConstructor, ProgramState,
+    Session, Specifier, Transfer,
 };
+use std;
+use std::cell::RefCell;
+use std::rc::Rc;
+use tokio_core::reactor::Handle;
+use tokio_io;
 
 impl Session {
     pub fn run(self) -> Box<Future<Item = (), Error = Box<std::error::Error>>> {
@@ -45,7 +36,7 @@ impl Session {
                 std::mem::drop(w);
             })
         });
-        
+
         let (unif, unir, eeof) = (
             self.2.unidirectional,
             self.2.unidirectional_reverse,

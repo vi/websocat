@@ -34,13 +34,13 @@ specifier_class!(
     target = WsClient,
     prefixes = ["ws://"],
     arg_handling = {
-        fn construct(
-            self: &WsClientClass,
-            arg: &str,
-        ) -> super::Result<Rc<Specifier>> {
-            Ok(Rc::new(WsClient(format!("ws:{}",arg).parse()?)))
+        fn construct(self: &WsClientClass, arg: &str) -> super::Result<Rc<Specifier>> {
+            Ok(Rc::new(WsClient(format!("ws:{}", arg).parse()?)))
         }
-        fn construct_overlay(self: &WsClientClass, _inner : Rc<Specifier>) -> super::Result<Rc<Specifier>> {
+        fn construct_overlay(
+            self: &WsClientClass,
+            _inner: Rc<Specifier>,
+        ) -> super::Result<Rc<Specifier>> {
             panic!("Error: construct_overlay called on non-overlay specifier class")
         }
     },
@@ -56,11 +56,10 @@ Example: connect to public WebSocket loopback and copy binary chunks from stdin 
 "#
 );
 
-
-#[cfg(feature="ssl")]
+#[cfg(feature = "ssl")]
 #[derive(Debug, Clone)]
 pub struct WsClientSecure(pub Url);
-#[cfg(feature="ssl")]
+#[cfg(feature = "ssl")]
 impl Specifier for WsClientSecure {
     fn construct(&self, p: ConstructParams) -> PeerConstructor {
         let url = self.0.clone();
@@ -68,19 +67,19 @@ impl Specifier for WsClientSecure {
     }
     specifier_boilerplate!(noglobalstate singleconnect no_subspec typ=WebSocket);
 }
-#[cfg(feature="ssl")]
+#[cfg(feature = "ssl")]
 specifier_class!(
     name = WsClientSecureClass,
     target = WsClientSecure,
     prefixes = ["wss://"],
     arg_handling = {
-        fn construct(
-            self: &WsClientSecureClass,
-            arg: &str,
-        ) -> super::Result<Rc<Specifier>> {
-            Ok(Rc::new(WsClient(format!("wss:{}",arg).parse()?)))
+        fn construct(self: &WsClientSecureClass, arg: &str) -> super::Result<Rc<Specifier>> {
+            Ok(Rc::new(WsClient(format!("wss:{}", arg).parse()?)))
         }
-        fn construct_overlay(self: &WsClientSecureClass, _inner : Rc<Specifier>) -> super::Result<Rc<Specifier>> {
+        fn construct_overlay(
+            self: &WsClientSecureClass,
+            _inner: Rc<Specifier>,
+        ) -> super::Result<Rc<Specifier>> {
             panic!("Error: construct_overlay called on non-overlay specifier class")
         }
     },
@@ -94,7 +93,6 @@ Example: forward TCP port 4554 to a websocket
 
     websocat tcp-l:127.0.0.1:4554 wss://127.0.0.1/some_websocket"#
 );
-
 
 #[derive(Debug)]
 pub struct WsConnect<T: Specifier>(pub T);

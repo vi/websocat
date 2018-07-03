@@ -10,8 +10,8 @@ use futures::Async::Ready;
 use std::rc::Rc;
 use tokio_io::{AsyncRead, AsyncWrite};
 
+use super::readdebt::{DebtHandling, ReadDebt};
 use super::wouldblock;
-use super::readdebt::{ReadDebt,DebtHandling};
 
 use super::{once, simple_err, ConstructParams, PeerConstructor, Specifier};
 

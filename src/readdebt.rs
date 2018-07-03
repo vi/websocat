@@ -1,6 +1,6 @@
-use ::std;
+use std;
 
-#[derive(Debug,Clone,Copy)]
+#[derive(Debug, Clone, Copy)]
 pub enum DebtHandling {
     Silent,
     Warn,
@@ -15,11 +15,7 @@ pub enum ProcessMessageResult {
 /// A `Read` utility to deal with partial reads
 pub struct ReadDebt(pub Option<Vec<u8>>, pub DebtHandling);
 impl ReadDebt {
-    pub fn process_message(
-        &mut self,
-        buf: &mut [u8],
-        buf_in: &[u8],
-    ) -> ProcessMessageResult {
+    pub fn process_message(&mut self, buf: &mut [u8], buf_in: &[u8]) -> ProcessMessageResult {
         assert_eq!(self.0, None);
         let mut l = buf_in.len();
         if l > buf.len() {
@@ -27,11 +23,11 @@ impl ReadDebt {
                 DebtHandling::Silent => (),
                 DebtHandling::Warn => {
                     warn!("Incoming message too long ({} > {}): splitting it to parts.\nUse -B option to increase buffer size.", l, buf.len());
-                },
+                }
                 DebtHandling::DropMessage => {
                     error!("Dropping too large message ({} > {}). Use -B option to increase buffer size.", l, buf.len());
                     return ProcessMessageResult::Recurse;
-                },
+                }
             }
             l = buf.len();
         }

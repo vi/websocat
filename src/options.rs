@@ -23,8 +23,8 @@ pub struct Options {
     #[default = "65536"]
     pub buffer_size: usize,
     #[default = "16"]
-    pub broadcast_queue_len : usize,
+    pub broadcast_queue_len: usize,
     #[default = "DebtHandling::Silent"]
-    pub read_debt_handling : DebtHandling,
+    pub read_debt_handling: DebtHandling,
     pub linemode_zero_terminated: bool,
 }

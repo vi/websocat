@@ -15,7 +15,7 @@ use futures::sync::mpsc;
 
 use tokio_io::{AsyncRead, AsyncWrite};
 
-use super::readdebt::{ReadDebt,DebtHandling,ProcessMessageResult};
+use super::readdebt::{DebtHandling, ProcessMessageResult, ReadDebt};
 use super::{once, ConstructParams, PeerConstructor, Specifier};
 
 #[derive(Debug, Clone)]
@@ -119,7 +119,7 @@ impl Read for MirrorRead {
                 Ok(Ready(None)) => brokenpipe(),
                 Ok(NotReady) => wouldblock(),
                 Err(_) => brokenpipe(),
-            }
+            };
         }
     }
 }
@@ -198,7 +198,7 @@ impl Read for LiteralReplyRead {
                 Ok(Ready(None)) => brokenpipe(),
                 Ok(NotReady) => wouldblock(),
                 Err(_) => brokenpipe(),
-            }
+            };
         }
     }
 }

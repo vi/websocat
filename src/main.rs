@@ -48,9 +48,7 @@ struct Opt {
     addr2: Option<String>,
 
     #[structopt(
-        short = "u",
-        long = "unidirectional",
-        help = "Inhibit copying data in one direction"
+        short = "u", long = "unidirectional", help = "Inhibit copying data in one direction"
     )]
     unidirectional: bool,
     #[structopt(
@@ -67,11 +65,9 @@ struct Opt {
     )]
     exit_on_eof: bool,
 
-    #[structopt(
-        short = "t", long = "text", help = "Send message to WebSockets as text messages"
-    )]
+    #[structopt(short = "t", long = "text", help = "Send message to WebSockets as text messages")]
     websocket_text_mode: bool,
-    
+
     #[structopt(
         short = "b", long = "binary", help = "Send message to WebSockets as binary messages"
     )]
@@ -82,7 +78,11 @@ struct Opt {
     )]
     oneshot: bool,
 
-    #[structopt(short = "h", long = "help", help = "See the help.\n--help=short is the list of easy options and address types\n--help=long lists all options and types (see [A] markers)\n--help=doc also shows longer description and examples.")]
+    #[structopt(
+        short = "h",
+        long = "help",
+        help = "See the help.\n--help=short is the list of easy options and address types\n--help=long lists all options and types (see [A] markers)\n--help=doc also shows longer description and examples."
+    )]
     help: Option<String>,
 
     #[structopt(
@@ -150,60 +150,52 @@ struct Opt {
         help = "Send and/or receive only one message. Use with --no-close and/or -u/-U."
     )]
     one_message: bool,
-    
+
     #[structopt(
         short = "s",
         long = "server-mode",
         help = "Simple server mode: specify TCP port or addr:port as single argument"
     )]
     server_mode: bool,
-    
-    
+
     #[structopt(
         long = "no-fixups",
-        help = "[A] Don't perform automatic command-line fixups. May destabilize websocat operation. Use --dump-spec without --no-fixups to discover what is being inserted automatically and read the full manual about Websocat internal workings.",
+        help = "[A] Don't perform automatic command-line fixups. May destabilize websocat operation. Use --dump-spec without --no-fixups to discover what is being inserted automatically and read the full manual about Websocat internal workings."
     )]
     no_lints: bool,
-    
+
     #[structopt(
         short = "B",
         long = "buffer-size",
         help = "Maximum message size, in bytes",
-        default_value = "65536",
+        default_value = "65536"
     )]
     buffer_size: usize,
-    
+
     #[structopt(
-        short = "v",
-        parse(from_occurrences),
-        help = "Increase verbosity level to info or further"
+        short = "v", parse(from_occurrences), help = "Increase verbosity level to info or further"
     )]
     verbosity: u8,
-    
-    #[structopt(
-        short = "q", 
-        help="Suppress all diagnostic messages, except of startup errors",
-    )]
+
+    #[structopt(short = "q", help = "Suppress all diagnostic messages, except of startup errors")]
     quiet: bool,
-    
+
     #[structopt(
-        long = "queue-len", 
-        help="[A] Number of pending queued messages for broadcast reuser",
-        default_value = "16",
+        long = "queue-len",
+        help = "[A] Number of pending queued messages for broadcast reuser",
+        default_value = "16"
     )]
-    broadcast_queue_len : usize,
-    
+    broadcast_queue_len: usize,
+
     #[structopt(
         short = "S",
         long = "strict",
-        help="strict line/message mode: drop too long messages instead of splitting them, drop incomplete lines.",
+        help = "strict line/message mode: drop too long messages instead of splitting them, drop incomplete lines."
     )]
     strict_mode: bool,
-    
+
     #[structopt(
-        short = "0",
-        long = "null-terminated",
-        help="Use \\0 instead of \\n for linemode",
+        short = "0", long = "null-terminated", help = "Use \\0 instead of \\n for linemode"
     )]
     linemode_zero_terminated: bool,
 }
@@ -228,14 +220,14 @@ pub mod help;
 
 // Based on https://github.com/rust-clique/clap-verbosity-flag/blob/master/src/lib.rs
 mod logging {
-    
-    extern crate log;
-    extern crate env_logger;
-    
-    use self::log::{Level};
-    use self::env_logger::Builder as LoggerBuilder;
 
-    pub fn setup_env_logger(ll : u8) -> Result<(), Box<::std::error::Error>> {
+    extern crate env_logger;
+    extern crate log;
+
+    use self::env_logger::Builder as LoggerBuilder;
+    use self::log::Level;
+
+    pub fn setup_env_logger(ll: u8) -> Result<(), Box<::std::error::Error>> {
         if ::std::env::var("RUST_LOG").is_ok() {
             if ll > 0 {
                 eprintln!("websocat: RUST_LOG environment variable overrides any -v");
@@ -243,15 +235,15 @@ mod logging {
             env_logger::init();
             return Ok(());
         }
-    
-        let lf =  match ll {
+
+        let lf = match ll {
             //0 => Level::Error,
             0 => Level::Warn,
             1 => Level::Info,
             2 => Level::Debug,
             _ => Level::Trace,
         }.to_level_filter();
-        
+
         LoggerBuilder::new()
             .filter(Some("websocat"), lf)
             .filter(None, Level::Warn.to_level_filter())
@@ -272,7 +264,7 @@ fn run() -> Result<()> {
     }
 
     let mut cmd = Opt::from_args();
-    
+
     let mut quiet = cmd.quiet;
 
     if let Some(h) = cmd.help {
@@ -283,7 +275,7 @@ fn run() -> Result<()> {
             help::dochelp();
             return Ok(());
         }
-    
+
         help::shorthelp();
         return Ok(());
     }
@@ -309,7 +301,7 @@ fn run() -> Result<()> {
         openssl_probe::init_ssl_cert_env_vars();
     }
 
-    let mut opts : Options = Default::default();
+    let mut opts: Options = Default::default();
     {
         macro_rules! opts {
             ($($o:ident)*) => {{
@@ -339,18 +331,18 @@ fn run() -> Result<()> {
         )
     };
 
-    let (s1,s2) : (String,String) = match (cmd.addr1, cmd.addr2) {
+    let (s1, s2): (String, String) = match (cmd.addr1, cmd.addr2) {
         (None, None) => {
             help::shorthelp();
             return Err("No URL specified")?;
-        },
+        }
         (Some(cmds1), Some(cmds2)) => {
             // Advanced mode
             if cmd.server_mode {
                 Err("--server and two positional arguments are incompatible.\nBuild server command line without -s option, but with `listen` address types")?
             }
             (cmds1, cmds2)
-        },
+        }
         (Some(cmds1), None) => {
             // Easy mode
             recommend_explicit_text_or_bin = false;
@@ -375,10 +367,10 @@ fn run() -> Result<()> {
                 }
                 ("-".to_string(), cmds1)
             }
-        },
+        }
         (None, Some(_)) => unreachable!(),
     };
-    
+
     if opts.websocket_text_mode {
         opts.read_debt_handling = websocat::readdebt::DebtHandling::Warn;
     }
@@ -387,22 +379,26 @@ fn run() -> Result<()> {
         opts.linemode_strict = true;
     }
 
-    let websocat1 = WebsocatConfiguration1 { opts, addr1:s1, addr2:s2 };
+    let websocat1 = WebsocatConfiguration1 {
+        opts,
+        addr1: s1,
+        addr2: s2,
+    };
     let mut websocat2 = websocat1.parse1()?;
-    
+
     if websocat2.inetd_mode() {
         quiet = true;
     }
-    
+
     if !quiet && recommend_explicit_text_or_bin {
         eprintln!("It is recommended to either set --binary or --text explicitly");
     }
     if !quiet {
         logging::setup_env_logger(cmd.verbosity)?;
     }
-    
-    if ! cmd.no_lints {
-        websocat2.lint_and_fixup(&move |e:&str| {
+
+    if !cmd.no_lints {
+        websocat2.lint_and_fixup(&move |e: &str| {
             if !quiet {
                 eprintln!("{}", e);
             }

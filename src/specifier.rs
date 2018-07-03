@@ -1,9 +1,9 @@
-use ::std;
-use std::rc::Rc;
+use super::{L2rUser, Options, Result};
+use super::{PeerConstructor, ProgramState};
+use std;
 use std::cell::RefCell;
-use ::Handle;
-use super::{ProgramState, PeerConstructor};
-use super::{Options, L2rUser, Result};
+use std::rc::Rc;
+use Handle;
 
 pub enum ClassMessageBoundaryStatus {
     StreamOriented,
@@ -20,7 +20,7 @@ pub enum ClassMulticonnectStatus {
 /// A trait for a each specified type's accompanying object
 ///
 /// Don't forget to register each instance at the `list_of_all_specifier_classes` macro.
-pub trait SpecifierClass : std::fmt::Debug {
+pub trait SpecifierClass: std::fmt::Debug {
     /// The primary name of the class
     fn get_name(&self) -> &'static str;
     /// Names to match command line parameters against, with a `:` colon if needed
@@ -36,7 +36,7 @@ pub trait SpecifierClass : std::fmt::Debug {
     fn is_overlay(&self) -> bool;
     /// True if it is not expected to preserve message boundaries on reads
     fn message_boundary_status(&self) -> ClassMessageBoundaryStatus;
-    
+
     fn multiconnect_status(&self) -> ClassMulticonnectStatus;
     /// If it is Some then is_overlay, construct and most other things are ignored and prefix get replaced...
     fn alias_info(&self) -> Option<&'static str>;
@@ -154,8 +154,6 @@ pub struct SpecifierStack {
     pub addrtype: Rc<SpecifierClass>,
     pub overlays: Vec<Rc<SpecifierClass>>,
 }
-
-
 
 #[derive(Clone)]
 pub struct ConstructParams {

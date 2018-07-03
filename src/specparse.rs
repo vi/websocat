@@ -6,7 +6,7 @@ pub fn spec(s: &str) -> Result<Rc<Specifier>> {
     Specifier::from_stack(&SpecifierStack::from_str(s)?)
 }
 
-fn some_checks(s:&str) -> Result<()> {
+fn some_checks(s: &str) -> Result<()> {
     #[cfg(not(feature = "ssl"))]
     {
         if s.starts_with("wss://") {
@@ -20,7 +20,7 @@ fn some_checks(s:&str) -> Result<()> {
             warn!("Abstract-namespaced UNIX sockets are unlikely to be supported here");
         }
     }
-    
+
     if s.starts_with("open:") {
         return Err("There is no `open:` address type. Consider `open-async:` or `readfile:` or `writefile:` or `appendfile:`")?;
     }
@@ -46,16 +46,16 @@ fn some_checks(s:&str) -> Result<()> {
 
 impl FromStr for SpecifierStack {
     type Err = Box<::std::error::Error>;
-    #[cfg_attr(feature = "cargo-clippy",allow(cyclomatic_complexity))]
+    #[cfg_attr(feature = "cargo-clippy", allow(cyclomatic_complexity))]
     fn from_str(s: &str) -> Result<SpecifierStack> {
         some_checks(s)?;
-    
+
         let mut s = s.to_string();
         let mut overlays = vec![];
         let addrtype;
         let addr;
         let mut found = false;
-        
+
         'a: loop {
             macro_rules! my {
                 ($x:expr) => {
@@ -72,7 +72,8 @@ impl FromStr for SpecifierStack {
                             } else {
                                 addr = rest.to_string();
                                 addrtype = Rc::new($x) as Rc<SpecifierClass>;
-                                #[allow(unused_assignments)] {
+                                #[allow(unused_assignments)]
+                                {
                                     found = true;
                                 }
                                 break 'a;
@@ -82,12 +83,16 @@ impl FromStr for SpecifierStack {
                 };
             }
             list_of_all_specifier_classes!(my);
-            if ! found {
+            if !found {
                 Err(format!("Unknown address or overlay type of `{}`", s))?;
             }
         }
-        
-        Ok(SpecifierStack { addr, addrtype, overlays })
+
+        Ok(SpecifierStack {
+            addr,
+            addrtype,
+            overlays,
+        })
     }
 }
 

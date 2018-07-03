@@ -114,7 +114,10 @@ pub type BoxedNewPeerStream = Box<Stream<Item = Peer, Error = Box<std::error::Er
 
 #[macro_use]
 pub mod specifier;
-pub use specifier::{ClassMessageBoundaryStatus, ClassMulticonnectStatus, SpecifierClass, SpecifierStack, Specifier, ConstructParams};
+pub use specifier::{
+    ClassMessageBoundaryStatus, ClassMulticonnectStatus, ConstructParams, Specifier,
+    SpecifierClass, SpecifierStack,
+};
 
 #[macro_use]
 pub mod all_peers;
@@ -122,8 +125,7 @@ pub mod all_peers;
 pub mod lints;
 mod my_copy;
 
-pub use util::{wouldblock,brokenpipe,io_other_error};
-
+pub use util::{brokenpipe, io_other_error, wouldblock};
 
 #[cfg(all(unix, feature = "unix_stdio"))]
 pub mod stdio_peer;
@@ -160,12 +162,9 @@ pub enum PeerConstructor {
 }
 
 pub mod util;
-pub use util::{once,multi,peer_err,peer_err_s,peer_strerr,simple_err,box_up_err};
-
+pub use util::{box_up_err, multi, once, peer_err, peer_err_s, peer_strerr, simple_err};
 
 pub mod readdebt;
-
-
 
 pub use specparse::spec;
 

@@ -1,6 +1,6 @@
-use super::{Opt,SpecifierClass,StructOpt};
+use super::{Opt, SpecifierClass, StructOpt};
 
-fn spechelp(sc: &SpecifierClass, overlays:bool, advanced:bool) {
+fn spechelp(sc: &SpecifierClass, overlays: bool, advanced: bool) {
     if !advanced && sc.help().contains("[A]") {
         return;
     }
@@ -9,7 +9,7 @@ fn spechelp(sc: &SpecifierClass, overlays:bool, advanced:bool) {
     }
 
     let first_prefix = sc.get_prefixes()[0];
-    
+
     let mut first_help_line = None;
     for l in sc.help().lines() {
         if !l.trim().is_empty() {
@@ -79,7 +79,7 @@ pub fn shorthelp() {
     for l in lines_to_display {
         println!("{}", l);
     }
-    
+
     println!("\nPartial list of address types:");
 
     macro_rules! my {
@@ -97,7 +97,7 @@ pub fn shorthelp() {
         };
     }
     list_of_all_specifier_classes!(my);
-    
+
     println!("See more address types with the --help=long option.");
     println!("See short examples and --dump-spec names for most address types and overlays with --help=doc option");
 }
@@ -125,26 +125,22 @@ pub fn longhelp() {
         };
     }
     list_of_all_specifier_classes!(my);
- 
 }
 
-
-fn specdoc(sc: &SpecifierClass, overlays:bool) {
+fn specdoc(sc: &SpecifierClass, overlays: bool) {
     if sc.is_overlay() ^ overlays {
         return;
     }
-    
+
     let first_prefix = sc.get_prefixes()[0];
     let spec_name = sc.get_name().replace("Class", "");
-    
-    let other_prefixes = sc
-        .get_prefixes()
-        [1..]
+
+    let other_prefixes = sc.get_prefixes()[1..]
         .iter()
         .map(|x| format!("`{}`", x))
         .collect::<Vec<_>>()
         .join(", ");
-        
+
     println!(r#"### `{}`"#, first_prefix);
     println!();
     if !other_prefixes.is_empty() {
@@ -164,9 +160,7 @@ fn specdoc(sc: &SpecifierClass, overlays:bool) {
     println!("{}\n", help);
 }
 
-
-pub fn dochelp() {   
-
+pub fn dochelp() {
     println!(r#"
 # Websocat Reference (in progress)
 
@@ -203,7 +197,8 @@ Some address types may be "aliases" to other address types or combinations of ov
 
     let _ = a.print_help();
 
-println!(r#"
+    println!(
+        r#"
 
 ```
 
@@ -211,7 +206,8 @@ println!(r#"
 
 "Advanced" address types are denoted by `[A]` marker.
 
-"#);
+"#
+    );
 
     macro_rules! my {
         ($x:expr) => {
@@ -219,14 +215,16 @@ println!(r#"
         };
     }
     list_of_all_specifier_classes!(my);
-    
-println!(r#"
+
+    println!(
+        r#"
 
 # Full list of overlays
 
 "Advanced" overlays denoted by `[A]` marker.
 
-"#);
+"#
+    );
 
     macro_rules! my {
         ($x:expr) => {
@@ -254,5 +252,6 @@ then connect to a websocket using previous step as a transport,
 then forward resulting connection to the TCP port.
 
 (Excercise to the reader: manage to make it actually connect to 5678).
-"#);
+"#
+    );
 }

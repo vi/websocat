@@ -41,7 +41,12 @@ impl Specifier for BroadcastReuser {
 specifier_class!(
     name = BroadcastReuserClass,
     target = BroadcastReuser,
-    prefixes = ["broadcast:", "reuse:", "reuse-broadcast:", "broadcast-reuse:"],
+    prefixes = [
+        "broadcast:",
+        "reuse:",
+        "reuse-broadcast:",
+        "broadcast-reuse:"
+    ],
     arg_handling = subspec,
     overlay = true,
     MessageBoundaryStatusDependsOnInnerType,
@@ -197,7 +202,7 @@ impl AsyncWrite for PeerHandleW {
     }
 }
 
-fn makeclient(ps: HBroadCaster, queue_len:usize) -> Peer {
+fn makeclient(ps: HBroadCaster, queue_len: usize) -> Peer {
     let (send, recv) = mpsc::channel(queue_len);
     let k = ps
         .borrow_mut()
@@ -214,7 +219,7 @@ pub fn connection_reuser<F: FnOnce() -> BoxedNewPeerFuture>(
     h: &Handle,
     s: &mut GlobalState,
     inner_peer: F,
-    buffer_size : usize,
+    buffer_size: usize,
     queue_len: usize,
 ) -> BoxedNewPeerFuture {
     let need_init = s.borrow().is_none();
