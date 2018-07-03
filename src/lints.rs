@@ -42,6 +42,7 @@ pub trait SpecifierStackExt {
     fn contains(&self, t: &'static str) -> bool;
     fn is_multiconnect(&self) -> bool;
     fn is_stream_oriented(&self) -> bool;
+    fn insert_line_class_in_proper_place(&mut self, x:Rc<SpecifierClass>);
 }
 impl SpecifierStackExt for SpecifierStack {
     fn stdio_usage_status(&self) -> StdioUsageStatus {
@@ -110,6 +111,18 @@ impl SpecifierStackExt for SpecifierStack {
             }
         }
         return q;
+    }
+    fn insert_line_class_in_proper_place(&mut self, x:Rc<SpecifierClass>) {
+        use super::ClassMessageBoundaryStatus::*;
+        let mut insert_idx = 0;
+        for overlay in &self.overlays {
+            match overlay.message_boundary_status() {
+                StreamOriented => break,
+                MessageOriented => break,
+                MessageBoundaryStatusDependsOnInnerType => insert_idx+=1,
+            }
+        }
+        self.overlays.insert(insert_idx, x);
     }
 }
 
@@ -180,17 +193,16 @@ impl WebsocatConfiguration2 {
                 (true,true) => {},
                 (true,false) => {
                     info!("Auto-inserting the line mode");
-                    // TODO: insert after reuser, not before
-                    self.s1.overlays.insert(0,
+                    self.s1.insert_line_class_in_proper_place(
                         Rc::new(super::line_peer::Line2MessageClass));
-                    self.s2.overlays.insert(0,
+                    self.s2.insert_line_class_in_proper_place(
                         Rc::new(super::line_peer::Message2LineClass));
                 },
                 (false, true) => {
                     info!("Auto-inserting the line mode");
-                    self.s2.overlays.insert(0,
+                    self.s2.insert_line_class_in_proper_place(
                         Rc::new(super::line_peer::Line2MessageClass));
-                    self.s1.overlays.insert(0,
+                    self.s1.insert_line_class_in_proper_place(
                         Rc::new(super::line_peer::Message2LineClass));
                 }
             }
