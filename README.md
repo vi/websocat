@@ -51,6 +51,15 @@ qwertyu
 Protocol mismatch.
 ```
 
+
+### Broadcast all messages between connected WebSocket clients
+
+```
+A$ websocat -t ws-l:127.0.0.1:1234 broadcast:mirror:
+B$ websocat ws://127.0.0.1:1234
+C$ websocat ws://127.0.0.1:1234
+```
+
 ## Features
 
 * Connecting to and serving WebSockets from command line.
