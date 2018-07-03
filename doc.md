@@ -29,7 +29,7 @@ Some address types may be "aliases" to other address types or combinations of ov
 
 ```
 
-websocat 1.0.0-beta
+websocat 1.0.0
 Vitaly "_Vi" Shukela <vi0oss@gmail.com>
 Command-line client for web sockets. Like netcat, but for WebSockets. Designed like socat.
 
