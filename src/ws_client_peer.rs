@@ -185,7 +185,7 @@ where
                 let ws_str = WsReadWrapper {
                     s: stream,
                     pingreply: mpsink.clone(),
-                    debt: super::ReadDebt(Default::default(), opts.read_debt_handling),
+                    debt: super::readdebt::ReadDebt(Default::default(), opts.read_debt_handling),
                 };
                 let ws_sin = WsWriteWrapper(mpsink, mode1, !opts.websocket_dont_close);
 

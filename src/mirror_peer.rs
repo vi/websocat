@@ -15,7 +15,7 @@ use futures::sync::mpsc;
 
 use tokio_io::{AsyncRead, AsyncWrite};
 
-use super::{ReadDebt,DebtHandling};
+use super::readdebt::{ReadDebt,DebtHandling,ProcessMessageResult};
 use super::{once, ConstructParams, PeerConstructor, Specifier};
 
 #[derive(Debug, Clone)]
@@ -111,8 +111,8 @@ impl Read for MirrorRead {
             let r = self.ch.poll();
             return match r {
                 Ok(Ready(Some(x))) => match self.debt.process_message(buf, x.as_slice()) {
-                    super::ProcessMessageResult::Return(x) => x,
-                    super::ProcessMessageResult::Recurse => continue,
+                    ProcessMessageResult::Return(x) => x,
+                    ProcessMessageResult::Recurse => continue,
                 },
                 Ok(Ready(None)) => brokenpipe(),
                 Ok(NotReady) => wouldblock(),
@@ -190,8 +190,8 @@ impl Read for LiteralReplyRead {
             let r = self.ch.poll();
             return match r {
                 Ok(Ready(Some(()))) => match self.debt.process_message(buf, &self.content) {
-                    super::ProcessMessageResult::Return(x) => x,
-                    super::ProcessMessageResult::Recurse => continue,
+                    ProcessMessageResult::Return(x) => x,
+                    ProcessMessageResult::Recurse => continue,
                 },
                 Ok(Ready(None)) => brokenpipe(),
                 Ok(NotReady) => wouldblock(),

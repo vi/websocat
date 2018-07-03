@@ -506,10 +506,10 @@ fn run() -> Result<()> {
     };
     
     if opts.websocket_text_mode {
-        opts.read_debt_handling = websocat::DebtHandling::Warn;
+        opts.read_debt_handling = websocat::readdebt::DebtHandling::Warn;
     }
     if cmd.strict_mode {
-        opts.read_debt_handling = websocat::DebtHandling::DropMessage;
+        opts.read_debt_handling = websocat::readdebt::DebtHandling::DropMessage;
         opts.linemode_strict = true;
     }
 

@@ -11,7 +11,7 @@ use std::rc::Rc;
 use tokio_io::{AsyncRead, AsyncWrite};
 
 use super::wouldblock;
-use super::{ReadDebt,DebtHandling};
+use super::readdebt::{ReadDebt,DebtHandling};
 
 use super::{once, simple_err, ConstructParams, PeerConstructor, Specifier};
 

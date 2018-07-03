@@ -10,7 +10,8 @@ use std::rc::Rc;
 use self::websocket::server::upgrade::async::IntoWs;
 
 use super::ws_peer::{Mode1, PeerForWs, WsReadWrapper, WsWriteWrapper};
-use super::{box_up_err, io_other_error, BoxedNewPeerFuture, Peer, DebtHandling};
+use super::{box_up_err, io_other_error, BoxedNewPeerFuture, Peer};
+use super::readdebt::{DebtHandling,ReadDebt};
 use super::{ConstructParams, PeerConstructor, Specifier};
 
 #[derive(Debug)]
@@ -129,7 +130,7 @@ pub fn ws_upgrade_peer(inner_peer: Peer, mode1: Mode1, ws_read_debt_handling:Deb
                 let ws_str = WsReadWrapper {
                     s: stream,
                     pingreply: mpsink.clone(),
-                    debt: super::ReadDebt(Default::default(), ws_read_debt_handling),
+                    debt: ReadDebt(Default::default(), ws_read_debt_handling),
                 };
                 let ws_sin = WsWriteWrapper(mpsink, mode1, true /* send Close on shutdown */);
 

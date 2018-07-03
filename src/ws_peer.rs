@@ -17,7 +17,7 @@ use futures::Async::{NotReady, Ready};
 
 use super::{brokenpipe, io_other_error, wouldblock, Peer};
 
-use super::ReadDebt;
+use super::readdebt::{ReadDebt,ProcessMessageResult};
 
 type MultiProducerWsSink<T> = Rc<
     RefCell<
@@ -80,15 +80,15 @@ impl<T: WsStream + 'static> Read for WsReadWrapper<T> {
                 Ready(Some(OwnedMessage::Text(x))) => {
                     debug!("incoming text");
                     match self.debt.process_message(buf, x.as_str().as_bytes()) {
-                        super::ProcessMessageResult::Return(x) => x,
-                        super::ProcessMessageResult::Recurse => continue,
+                        ProcessMessageResult::Return(x) => x,
+                        ProcessMessageResult::Recurse => continue,
                     }
                 }
                 Ready(Some(OwnedMessage::Binary(x))) => {
                     debug!("incoming binary");
                     match self.debt.process_message(buf, x.as_slice()) {
-                        super::ProcessMessageResult::Return(x) => x,
-                        super::ProcessMessageResult::Recurse => continue,
+                        ProcessMessageResult::Return(x) => x,
+                        ProcessMessageResult::Recurse => continue,
                     }
                 }
                 NotReady => wouldblock(),
