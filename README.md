@@ -58,7 +58,7 @@ Protocol mismatch.
 * Text and binary modes, converting between lines (or null-terminated records) and messages.
 * Inetd mode, UNIX sockets (including abstract namesaced on Linux).
 * Auto-reconnect and connection-reuse modes.
-* Linux, Windows and Mac support, with pre-built executables.
+* Linux, Windows and Mac support, with [pre-built executables](https://github.com/vi/websocat/releases).
 * Low-level WebSocket clients and servers with overridable underlying transport connection.
 * Buildable by rust starting from v1.23.0.
 
