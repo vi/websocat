@@ -60,6 +60,7 @@ Protocol mismatch.
 * Auto-reconnect and connection-reuse modes.
 * Linux, Windows and Mac support, with pre-built executables.
 * Low-level WebSocket clients and servers with overridable underlying transport connection.
+* Buildable by rust starting from v1.23.0.
 
 ## Usage
 
