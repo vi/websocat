@@ -38,11 +38,10 @@ impl Specifier for BroadcastReuser {
     self_0_is_subspecifier!(...);
 }
 
-// TODO: make it default
 specifier_class!(
     name = BroadcastReuserClass,
     target = BroadcastReuser,
-    prefixes = ["reuse:", "reuse-broadcast:", "broadcast-reuse:", "broadcast:"],
+    prefixes = ["broadcast:", "reuse:", "reuse-broadcast:", "broadcast-reuse:"],
     arg_handling = subspec,
     overlay = true,
     MessageBoundaryStatusDependsOnInnerType,

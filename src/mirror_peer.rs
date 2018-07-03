@@ -37,7 +37,9 @@ specifier_class!(
     help = r#"
 Simply copy output to input. No arguments needed.
 
-Similar to `exec:cat`.
+Example: emulate echo.websocket.org
+
+    websocat -t ws-l:127.0.0.1:1234 mirror:
 "#
 );
 // TODO: doc example, mention echo.websocket.org
