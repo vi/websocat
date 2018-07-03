@@ -13,6 +13,7 @@ macro_rules! list_of_all_specifier_classes {
 
         #[cfg(all(unix, feature = "unix_stdio"))]
         $your_macro!($crate::stdio_peer::StdioClass);
+        #[cfg(all(unix, feature = "unix_stdio"))]
         $your_macro!($crate::stdio_peer::InetdClass);
         #[cfg(not(all(unix, feature = "unix_stdio")))]
         $your_macro!($crate::stdio_threaded_peer::ThreadedStdioSubstituteClass);
