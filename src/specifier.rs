@@ -60,7 +60,7 @@ macro_rules! specifier_alias {
                 panic!("Error: multiconnect_status called on alias class")
             }
             fn is_overlay(&self) -> bool {
-                panic!("Error: is_overlay called on alias class")
+                false
             }
             fn construct(&self, _arg:&str) -> $crate::Result<Rc<Specifier>> {
                 panic!("Error: construct called on alias class")

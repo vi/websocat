@@ -123,9 +123,9 @@ specifier_class!(
     MessageOriented,
     MulticonnectnessDependsOnInnerType,
     help = r#"
-Low-level WebSocket connector. Argument is a subspecifier.
+Low-level WebSocket connector. Argument is a some another address. [A]
 
-URL and Host: header being sent are independent from the underlying specifier.
+URL and Host: header being sent are independent from the underlying connection.
 
 Example: connect to echo server in more explicit way
 

@@ -44,7 +44,7 @@ specifier_class!(
     StreamOriented,
     SingleConnect,
     help = r#"
-Read input from console, print to console.
+Same as `-`. Read input from console, print to console.
 
 This specifier can be specified only one time.
     
@@ -67,7 +67,7 @@ specifier_class!(
     StreamOriented,
     SingleConnect,
     help = r#"
-Like `stdio:`, but intented for inetd(8) usage.
+Like `stdio:`, but intented for inetd(8) usage. [A]
 
 Automatically enables `-q` (`--quiet`) mode.
 
@@ -99,7 +99,7 @@ specifier_class!(
     MessageOriented, // ?
     SingleConnect,
     help = r#"
-Open file for read and write and use it like a socket.
+Open file for read and write and use it like a socket. [A]
 Not for regular files, see readfile/writefile instead.
   
 Example: Serve big blobs of random data to clients
@@ -128,7 +128,7 @@ specifier_class!(
     MessageOriented, // ?
     SingleConnect,
     help = r#"
-Use specified file descriptor like a socket
+Use specified file descriptor like a socket. [A]
 
 Example: Serve random data to clients v2
 

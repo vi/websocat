@@ -47,10 +47,10 @@ specifier_class!(
     MessageBoundaryStatusDependsOnInnerType,
     SingleConnect,
     help = r#"
-Reuse subspecifier for serving multiple clients: broadcast mode.
+Reuse this connection for serving multiple clients, sending replies to all clients.
 
-Messages from any connected client get directed to subspecifier,
-replies from the subspecifier get duplicated across all connected
+Messages from any connected client get directed to inner connection,
+replies from the inner connection get duplicated across all connected
 clients (and are dropped if there are none).
 
 If WebSocket client is too slow for accepting incoming data,

@@ -68,7 +68,9 @@ specifier_class!(
     MessageOriented,
     SingleConnect,
     help = r#"
-Check the input. Read entire input and panic the program if the input is not equal
+Check the input.  [A]
+
+Read entire input and panic the program if the input is not equal
 to the specified string. Used in tests.
 "#
 );
@@ -95,7 +97,9 @@ specifier_class!(
     MessageOriented,
     SingleConnect,
     help = r#"
-Check the input. Read entire input and emit an error if the input is not equal
+Check the input. [A]
+
+Read entire input and emit an error if the input is not equal
 to the specified string.
 "#
 );
@@ -117,7 +121,7 @@ specifier_class!(
     MessageOriented,
     SingleConnect,
     help = r#"
-Do nothing. Don't read or write any bytes. Keep connections in "hung" state.
+Do nothing. Don't read or write any bytes. Keep connections in "hung" state. [A]
 "#
 );
 

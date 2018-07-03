@@ -121,7 +121,7 @@ specifier_class!(
     MessageOriented,
     SingleConnect,
     help = r#"
-Bind an UDP socket to specifier host:port, receive packet
+Bind an UDP socket to specified host:port, receive packet
 from any remote UDP socket, send replies to recently observed
 remote UDP socket.
 

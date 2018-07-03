@@ -35,7 +35,7 @@ specifier_class!(
     MessageBoundaryStatusDependsOnInnerType,
     SingleConnect,
     help = r#"
-Reuse subspecifier for serving multiple clients: unpredictable mode.
+Reuse subspecifier for serving multiple clients: unpredictable mode. [A]
 
 Better used with --unidirectional, otherwise replies get directed to
 random connected client.

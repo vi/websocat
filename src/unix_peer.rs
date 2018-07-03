@@ -47,7 +47,7 @@ specifier_class!(
     StreamOriented,
     SingleConnect,
     help = r#"
-Connect to UNIX socket. Argument is filesystem path.
+Connect to UNIX socket. Argument is filesystem path. [A]
 
 Example: forward connections from websockets to a UNIX stream socket
 
@@ -76,7 +76,7 @@ specifier_class!(
     StreamOriented,
     MultiConnect,
     help = r#"
-Listen for connections on a specified UNIX socket
+Listen for connections on a specified UNIX socket [A]
 
 Example: forward connections from a UNIX socket to a WebSocket
 
@@ -146,7 +146,7 @@ specifier_class!(
     MessageOriented,
     SingleConnect,
     help = r#"
-Send packets to one path, receive from the other.
+Send packets to one path, receive from the other. [A]
 A socket for sending must be already openend.
 
 I don't know if this mode has any use, it is here just for completeness.
@@ -185,7 +185,7 @@ specifier_class!(
     StreamOriented,
     SingleConnect,
     help = r#"
-Connect to UNIX abstract-namespaced socket. Argument is some string used as address.
+Connect to UNIX abstract-namespaced socket. Argument is some string used as address. [A]
 
 Too long addresses may be silently chopped off.
 
@@ -224,7 +224,7 @@ specifier_class!(
     StreamOriented,
     MultiConnect,
     help = r#"
-Listen for connections on a specified abstract UNIX socket
+Listen for connections on a specified abstract UNIX socket [A]
 
 Example: forward connections from an abstract UNIX socket to a WebSocket
 
@@ -283,7 +283,7 @@ specifier_class!(
     MessageOriented,
     SingleConnect,
     help = r#"
-Send packets to one address, receive from the other.
+Send packets to one address, receive from the other. [A]
 A socket for sending must be already openend.
 
 I don't know if this mode has any use, it is here just for completeness.
@@ -324,7 +324,7 @@ specifier_class!(
     MessageOriented,
     SingleConnect,
     help = r#"
-Connect to AF_UNIX SOCK_SEQPACKET socket. Argument is a filesystem path.
+Connect to AF_UNIX SOCK_SEQPACKET socket. Argument is a filesystem path. [A]
 
 Start the path with `@` character to make it connect to abstract-namespaced socket instead.
 
@@ -365,7 +365,7 @@ specifier_class!(
     MessageOriented,
     MultiConnect,
     help = r#"
-Listen for connections on a specified AF_UNIX SOCK_SEQPACKET socket
+Listen for connections on a specified AF_UNIX SOCK_SEQPACKET socket [A]
 
 Start the path with `@` character to make it connect to abstract-namespaced socket instead.
 

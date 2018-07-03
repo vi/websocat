@@ -38,12 +38,13 @@ specifier_class!(
     MessageOriented,
     MulticonnectnessDependsOnInnerType,
     help = r#"
-WebSocket upgrader / raw server. Specify your own protocol instead of usual TCP.
-or a subspecifier.
+WebSocket upgrader / raw server. Specify your own protocol instead of usual TCP. [A]
 
 All other WebSocket server modes actually use this overlay under the hood.
 
-Example: TODO
+Example: serve incoming connection from socat
+
+    socat tcp-l:1234,fork,reuseaddr exec:'websocat -t ws-u\:stdio\: mirror\:'
 "#
 );
 
@@ -53,8 +54,7 @@ specifier_alias!(
     prefixes = ["ws-listen:", "ws-l:", "l-ws:", "listen-ws:"],
     alias="ws-u:tcp-l:",
     help = r#"
-WebSocket server. Argument is either IPv4 host and port to listen
-or a subspecifier.
+WebSocket server. Argument is host and port to listen.
 
 Example: Dump all incoming websocket data to console
 
@@ -72,7 +72,7 @@ specifier_alias!(
     prefixes = ["inetd-ws:", "ws-inetd:"],
     alias="ws-u:inetd:",
     help = r#"
-WebSocket inetd server.
+WebSocket inetd server. [A]
 
 TODO: transfer the example here
 "#
@@ -83,7 +83,7 @@ specifier_alias!(
     prefixes = ["l-ws-unix:"],
     alias="ws-l:unix-l:",
     help = r#"
-WebSocket UNIX socket-based server.
+WebSocket UNIX socket-based server. [A]
 "#
 );
 
@@ -92,7 +92,7 @@ specifier_alias!(
     prefixes = ["l-ws-abstract:"],
     alias="ws-l:abstract-l:",
     help = r#"
-WebSocket abstract-namespaced UNIX socket server.
+WebSocket abstract-namespaced UNIX socket server. [A]
 "#
 );
 

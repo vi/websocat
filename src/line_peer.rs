@@ -30,12 +30,14 @@ specifier_class!(
     StreamOriented,
     MulticonnectnessDependsOnInnerType,
     help = r#"
-Line filter: ensure each message (a chunk from one read call from underlying specifier)
-contains no inner newlines and terminates with one newline.
+Line filter: Turns messages from packet stream into lines of byte stream. [A]
+
+Ensure each message (a chunk from one read call from underlying connection)
+contains no inner newlines (or zero bytes) and terminates with one newline.
 
 Reverse of the `line2msg:`.
 
-Replaces both newlines (\x0A) and carrige returns (\x0D) with spaces (\x20) for each read.
+Unless --null-terminated, replaces both newlines (\x0A) and carrige returns (\x0D) with spaces (\x20) for each read.
 
 Does not affect writing at all. Use this specifier on both ends to get bi-directional behaviour.
 
@@ -67,7 +69,9 @@ specifier_class!(
     MessageOriented,
     MulticonnectnessDependsOnInnerType,
     help=r#"
-Line filter: encure that each message (a successful read call) is obtained from a line
+Line filter: turn lines from byte stream into messages as delimited by '\\n' or '\\0' [A]
+
+Ensure that each message (a successful read call) is obtained from a line [A]
 coming from underlying specifier, buffering up or splitting content as needed.
 
 Reverse of the `msg2line:`.

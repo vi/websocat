@@ -24,7 +24,7 @@ specifier_class!(
     StreamOriented,
     SingleConnect,
     help = r#"
-Stdin/stdout, spawning a thread.
+Stdin/stdout, spawning a thread. [A]
 
 Like `-`, but forces threaded mode instead of async mode
 

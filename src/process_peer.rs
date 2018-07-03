@@ -106,7 +106,7 @@ specifier_class!(
     StreamOriented,
     SingleConnect,
     help = r#"
-Execute a program directly (without a subshell), providing array of arguments on Unix
+Execute a program directly (without a subshell), providing array of arguments on Unix [A]
 
 Example: Serve current date
 

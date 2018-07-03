@@ -28,18 +28,12 @@ Basic examples:
   Command-line websocket client:
     websocat ws://echo.websocket.org/
     
-  Listen websocket and redirect it to a TCP port:
-    websocat ws-l:127.0.0.1:8080 tcp:127.0.0.1:5678
+  WebSocket server
+    websocat -s 8080
     
-  See more examples with the --long-help option
-  
-Short list of specifiers (see --long-help):
-  ws:// wss:// - inetd: ws-listen: inetd-ws: tcp: tcp-l: ws-c:
-  autoreconnect: reuse: mirror: threadedstdio: clogged:
-  literal: literalreply: assert: udp-connect: open-async:
-  readfile: writefile: open-fd: unix-connect: unix-listen:
-  unix-dgram: abstract-connect: abstract-listen:
-  exec: sh-c:
+  WebSocket-to-TCP proxy:
+    websocat --binary ws-l:127.0.0.1:8080 tcp:127.0.0.1:5678
+    
 ",
     usage = "websocat ws://URL | wss://URL               (simple client)\n    websocat -s port                            (simple server)\n    websocat [FLAGS] [OPTIONS] <addr1> <addr2>  (advanced mode)"
 )]
@@ -56,13 +50,13 @@ struct Opt {
     #[structopt(
         short = "u",
         long = "unidirectional",
-        help = "Inhibit copying data from right specifier to left"
+        help = "Inhibit copying data in one direction"
     )]
     unidirectional: bool,
     #[structopt(
         short = "U",
         long = "unidirectional-reverse",
-        help = "Inhibit copying data from left specifier to right"
+        help = "Inhibit copying data in the other direction (or maybe in both directions if combined with -u)"
     )]
     unidirectional_reverse: bool,
 
@@ -88,7 +82,7 @@ struct Opt {
     )]
     oneshot: bool,
 
-    #[structopt(short = "h", long = "help", help = "See the help.\n--help=short is the list of easy options and address types\n--help=long lists all options and types\n--help=doc also shows longer description and examples.")]
+    #[structopt(short = "h", long = "help", help = "See the help.\n--help=short is the list of easy options and address types\n--help=long lists all options and types (see [A] markers)\n--help=doc also shows longer description and examples.")]
     help: Option<String>,
 
     #[structopt(
@@ -115,7 +109,7 @@ struct Opt {
 
     #[structopt(
         long = "ws-c-uri",
-        help = "[A] URI to use for ws-c: specifier",
+        help = "[A] URI to use for ws-c: overlay",
         default_value = "ws://0.0.0.0/"
     )]
     ws_c_uri: String,
@@ -284,6 +278,9 @@ fn run() -> Result<()> {
     if let Some(h) = cmd.help {
         if &h == "long" || &h == "full" {
             help::longhelp();
+            return Ok(());
+        } else if &h == "doc" {
+            help::dochelp();
             return Ok(());
         }
     

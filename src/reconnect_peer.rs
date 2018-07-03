@@ -34,7 +34,7 @@ specifier_class!(
     MessageBoundaryStatusDependsOnInnerType,
     SingleConnect,
     help = r#"
-Re-establish underlying specifier on any error or EOF
+Re-establish underlying connection on any error or EOF
 
 Example: keep connecting to the port or spin 100% CPU trying if it is closed.
 
