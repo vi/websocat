@@ -211,6 +211,13 @@ struct Opt {
         help="strict line/message mode: drop too long messages instead of splitting them, drop incomplete lines.",
     )]
     strict_mode: bool,
+    
+    #[structopt(
+        short = "0",
+        long = "null-terminated",
+        help="Use \\0 instead of \\n for linemode",
+    )]
+    linemode_zero_terminated: bool,
 }
 
 // TODO: make it byte-oriented/OsStr?
@@ -470,6 +477,7 @@ fn run() -> Result<()> {
             one_message
             no_auto_linemode
             buffer_size
+            linemode_zero_terminated
         )
     };
 

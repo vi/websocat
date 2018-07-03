@@ -26,4 +26,5 @@ pub struct Options {
     pub broadcast_queue_len : usize,
     #[default = "DebtHandling::Silent"]
     pub read_debt_handling : DebtHandling,
+    pub linemode_zero_terminated: bool,
 }

@@ -15,7 +15,8 @@ pub struct Message2Line<T: Specifier>(pub T);
 impl<T: Specifier> Specifier for Message2Line<T> {
     fn construct(&self, cp: ConstructParams) -> PeerConstructor {
         let inner = self.0.construct(cp.clone());
-        inner.map(move |p| packet2line_peer(p))
+        let zt = cp.program_options.linemode_zero_terminated;
+        inner.map(move |p| packet2line_peer(p,zt))
     }
     specifier_boilerplate!(typ=Line noglobalstate has_subspec);
     self_0_is_subspecifier!(proxy_is_multiconnect);
@@ -50,8 +51,9 @@ impl<T: Specifier> Specifier for Line2Message<T> {
     fn construct(&self, cp: ConstructParams) -> PeerConstructor {
         let retain_newlines = !cp.program_options.linemode_strip_newlines;
         let strict = cp.program_options.linemode_strict;
+        let nullt = cp.program_options.linemode_zero_terminated;
         let inner = self.0.construct(cp.clone());
-        inner.map(move |p| line2packet_peer(p, retain_newlines,strict))
+        inner.map(move |p| line2packet_peer(p, retain_newlines,strict,nullt))
     }
     specifier_boilerplate!(typ=Line noglobalstate has_subspec);
     self_0_is_subspecifier!(proxy_is_multiconnect);
@@ -78,12 +80,12 @@ Example: TODO
 "#
 );
 
-pub fn packet2line_peer(inner_peer: Peer) -> BoxedNewPeerFuture {
-    let filtered = Packet2LineWrapper(inner_peer.0);
+pub fn packet2line_peer(inner_peer: Peer, null_terminated: bool) -> BoxedNewPeerFuture {
+    let filtered = Packet2LineWrapper(inner_peer.0, null_terminated);
     let thepeer = Peer::new(filtered, inner_peer.1);
     Box::new(ok(thepeer)) as BoxedNewPeerFuture
 }
-struct Packet2LineWrapper(Box<AsyncRead>);
+struct Packet2LineWrapper(Box<AsyncRead>, bool);
 
 impl Read for Packet2LineWrapper {
     fn read(&mut self, b: &mut [u8]) -> Result<usize, IoError> {
@@ -96,29 +98,45 @@ impl Read for Packet2LineWrapper {
         if n == 0 {
             return Ok(n);
         }
-        // chomp away \n or \r\n
-        if n > 0 && b[n - 1] == b'\n' {
-            n -= 1;
-        }
-        if n > 0 && b[n - 1] == b'\r' {
-            n -= 1;
-        }
-        // replace those with spaces
-        for c in b.iter_mut().take(n) {
-            if *c == b'\n' || *c == b'\r' {
-                *c = b' ';
+        if ! self.1 {
+            // newline-terminated
+            
+            // chomp away \n or \r\n
+            if n > 0 && b[n - 1] == b'\n' {
+                n -= 1;
             }
+            if n > 0 && b[n - 1] == b'\r' {
+                n -= 1;
+            }
+            // replace those with spaces
+            for c in b.iter_mut().take(n) {
+                if *c == b'\n' || *c == b'\r' {
+                    *c = b' ';
+                }
+            }
+            // add back one \n
+            b[n] = b'\n';
+            n += 1;
+        } else {
+            // null-terminated
+            if n > 0 && b[n - 1] == b'\x00' {
+                n -= 1;
+            }
+            for c in b.iter_mut().take(n) {
+                if *c == b'\x00' {
+                    warn!("zero byte in a message in null-terminated mode");
+                }
+            }
+            b[n] = b'\x00';
+            n += 1;
         }
-        // add back one \n
-        b[n] = b'\n';
-        n += 1;
 
         Ok(n)
     }
 }
 impl AsyncRead for Packet2LineWrapper {}
 
-pub fn line2packet_peer(inner_peer: Peer, retain_newlines: bool, strict:bool) -> BoxedNewPeerFuture {
+pub fn line2packet_peer(inner_peer: Peer, retain_newlines: bool, strict:bool, null_terminated:bool) -> BoxedNewPeerFuture {
     let filtered = Line2PacketWrapper {
         inner: inner_peer.0,
         queue: vec![],
@@ -126,6 +144,7 @@ pub fn line2packet_peer(inner_peer: Peer, retain_newlines: bool, strict:bool) ->
         allow_incomplete_lines: !strict,
         drop_too_long_lines: strict,
         eof: false,
+        null_terminated,
     };
     let thepeer = Peer::new(filtered, inner_peer.1);
     Box::new(ok(thepeer)) as BoxedNewPeerFuture
@@ -137,6 +156,7 @@ struct Line2PacketWrapper {
     allow_incomplete_lines: bool,
     drop_too_long_lines: bool,
     eof: bool,
+    null_terminated: bool,
 }
 
 impl Line2PacketWrapper {
@@ -151,11 +171,16 @@ impl Line2PacketWrapper {
                 n = buf.len();
             }
         } else {
-            if !self.retain_newlines {
+            if !self.retain_newlines && !self.null_terminated {
                 if n > 0 && (buf[n - 1] == b'\n') {
                     n -= 1
                 }
                 if n > 0 && (buf[n - 1] == b'\r') {
+                    n -= 1
+                }
+            }
+            if self.null_terminated {
+                if n > 0 && (buf[n - 1] == b'\x00') {
                     n -= 1
                 }
             }
@@ -174,9 +199,14 @@ impl Read for Line2PacketWrapper {
             return Ok(0);
         }
         
+        let char_to_look_at = if self.null_terminated {
+            b'\x00'
+        } else {
+            b'\n'
+        };
         let mut queued_line_len = None;
         for i in 0..self.queue.len() {
-            if self.queue[i] == b'\n' {
+            if self.queue[i] == char_to_look_at {
                 queued_line_len = Some(i);
                 break;
             }
@@ -216,16 +246,24 @@ impl Read for Line2PacketWrapper {
                 return Ok(0);
             }
 
-            let mut happy_case =
-                self.queue.is_empty() && (!buf[0..(n - 1)].contains(&b'\n')) && buf[n - 1] == b'\n';
+            let happy_case = if !self.null_terminated {
+                self.queue.is_empty() && (!buf[0..(n - 1)].contains(&b'\n')) && buf[n - 1] == b'\n'
+            } else {
+                self.queue.is_empty() && (!buf[0..(n - 1)].contains(&b'\x00')) && buf[n - 1] == b'\x00'
+            };
 
             if happy_case {
                 // Specifically to avoid allocations when data is already nice
-                if !self.retain_newlines {
+                if !self.retain_newlines && !self.null_terminated {
                     if n > 0 && (buf[n - 1] == b'\n') {
                         n -= 1
                     }
                     if n > 0 && (buf[n - 1] == b'\r') {
+                        n -= 1
+                    }
+                }
+                if self.null_terminated {
+                    if n > 0 && (buf[n - 1] == b'\x00') {
                         n -= 1
                     }
                 }
