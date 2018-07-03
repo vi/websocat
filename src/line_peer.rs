@@ -165,7 +165,7 @@ impl Read for Line2PacketWrapper {
             };
 
             if n == 0 {
-                if self.queue.is_empty() {
+                if !self.queue.is_empty() {
                     warn!(
                         "Throwing away {} bytes of incomplete line",
                         self.queue.len()
