@@ -22,7 +22,7 @@ echo Version: $V
 mkdir -p "$D"
 
 r() {
-    TF="$D"/websocat${S}_${V}_${TT}${E}
+    TF="$D"/websocat${S}_${TT}${E}
     if [ -e "$TF" ]; then
         echo $TF already exists
         return
