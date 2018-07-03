@@ -184,7 +184,18 @@ struct Opt {
         default_value = "65536",
     )]
     buffer_size: usize,
-    // TODO: -v --quiet
+    
+    #[structopt(
+        short = "v",
+        parse(from_occurrences),
+        help = "Increase verbosity level to info or further"
+    )]
+    verbosity: u8,
+    #[structopt(
+        short = "q", 
+        help="Suppress all diagnostic messages, except of startup errors",
+    )]
+    quiet: bool,
 }
 
 // TODO: make it byte-oriented/OsStr?
@@ -336,6 +347,43 @@ then forward resulting connection to the TCP port.
     );
 }
 
+// Based on https://github.com/rust-clique/clap-verbosity-flag/blob/master/src/lib.rs
+mod logging {
+    
+    extern crate log;
+    extern crate env_logger;
+    
+    use self::log::{Level};
+    use self::env_logger::Builder as LoggerBuilder;
+
+/// Easily add a `--ver
+
+    pub fn setup_env_logger(ll : u8) -> Result<(), Box<::std::error::Error>> {
+        if ::std::env::var("RUST_LOG").is_ok() {
+            if ll > 0 {
+                eprintln!("websocat: RUST_LOG environment variable overrides any -v");
+            }
+            env_logger::init();
+            return Ok(());
+        }
+    
+        let lf =  match ll {
+            //0 => Level::Error,
+            0 => Level::Warn,
+            1 => Level::Info,
+            2 => Level::Debug,
+            _ => Level::Trace,
+        }.to_level_filter();
+        
+        LoggerBuilder::new()
+            .filter(Some("websocat"), lf)
+            .filter(None, Level::Warn.to_level_filter())
+            .try_init()?;
+        Ok(())
+    }
+
+}
+
 fn run() -> Result<()> {
     if std::env::args().nth(1).unwrap_or_default() == "--long-help" {
         longhelp();
@@ -347,6 +395,12 @@ fn run() -> Result<()> {
     }
 
     let mut cmd = Opt::from_args();
+    
+    let quiet = cmd.quiet;
+    
+    if !quiet {
+        logging::setup_env_logger(cmd.verbosity)?;
+    }
 
     if cmd.longhelp {
         longhelp();
@@ -410,7 +464,7 @@ fn run() -> Result<()> {
 
     let (s1, s2) : (String,String) = if let Some(cmds2) = cmd.addr2 {
         // Advanced mode
-        if default_text {
+        if default_text && !quiet {
             eprintln!("It is recommended to either set --binary or --text explicitly");
         }
         if cmd.server_mode {
@@ -421,15 +475,21 @@ fn run() -> Result<()> {
         // Easy mode
         if cmd.server_mode {
             if cmd.addr1.contains(':') {
-                eprintln!("Listening on ws://{}/", cmd.addr1);
+                if !quiet {
+                    eprintln!("Listening on ws://{}/", cmd.addr1);
+                }
                 (format!("ws-l:{}", cmd.addr1), "-".to_string())
             } else {
-                eprintln!("Listening on ws://127.0.0.1:{}/", cmd.addr1);
+                if !quiet {
+                    eprintln!("Listening on ws://127.0.0.1:{}/", cmd.addr1);
+                }
                 (format!("ws-l:127.0.0.1:{}", cmd.addr1), "-".to_string())
             }
         } else {
             if !(cmd.addr1.starts_with("ws://") || cmd.addr1.starts_with("wss://")) {
-                eprintln!("Specify ws:// or wss:// URI to connect to a websocket");
+                if !quiet {
+                    eprintln!("Specify ws:// or wss:// URI to connect to a websocket");
+                }
                 Err("Invalid command-line parameters")?;
             }
             ("-".to_string(), cmd.addr1)
@@ -439,8 +499,10 @@ fn run() -> Result<()> {
     let websocat1 = WebsocatConfiguration1 { opts, addr1:s1, addr2:s2 };
     let mut websocat2 = websocat1.parse1()?;
     if ! cmd.no_lints {
-        websocat2.lint_and_fixup(std::rc::Rc::new(|e:&str| {
-            eprintln!("{}", e);
+        websocat2.lint_and_fixup(std::rc::Rc::new(move |e:&str| {
+            if !quiet {
+                eprintln!("{}", e);
+            }
         }))?;
     }
     let websocat = websocat2.parse2()?;
@@ -456,8 +518,10 @@ fn run() -> Result<()> {
 
     let prog = websocat.serve(
         core.handle(),
-        std::rc::Rc::new(|e| {
-            eprintln!("websocat: {}", e);
+        std::rc::Rc::new(move |e| {
+            if !quiet {
+                eprintln!("websocat: {}", e);
+            }
         }),
     );
     core.run(prog).map_err(|()| "error running".to_string())?;
@@ -465,7 +529,6 @@ fn run() -> Result<()> {
 }
 
 fn main() {
-    env_logger::init();
     let r = run();
 
     if let Err(e) = r {
