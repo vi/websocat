@@ -38,7 +38,7 @@ impl Specifier for Stdio {
 specifier_class!(
     name = StdioClass,
     target = Stdio,
-    prefixes = ["-", "stdio:", "inetd:"],
+    prefixes = ["stdio:", "-"],
     arg_handling = noarg,
     overlay = false,
     StreamOriented,
@@ -48,16 +48,29 @@ Read input from console, print to console.
 
 This specifier can be specified only one time.
     
-When `inetd:` form is used, it also disables logging to stderr (TODO)
-    
-Example: simulate `cat(1)`.
+Example: simulate `cat(1)`. This is an exception from "only one time" rule above:
 
     websocat - -
 
 Example: SSH transport
 
     ssh -c ProxyCommand='websocat - ws://myserver/mywebsocket' user@myserver
-  
+"#
+);
+
+specifier_class!(
+    name = InetdClass,
+    target = Stdio,
+    prefixes = ["inetd:"],
+    arg_handling = noarg,
+    overlay = false,
+    StreamOriented,
+    SingleConnect,
+    help = r#"
+Like `stdio:`, but intented for inetd(8) usage.
+
+Automatically enables `-q` (`--quiet`) mode.
+
 `inetd-ws:` - is of `ws-l:inetd:`
 
 Example of inetd.conf line that makes it listen for websocket

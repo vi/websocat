@@ -35,7 +35,7 @@ Use when standard input is not `epoll(7)`-able or you want to avoid setting it t
 specifier_class!(
     name = ThreadedStdioSubstituteClass,
     target = ThreadedStdio,
-    prefixes = ["-", "stdio:", "inetd:"],
+    prefixes = ["-", "stdio:"],
     arg_handling = noarg,
     overlay = false,
     StreamOriented,
@@ -44,6 +44,20 @@ specifier_class!(
 Read input from console, print to console (threaded version).
 
 This specifier can be specified only one time.
+"#
+);
+
+#[cfg(not(all(unix, feature = "unix_stdio")))]
+specifier_class!(
+    name = InetdClass,
+    target = ThreadedStdio,
+    prefixes = ["inetd:"],
+    arg_handling = noarg,
+    overlay = false,
+    StreamOriented,
+    SingleConnect,
+    help = r#"
+Alias of stdio: (threaded version).
 "#
 );
 

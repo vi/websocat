@@ -396,11 +396,7 @@ fn run() -> Result<()> {
 
     let mut cmd = Opt::from_args();
     
-    let quiet = cmd.quiet;
-    
-    if !quiet {
-        logging::setup_env_logger(cmd.verbosity)?;
-    }
+    let mut quiet = cmd.quiet;
 
     if cmd.longhelp {
         longhelp();
@@ -412,14 +408,14 @@ fn run() -> Result<()> {
         return Ok(());
     }
 
-    let mut default_text = false;
+    let mut recommend_explicit_text_or_bin = false;
 
     if cmd.websocket_binary_mode && cmd.websocket_text_mode {
         Err("--binary and --text are mutually exclusive")?;
     }
     if !cmd.websocket_binary_mode && !cmd.websocket_text_mode {
         cmd.websocket_text_mode = true;
-        default_text = true;
+        recommend_explicit_text_or_bin = true;
     }
 
     if false
@@ -464,15 +460,13 @@ fn run() -> Result<()> {
 
     let (s1, s2) : (String,String) = if let Some(cmds2) = cmd.addr2 {
         // Advanced mode
-        if default_text && !quiet {
-            eprintln!("It is recommended to either set --binary or --text explicitly");
-        }
         if cmd.server_mode {
             Err("--server and two positional arguments are incompatible.\nBuild server command line without -s option, but with `listen` address types")?
         }
         (cmd.addr1, cmds2)
     } else {
         // Easy mode
+        recommend_explicit_text_or_bin = false;
         if cmd.server_mode {
             if cmd.addr1.contains(':') {
                 if !quiet {
@@ -495,9 +489,22 @@ fn run() -> Result<()> {
             ("-".to_string(), cmd.addr1)
         }
     };
+    
 
     let websocat1 = WebsocatConfiguration1 { opts, addr1:s1, addr2:s2 };
     let mut websocat2 = websocat1.parse1()?;
+    
+    if websocat2.inetd_mode() {
+        quiet = true;
+    }
+    
+    if !quiet && recommend_explicit_text_or_bin {
+        eprintln!("It is recommended to either set --binary or --text explicitly");
+    }
+    if !quiet {
+        logging::setup_env_logger(cmd.verbosity)?;
+    }
+    
     if ! cmd.no_lints {
         websocat2.lint_and_fixup(std::rc::Rc::new(move |e:&str| {
             if !quiet {

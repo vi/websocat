@@ -127,6 +127,10 @@ impl SpecifierStackExt for SpecifierStack {
 }
 
 impl WebsocatConfiguration2 {
+    pub fn inetd_mode(&self) -> bool {
+        self.contains_class("InetdClass")
+    }
+
     #[cfg_attr(rustfmt, rustfmt_skip)]
     pub fn websocket_used(&self) -> bool {
         false 
