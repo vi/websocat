@@ -34,7 +34,7 @@ specifier_class!(
     StreamOriented,
     SingleConnect,
     help = r#"
-Synchronously read a file. Argumen is a file path.
+Synchronously read a file. Argument is a file path.
 
 Blocking on operations with the file pauses the whole process
 
