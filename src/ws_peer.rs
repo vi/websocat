@@ -43,48 +43,56 @@ impl<T: WsStream + 'static> Read for WsReadWrapper<T> {
         if let Some(ret) = self.debt.check_debt(buf) {
             return ret;
         }
-        match self.s.poll().map_err(io_other_error)? {
-            Ready(Some(OwnedMessage::Close(_))) => {
-                debug!("incoming close");
-                brokenpipe()
-            }
-            Ready(None) => {
-                debug!("incoming None");
-                brokenpipe()
-            }
-            Ready(Some(OwnedMessage::Ping(x))) => {
-                let om = OwnedMessage::Pong(x);
-                let mut sink = self.pingreply.borrow_mut();
-                let mut proceed = false;
-                // I'm not sure this is safe enough, RefCell-wise and Futures-wise
-                // And pings and their replies are not tested yet
-                match sink.start_send(om).map_err(io_other_error)? {
-                    futures::AsyncSink::NotReady(_) => {
-                        warn!("dropped a ping request from websocket due to channel contention");
+        loop {
+            return match self.s.poll().map_err(io_other_error)? {
+                Ready(Some(OwnedMessage::Close(_))) => {
+                    debug!("incoming close");
+                    brokenpipe()
+                }
+                Ready(None) => {
+                    debug!("incoming None");
+                    brokenpipe()
+                }
+                Ready(Some(OwnedMessage::Ping(x))) => {
+                    let om = OwnedMessage::Pong(x);
+                    let mut sink = self.pingreply.borrow_mut();
+                    let mut proceed = false;
+                    // I'm not sure this is safe enough, RefCell-wise and Futures-wise
+                    // And pings and their replies are not tested yet
+                    match sink.start_send(om).map_err(io_other_error)? {
+                        futures::AsyncSink::NotReady(_) => {
+                            warn!("dropped a ping request from websocket due to channel contention");
+                        }
+                        futures::AsyncSink::Ready => {
+                            proceed = true;
+                        }
                     }
-                    futures::AsyncSink::Ready => {
-                        proceed = true;
+                    if proceed {
+                        let _ = sink.poll_complete().map_err(io_other_error)?;
+                    }
+    
+                    Ok(0)
+                }
+                Ready(Some(OwnedMessage::Pong(_))) => {
+                    warn!("Received a pong from websocket");
+                    Ok(0)
+                }
+                Ready(Some(OwnedMessage::Text(x))) => {
+                    debug!("incoming text");
+                    match self.debt.process_message(buf, x.as_str().as_bytes()) {
+                        super::ProcessMessageResult::Return(x) => x,
+                        super::ProcessMessageResult::Recurse => continue,
                     }
                 }
-                if proceed {
-                    let _ = sink.poll_complete().map_err(io_other_error)?;
+                Ready(Some(OwnedMessage::Binary(x))) => {
+                    debug!("incoming binary");
+                    match self.debt.process_message(buf, x.as_slice()) {
+                        super::ProcessMessageResult::Return(x) => x,
+                        super::ProcessMessageResult::Recurse => continue,
+                    }
                 }
-
-                Ok(0)
-            }
-            Ready(Some(OwnedMessage::Pong(_))) => {
-                warn!("Received a pong from websocket");
-                Ok(0)
-            }
-            Ready(Some(OwnedMessage::Text(x))) => {
-                debug!("incoming text");
-                self.debt.process_message(buf, x.as_str().as_bytes())
-            }
-            Ready(Some(OwnedMessage::Binary(x))) => {
-                debug!("incoming binary");
-                self.debt.process_message(buf, x.as_slice())
-            }
-            NotReady => wouldblock(),
+                NotReady => wouldblock(),
+            };
         }
     }
 }

@@ -49,8 +49,9 @@ pub struct Line2Message<T: Specifier>(pub T);
 impl<T: Specifier> Specifier for Line2Message<T> {
     fn construct(&self, cp: ConstructParams) -> PeerConstructor {
         let retain_newlines = !cp.program_options.linemode_strip_newlines;
+        let strict = cp.program_options.linemode_strict;
         let inner = self.0.construct(cp.clone());
-        inner.map(move |p| line2packet_peer(p, retain_newlines))
+        inner.map(move |p| line2packet_peer(p, retain_newlines,strict))
     }
     specifier_boilerplate!(typ=Line noglobalstate has_subspec);
     self_0_is_subspecifier!(proxy_is_multiconnect);
@@ -117,13 +118,13 @@ impl Read for Packet2LineWrapper {
 }
 impl AsyncRead for Packet2LineWrapper {}
 
-pub fn line2packet_peer(inner_peer: Peer, retain_newlines: bool) -> BoxedNewPeerFuture {
+pub fn line2packet_peer(inner_peer: Peer, retain_newlines: bool, strict:bool) -> BoxedNewPeerFuture {
     let filtered = Line2PacketWrapper {
         inner: inner_peer.0,
         queue: vec![],
         retain_newlines,
-        allow_incomplete_lines: false,
-        drop_too_long_lines: false,
+        allow_incomplete_lines: !strict,
+        drop_too_long_lines: strict,
         eof: false,
     };
     let thepeer = Peer::new(filtered, inner_peer.1);
@@ -146,7 +147,7 @@ impl Line2PacketWrapper {
                 drop(self.queue.drain(0..n));
                 return None;
             } else {
-                error!("Splitting too long line of {} bytes because of buffer (-B option) is only {} bytes", n, buf.len());
+                warn!("Splitting too long line of {} bytes because of buffer (-B option) is only {} bytes", n, buf.len());
                 n = buf.len();
             }
         } else {
@@ -201,7 +202,7 @@ impl Read for Line2PacketWrapper {
                 if !self.queue.is_empty() {
                     if self.allow_incomplete_lines {
                         warn!("Sending possibly incomplete line.");
-                        let bl = buf.len();
+                        let bl = self.queue.len();
                         if let Some(nn) = self.deliver_the_line(buf, bl) {
                             return Ok(nn);
                         }

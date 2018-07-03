@@ -10,7 +10,7 @@ use std::rc::Rc;
 use self::websocket::server::upgrade::async::IntoWs;
 
 use super::ws_peer::{Mode1, PeerForWs, WsReadWrapper, WsWriteWrapper};
-use super::{box_up_err, io_other_error, BoxedNewPeerFuture, Peer};
+use super::{box_up_err, io_other_error, BoxedNewPeerFuture, Peer, DebtHandling};
 use super::{ConstructParams, PeerConstructor, Specifier};
 
 #[derive(Debug)]
@@ -23,7 +23,7 @@ impl<T: Specifier> Specifier for WsServer<T> {
             Mode1::Binary
         };
         let inner = self.0.construct(cp.clone());
-        inner.map(move |p| ws_upgrade_peer(p, mode1))
+        inner.map(move |p| ws_upgrade_peer(p, mode1, cp.program_options.read_debt_handling))
     }
     specifier_boilerplate!(typ=WebSocket noglobalstate has_subspec);
     self_0_is_subspecifier!(proxy_is_multiconnect);
@@ -109,7 +109,7 @@ WebSocket abstract-namespaced UNIX socket server.
             boxup(super::ws_server_peer::WsUpgrade(spec(x)?))
 */
 
-pub fn ws_upgrade_peer(inner_peer: Peer, mode1: Mode1) -> BoxedNewPeerFuture {
+pub fn ws_upgrade_peer(inner_peer: Peer, mode1: Mode1, ws_read_debt_handling:DebtHandling) -> BoxedNewPeerFuture {
     let step1 = PeerForWs(inner_peer);
     let step2: Box<
         Future<Item = self::websocket::server::upgrade::async::Upgrade<_>, Error = _>,
@@ -129,7 +129,7 @@ pub fn ws_upgrade_peer(inner_peer: Peer, mode1: Mode1) -> BoxedNewPeerFuture {
                 let ws_str = WsReadWrapper {
                     s: stream,
                     pingreply: mpsink.clone(),
-                    debt: Default::default(),
+                    debt: super::ReadDebt(Default::default(), ws_read_debt_handling),
                 };
                 let ws_sin = WsWriteWrapper(mpsink, mode1, true /* send Close on shutdown */);
 

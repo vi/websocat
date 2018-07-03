@@ -204,6 +204,13 @@ struct Opt {
         default_value = "16",
     )]
     broadcast_queue_len : usize,
+    
+    #[structopt(
+        short = "S",
+        long = "strict",
+        help="strict line/message mode: drop too long messages instead of splitting them, drop incomplete lines.",
+    )]
+    strict_mode: bool,
 }
 
 // TODO: make it byte-oriented/OsStr?
@@ -498,6 +505,13 @@ fn run() -> Result<()> {
         }
     };
     
+    if opts.websocket_text_mode {
+        opts.read_debt_handling = websocat::DebtHandling::Warn;
+    }
+    if cmd.strict_mode {
+        opts.read_debt_handling = websocat::DebtHandling::DropMessage;
+        opts.linemode_strict = true;
+    }
 
     let websocat1 = WebsocatConfiguration1 { opts, addr1:s1, addr2:s2 };
     let mut websocat2 = websocat1.parse1()?;

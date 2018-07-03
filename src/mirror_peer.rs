@@ -15,14 +15,14 @@ use futures::sync::mpsc;
 
 use tokio_io::{AsyncRead, AsyncWrite};
 
-use super::ReadDebt;
+use super::{ReadDebt,DebtHandling};
 use super::{once, ConstructParams, PeerConstructor, Specifier};
 
 #[derive(Debug, Clone)]
 pub struct Mirror;
 impl Specifier for Mirror {
-    fn construct(&self, _: ConstructParams) -> PeerConstructor {
-        once(get_mirror_peer())
+    fn construct(&self, cp: ConstructParams) -> PeerConstructor {
+        once(get_mirror_peer(cp.program_options.read_debt_handling))
     }
     specifier_boilerplate!(noglobalstate singleconnect no_subspec typ=Other);
 }
@@ -78,10 +78,10 @@ struct MirrorRead {
     ch: mpsc::Receiver<Vec<u8>>,
 }
 
-pub fn get_mirror_peer() -> BoxedNewPeerFuture {
+pub fn get_mirror_peer(debt_handling: DebtHandling) -> BoxedNewPeerFuture {
     let (sender, receiver) = mpsc::channel::<Vec<u8>>(0);
     let r = MirrorRead {
-        debt: Default::default(),
+        debt: ReadDebt(Default::default(), debt_handling),
         ch: receiver,
     };
     let w = MirrorWrite(sender);
@@ -91,7 +91,7 @@ pub fn get_mirror_peer() -> BoxedNewPeerFuture {
 pub fn get_literal_reply_peer(content: Vec<u8>) -> BoxedNewPeerFuture {
     let (sender, receiver) = mpsc::channel::<()>(0);
     let r = LiteralReplyRead {
-        debt: Default::default(),
+        debt: ReadDebt(Default::default(), DebtHandling::Silent),
         ch: receiver,
         content,
     };
@@ -107,12 +107,17 @@ impl Read for MirrorRead {
         if let Some(ret) = self.debt.check_debt(buf) {
             return ret;
         }
-        let r = self.ch.poll();
-        match r {
-            Ok(Ready(Some(x))) => self.debt.process_message(buf, x.as_slice()),
-            Ok(Ready(None)) => brokenpipe(),
-            Ok(NotReady) => wouldblock(),
-            Err(_) => brokenpipe(),
+        loop {
+            let r = self.ch.poll();
+            return match r {
+                Ok(Ready(Some(x))) => match self.debt.process_message(buf, x.as_slice()) {
+                    super::ProcessMessageResult::Return(x) => x,
+                    super::ProcessMessageResult::Recurse => continue,
+                },
+                Ok(Ready(None)) => brokenpipe(),
+                Ok(NotReady) => wouldblock(),
+                Err(_) => brokenpipe(),
+            }
         }
     }
 }
@@ -181,12 +186,17 @@ impl Read for LiteralReplyRead {
         if let Some(ret) = self.debt.check_debt(buf) {
             return ret;
         }
-        let r = self.ch.poll();
-        match r {
-            Ok(Ready(Some(()))) => self.debt.process_message(buf, &self.content),
-            Ok(Ready(None)) => brokenpipe(),
-            Ok(NotReady) => wouldblock(),
-            Err(_) => brokenpipe(),
+        loop {
+            let r = self.ch.poll();
+            return match r {
+                Ok(Ready(Some(()))) => match self.debt.process_message(buf, &self.content) {
+                    super::ProcessMessageResult::Return(x) => x,
+                    super::ProcessMessageResult::Recurse => continue,
+                },
+                Ok(Ready(None)) => brokenpipe(),
+                Ok(NotReady) => wouldblock(),
+                Err(_) => brokenpipe(),
+            }
         }
     }
 }

@@ -74,7 +74,6 @@ impl WebsocatConfiguration2 {
             s2: Specifier::from_stack(self.s2)?,
         })
     }
-    //pub fn lint_and_fixup ...;
 }
 
 pub struct WebsocatConfiguration3 {
@@ -109,6 +108,7 @@ pub struct Options {
     pub exec_args: Vec<String>,
     pub ws_c_uri: String,
     pub linemode_strip_newlines: bool,
+    pub linemode_strict: bool,
     pub origin: Option<String>,
     pub custom_headers: Vec<(String, Vec<u8>)>,
     pub websocket_version: Option<String>,
@@ -119,6 +119,8 @@ pub struct Options {
     pub buffer_size: usize,
     #[default = "16"]
     pub broadcast_queue_len : usize,
+    #[default = "DebtHandling::Silent"]
+    pub read_debt_handling : DebtHandling,
 }
 
 #[derive(Default)]
@@ -466,32 +468,58 @@ impl PeerConstructor {
     }
 }
 
-/// A `Read` utility to deal with partial reads
-#[derive(Default)]
-pub struct ReadDebt(pub Option<Vec<u8>>);
+#[derive(Debug,Clone,Copy)]
+pub enum DebtHandling {
+    Silent,
+    Warn,
+    DropMessage,
+}
 
+pub enum ProcessMessageResult {
+    Return(std::result::Result<usize, std::io::Error>),
+    Recurse,
+}
+
+/// A `Read` utility to deal with partial reads
+pub struct ReadDebt(pub Option<Vec<u8>>, pub DebtHandling);
 impl ReadDebt {
     pub fn process_message(
         &mut self,
         buf: &mut [u8],
         buf_in: &[u8],
-    ) -> std::result::Result<usize, std::io::Error> {
+    ) -> ProcessMessageResult {
         assert_eq!(self.0, None);
-        let l = buf_in.len().min(buf.len());
+        let mut l = buf_in.len();
+        if l > buf.len() {
+            match self.1 {
+                DebtHandling::Silent => (),
+                DebtHandling::Warn => {
+                    warn!("Incoming message too long ({} > {}): splitting it to parts.\nUse -B option to increase buffer size.", l, buf.len());
+                },
+                DebtHandling::DropMessage => {
+                    error!("Dropping too large message ({} > {}). Use -B option to increase buffer size.", l, buf.len());
+                    return ProcessMessageResult::Recurse;
+                },
+            }
+            l = buf.len();
+        }
         buf[..l].copy_from_slice(&buf_in[..l]);
 
         if l < buf_in.len() {
             self.0 = Some(buf_in[l..].to_vec());
         }
 
-        Ok(l)
+        ProcessMessageResult::Return(Ok(l))
     }
     pub fn check_debt(
         &mut self,
         buf: &mut [u8],
     ) -> Option<std::result::Result<usize, std::io::Error>> {
         if let Some(debt) = self.0.take() {
-            Some(self.process_message(buf, debt.as_slice()))
+            match self.process_message(buf, debt.as_slice()) {
+                ProcessMessageResult::Return(x) => Some(x),
+                ProcessMessageResult::Recurse => unreachable!(),
+            }
         } else {
             None
         }
