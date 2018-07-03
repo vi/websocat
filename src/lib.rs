@@ -117,6 +117,8 @@ pub struct Options {
     pub no_auto_linemode: bool,
     #[default = "65536"]
     pub buffer_size: usize,
+    #[default = "16"]
+    pub broadcast_queue_len : usize,
 }
 
 #[derive(Default)]

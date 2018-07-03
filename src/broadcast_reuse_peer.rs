@@ -30,8 +30,9 @@ impl Specifier for BroadcastReuser {
         let mut reuser = p.global_state.borrow_mut().reuser2.clone();
         let h = p.tokio_handle.clone();
         let bs = p.program_options.buffer_size;
+        let ql = p.program_options.broadcast_queue_len;
         let inner = || self.0.construct(p).get_only_first_conn();
-        once(connection_reuser(&h, &mut reuser, inner, bs))
+        once(connection_reuser(&h, &mut reuser, inner, bs, ql))
     }
     specifier_boilerplate!(singleconnect has_subspec typ=Reuser globalstate);
     self_0_is_subspecifier!(...);
@@ -197,9 +198,8 @@ impl AsyncWrite for PeerHandleW {
     }
 }
 
-fn makeclient(ps: HBroadCaster) -> Peer {
-    let n = 1; // TODO: de-hardcode
-    let (send, recv) = mpsc::channel(n);
+fn makeclient(ps: HBroadCaster, queue_len:usize) -> Peer {
+    let (send, recv) = mpsc::channel(queue_len);
     let k = ps
         .borrow_mut()
         .as_mut()
@@ -216,6 +216,7 @@ pub fn connection_reuser<F: FnOnce() -> BoxedNewPeerFuture>(
     s: &mut GlobalState,
     inner_peer: F,
     buffer_size : usize,
+    queue_len: usize,
 ) -> BoxedNewPeerFuture {
     let need_init = s.borrow().is_none();
 
@@ -235,11 +236,11 @@ pub fn connection_reuser<F: FnOnce() -> BoxedNewPeerFuture>(
             }
 
             let ps: HBroadCaster = rc.clone();
-            ok(makeclient(ps))
+            ok(makeclient(ps, queue_len))
         })) as BoxedNewPeerFuture
     } else {
         info!("Reusing");
         let ps: HBroadCaster = rc.clone();
-        Box::new(ok(makeclient(ps))) as BoxedNewPeerFuture
+        Box::new(ok(makeclient(ps, queue_len))) as BoxedNewPeerFuture
     }
 }

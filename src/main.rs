@@ -191,11 +191,19 @@ struct Opt {
         help = "Increase verbosity level to info or further"
     )]
     verbosity: u8,
+    
     #[structopt(
         short = "q", 
         help="Suppress all diagnostic messages, except of startup errors",
     )]
     quiet: bool,
+    
+    #[structopt(
+        long = "queue-len", 
+        help="[A] Number of pending queued messages for broadcast reuser",
+        default_value = "16",
+    )]
+    broadcast_queue_len : usize,
 }
 
 // TODO: make it byte-oriented/OsStr?

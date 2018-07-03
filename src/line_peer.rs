@@ -122,6 +122,9 @@ pub fn line2packet_peer(inner_peer: Peer, retain_newlines: bool) -> BoxedNewPeer
         inner: inner_peer.0,
         queue: vec![],
         retain_newlines,
+        allow_incomplete_lines: false,
+        drop_too_long_lines: false,
+        eof: false,
     };
     let thepeer = Peer::new(filtered, inner_peer.1);
     Box::new(ok(thepeer)) as BoxedNewPeerFuture
@@ -130,11 +133,46 @@ struct Line2PacketWrapper {
     inner: Box<AsyncRead>,
     queue: Vec<u8>,
     retain_newlines: bool,
+    allow_incomplete_lines: bool,
+    drop_too_long_lines: bool,
+    eof: bool,
+}
+
+impl Line2PacketWrapper {
+    fn deliver_the_line(&mut self, buf: &mut [u8], mut n: usize) -> Option<usize> {
+        if n > buf.len() {
+            if self.drop_too_long_lines {
+                error!("Dropping too long line of {} bytes because of buffer (-B option) is only {} bytes", n, buf.len());
+                drop(self.queue.drain(0..n));
+                return None;
+            } else {
+                error!("Splitting too long line of {} bytes because of buffer (-B option) is only {} bytes", n, buf.len());
+                n = buf.len();
+            }
+        } else {
+            if !self.retain_newlines {
+                if n > 0 && (buf[n - 1] == b'\n') {
+                    n -= 1
+                }
+                if n > 0 && (buf[n - 1] == b'\r') {
+                    n -= 1
+                }
+            }
+        }
+        
+        buf[0..n].copy_from_slice(&self.queue[0..n]);
+        drop(self.queue.drain(0..n));
+        Some(n)
+    }
 }
 
 impl Read for Line2PacketWrapper {
     fn read(&mut self, buf: &mut [u8]) -> Result<usize, IoError> {
         //eprint!("ql={} ", self.queue.len());
+        if self.eof {
+            return Ok(0);
+        }
+        
         let mut queued_line_len = None;
         for i in 0..self.queue.len() {
             if self.queue[i] == b'\n' {
@@ -146,18 +184,12 @@ impl Read for Line2PacketWrapper {
 
         if let Some(mut n) = queued_line_len {
             n += 1;
-            buf[0..n].copy_from_slice(&self.queue[0..n]);
-            ::std::mem::drop(self.queue.drain(0..n));
-            if !self.retain_newlines {
-                if n > 0 && (buf[n - 1] == b'\n') {
-                    n -= 1
-                }
-                if n > 0 && (buf[n - 1] == b'\r') {
-                    n -= 1
-                }
+            if let Some(nn) = self.deliver_the_line(buf, n) {
+                Ok(nn)
+            } else {
+                // line dropped, recursing
+                self.read(buf)
             }
-            //eprintln!("n={}", n);
-            Ok(n)
         } else {
             let mut n = match self.inner.read(buf) {
                 Ok(x) => x,
@@ -165,11 +197,20 @@ impl Read for Line2PacketWrapper {
             };
 
             if n == 0 {
+                self.eof = true;
                 if !self.queue.is_empty() {
-                    warn!(
-                        "Throwing away {} bytes of incomplete line",
-                        self.queue.len()
-                    );
+                    if self.allow_incomplete_lines {
+                        warn!("Sending possibly incomplete line.");
+                        let bl = buf.len();
+                        if let Some(nn) = self.deliver_the_line(buf, bl) {
+                            return Ok(nn);
+                        }
+                    } else {
+                        warn!(
+                            "Throwing away {} bytes of incomplete line",
+                            self.queue.len()
+                        );
+                    }
                 }
                 return Ok(0);
             }
