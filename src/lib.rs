@@ -31,6 +31,7 @@ use futures::Stream;
 
 use std::cell::RefCell;
 use std::rc::Rc;
+use std::str::FromStr;
 
 type Result<T> = std::result::Result<T, Box<std::error::Error>>;
 
@@ -60,8 +61,8 @@ impl WebsocatConfiguration2 {
     pub fn parse2(self) -> Result<WebsocatConfiguration3> {
         Ok(WebsocatConfiguration3 {
             opts: self.opts,
-            s1: Specifier::from_stack(self.s1)?,
-            s2: Specifier::from_stack(self.s2)?,
+            s1: Specifier::from_stack(&self.s1)?,
+            s2: Specifier::from_stack(&self.s2)?,
         })
     }
 }

@@ -151,7 +151,7 @@ fn specdoc(sc: &SpecifierClass, overlays:bool) {
         println!("Aliases: {}  ", other_prefixes);
     }
     println!("Internal name for --dump-spec: {}", spec_name);
-    println!("");
+    println!();
 
     let help = 
         sc

@@ -1,8 +1,9 @@
 use super::{Result, Specifier, SpecifierClass, SpecifierStack};
 use std::rc::Rc;
+use std::str::FromStr;
 
 pub fn spec(s: &str) -> Result<Rc<Specifier>> {
-    Specifier::from_stack(SpecifierStack::from_str(s)?)
+    Specifier::from_stack(&SpecifierStack::from_str(s)?)
 }
 
 fn some_checks(s:&str) -> Result<()> {
@@ -43,8 +44,10 @@ fn some_checks(s:&str) -> Result<()> {
     Ok(())
 }
 
-impl SpecifierStack {
-    pub fn from_str(s: &str) -> Result<SpecifierStack> {
+impl FromStr for SpecifierStack {
+    type Err = Box<::std::error::Error>;
+    #[cfg_attr(feature = "cargo-clippy",allow(cyclomatic_complexity))]
+    fn from_str(s: &str) -> Result<SpecifierStack> {
         some_checks(s)?;
     
         let mut s = s.to_string();
@@ -89,7 +92,7 @@ impl SpecifierStack {
 }
 
 impl Specifier {
-    pub fn from_stack(st: SpecifierStack) -> Result<Rc<Specifier>> {
+    pub fn from_stack(st: &SpecifierStack) -> Result<Rc<Specifier>> {
         let mut x = st.addrtype.construct(st.addr.as_str())?;
         for overlay in st.overlays.iter().rev() {
             x = overlay.construct_overlay(x)?;

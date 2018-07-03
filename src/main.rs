@@ -402,11 +402,11 @@ fn run() -> Result<()> {
     }
     
     if ! cmd.no_lints {
-        websocat2.lint_and_fixup(std::rc::Rc::new(move |e:&str| {
+        websocat2.lint_and_fixup(&move |e:&str| {
             if !quiet {
                 eprintln!("{}", e);
             }
-        }))?;
+        })?;
     }
     let websocat = websocat2.parse2()?;
 

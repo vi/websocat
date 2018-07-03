@@ -1,6 +1,6 @@
 use super::{WebsocatConfiguration2, SpecifierStack, SpecifierClass};
 use std::rc::Rc;
-
+use std::str::FromStr;
 
 #[derive(Ord, PartialOrd, Eq, PartialEq, Copy, Clone)]
 pub enum StdioUsageStatus {
@@ -65,7 +65,7 @@ impl SpecifierStackExt for SpecifierStack {
     }
     fn reuser_count(&self) -> usize {
         let mut c = 0;
-        for overlay in self.overlays.iter() {
+        for overlay in &self.overlays {
             if overlay.is_reuser() {
                 c += 1;
             }
@@ -73,7 +73,7 @@ impl SpecifierStackExt for SpecifierStack {
         c
     }
     fn contains(&self, t: &'static str) -> bool {
-        for overlay in self.overlays.iter() {
+        for overlay in &self.overlays {
             if overlay.get_name() == t {
                 return true;
             }
@@ -94,7 +94,7 @@ impl SpecifierStackExt for SpecifierStack {
                 MulticonnectnessDependsOnInnerType => (),
             }
         }
-        return true;
+        true
     }
     fn is_stream_oriented(&self) -> bool {
         use super::ClassMessageBoundaryStatus::*;
@@ -110,7 +110,7 @@ impl SpecifierStackExt for SpecifierStack {
                 MessageBoundaryStatusDependsOnInnerType => (),
             }
         }
-        return q;
+        q
     }
     fn insert_line_class_in_proper_place(&mut self, x:Rc<SpecifierClass>) {
         use super::ClassMessageBoundaryStatus::*;
@@ -132,6 +132,7 @@ impl WebsocatConfiguration2 {
     }
 
     #[cfg_attr(rustfmt, rustfmt_skip)]
+    #[cfg_attr(feature="cargo-clippy", allow(nonminimal_bool))]
     pub fn websocket_used(&self) -> bool {
         false 
         || self.contains_class("WsConnectClass")
@@ -154,7 +155,7 @@ impl WebsocatConfiguration2 {
         None
     }
 
-    pub fn lint_and_fixup<F>(&mut self, on_warning: Rc<F>) -> super::Result<()> 
+    pub fn lint_and_fixup<F>(&mut self, on_warning: &F) -> super::Result<()> 
         where F: for<'a> Fn(&'a str) -> () + 'static
     {
         let mut reuser_has_been_inserted = false;

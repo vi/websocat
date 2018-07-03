@@ -164,6 +164,7 @@ struct Line2PacketWrapper {
 }
 
 impl Line2PacketWrapper {
+    #[cfg_attr(feature="cargo-clippy",allow(collapsible_if))]
     fn deliver_the_line(&mut self, buf: &mut [u8], mut n: usize) -> Option<usize> {
         if n > buf.len() {
             if self.drop_too_long_lines {
@@ -197,6 +198,7 @@ impl Line2PacketWrapper {
 }
 
 impl Read for Line2PacketWrapper {
+    #[cfg_attr(feature="cargo-clippy",allow(collapsible_if))]
     fn read(&mut self, buf: &mut [u8]) -> Result<usize, IoError> {
         //eprint!("ql={} ", self.queue.len());
         if self.eof {
