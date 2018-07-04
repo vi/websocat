@@ -4,6 +4,7 @@ set -e
 
 if [ -z "$1" ]; then
     echo "Usage: autorelease.sh directory/"
+    echo "This script is supposed to run only on my system"
     exit 1
 fi
 D="$1"
@@ -107,7 +108,6 @@ ST=i586-mingw32msvc-strip
 E=.exe
 r
 
-FE=--features=ssl
 T=x86_64-pc-windows-gnu
 CA="cross"
 TT=win64
