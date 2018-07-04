@@ -75,10 +75,10 @@ T=x86_64-unknown-linux-musl
 TT=amd64-linux-static
 r
 
-T=x86_64-linux-android
-TT=amd64-android
-CA="cross"
-r
+#T=x86_64-linux-android
+#TT=amd64-android
+#CA="cross"
+#r
 
 #T=i686-unknown-freebsd
 #TT=i386-freebsd
