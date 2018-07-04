@@ -79,7 +79,7 @@ TODO: transfer the example here
 specifier_alias!(
     name = WsUnixServerClass,
     prefixes = ["l-ws-unix:"],
-    alias = "ws-l:unix-l:",
+    alias = "ws-u:unix-l:",
     help = r#"
 WebSocket UNIX socket-based server. [A]
 "#
