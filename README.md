@@ -29,10 +29,10 @@ ABC
 123
 ```
 
-### Open a tab in Chromium's using remote debugging.
+### Open a tab in Chromium using remote debugging.
 
 ```
-$ chromium-browser  --remote-debugging-port=9222&
+$ chromium --remote-debugging-port=9222&
 $ curl -sg http://127.0.0.1:9222/json/new | grep webSocketDebuggerUrl | cut -d'"' -f4 | head -1
 ws://127.0.0.1:9222/devtools/page/A331E56CCB8615EB4FCB720425A82259
 $ printf '{"id":2,"method":"Page.navigate","params":{"url":"%s"}}\n' https://example.com | websocat -n1 --origin http://127.0.0.1:9222 --protocol tcp ws://127.0.0.1:9222/devtools/page/A331E56CCB8615EB4FCB720425A82259
@@ -188,7 +188,6 @@ Planned features
 * Pure Rust version with SSL support?
 * SOCK_SEQPACKET mode for `exec:`?
 * SOCK_SEQPACKET SCTP mode?
-* Option for auto `\n` insertion
 * Add WebRTC's DataChannel to the mix (separate project)?
 
 There are also checkboxes on issues [#1](https://github.com/vi/websocat/issues/1) and [#5](https://github.com/vi/websocat/issues/5).
