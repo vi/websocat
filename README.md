@@ -192,6 +192,12 @@ Planned features
 
 There are also checkboxes on issues [#1](https://github.com/vi/websocat/issues/1) and [#5](https://github.com/vi/websocat/issues/5).
 
+Building from source code
+---
+
+1. Install the [Rust tool toolchain](https://rustup.rs/)
+2. `cargo build --release`.
+
 See also
 ---
 
