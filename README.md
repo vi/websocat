@@ -198,6 +198,8 @@ Building from source code
 1. Install the [Rust tool toolchain](https://rustup.rs/)
 2. `cargo build --release`.
 
+Note that `wss://` support is not enabled by default. Use `cargo build --release --features=ssl` to enable it.
+
 See also
 ---
 
