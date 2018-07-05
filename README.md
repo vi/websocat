@@ -200,6 +200,13 @@ Building from source code
 
 Note that `wss://` support is not enabled by default. Use `cargo build --release --features=ssl` to enable it.
 
+SSL on Android
+---
+
+websocat's `wss://` may fail on Android. As a workaround, download certificate bundle, for example, from https://curl.haxx.se/ca/cacert.pem and specify it explicitly:
+
+    SSL_CERT_FILE=cacert.pem /data/local/tmp/websocat wss://echo.websocket.org
+
 See also
 ---
 
