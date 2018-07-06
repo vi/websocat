@@ -195,7 +195,7 @@ There are also checkboxes on issues [#1](https://github.com/vi/websocat/issues/1
 Building from source code
 ---
 
-1. Install the [Rust tool toolchain](https://rustup.rs/)
+1. Install the [Rust toolchain](https://rustup.rs/)
 2. `cargo build --release`.
 
 Note that `wss://` support is not enabled by default. Use `cargo build --release --features=ssl` to enable it.
