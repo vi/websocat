@@ -81,17 +81,17 @@ r
 #CA="cross"
 #r
 
-#T=i686-unknown-freebsd
-#TT=i386-freebsd
-#CA=cross
-#S=strip
-#r
+T=i686-unknown-freebsd
+TT=i386-freebsd
+CA=cross
+ST=strip
+r
 #
-#T=x86_64-unknown-freebsd
-#TT=amd64-freebsd
-#CA=cross
-#S=strip
-#r
+T=x86_64-unknown-freebsd
+TT=amd64-freebsd
+CA=cross
+ST=strip
+r
 
 r
 
