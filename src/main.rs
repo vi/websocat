@@ -198,6 +198,12 @@ struct Opt {
         short = "0", long = "null-terminated", help = "Use \\0 instead of \\n for linemode"
     )]
     linemode_zero_terminated: bool,
+
+    #[structopt(
+        long = "restrict-uri",
+        help = "When serving a websocket, only accept the given URI, like `/websocket`"
+    )]
+    restrict_uri: Option<String>,
 }
 
 // TODO: make it byte-oriented/OsStr?
@@ -328,6 +334,7 @@ fn run() -> Result<()> {
             no_auto_linemode
             buffer_size
             linemode_zero_terminated
+            restrict_uri
         )
     };
 

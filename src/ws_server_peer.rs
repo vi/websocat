@@ -1,3 +1,4 @@
+extern crate hyper;
 extern crate websocket;
 
 use self::websocket::WebSocketError;
@@ -23,8 +24,16 @@ impl<T: Specifier> Specifier for WsServer<T> {
         } else {
             Mode1::Binary
         };
+        let restrict_uri = Rc::new(cp.program_options.restrict_uri.clone());
         let inner = self.0.construct(cp.clone());
-        inner.map(move |p| ws_upgrade_peer(p, mode1, cp.program_options.read_debt_handling))
+        inner.map(move |p| {
+            ws_upgrade_peer(
+                p,
+                mode1,
+                cp.program_options.read_debt_handling,
+                restrict_uri.clone(),
+            )
+        })
     }
     specifier_boilerplate!(typ=WebSocket noglobalstate has_subspec);
     self_0_is_subspecifier!(proxy_is_multiconnect);
@@ -112,6 +121,7 @@ pub fn ws_upgrade_peer(
     inner_peer: Peer,
     mode1: Mode1,
     ws_read_debt_handling: DebtHandling,
+    restrict_uri: Rc<Option<String>>,
 ) -> BoxedNewPeerFuture {
     let step1 = PeerForWs(inner_peer);
     let step2: Box<
@@ -119,26 +129,49 @@ pub fn ws_upgrade_peer(
     > = step1.into_ws();
     let step3 = step2
         .map_err(|(_, _, _, e)| WebSocketError::IoError(io_other_error(e)))
-        .and_then(move |x| {
-            info!("Incoming connection to websocket: {}", x.request.subject.1);
-            debug!("{:?}", x.request);
-            debug!("{:?}", x.headers);
-            x.accept().map(move |(y, headers)| {
-                debug!("{:?}", headers);
-                info!("Upgraded");
-                let (sink, stream) = y.split();
-                let mpsink = Rc::new(RefCell::new(sink));
-
-                let ws_str = WsReadWrapper {
-                    s: stream,
-                    pingreply: mpsink.clone(),
-                    debt: ReadDebt(Default::default(), ws_read_debt_handling),
+        .and_then(
+            move |x| -> Box<Future<Item = Peer, Error = websocket::WebSocketError>> {
+                info!("Incoming connection to websocket: {}", x.request.subject.1);
+                debug!("{:?}", x.request);
+                debug!("{:?}", x.headers);
+                if let Some(ref restrict_uri) = *restrict_uri {
+                    let check_passed = match x.request.subject.1 {
+                        hyper::uri::RequestUri::AbsolutePath(ref x) if x == restrict_uri => true,
+                        _ => false,
+                    };
+                    if !check_passed {
+                        return Box::new(
+                            x.reject()
+                                .and_then(|_| {
+                                    warn!("Incoming request URI doesn't match the --restrict-uri value");
+                                    ::futures::future::err(::util::simple_err(
+                                        "Request URI doesn't match --restrict-uri parameter"
+                                            .to_string(),
+                                    ))
+                                })
+                                .map_err(|e| websocket::WebSocketError::IoError(io_other_error(e))),
+                        )
+                            as Box<Future<Item = Peer, Error = websocket::WebSocketError>>;
+                    }
                 };
-                let ws_sin = WsWriteWrapper(mpsink, mode1, true /* send Close on shutdown */);
+                Box::new(x.accept().map(move |(y, headers)| {
+                    debug!("{:?}", headers);
+                    info!("Upgraded");
+                    let (sink, stream) = y.split();
+                    let mpsink = Rc::new(RefCell::new(sink));
 
-                Peer::new(ws_str, ws_sin)
-            })
-        });
+                    let ws_str = WsReadWrapper {
+                        s: stream,
+                        pingreply: mpsink.clone(),
+                        debt: ReadDebt(Default::default(), ws_read_debt_handling),
+                    };
+                    let ws_sin =
+                        WsWriteWrapper(mpsink, mode1, true /* send Close on shutdown */);
+
+                    Peer::new(ws_str, ws_sin)
+                })) as Box<Future<Item = Peer, Error = websocket::WebSocketError>>
+            },
+        );
     let step4 = step3.map_err(box_up_err);
     Box::new(step4) as BoxedNewPeerFuture
 }

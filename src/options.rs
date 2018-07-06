@@ -27,4 +27,5 @@ pub struct Options {
     #[default = "DebtHandling::Silent"]
     pub read_debt_handling: DebtHandling,
     pub linemode_zero_terminated: bool,
+    pub restrict_uri: Option<String>,
 }
