@@ -125,14 +125,18 @@ Do nothing. Don't read or write any bytes. Keep connections in "hung" state. [A]
 "#
 );
 
-struct LiteralPeer {
+pub struct LiteralPeer {
     debt: ReadDebt,
 }
 
-pub fn get_literal_peer(b: Vec<u8>) -> BoxedNewPeerFuture {
-    let r = LiteralPeer {
+pub fn get_literal_peer_now(b: Vec<u8>) -> LiteralPeer {
+    LiteralPeer {
         debt: ReadDebt(Some(b), DebtHandling::Silent),
-    };
+    }
+}
+
+pub fn get_literal_peer(b: Vec<u8>) -> BoxedNewPeerFuture {
+    let r = get_literal_peer_now(b);
     let w = DevNull;
     let p = Peer::new(r, w);
     Box::new(futures::future::ok(p)) as BoxedNewPeerFuture

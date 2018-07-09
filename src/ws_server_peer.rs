@@ -1,8 +1,12 @@
 extern crate hyper;
 extern crate websocket;
 
+use self::hyper::http::h1::Incoming;
+use self::hyper::method::Method;
+use self::hyper::uri::RequestUri;
+
 use self::websocket::WebSocketError;
-use futures::future::Future;
+use futures::future::{Future,err};
 use futures::stream::Stream;
 
 use std::cell::RefCell;
@@ -117,6 +121,17 @@ WebSocket abstract-namespaced UNIX socket server. [A]
             boxup(super::ws_server_peer::WsUpgrade(spec(x)?))
 */
 
+fn http_serve(p:Peer, _incoming:Option<Incoming<(Method, RequestUri)>>) -> Box<Future<Item=(), Error=()>> {
+    let content = b"HTTP/1.1 400 Bad Reqeust\r\nServer: websocat\r\nContent-Type: text/plain\r\nConnection: close\r\n\r\nOnly WebSocket connections are welcome here\n";
+    let reply = super::trivial_peer::get_literal_peer_now(content.to_vec());
+    let co = super::my_copy::CopyOptions {
+        buffer_size: 4096,
+        once: false,
+        stop_on_reader_zero_read: true,
+    };
+    Box::new(super::my_copy::copy(reply, p.1, co).map(|_|()).map_err(drop))
+}
+
 pub fn ws_upgrade_peer(
     inner_peer: Peer,
     mode1: Mode1,
@@ -128,9 +143,11 @@ pub fn ws_upgrade_peer(
         Future<Item = self::websocket::server::upgrade::async::Upgrade<_>, Error = _>,
     > = step1.into_ws();
     let step3 = step2
-        // or_else
-        .map_err(|(_innerpeer, _hyper_incoming, _bytesmut, e)| {
-            WebSocketError::IoError(io_other_error(e))
+        .or_else(|(innerpeer, hyper_incoming, _bytesmut, e)| {
+            http_serve(innerpeer.0, hyper_incoming)
+            .then(|_|
+                err(WebSocketError::IoError(io_other_error(e)))
+            )
         })
         .and_then(
             move |x| -> Box<Future<Item = Peer, Error = websocket::WebSocketError>> {
