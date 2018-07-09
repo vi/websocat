@@ -18,6 +18,7 @@ use structopt::StructOpt;
 use tokio_core::reactor::Core;
 
 use websocat::{Options, SpecifierClass, WebsocatConfiguration1};
+use websocat::options::StaticFile;
 
 type Result<T> = std::result::Result<T, Box<std::error::Error>>;
 
@@ -201,9 +202,17 @@ struct Opt {
 
     #[structopt(
         long = "restrict-uri",
-        help = "When serving a websocket, only accept the given URI, like `/websocket`"
+        help = "When serving a websocket, only accept the given URI, like `/ws`\nThis liberates other URIs for things like serving static files or proxying."
     )]
     restrict_uri: Option<String>,
+    
+    #[structopt(
+        short = "F",
+        long = "static-file",
+        help = "Serve a named static file for non-websocket connections.\nArgument syntax: <URI>:<Content-Type>:<file-path>\nArgument example: /index.html:text/html:index.html\nDirectories are not and will not be supported for security reasons.\nCan be specified multiple times.",
+        parse(try_from_str = "interpret_static_file")
+    )]
+    serve_static_files: Vec<StaticFile>,
 }
 
 // TODO: make it byte-oriented/OsStr?
@@ -220,6 +229,10 @@ fn interpret_custom_header(x: &str) -> Result<(String, Vec<u8>)> {
         hv = &x[colon + 2..];
     }
     Ok((hn.to_owned(), hv.as_bytes().to_vec()))
+}
+
+fn interpret_static_file(_x: &str) -> Result<StaticFile> {
+    Err("Not supported yet")?
 }
 
 pub mod help;
@@ -295,6 +308,10 @@ fn run() -> Result<()> {
         cmd.websocket_text_mode = true;
         recommend_explicit_text_or_bin = true;
     }
+    
+    //if !cmd.serve_static_files.is_empty() && cmd.restrict_uri.is_none() {
+    //    Err("Specify --static-file is not supported without --restrict-uri")?
+    //}
 
     if false
     //    || cmd.oneshot
@@ -335,6 +352,7 @@ fn run() -> Result<()> {
             buffer_size
             linemode_zero_terminated
             restrict_uri
+            serve_static_files
         )
     };
 

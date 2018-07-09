@@ -1,5 +1,12 @@
 use super::readdebt::DebtHandling;
 
+#[derive(Debug,Clone)]
+pub struct StaticFile {
+    uri: String,
+    file: ::std::path::PathBuf,
+    content_type: String,
+}
+
 #[derive(SmartDefault, Debug, Clone)]
 pub struct Options {
     pub websocket_text_mode: bool,
@@ -28,4 +35,5 @@ pub struct Options {
     pub read_debt_handling: DebtHandling,
     pub linemode_zero_terminated: bool,
     pub restrict_uri: Option<String>,
+    pub serve_static_files: Vec<StaticFile>,
 }
