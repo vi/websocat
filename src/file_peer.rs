@@ -110,7 +110,7 @@ Example: Logging all incoming data from WebSocket clients to one file
 "#
 );
 
-struct ReadFileWrapper(File);
+pub struct ReadFileWrapper(pub File);
 
 impl AsyncRead for ReadFileWrapper {}
 impl Read for ReadFileWrapper {

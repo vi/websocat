@@ -2,9 +2,9 @@ use super::readdebt::DebtHandling;
 
 #[derive(Debug,Clone)]
 pub struct StaticFile {
-    uri: String,
-    file: ::std::path::PathBuf,
-    content_type: String,
+    pub uri: String,
+    pub file: ::std::path::PathBuf,
+    pub content_type: String,
 }
 
 #[derive(SmartDefault, Debug, Clone)]

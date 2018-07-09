@@ -231,8 +231,27 @@ fn interpret_custom_header(x: &str) -> Result<(String, Vec<u8>)> {
     Ok((hn.to_owned(), hv.as_bytes().to_vec()))
 }
 
-fn interpret_static_file(_x: &str) -> Result<StaticFile> {
-    Err("Not supported yet")?
+fn interpret_static_file(x: &str) -> Result<StaticFile> {
+    let colon1 = match x.find(':') {
+        Some(x) => x,
+        None => Err("Argument to --static-file must contain two colons (`:`)")?
+    };
+    let uri = &x[0..colon1];
+    let rest = &x[colon1+1..];
+    let colon2 = match rest.find(':') {
+        Some(x) => x,
+        None => Err("Argument to --static-file must contain two colons (`:`)")?
+    };
+    let ct = &rest[0..colon2];
+    let fp = &rest[colon2+1..];
+    if uri.is_empty() || ct.is_empty() || fp.is_empty() {
+        Err("Empty URI, content-type or path in --static-file parameter")?
+    }
+    Ok(StaticFile{
+        uri: uri.to_string(), 
+        content_type: ct.to_string(),
+        file: fp.into(),
+    })
 }
 
 pub mod help;
