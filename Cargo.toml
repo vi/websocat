@@ -13,7 +13,7 @@ readme = "README.md"
 [dependencies]
 websocket = { version = "0.20.2", default-features = false, features=["async"] }
 env_logger = {version="0.5.9", default-features = false }
-log = {version="0.4.1", default-features = false}
+log = {version="0.4.1", default-features = false, features=["release_max_level_debug"]}
 futures = {version = "=0.1.17" }
 tokio-core =  { version = "=0.1.12" }
 tokio-io = "=0.1.5"
