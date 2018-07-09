@@ -128,7 +128,10 @@ pub fn ws_upgrade_peer(
         Future<Item = self::websocket::server::upgrade::async::Upgrade<_>, Error = _>,
     > = step1.into_ws();
     let step3 = step2
-        .map_err(|(_innerpeer, _hyper_incoming, _bytesmut, e)| WebSocketError::IoError(io_other_error(e)))
+        // or_else
+        .map_err(|(_innerpeer, _hyper_incoming, _bytesmut, e)| {
+            WebSocketError::IoError(io_other_error(e))
+        })
         .and_then(
             move |x| -> Box<Future<Item = Peer, Error = websocket::WebSocketError>> {
                 info!("Incoming connection to websocket: {}", x.request.subject.1);
