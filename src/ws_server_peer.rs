@@ -18,7 +18,7 @@ use self::websocket::server::upgrade::async::IntoWs;
 use super::readdebt::{DebtHandling, ReadDebt};
 use super::ws_peer::{Mode1, PeerForWs, WsReadWrapper, WsWriteWrapper};
 use super::{box_up_err, io_other_error, BoxedNewPeerFuture, Peer};
-use super::{ConstructParams, PeerConstructor, Specifier};
+use super::{ConstructParams, PeerConstructor, Specifier, L2rUser};
 
 #[derive(Debug)]
 pub struct WsServer<T: Specifier>(pub T);
@@ -32,13 +32,16 @@ impl<T: Specifier> Specifier for WsServer<T> {
         let restrict_uri = Rc::new(cp.program_options.restrict_uri.clone());
         let serve_static_files = Rc::new(cp.program_options.serve_static_files.clone());
         let inner = self.0.construct(cp.clone());
+        let l2r = cp.left_to_right;
+        let rdh = cp.program_options.read_debt_handling;
         inner.map(move |p| {
             ws_upgrade_peer(
                 p,
                 mode1,
-                cp.program_options.read_debt_handling,
+                rdh,
                 restrict_uri.clone(),
                 serve_static_files.clone(),
+                l2r.clone(),
             )
         })
     }
@@ -119,6 +122,7 @@ pub fn ws_upgrade_peer(
     ws_read_debt_handling: DebtHandling,
     restrict_uri: Rc<Option<String>>,
     serve_static_files: Rc<Vec<StaticFile>>,
+    l2r: L2rUser,
 ) -> BoxedNewPeerFuture {
     let step1 = PeerForWs(inner_peer);
     let step2: Box<
@@ -136,6 +140,14 @@ pub fn ws_upgrade_peer(
                 info!("Incoming connection to websocket: {}", x.request.subject.1);
                 debug!("{:?}", x.request);
                 debug!("{:?}", x.headers);
+                
+                match l2r {
+                    L2rUser::FillIn(y) => {
+                        y.borrow_mut().uri = Some(format!("{}", x.request.subject.1));
+                    },
+                    L2rUser::ReadFrom(_) => {},
+                }
+                
                 if let Some(ref restrict_uri) = *restrict_uri {
                     let check_passed = match x.request.subject.1 {
                         AbsolutePath(ref x) if x == restrict_uri => true,

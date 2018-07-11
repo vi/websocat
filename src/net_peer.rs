@@ -16,6 +16,7 @@ use tokio_core::net::{TcpListener, TcpStream, UdpSocket};
 
 use super::{box_up_err, peer_err_s, wouldblock, BoxedNewPeerFuture, BoxedNewPeerStream, Peer};
 use super::{multi, once, ConstructParams, Options, PeerConstructor, Specifier};
+use super::{L2rUser};
 
 #[derive(Debug, Clone)]
 pub struct TcpConnect(pub SocketAddr);
@@ -50,7 +51,7 @@ Example: redirect websocket connections to local SSH server over IPv6
 pub struct TcpListen(pub SocketAddr);
 impl Specifier for TcpListen {
     fn construct(&self, p: ConstructParams) -> PeerConstructor {
-        multi(tcp_listen_peer(&p.tokio_handle, &self.0))
+        multi(tcp_listen_peer(&p.tokio_handle, &self.0, p.left_to_right))
     }
     specifier_boilerplate!(noglobalstate multiconnect no_subspec typ=Other);
 }
@@ -209,7 +210,11 @@ pub fn tcp_connect_peer(handle: &Handle, addr: &SocketAddr) -> BoxedNewPeerFutur
     ) as BoxedNewPeerFuture
 }
 
-pub fn tcp_listen_peer(handle: &Handle, addr: &SocketAddr) -> BoxedNewPeerStream {
+pub fn tcp_listen_peer(
+        handle: &Handle,
+        addr: &SocketAddr,
+        l2r: L2rUser,
+) -> BoxedNewPeerStream {
     let bound = match TcpListener::bind(&addr, handle) {
         Ok(x) => x,
         Err(e) => return peer_err_s(e),
@@ -217,8 +222,17 @@ pub fn tcp_listen_peer(handle: &Handle, addr: &SocketAddr) -> BoxedNewPeerStream
     Box::new(
         bound
             .incoming()
-            .map(|(x, _addr)| {
-                info!("Incoming TCP connection");
+            .map(move |(x, addr)| {
+                info!("Incoming TCP connection from {}", addr);
+                
+                match l2r {
+                    L2rUser::FillIn(ref y) => {
+                        y.borrow_mut().client_addr = Some(format!("{}", addr));
+                    },
+                    L2rUser::ReadFrom(_) => {},
+                }
+                
+                
                 let x = Rc::new(x);
                 Peer::new(MyTcpStream(x.clone(), true), MyTcpStream(x.clone(), false))
             })

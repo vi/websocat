@@ -100,7 +100,12 @@ pub struct ProgramState {
 
 /// Some information passed from the left specifier Peer to the right
 #[derive(Default, Clone)]
-pub struct LeftSpecToRightSpec {}
+pub struct LeftSpecToRightSpec {
+    /// URI the client requested when connecting to WebSocket
+    uri: Option<String>,
+    /// Address:port of connecting client, if it is TCP
+    client_addr: Option<String>,
+}
 #[derive(Clone)]
 pub enum L2rUser {
     FillIn(Rc<RefCell<LeftSpecToRightSpec>>),
