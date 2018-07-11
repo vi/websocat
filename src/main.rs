@@ -435,7 +435,7 @@ fn run() -> Result<()> {
     }
 
     if !quiet && recommend_explicit_text_or_bin {
-        eprintln!("It is recommended to either set --binary or --text explicitly");
+        eprintln!("websocat: It is recommended to either set --binary or --text explicitly");
     }
     if !quiet {
         logging::setup_env_logger(cmd.verbosity)?;
@@ -444,7 +444,7 @@ fn run() -> Result<()> {
     if !cmd.no_lints {
         websocat2.lint_and_fixup(&move |e: &str| {
             if !quiet {
-                eprintln!("{}", e);
+                eprintln!("websocat: {}", e);
             }
         })?;
     }
