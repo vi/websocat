@@ -111,14 +111,6 @@ pub enum L2rUser {
     FillIn(Rc<RefCell<LeftSpecToRightSpec>>),
     ReadFrom(Rc<RefCell<LeftSpecToRightSpec>>),
 }
-impl L2rUser {
-    fn deep_clone(&self) -> Self {
-        match *self {
-            L2rUser::FillIn(ref x) => L2rUser::FillIn(Rc::new(RefCell::new(x.borrow().clone()))),
-            L2rUser::ReadFrom(ref x) => L2rUser::ReadFrom(Rc::new(RefCell::new(x.borrow().clone()))),
-        }
-    }
-}
 
 pub struct Peer(Box<AsyncRead>, Box<AsyncWrite>);
 
