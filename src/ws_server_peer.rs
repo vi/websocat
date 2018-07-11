@@ -149,7 +149,7 @@ fn get_static_file_reply(len: Option<u64>, ct: &str) -> Vec<u8> {
         q.extend_from_slice(format!("{}",x).as_bytes());
         q.extend_from_slice(b"\r\n");
     }
-    q.extend_from_slice(b"\r\n\r\n");
+    q.extend_from_slice(b"\r\n");
     q
 }
 
@@ -158,12 +158,12 @@ fn http_serve(
         incoming:Option<Incoming<(Method, RequestUri)>>,
         serve_static_files: Rc<Vec<StaticFile>>,
 ) -> Box<Future<Item=(), Error=()>> {
-    info!("HTTP-serving {:?}", incoming);
     let mut serve_file = None;
     let content = if serve_static_files.is_empty() {
         BAD_REQUEST.to_vec()
     } else {
         if let Some(inc) = incoming {
+            info!("HTTP-serving {:?}", inc.subject);
             if inc.subject.0 == Method::Get {
                 match inc.subject.1 {
                     AbsolutePath(x) => {
@@ -236,7 +236,6 @@ pub fn ws_upgrade_peer(
     > = step1.into_ws();
     let step3 = step2
         .or_else(|(innerpeer, hyper_incoming, _bytesmut, e)| {
-            info!("bm: {:?}", _bytesmut);
             http_serve(innerpeer.0, hyper_incoming, serve_static_files)
             .then(|_|
                 err(WebSocketError::IoError(io_other_error(e)))
