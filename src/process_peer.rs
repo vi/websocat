@@ -1,3 +1,4 @@
+#![allow(unused)]
 extern crate tokio_process;
 
 use futures;
@@ -6,6 +7,8 @@ use std::io::Result as IoResult;
 use std::io::{Read, Write};
 use tokio_core::reactor::Handle;
 use tokio_io::{AsyncRead, AsyncWrite};
+
+use super::{LeftSpecToRightSpec, L2rUser};
 
 use std::cell::RefCell;
 use std::rc::Rc;
@@ -17,6 +20,13 @@ use self::tokio_process::{Child, CommandExt};
 use super::{once, ConstructParams, PeerConstructor, Specifier};
 use super::{BoxedNewPeerFuture, Peer};
 use std::process::Stdio;
+
+fn needenv(p : &ConstructParams) -> Option<&RefCell<LeftSpecToRightSpec>> {
+    match (p.program_options.exec_set_env, &p.left_to_right) {
+        (true, &L2rUser::ReadFrom(ref x)) => Some(&*x),
+        _ => None,
+    }
+}
 
 #[derive(Debug, Clone)]
 pub struct Cmd(pub String);
@@ -32,7 +42,10 @@ impl Specifier for Cmd {
             args
         };
         let h = &p.tokio_handle;
-        once(Box::new(futures::future::result(process_connect_peer(h, args))) as BoxedNewPeerFuture)
+        let env = needenv(&p);
+        once(Box::new(futures::future::result(
+            process_connect_peer(h, args, env)
+        )) as BoxedNewPeerFuture)
     }
     specifier_boilerplate!(noglobalstate singleconnect no_subspec typ=Other);
 }
@@ -60,7 +73,10 @@ impl Specifier for ShC {
         let mut args = Command::new("sh");
         args.arg("-c").arg(self.0.clone());
         let h = &p.tokio_handle;
-        once(Box::new(futures::future::result(process_connect_peer(h, args))) as BoxedNewPeerFuture)
+        let env = needenv(&p);
+        once(Box::new(futures::future::result(
+            process_connect_peer(h, args, env)
+        )) as BoxedNewPeerFuture)
     }
     specifier_boilerplate!(noglobalstate singleconnect no_subspec typ=Other);
 }
@@ -92,7 +108,10 @@ impl Specifier for Exec {
         let mut args = Command::new(self.0.clone());
         args.args(p.program_options.exec_args.clone());
         let h = &p.tokio_handle;
-        once(Box::new(futures::future::result(process_connect_peer(h, args))) as BoxedNewPeerFuture)
+        let env = needenv(&p);
+        once(Box::new(futures::future::result(
+            process_connect_peer(h, args, env)
+        )) as BoxedNewPeerFuture)
     }
     specifier_boilerplate!(noglobalstate singleconnect no_subspec typ=Other);
 }
@@ -118,7 +137,19 @@ Example: pinger
 "#
 );
 
-fn process_connect_peer(h: &Handle, mut cmd: Command) -> Result<Peer, Box<std::error::Error>> {
+fn process_connect_peer(
+        h: &Handle, 
+        mut cmd: Command,
+        l2r: Option<&RefCell<LeftSpecToRightSpec>>
+) -> Result<Peer, Box<std::error::Error>> {
+    if let Some(x) = l2r {
+        if let Some(ref y) = x.borrow().client_addr {
+            cmd.env("WEBSOCAT_CLIENT",y);
+        };
+        if let Some(ref y) = x.borrow().uri {
+            cmd.env("WEBSOCAT_URI",y);
+        };
+    }
     cmd.stdin(Stdio::piped()).stdout(Stdio::piped());
     let child = cmd.spawn_async(h)?;
     let ph = ProcessPeer(Rc::new(RefCell::new(child)));

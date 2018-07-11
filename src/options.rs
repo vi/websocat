@@ -36,4 +36,5 @@ pub struct Options {
     pub linemode_zero_terminated: bool,
     pub restrict_uri: Option<String>,
     pub serve_static_files: Vec<StaticFile>,
+    pub exec_set_env: bool,
 }

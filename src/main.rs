@@ -213,6 +213,13 @@ struct Opt {
         parse(try_from_str = "interpret_static_file")
     )]
     serve_static_files: Vec<StaticFile>,
+    
+     #[structopt(
+        short = "e",
+        long = "set-environment",
+        help = "Set WEBSOCAT_* environment variables when doing exec:/cmd:/sh-c:\nCurrently it's WEBSOCAT_URI and WEBSOCAT_CLIENT for\nrequest URI and client address (if TCP)\nBeware of ShellShock or similar security problems.",
+    )]
+    exec_set_env: bool,
 }
 
 // TODO: make it byte-oriented/OsStr?
@@ -372,6 +379,7 @@ fn run() -> Result<()> {
             linemode_zero_terminated
             restrict_uri
             serve_static_files
+            exec_set_env
         )
     };
 
