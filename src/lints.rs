@@ -245,6 +245,27 @@ impl WebsocatConfiguration2 {
                 on_warning("Warning: you specified exec: without the corresponding --exec-args at the end of command line. Unlike in cmd: or sh-c:, spaces inside exec:'s direct parameter are interpreted as part of program name, not as separator.");
             }
         }
+        
+        if self.opts.restrict_uri.is_some() && !self.contains_class("WsServerClass") {
+            on_warning("--restrict-uri is meaningless without a WebSocket server");
+        }
+        
+        if !self.opts.serve_static_files.is_empty() && !self.contains_class("WsServerClass") {
+            on_warning("--static-file (-F) is meaningless without a WebSocket server");
+        }
+        
+        for sf in &self.opts.serve_static_files {
+            if !sf.uri.starts_with('/') {
+                on_warning(&format!("Static file's URI `{}` should begin with `/`?", sf.uri));
+            }
+            if !sf.file.exists() {
+                on_warning(&format!("File {:?} does not exist", sf.file));
+            }
+            if !sf.content_type.contains('/') {
+                on_warning(&format!("Content-Type `{}` lacks `/` character",
+                    sf.content_type));
+            }
+        }
 
         // TODO: UDP connect oneshot mode
 
