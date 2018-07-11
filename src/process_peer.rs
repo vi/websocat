@@ -45,16 +45,9 @@ specifier_class!(
     StreamOriented,
     SingleConnect,
     help = r#"
-Start specified command line using `sh -c` (even on Windows)
-  
-Example: serve a counter
+Start specified command line using `sh -c` or `cmd /C` (depending on platform)
 
-    websocat -U ws-l:127.0.0.1:8008 sh-c:'for i in 0 1 2 3 4 5 6 7 8 9 10; do echo $i; sleep 1; done'
-  
-Example: unauthenticated shell
-
-    websocat --exit-on-eof ws-l:127.0.0.1:5667 sh-c:'bash -i 2>&1'
-
+Otherwise should be the the same as `sh-c:` (see examples from there).
 "#
 );
 // TODO: client and example output for each server example
@@ -80,9 +73,15 @@ specifier_class!(
     StreamOriented,
     SingleConnect,
     help = r#"
-Start specified command line using `sh -c` or `cmd /C` (depending on platform)
+Start specified command line using `sh -c` (even on Windows)
+  
+Example: serve a counter
 
-Otherwise should be the the same as `sh-c:` (see examples from there).
+    websocat -U ws-l:127.0.0.1:8008 sh-c:'for i in 0 1 2 3 4 5 6 7 8 9 10; do echo $i; sleep 1; done'
+  
+Example: unauthenticated shell
+
+    websocat --exit-on-eof ws-l:127.0.0.1:5667 sh-c:'bash -i 2>&1'
 "#
 );
 
