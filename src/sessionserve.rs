@@ -139,7 +139,10 @@ where
                 .map(move |peer1| {
                     let opts3 = opts2.clone();
                     let e1_1 = e1.clone();
-                    let cp2 = cp2.clone();
+                    let mut cp2 = cp2.clone();
+                    // Needed becase of l2r may be overwritten
+                    // by the next client before right part goes through.
+                    cp2.left_to_right = cp2.left_to_right.deep_clone();
                     h1.spawn(
                         s2.construct(cp2)
                             .get_only_first_conn()
@@ -161,7 +164,10 @@ where
                     let e1_1 = e1.clone();
                     let s2 = s2.clone();
                     let h1 = h1.clone();
-                    let cp2 = cp2.clone();
+                    let mut cp2 = cp2.clone();
+                    // Needed becase of l2r may be overwritten
+                    // by the next client before right part goes through.
+                    cp2.left_to_right = cp2.left_to_right.deep_clone();
                     h1.spawn(
                         mapper(peer1_)
                             .and_then(move |peer1| {
