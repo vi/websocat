@@ -51,9 +51,8 @@ impl PeerConstructor {
         }
     }
 
-    pub fn get_only_first_conn(self, l2r:&L2rUser) -> BoxedNewPeerFuture {
+    pub fn get_only_first_conn(self, l2r:L2rUser) -> BoxedNewPeerFuture {
         use PeerConstructor::*;
-        let l2rc = l2r.clone();
         match self {
             ServeMultipleTimes(stre) => Box::new(
                 stre.into_future()
@@ -62,13 +61,13 @@ impl PeerConstructor {
             ) as BoxedNewPeerFuture,
             ServeOnce(futur) => futur,
             Overlay1(futur, mapper) => {
-                Box::new(futur.and_then(move |p| mapper(p, l2rc))) as BoxedNewPeerFuture
+                Box::new(futur.and_then(move |p| mapper(p, l2r))) as BoxedNewPeerFuture
             }
             OverlayM(stre, mapper) => Box::new(
                 stre.into_future()
                     .map(move |(std_peer, _)| std_peer.expect("Nowhere to connect it"))
                     .map_err(|(e, _)| e)
-                    .and_then(move |p| mapper(p, l2rc)),
+                    .and_then(move |p| mapper(p, l2r)),
             ) as BoxedNewPeerFuture,
         }
     }

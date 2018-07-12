@@ -91,16 +91,9 @@ impl Session {
     }
 }
 
-fn l2r_new() -> (Rc<L2rReader>, Rc<L2rWriter>) {
-    let l2r_1 : Rc<RefCell<LeftSpecToRightSpec>> = Rc::new(RefCell::new(Default::default()));
-    let l2r_2 = l2r_1.clone();
-    let l2r_reader = Rc::new(move |x: &mut FnMut(Ref   <LeftSpecToRightSpec>) | {
-        x(l2r_2.borrow());
-    });
-    let l2r_writer = Rc::new(move |x: &mut FnMut(RefMut<LeftSpecToRightSpec>) | {
-        x(l2r_1.borrow_mut());
-    });
-    (l2r_reader, l2r_writer)
+fn l2r_new() -> L2rWriter {
+    let l2r = Rc::new(RefCell::new(Default::default()));
+    l2r
 }
 
 #[cfg_attr(feature = "cargo-clippy", allow(needless_pass_by_value))]
@@ -128,26 +121,23 @@ where
     let opts1 = Rc::new(opts);
     let opts2 = opts1.clone();
 
-    let (l2r_r, l2r_w) = l2r_new();
+    let l2r = l2r_new();
     
-    let cp1 = ConstructParams {
+    let cp = Rc::new(RefCell::new(ConstructParams {
         tokio_handle: h.clone(),
         program_options: opts1.clone(),
         global_state: ps.clone(),
-        left_to_right: L2rUser::FillIn(l2r_w),
-    };
-    let cp2 = ConstructParams {
-        tokio_handle: h.clone(),
-        program_options: opts1,
-        global_state: ps.clone(),
-        left_to_right: L2rUser::ReadFrom(l2r_r),
-    };
-    let l2r1 = cp1.left_to_right.clone();
-    let l2r1c = cp1.left_to_right.clone();
-    let mut left = s1.construct(cp1);
+        left_to_right: L2rUser::FillIn(l2r.clone()),
+    }));
+    
+    let mut left = s1.construct(cp.borrow().clone());
 
     if opts2.oneshot {
-        left = PeerConstructor::ServeOnce(left.get_only_first_conn(&l2r1));
+        left = PeerConstructor::ServeOnce(
+            left.get_only_first_conn(
+                cp.borrow().left_to_right.clone()
+            )
+        );
     }
 
     match left {
@@ -156,11 +146,12 @@ where
                 .map(move |peer1| {
                     let opts3 = opts2.clone();
                     let e1_1 = e1.clone();
-                    let cp2 = cp2.clone();
+                    let cp2 = cp.borrow().reply();
+                    cp.borrow_mut().reset_l2r();
                     let l2rc = cp2.left_to_right.clone();
                     h1.spawn(
                         s2.construct(cp2)
-                            .get_only_first_conn(&l2rc)
+                            .get_only_first_conn(l2rc)
                             .and_then(move |peer2| {
                                 let s = Session::new(peer1, peer2, opts3);
                                 s.run()
@@ -175,17 +166,20 @@ where
             let runner = stream
                 .map(move |peer1_| {
                     debug!("Underlying connection established");
+                    let cp_ = cp.borrow().deep_clone();
+                    cp.borrow_mut().reset_l2r();
                     let opts3 = opts2.clone();
                     let e1_1 = e1.clone();
                     let s2 = s2.clone();
                     let h1 = h1.clone();
-                    let cp2 = cp2.clone();
-                    let l2rcc = cp2.left_to_right.clone();
+                    let l2rc  = cp_.left_to_right.clone();
                     h1.spawn(
-                        mapper(peer1_, l2r1c.clone())
+                        mapper(peer1_, l2rc)
                             .and_then(move |peer1| {
+                                let cp2 = cp_.reply();
+                                let l2rc = cp2.left_to_right.clone();
                                 s2.construct(cp2)
-                                    .get_only_first_conn(&l2rcc)
+                                    .get_only_first_conn(l2rc)
                                     .and_then(move |peer2| {
                                         let s = Session::new(peer1, peer2, opts3);
                                         s.run()
@@ -199,9 +193,10 @@ where
         }
         ServeOnce(peer1c) => {
             let runner = peer1c.and_then(move |peer1| {
+                let cp2 = cp.borrow().reply();
                 let l2rc = cp2.left_to_right.clone();
                 let right = s2.construct(cp2);
-                let fut = right.get_only_first_conn(&l2rc);
+                let fut = right.get_only_first_conn(l2rc);
                 fut.and_then(move |peer2| {
                     let s = Session::new(peer1, peer2, opts2);
                     s.run().map(|()| {
@@ -215,11 +210,13 @@ where
         }
         Overlay1(peer1c, mapper) => {
             let runner = peer1c.and_then(move |peer1_| {
+                let l2rc = cp.borrow().left_to_right.clone();
                 debug!("Underlying connection established");
-                mapper(peer1_, cp2.left_to_right.clone()).and_then(move |peer1| {
+                mapper(peer1_, l2rc).and_then(move |peer1| {
+                    let cp2 = cp.borrow().reply();
                     let l2rc = cp2.left_to_right.clone();
                     let right = s2.construct(cp2);
-                    let fut = right.get_only_first_conn(&l2rc);
+                    let fut = right.get_only_first_conn(l2rc);
                     fut.and_then(move |peer2| {
                         let s = Session::new(peer1, peer2, opts2);
                         s.run().map(|()| {

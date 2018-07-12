@@ -8,7 +8,7 @@ use std::io::{Read, Write};
 use tokio_core::reactor::Handle;
 use tokio_io::{AsyncRead, AsyncWrite};
 
-use super::{LeftSpecToRightSpec, L2rUser, L2rReader};
+use super::{LeftSpecToRightSpec, L2rReader, L2rUser};
 
 use std::cell::RefCell;
 use std::rc::Rc;
@@ -23,7 +23,7 @@ use std::process::Stdio;
 
 use std::cell::Ref;
 
-fn needenv(p : &ConstructParams) -> Option<&L2rReader> {
+fn needenv(p : &ConstructParams) -> Option<&LeftSpecToRightSpec> {
     match (p.program_options.exec_set_env, &p.left_to_right) {
         (true, &L2rUser::ReadFrom(ref x)) => Some(&**x),
         _ => None,
@@ -142,17 +142,15 @@ Example: pinger
 fn process_connect_peer(
         h: &Handle, 
         mut cmd: Command,
-        l2r: Option<&L2rReader>
+        l2r: Option<&LeftSpecToRightSpec>
 ) -> Result<Peer, Box<std::error::Error>> {
     if let Some(x) = l2r {
-        x(&mut |y| {
-            if let Some(ref z) = y.client_addr {
-                cmd.env("WEBSOCAT_CLIENT",z);
-            }
-            if let Some(ref z) = y.uri {
-                cmd.env("WEBSOCAT_URI",z);
-            }
-        });
+        if let Some(ref z) = x.client_addr {
+            cmd.env("WEBSOCAT_CLIENT",z);
+        };
+        if let Some(ref z) = x.uri {
+            cmd.env("WEBSOCAT_URI",z);
+        };
     }
     cmd.stdin(Stdio::piped()).stdout(Stdio::piped());
     let child = cmd.spawn_async(h)?;

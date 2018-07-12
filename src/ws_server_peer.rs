@@ -42,7 +42,7 @@ impl<T: Specifier> Specifier for WsServer<T> {
                 rdh,
                 restrict_uri.clone(),
                 serve_static_files.clone(),
-                l2r.clone(),
+                l2r,
             )
         })
     }
@@ -146,9 +146,8 @@ pub fn ws_upgrade_peer(
                 match l2r {
                     L2rUser::FillIn(ref y) => {
                         let uri = &x.request.subject.1;
-                        y(&mut |mut z|{
-                            z.uri = Some(format!("{}", uri));
-                        });
+                        let mut z = y.borrow_mut();
+                        z.uri = Some(format!("{}", uri));
                     },
                     L2rUser::ReadFrom(_) => {},
                 }

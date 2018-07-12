@@ -163,6 +163,56 @@ pub struct ConstructParams {
     pub left_to_right: L2rUser,
 }
 
+/// All of those methods are about left_to_right mechanism
+impl ConstructParams {
+    /// Reset left_to_right to default value.
+    pub fn reset_l2r(&mut self) {
+        match self.left_to_right {
+            L2rUser::FillIn(ref mut x) => {
+                *x.borrow_mut() = Default::default();
+                //*x = Rc::new(RefCell::new(Default::default()));
+            },
+            L2rUser::ReadFrom(_) => {
+                panic!("ConstructParams::reset_l2r called wrong")
+            },
+        }
+    }
+    /// Clones ConstructParams, changing FillIn to ReadFrom in left_to_right field
+    /// and also disassociating it from the original RefCell.
+    ///
+    /// Panics when called on object with left_to_right set to ReadFrom.
+    pub fn reply(&self) -> Self {
+        let l2r = match self.left_to_right {
+            L2rUser::FillIn(ref x) => Rc::new(x.borrow().clone()),
+            L2rUser::ReadFrom(_) => panic!("ConstructParams::reply called wrong"),
+        };
+        ConstructParams {
+            tokio_handle: self.tokio_handle.clone(),
+            global_state: self.global_state.clone(),
+            program_options: self.program_options.clone(),
+            left_to_right: L2rUser::ReadFrom(l2r),
+        }
+    }
+    
+    pub fn deep_clone(&self) -> Self {
+        let l2r = 
+        match self.left_to_right {
+            L2rUser::FillIn(ref x) => {
+                L2rUser::FillIn  (Rc::new(RefCell::new(x.borrow().clone())))
+            },
+            L2rUser::ReadFrom(_) => {
+                panic!("You are not supposed to use ConstructParams::deep_clone on ReadFrom things");
+            },
+        };
+        ConstructParams {
+            tokio_handle: self.tokio_handle.clone(),
+            global_state: self.global_state.clone(),
+            program_options: self.program_options.clone(),
+            left_to_right: l2r,
+        }
+    }
+}
+
 /// A parsed command line argument.
 /// For example, `ws-listen:tcp-l:127.0.0.1:8080` gets parsed into
 /// a `WsUpgrade(TcpListen(SocketAddr))`.

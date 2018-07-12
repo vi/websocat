@@ -32,7 +32,7 @@ impl Specifier for BroadcastReuser {
         let bs = p.program_options.buffer_size;
         let ql = p.program_options.broadcast_queue_len;
         let l2r = p.left_to_right.clone();
-        let inner = || self.0.construct(p).get_only_first_conn(&l2r);
+        let inner = || self.0.construct(p).get_only_first_conn(l2r);
         once(connection_reuser(&h, &mut reuser, inner, bs, ql))
     }
     specifier_boilerplate!(singleconnect has_subspec typ=Reuser globalstate);

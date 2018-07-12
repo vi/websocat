@@ -228,9 +228,8 @@ pub fn tcp_listen_peer(
                 
                 match l2r {
                     L2rUser::FillIn(ref y) => {
-                        y(&mut |mut z|{
-                            z.client_addr = Some(format!("{}", addr));
-                        });
+                        let mut z = y.borrow_mut();
+                        z.client_addr = Some(format!("{}", addr));
                     },
                     L2rUser::ReadFrom(_) => {},
                 }

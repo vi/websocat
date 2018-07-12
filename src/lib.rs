@@ -29,7 +29,7 @@ use tokio_io::{AsyncRead, AsyncWrite};
 
 use futures::Stream;
 
-//use std::cell::RefCell;
+use std::cell::RefCell;
 use std::rc::Rc;
 use std::str::FromStr;
 
@@ -106,15 +106,14 @@ pub struct LeftSpecToRightSpec {
     /// Address:port of connecting client, if it is TCP
     client_addr: Option<String>,
 }
-use ::std::cell::{RefMut,Ref};
 
-pub type L2rWriter = Fn(&mut FnMut(RefMut<LeftSpecToRightSpec>));
-pub type L2rReader = Fn(&mut FnMut(Ref   <LeftSpecToRightSpec>));
+pub type L2rWriter = Rc<RefCell<LeftSpecToRightSpec>>;
+pub type L2rReader = Rc<        LeftSpecToRightSpec >;
 
 #[derive(Clone)]
 pub enum L2rUser {
-    FillIn  (Rc<L2rWriter>),
-    ReadFrom(Rc<L2rReader>),
+    FillIn  (L2rWriter),
+    ReadFrom(L2rReader),
 }
 
 pub struct Peer(Box<AsyncRead>, Box<AsyncWrite>);
