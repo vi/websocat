@@ -140,6 +140,15 @@ impl WebsocatConfiguration2 {
         || self.contains_class("WsClientSecureClass")
         || self.contains_class("WsServerClass")
     }
+    
+    #[cfg_attr(rustfmt, rustfmt_skip)]
+    #[cfg_attr(feature="cargo-clippy", allow(nonminimal_bool))]
+    pub fn exec_used(&self) -> bool {
+        false 
+        || self.contains_class("ExecClass")
+        || self.contains_class("CmdClass")
+        || self.contains_class("ShCClass")
+    }
 
     pub fn contains_class(&self, x: &'static str) -> bool {
         self.s1.contains(x) || self.s2.contains(x)
@@ -267,6 +276,15 @@ impl WebsocatConfiguration2 {
             }
         }
 
+        if self.opts.exec_set_env {
+            if !self.exec_used() {
+                on_warning("-e (--set-environment) is meaningless without a exec: or sh-c: or cmd: address");
+            }
+            if !self.contains_class("TcpListenClass") && !self.contains_class("WsServerClass") {
+                on_warning("-e (--set-environment) is currently meaningless without a websocket server and/or TCP listener");
+            }
+        }
+        
         // TODO: UDP connect oneshot mode
 
         // TODO: tests for the linter
