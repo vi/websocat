@@ -162,7 +162,7 @@ pub mod reconnect_peer;
 
 pub mod specparse;
 
-pub type PeerOverlay = Rc<Fn(Peer) -> BoxedNewPeerFuture>;
+pub type PeerOverlay = Rc<Fn(Peer, L2rUser) -> BoxedNewPeerFuture>;
 
 pub enum PeerConstructor {
     ServeOnce(BoxedNewPeerFuture),

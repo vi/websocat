@@ -19,7 +19,8 @@ pub struct Reuser(pub Rc<Specifier>);
 impl Specifier for Reuser {
     fn construct(&self, p: ConstructParams) -> PeerConstructor {
         let mut reuser = p.global_state.borrow_mut().reuser.clone();
-        let inner = || self.0.construct(p).get_only_first_conn();
+        let l2r = p.left_to_right.clone();
+        let inner = || self.0.construct(p).get_only_first_conn(&l2r);
         once(connection_reuser(&mut reuser, inner))
     }
     specifier_boilerplate!(singleconnect has_subspec typ=Reuser globalstate);

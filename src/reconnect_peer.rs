@@ -103,9 +103,9 @@ impl State {
                     }
                 }
             }
-
+            let l2r = cp.left_to_right.clone();
             let pc: PeerConstructor = self.s.construct(cp);
-            *nn = Some(pc.get_only_first_conn());
+            *nn = Some(pc.get_only_first_conn(&l2r));
         }
     }
 }

@@ -107,7 +107,7 @@ impl<T: Specifier> Specifier for WsConnect<T> {
 
         let opts = p.program_options;
 
-        inner.map(move |q| get_ws_client_peer_wrapped(&url, q, opts.clone()))
+        inner.map(move |q,_| get_ws_client_peer_wrapped(&url, q, opts.clone()))
     }
     specifier_boilerplate!(noglobalstate has_subspec typ=WebSocket);
     self_0_is_subspecifier!(proxy_is_multiconnect);

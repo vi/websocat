@@ -16,7 +16,7 @@ impl<T: Specifier> Specifier for Message2Line<T> {
     fn construct(&self, cp: ConstructParams) -> PeerConstructor {
         let inner = self.0.construct(cp.clone());
         let zt = cp.program_options.linemode_zero_terminated;
-        inner.map(move |p| packet2line_peer(p, zt))
+        inner.map(move |p, _| packet2line_peer(p, zt))
     }
     specifier_boilerplate!(typ=Line noglobalstate has_subspec);
     self_0_is_subspecifier!(proxy_is_multiconnect);
@@ -55,7 +55,7 @@ impl<T: Specifier> Specifier for Line2Message<T> {
         let strict = cp.program_options.linemode_strict;
         let nullt = cp.program_options.linemode_zero_terminated;
         let inner = self.0.construct(cp.clone());
-        inner.map(move |p| line2packet_peer(p, retain_newlines, strict, nullt))
+        inner.map(move |p, _| line2packet_peer(p, retain_newlines, strict, nullt))
     }
     specifier_boilerplate!(typ=Line noglobalstate has_subspec);
     self_0_is_subspecifier!(proxy_is_multiconnect);

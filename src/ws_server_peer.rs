@@ -33,9 +33,9 @@ impl<T: Specifier> Specifier for WsServer<T> {
         let restrict_uri = Rc::new(cp.program_options.restrict_uri.clone());
         let serve_static_files = Rc::new(cp.program_options.serve_static_files.clone());
         let inner = self.0.construct(cp.clone());
-        let l2r = cp.left_to_right;
+        //let l2r = cp.left_to_right;
         let rdh = cp.program_options.read_debt_handling;
-        inner.map(move |p| {
+        inner.map(move |p, l2r| {
             ws_upgrade_peer(
                 p,
                 mode1,
@@ -144,7 +144,7 @@ pub fn ws_upgrade_peer(
                 
                 
                 match l2r {
-                    L2rUser::FillIn(y) => {
+                    L2rUser::FillIn(ref y) => {
                         let uri = &x.request.subject.1;
                         y(&mut |mut z|{
                             z.uri = Some(format!("{}", uri));

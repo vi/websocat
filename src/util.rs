@@ -1,6 +1,6 @@
 use super::{
     futures, std, AsyncRead, AsyncWrite, BoxedNewPeerFuture, BoxedNewPeerStream, Peer,
-    PeerConstructor, Rc,
+    PeerConstructor, Rc, L2rUser,
 };
 use super::{Future, Stream};
 
@@ -18,7 +18,7 @@ pub fn io_other_error<E: std::error::Error + Send + Sync + 'static>(e: E) -> std
 impl PeerConstructor {
     pub fn map<F: 'static>(self, func: F) -> Self
     where
-        F: Fn(Peer) -> BoxedNewPeerFuture,
+        F: Fn(Peer, L2rUser) -> BoxedNewPeerFuture,
     {
         let f = Rc::new(func);
         use PeerConstructor::*;
@@ -27,16 +27,18 @@ impl PeerConstructor {
             ServeMultipleTimes(s) => OverlayM(s, f),
             Overlay1(x, mapper) => Overlay1(
                 x,
-                Rc::new(move |p| {
+                Rc::new(move |p, l2r| {
                     let ff = f.clone();
-                    Box::new(mapper(p).and_then(move |x| ff(x)))
+                    let l2rc = l2r.clone();
+                    Box::new(mapper(p, l2r).and_then(move |x| ff(x, l2rc)))
                 }),
             ),
             OverlayM(x, mapper) => OverlayM(
                 x,
-                Rc::new(move |p| {
+                Rc::new(move |p, l2r| {
                     let ff = f.clone();
-                    Box::new(mapper(p).and_then(move |x| ff(x)))
+                    let l2rc = l2r.clone();
+                    Box::new(mapper(p, l2r).and_then(move |x| ff(x, l2rc)))
                 }),
             ), // This implementation (without Overlay{1,M} cases)
             // causes task to be spawned too late (before establishing ws upgrade)
@@ -49,8 +51,9 @@ impl PeerConstructor {
         }
     }
 
-    pub fn get_only_first_conn(self) -> BoxedNewPeerFuture {
+    pub fn get_only_first_conn(self, l2r:&L2rUser) -> BoxedNewPeerFuture {
         use PeerConstructor::*;
+        let l2rc = l2r.clone();
         match self {
             ServeMultipleTimes(stre) => Box::new(
                 stre.into_future()
@@ -59,13 +62,13 @@ impl PeerConstructor {
             ) as BoxedNewPeerFuture,
             ServeOnce(futur) => futur,
             Overlay1(futur, mapper) => {
-                Box::new(futur.and_then(move |p| mapper(p))) as BoxedNewPeerFuture
+                Box::new(futur.and_then(move |p| mapper(p, l2rc))) as BoxedNewPeerFuture
             }
             OverlayM(stre, mapper) => Box::new(
                 stre.into_future()
                     .map(move |(std_peer, _)| std_peer.expect("Nowhere to connect it"))
                     .map_err(|(e, _)| e)
-                    .and_then(move |p| mapper(p)),
+                    .and_then(move |p| mapper(p, l2rc)),
             ) as BoxedNewPeerFuture,
         }
     }
