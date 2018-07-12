@@ -162,15 +162,13 @@ Partial list of overlays:
 
 There is a work-in-progress [reference document](doc.md) that contains more options and examples.
 
-## Technical details
+## Some notes
 
-It runs singlethreaded. There is old non-async threaded version in `legacy` branch of releases prior to 0.5.
-
-IPv6 supported, just use specifiers like `ws-l:[::1]:4567`
-
-Web socket usage is not obligatory, you can use any specs on both sides.
-
-If you want `wss://` server, use socat or nginx in addition to websocat until this function is implemented properly (see `nginx.conf` sample in the reference document).
+* It runs singlethreaded, but can serve multiple connections simultaneously. There is old non-async threaded version in `legacy` branch of releases prior to 0.5.
+* IPv6 is supported, surround your IP in square brackets.
+* Web socket usage is not obligatory, you can use any specs on both sides.
+* If you want a `wss://` server, use socat or nginx in addition to websocat until this function is implemented properly (see `nginx.conf` sample in the reference document).
+* Typically one line in binary stream correspond to one WebSocket text message. This is adjustable with options.
 
 Pre-built binaries for Linux (usual and musl), Windows, OS X and Android (ARM) are available on the [releases page](https://github.com/vi/websocat/releases).
 
