@@ -1,3 +1,4 @@
+#![allow(unused)]
 extern crate hyper;
 extern crate websocket;
 
@@ -141,12 +142,17 @@ pub fn ws_upgrade_peer(
                 debug!("{:?}", x.request);
                 debug!("{:?}", x.headers);
                 
+                
                 match l2r {
                     L2rUser::FillIn(y) => {
-                        y.borrow_mut().uri = Some(format!("{}", x.request.subject.1));
+                        let uri = &x.request.subject.1;
+                        y(&mut |mut z|{
+                            z.uri = Some(format!("{}", uri));
+                        });
                     },
                     L2rUser::ReadFrom(_) => {},
                 }
+                
                 
                 if let Some(ref restrict_uri) = *restrict_uri {
                     let check_passed = match x.request.subject.1 {

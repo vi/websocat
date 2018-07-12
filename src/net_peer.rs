@@ -1,3 +1,4 @@
+#![allow(unused)]
 use futures;
 use futures::future::Future;
 use futures::stream::Stream;
@@ -227,11 +228,12 @@ pub fn tcp_listen_peer(
                 
                 match l2r {
                     L2rUser::FillIn(ref y) => {
-                        y.borrow_mut().client_addr = Some(format!("{}", addr));
+                        y(&mut |mut z|{
+                            z.client_addr = Some(format!("{}", addr));
+                        });
                     },
                     L2rUser::ReadFrom(_) => {},
                 }
-                
                 
                 let x = Rc::new(x);
                 Peer::new(MyTcpStream(x.clone(), true), MyTcpStream(x.clone(), false))

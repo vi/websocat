@@ -1,13 +1,15 @@
+#![allow(unused)]
 use super::futures::{Future, Stream};
 use super::{
     futures, my_copy, ConstructParams, L2rUser, Options, Peer, PeerConstructor, ProgramState,
-    Session, Specifier, Transfer,
+    Session, Specifier, Transfer, LeftSpecToRightSpec, L2rReader, L2rWriter,
 };
 use std;
 use std::cell::RefCell;
 use std::rc::Rc;
 use tokio_core::reactor::Handle;
 use tokio_io;
+use std::cell::{Ref,RefMut};
 
 impl Session {
     pub fn run(self) -> Box<Future<Item = (), Error = Box<std::error::Error>>> {
@@ -89,6 +91,18 @@ impl Session {
     }
 }
 
+fn l2r_new() -> (Rc<L2rReader>, Rc<L2rWriter>) {
+    let l2r_1 : Rc<RefCell<LeftSpecToRightSpec>> = Rc::new(RefCell::new(Default::default()));
+    let l2r_2 = l2r_1.clone();
+    let l2r_reader = Rc::new(move |x: &mut FnMut(Ref   <LeftSpecToRightSpec>) | {
+        x(l2r_2.borrow());
+    });
+    let l2r_writer = Rc::new(move |x: &mut FnMut(RefMut<LeftSpecToRightSpec>) | {
+        x(l2r_1.borrow_mut());
+    });
+    (l2r_reader, l2r_writer)
+}
+
 #[cfg_attr(feature = "cargo-clippy", allow(needless_pass_by_value))]
 pub fn serve<OE>(
     h: Handle,
@@ -114,18 +128,19 @@ where
     let opts1 = Rc::new(opts);
     let opts2 = opts1.clone();
 
-    let l2r = Rc::new(RefCell::new(Default::default()));
+    let (l2r_r, l2r_w) = l2r_new();
+    
     let cp1 = ConstructParams {
         tokio_handle: h.clone(),
         program_options: opts1.clone(),
         global_state: ps.clone(),
-        left_to_right: L2rUser::FillIn(l2r.clone()),
+        left_to_right: L2rUser::FillIn(l2r_w),
     };
     let cp2 = ConstructParams {
         tokio_handle: h.clone(),
         program_options: opts1,
         global_state: ps.clone(),
-        left_to_right: L2rUser::ReadFrom(l2r),
+        left_to_right: L2rUser::ReadFrom(l2r_r),
     };
     let mut left = s1.construct(cp1);
 
