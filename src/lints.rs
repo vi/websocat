@@ -285,6 +285,14 @@ impl WebsocatConfiguration2 {
             }
         }
         
+        if !self.opts.oneshot && self.s1.is_multiconnect() {
+            if self.s1.contains("TcpListenClass") || self.s1.contains("UnixListenClass") || self.s1.contains("SeqpacketListenClass") {
+                if !self.opts.unidirectional && (self.opts.unidirectional_reverse || !self.opts.exit_on_eof) {
+                    on_warning("Unfortunately, serving multiple clients without --exit-on-eof (-E) or with -U option is prone to socket leak in this websocat version");
+                }
+            }
+        }
+        
         // TODO: UDP connect oneshot mode
 
         // TODO: tests for the linter
