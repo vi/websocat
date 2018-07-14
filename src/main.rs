@@ -232,6 +232,12 @@ struct Opt {
         help = "[A] Make exec: or sh-c: or cmd: send SIGHUP on UNIX when facing incoming zero-length message.",
     )]
     process_zero_sighup: bool,
+    
+    #[structopt(
+        long = "exec-sighup-on-stdin-close",
+        help = "[A] Make exec: or sh-c: or cmd: send SIGHUP on UNIX when input is closed.",
+    )]
+    process_exit_sighup: bool,
 }
 
 // TODO: make it byte-oriented/OsStr?
@@ -394,6 +400,7 @@ fn run() -> Result<()> {
             exec_set_env
             reuser_send_zero_msg_on_disconnect
             process_zero_sighup
+            process_exit_sighup
         )
     };
 
