@@ -34,6 +34,7 @@ fn needenv(p : &ConstructParams) -> Option<&LeftSpecToRightSpec> {
 pub struct Cmd(pub String);
 impl Specifier for Cmd {
     fn construct(&self, p: ConstructParams) -> PeerConstructor {
+        let zero_sighup = p.program_options.process_zero_sighup;
         let args = if cfg!(target_os = "windows") {
             let mut args = Command::new("cmd");
             args.arg("/C").arg(self.0.clone());
@@ -46,7 +47,7 @@ impl Specifier for Cmd {
         let h = &p.tokio_handle;
         let env = needenv(&p);
         once(Box::new(futures::future::result(
-            process_connect_peer(h, args, env)
+            process_connect_peer(h, args, env, zero_sighup)
         )) as BoxedNewPeerFuture)
     }
     specifier_boilerplate!(noglobalstate singleconnect no_subspec typ=Other);
@@ -72,12 +73,13 @@ Otherwise should be the the same as `sh-c:` (see examples from there).
 pub struct ShC(pub String);
 impl Specifier for ShC {
     fn construct(&self, p: ConstructParams) -> PeerConstructor {
+        let zero_sighup = p.program_options.process_zero_sighup;
         let mut args = Command::new("sh");
         args.arg("-c").arg(self.0.clone());
         let h = &p.tokio_handle;
         let env = needenv(&p);
         once(Box::new(futures::future::result(
-            process_connect_peer(h, args, env)
+            process_connect_peer(h, args, env, zero_sighup)
         )) as BoxedNewPeerFuture)
     }
     specifier_boilerplate!(noglobalstate singleconnect no_subspec typ=Other);
@@ -107,12 +109,13 @@ Example: unauthenticated shell
 pub struct Exec(pub String);
 impl Specifier for Exec {
     fn construct(&self, p: ConstructParams) -> PeerConstructor {
+        let zero_sighup = p.program_options.process_zero_sighup;
         let mut args = Command::new(self.0.clone());
         args.args(p.program_options.exec_args.clone());
         let h = &p.tokio_handle;
         let env = needenv(&p);
         once(Box::new(futures::future::result(
-            process_connect_peer(h, args, env)
+            process_connect_peer(h, args, env, zero_sighup)
         )) as BoxedNewPeerFuture)
     }
     specifier_boilerplate!(noglobalstate singleconnect no_subspec typ=Other);
@@ -142,7 +145,8 @@ Example: pinger
 fn process_connect_peer(
         h: &Handle, 
         mut cmd: Command,
-        l2r: Option<&LeftSpecToRightSpec>
+        l2r: Option<&LeftSpecToRightSpec>,
+        zero_sighup: bool,
 ) -> Result<Peer, Box<std::error::Error>> {
     if let Some(x) = l2r {
         if let Some(ref z) = x.client_addr {
@@ -154,12 +158,12 @@ fn process_connect_peer(
     }
     cmd.stdin(Stdio::piped()).stdout(Stdio::piped());
     let child = cmd.spawn_async(h)?;
-    let ph = ProcessPeer(Rc::new(RefCell::new(child)));
+    let ph = ProcessPeer(Rc::new(RefCell::new(child)), zero_sighup);
     Ok(Peer::new(ph.clone(), ph))
 }
 
 #[derive(Clone)]
-struct ProcessPeer(Rc<RefCell<Child>>);
+struct ProcessPeer(Rc<RefCell<Child>>, bool);
 
 impl Read for ProcessPeer {
     fn read(&mut self, buf: &mut [u8]) -> IoResult<usize> {
@@ -174,6 +178,16 @@ impl Read for ProcessPeer {
 
 impl Write for ProcessPeer {
     fn write(&mut self, buf: &[u8]) -> IoResult<usize> {
+        #[cfg(all(unix,feature="libc"))] {
+            if self.1 && buf.is_empty() {
+                // TODO use nix crate?
+                let pid = self.0.borrow().id();
+                unsafe {
+                    extern crate libc;
+                    libc::kill(pid as libc::pid_t, libc::SIGHUP);
+                }
+            }
+        }
         self.0
             .borrow_mut()
             .stdin()

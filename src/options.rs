@@ -37,4 +37,6 @@ pub struct Options {
     pub restrict_uri: Option<String>,
     pub serve_static_files: Vec<StaticFile>,
     pub exec_set_env: bool,
+    pub reuser_send_zero_msg_on_disconnect: bool, 
+    pub process_zero_sighup : bool,
 }

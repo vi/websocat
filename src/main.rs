@@ -220,6 +220,18 @@ struct Opt {
         help = "Set WEBSOCAT_* environment variables when doing exec:/cmd:/sh-c:\nCurrently it's WEBSOCAT_URI and WEBSOCAT_CLIENT for\nrequest URI and client address (if TCP)\nBeware of ShellShock or similar security problems.",
     )]
     exec_set_env: bool,
+    
+    #[structopt(
+        long = "reuser-send-zero-msg-on-disconnect",
+        help = "[A] Make reuse-raw: send a zero-length message to the peer when some clients disconnects.",
+    )]
+    reuser_send_zero_msg_on_disconnect: bool,
+    
+    #[structopt(
+        long = "exec-sighup-on-zero-msg",
+        help = "[A] Make exec: or sh-c: or cmd: send SIGHUP on UNIX when facing incoming zero-length message.",
+    )]
+    process_zero_sighup: bool,
 }
 
 // TODO: make it byte-oriented/OsStr?
@@ -380,6 +392,8 @@ fn run() -> Result<()> {
             restrict_uri
             serve_static_files
             exec_set_env
+            reuser_send_zero_msg_on_disconnect
+            process_zero_sighup
         )
     };
 

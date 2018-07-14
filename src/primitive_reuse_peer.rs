@@ -18,10 +18,11 @@ use std::ops::DerefMut;
 pub struct Reuser(pub Rc<Specifier>);
 impl Specifier for Reuser {
     fn construct(&self, p: ConstructParams) -> PeerConstructor {
+        let send_zero_msg_on_disconnect = p.program_options.reuser_send_zero_msg_on_disconnect;
         let mut reuser = p.global_state.borrow_mut().reuser.clone();
         let l2r = p.left_to_right.clone();
         let inner = || self.0.construct(p).get_only_first_conn(l2r);
-        once(connection_reuser(&mut reuser, inner))
+        once(connection_reuser(&mut reuser, inner, send_zero_msg_on_disconnect))
     }
     specifier_boilerplate!(singleconnect has_subspec typ=Reuser globalstate);
     self_0_is_subspecifier!(...);
@@ -57,7 +58,7 @@ type PeerSlot = Rc<RefCell<Option<Peer>>>;
 pub struct GlobalState(PeerSlot);
 
 #[derive(Clone)]
-struct PeerHandle(PeerSlot);
+struct PeerHandle(PeerSlot,bool);
 
 impl Read for PeerHandle {
     fn read(&mut self, b: &mut [u8]) -> Result<usize, IoError> {
@@ -88,6 +89,9 @@ impl Write for PeerHandle {
 }
 impl AsyncWrite for PeerHandle {
     fn shutdown(&mut self) -> futures::Poll<(), IoError> {
+        if self.1 {
+            let _ = self.write(b"");
+        }
         if let Some(ref mut _x) = *self.0.borrow_mut().deref_mut() {
             // Ignore shutdown attempts
             Ok(futures::Async::Ready(()))
@@ -101,6 +105,7 @@ impl AsyncWrite for PeerHandle {
 pub fn connection_reuser<F: FnOnce() -> BoxedNewPeerFuture>(
     s: &mut GlobalState,
     inner_peer: F,
+    send_zero_msg_on_disconnect: bool,
 ) -> BoxedNewPeerFuture {
     let need_init = s.0.borrow().is_none();
 
@@ -117,7 +122,7 @@ pub fn connection_reuser<F: FnOnce() -> BoxedNewPeerFuture>(
 
             let ps: PeerSlot = rc.clone();
 
-            let ph1 = PeerHandle(ps);
+            let ph1 = PeerHandle(ps, send_zero_msg_on_disconnect);
             let ph2 = ph1.clone();
             let peer = Peer::new(ph1, ph2);
             ok(peer)
@@ -126,7 +131,7 @@ pub fn connection_reuser<F: FnOnce() -> BoxedNewPeerFuture>(
         info!("Reusing");
         let ps: PeerSlot = rc.clone();
 
-        let ph1 = PeerHandle(ps);
+        let ph1 = PeerHandle(ps, send_zero_msg_on_disconnect);
         let ph2 = ph1.clone();
         let peer = Peer::new(ph1, ph2);
         Box::new(ok(peer)) as BoxedNewPeerFuture
