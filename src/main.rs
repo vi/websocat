@@ -420,6 +420,7 @@ fn run() -> Result<()> {
             // Easy mode
             recommend_explicit_text_or_bin = false;
             if cmd.server_mode {
+                opts.exit_on_eof = true;
                 if cmds1.contains(':') {
                     if !quiet {
                         eprintln!("Listening on ws://{}/", cmds1);
