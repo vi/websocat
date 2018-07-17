@@ -84,7 +84,11 @@ impl FromStr for SpecifierStack {
             }
             list_of_all_specifier_classes!(my);
             if !found {
-                Err(format!("Unknown address or overlay type of `{}`", s))?;
+                if let Some(colon) = s.find(':') {
+                    Err(format!("Unknown address or overlay type of `{}:`", &s[..colon]))?;
+                } else {
+                    Err(format!("Unknown address or overlay type of `{}`\nMaybe you forgot the `:` character?", s))?;
+                }
             }
         }
 
