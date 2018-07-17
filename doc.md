@@ -29,9 +29,9 @@ Some address types may be "aliases" to other address types or combinations of ov
 
 ```
 
-websocat 1.0.0
+websocat 1.1.0
 Vitaly "_Vi" Shukela <vi0oss@gmail.com>
-Command-line client for web sockets. Like netcat, but for WebSockets. Designed like socat.
+Command-line client for web sockets, like netcat/curl/socat for ws://.
 
 USAGE:
     websocat ws://URL | wss://URL               (simple client)
@@ -39,30 +39,45 @@ USAGE:
     websocat [FLAGS] [OPTIONS] <addr1> <addr2>  (advanced mode)
 
 FLAGS:
-        --dump-spec                  [A] Instead of running, dump the specifiers representation to stdout
-    -E, --exit-on-eof                Close a data transfer direction if the other one reached EOF
-        --linemode-strip-newlines    [A] Don't include trailing \n or \r\n coming from streams in WebSocket messages
-    -0, --null-terminated            Use \0 instead of \n for linemode
-        --no-line                    [A] Don't automatically insert line-to-message transformation
-        --no-fixups                  [A] Don't perform automatic command-line fixups. May destabilize websocat
-                                     operation. Use --dump-spec without --no-fixups to discover what is being inserted
-                                     automatically and read the full manual about Websocat internal workings.
-    -1, --one-message                Send and/or receive only one message. Use with --no-close and/or -u/-U.
-        --oneshot                    Serve only once. Not to be confused with -1 (--one-message)
-    -q                               Suppress all diagnostic messages, except of startup errors
-    -s, --server-mode                Simple server mode: specify TCP port or addr:port as single argument
-    -S, --strict                     strict line/message mode: drop too long messages instead of splitting them, drop
-                                     incomplete lines.
-        --udp-oneshot                [A] udp-listen: replies only one packet per client
-    -u, --unidirectional             Inhibit copying data in one direction
-    -U, --unidirectional-reverse     Inhibit copying data in the other direction (or maybe in both directions if
-                                     combined with -u)
-        --unlink                     [A] Unlink listening UNIX socket before binding to it
-    -V, --version                    Prints version information
-    -v                               Increase verbosity level to info or further
-    -b, --binary                     Send message to WebSockets as binary messages
-    -n, --no-close                   Don't send Close message to websocket on EOF
-    -t, --text                       Send message to WebSockets as text messages
+        --dump-spec                             [A] Instead of running, dump the specifiers representation to stdout
+    -e, --set-environment                       Set WEBSOCAT_* environment variables when doing exec:/cmd:/sh-c:
+                                                Currently it's WEBSOCAT_URI and WEBSOCAT_CLIENT for
+                                                request URI and client address (if TCP)
+                                                Beware of ShellShock or similar security problems.
+    -E, --exit-on-eof                           Close a data transfer direction if the other one reached EOF
+        --jsonrpc                               Format messages you type as JSON RPC 2.0 method calls. First word
+                                                becomes method name, the rest becomes parameters, possibly automatically
+                                                wrapped in [].
+        --linemode-strip-newlines               [A] Don't include trailing \n or \r\n coming from streams in WebSocket
+                                                messages
+    -0, --null-terminated                       Use \0 instead of \n for linemode
+        --no-line                               [A] Don't automatically insert line-to-message transformation
+        --no-fixups                             [A] Don't perform automatic command-line fixups. May destabilize
+                                                websocat operation. Use --dump-spec without --no-fixups to discover what
+                                                is being inserted automatically and read the full manual about Websocat
+                                                internal workings.
+    -1, --one-message                           Send and/or receive only one message. Use with --no-close and/or -u/-U.
+        --oneshot                               Serve only once. Not to be confused with -1 (--one-message)
+        --exec-sighup-on-stdin-close            [A] Make exec: or sh-c: or cmd: send SIGHUP on UNIX when input is
+                                                closed.
+        --exec-sighup-on-zero-msg               [A] Make exec: or sh-c: or cmd: send SIGHUP on UNIX when facing incoming
+                                                zero-length message.
+    -q                                          Suppress all diagnostic messages, except of startup errors
+        --reuser-send-zero-msg-on-disconnect    [A] Make reuse-raw: send a zero-length message to the peer when some
+                                                clients disconnects.
+    -s, --server-mode                           Simple server mode: specify TCP port or addr:port as single argument
+    -S, --strict                                strict line/message mode: drop too long messages instead of splitting
+                                                them, drop incomplete lines.
+        --udp-oneshot                           [A] udp-listen: replies only one packet per client
+    -u, --unidirectional                        Inhibit copying data in one direction
+    -U, --unidirectional-reverse                Inhibit copying data in the other direction (or maybe in both directions
+                                                if combined with -u)
+        --unlink                                [A] Unlink listening UNIX socket before binding to it
+    -V, --version                               Prints version information
+    -v                                          Increase verbosity level to info or further
+    -b, --binary                                Send message to WebSockets as binary messages
+    -n, --no-close                              Don't send Close message to websocket on EOF
+    -t, --text                                  Send message to WebSockets as text messages
 
 OPTIONS:
         --queue-len <broadcast_queue_len>
@@ -81,6 +96,15 @@ OPTIONS:
             --help=long lists all options and types (see [A] markers)
             --help=doc also shows longer description and examples.
         --origin <origin>                          Add Origin HTTP header to websocket client request
+        --restrict-uri <restrict_uri>
+            When serving a websocket, only accept the given URI, like `/ws`
+            This liberates other URIs for things like serving static files or proxying.
+    -F, --static-file <serve_static_files>...
+            Serve a named static file for non-websocket connections.
+            Argument syntax: <URI>:<Content-Type>:<file-path>
+            Argument example: /index.html:text/html:index.html
+            Directories are not and will not be supported for security reasons.
+            Can be specified multiple times.
         --protocol <websocket_protocol>            Specify Sec-WebSocket-Protocol: header
         --websocket-version <websocket_version>    Override the Sec-WebSocket-Version value
         --ws-c-uri <ws_c_uri>                      [A] URI to use for ws-c: overlay [default: ws://0.0.0.0/]
@@ -253,16 +277,6 @@ Example: redirect TCP to a websocket
 Internal name for --dump-spec: ShC
 
 
-Start specified command line using `sh -c` or `cmd /C` (depending on platform)
-
-Otherwise should be the the same as `sh-c:` (see examples from there).
-
-
-### `cmd:`
-
-Internal name for --dump-spec: Cmd
-
-
 Start specified command line using `sh -c` (even on Windows)
   
 Example: serve a counter
@@ -273,6 +287,15 @@ Example: unauthenticated shell
 
     websocat --exit-on-eof ws-l:127.0.0.1:5667 sh-c:'bash -i 2>&1'
 
+
+### `cmd:`
+
+Internal name for --dump-spec: Cmd
+
+
+Start specified command line using `sh -c` or `cmd /C` (depending on platform)
+
+Otherwise should be the the same as `sh-c:` (see examples from there).
 
 
 ### `exec:`
@@ -297,7 +320,7 @@ Example: pinger
 Internal name for --dump-spec: ReadFile
 
 
-Synchronously read a file. Argumen is a file path.
+Synchronously read a file. Argument is a file path.
 
 Blocking on operations with the file pauses the whole process
 
@@ -758,6 +781,18 @@ Reverse of the `msg2line:`.
 Does not affect writing at all. Use this specifier on both ends to get bi-directional behaviour.
 
 Automatically inserted by --line option at the top of the stack opposite to websocket-containing stack.
+
+Example: TODO
+
+
+### `jsonrpc:`
+
+Internal name for --dump-spec: JsonRpc
+
+
+[A] Turns messages like `abc 1,2` into `{"jsonrpc":"2.0","id":412, "method":"abc", "params":[1,2]}`.
+
+For simpler manual testing of websocket-based JSON-RPC services
 
 Example: TODO
 
