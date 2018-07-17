@@ -337,7 +337,7 @@ fn run() -> Result<()> {
     let mut quiet = cmd.quiet;
 
     if let Some(h) = cmd.help {
-        if &h == "long" || &h == "full" {
+        if &h == "long" || &h == "full" || &h == "all" {
             help::longhelp();
             return Ok(());
         } else if &h == "doc" {
