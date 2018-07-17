@@ -35,7 +35,7 @@ ABC
 $ chromium --remote-debugging-port=9222&
 $ curl -sg http://127.0.0.1:9222/json/new | grep webSocketDebuggerUrl | cut -d'"' -f4 | head -1
 ws://127.0.0.1:9222/devtools/page/A331E56CCB8615EB4FCB720425A82259
-$ printf '{"id":2,"method":"Page.navigate","params":{"url":"%s"}}\n' https://example.com | websocat -n1 --origin http://127.0.0.1:9222 --protocol tcp ws://127.0.0.1:9222/devtools/page/A331E56CCB8615EB4FCB720425A82259
+$ echo 'Page.navigate {"url":"https://example.com"}' | websocat -n1 --jsonrpc ws://127.0.0.1:9222/devtools/page/A331E56CCB8615EB4FCB720425A82259
 {"id":2,"result":{"frameId":"A331E56CCB8615EB4FCB720425A82259","loaderId":"EF5AAD19F2F8BB27FAF55F94FFB27DF9"}}
 
 ```
