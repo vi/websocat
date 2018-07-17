@@ -3,10 +3,11 @@
 //! Type evolution of a websocat run:
 //!
 //! 1. `&str` - string as passed to command line. When it meets the list of `SpecifierClass`es, there appears:
-//! 2. `Specifier` - more organized representation, may be nested. When `construct` is called, we get:
-//! 3. `PeerConstructor` - a future or stream that returns one or more connections. After completion, we get one or more of:
-//! 4. `Peer` - an active connection. Once we have two of them, we can start a:
-//! 5. `Session` with two `Transfer`s - forward and reverse.
+//! 2. `SpecifierStack` - specifier class, final string argument and vector of overlays.
+//! 3. `Specifier` - more rigid version of SpecifierStack, with everything parsable parsed. May be nested. When `construct` is called, we get:
+//! 4. `PeerConstructor` - a future or stream that returns one or more connections. After completion, we get one or more of:
+//! 5. `Peer` - an active connection. Once we have two of them, we can start a:
+//! 6. `Session` with two `Transfer`s - forward and reverse.
 
 extern crate futures;
 extern crate tokio_core;
