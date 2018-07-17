@@ -22,7 +22,7 @@ impl ReadDebt {
             match self.1 {
                 DebtHandling::Silent => (),
                 DebtHandling::Warn => {
-                    warn!("Incoming message too long ({} > {}): splitting it to parts.\nUse -B option to increase buffer size.", l, buf.len());
+                    warn!("Incoming message too long ({} > {}): splitting it to parts.\nUse -B option to increase buffer size or -S option to drop messages instead of splitting.", l, buf.len());
                 }
                 DebtHandling::DropMessage => {
                     error!("Dropping too large message ({} > {}). Use -B option to increase buffer size.", l, buf.len());

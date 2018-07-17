@@ -119,6 +119,9 @@ impl Read for JsonRpcWrapper {
             let _ = bb.write_all(b"]");
         }
         let _ = bb.write_all(b"}\n");
+        if bb.position() as usize == l {
+            warn!("Buffer too small, JSON RPC message may be truncated.");
+        }
         Ok(bb.position() as usize)
     }
 }
