@@ -238,6 +238,12 @@ struct Opt {
         help = "[A] Make exec: or sh-c: or cmd: send SIGHUP on UNIX when input is closed.",
     )]
     process_exit_sighup: bool,
+    
+    #[structopt(
+        long = "jsonrpc",
+        help = "Format messages you type as JSON RPC 2.0 method calls. First word becomes method name, the rest becomes parameters, possibly automatically wrapped in [].",
+    )]
+    jsonrpc: bool,
 }
 
 // TODO: make it byte-oriented/OsStr?
@@ -411,6 +417,9 @@ fn run() -> Result<()> {
         }
         (Some(cmds1), Some(cmds2)) => {
             // Advanced mode
+            if cmd.jsonrpc {
+                Err("--jsonrpc option is only for simple (single-argument) mode.\nUse `jsonrpc:` specifier manually if you want it in advanced mode.")?
+            }
             if cmd.server_mode {
                 Err("--server and two positional arguments are incompatible.\nBuild server command line without -s option, but with `listen` address types")?
             }
@@ -477,6 +486,9 @@ fn run() -> Result<()> {
                 eprintln!("websocat: {}", e);
             }
         })?;
+    }
+    if cmd.jsonrpc {
+        websocat2.s1.overlays.insert(0, ::std::rc::Rc::new(websocat::jsonrpc_peer::JsonRpcClass));
     }
     let websocat = websocat2.parse2()?;
 
