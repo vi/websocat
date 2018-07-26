@@ -212,6 +212,7 @@ Building from source code
 
 1. Install the [Rust toolchain](https://rustup.rs/)
 2. `cargo build --release`.
+3. Find the executable somewhere under `target/`, e.g. in `target/release/websocat`.
 
 Note that `wss://` support is not enabled by default. Use `cargo build --release --features=ssl` to enable it.
 
