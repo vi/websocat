@@ -5,8 +5,9 @@ language: rust
 rust:
   - 1.23.0
 script:
-  - cargo build --all-features --verbose --all
-  - cargo test --all-features --verbose --all
   - cargo build --no-default-features --verbose --all
   - cargo test --no-default-features --verbose --all
+  - cargo build --all-features --verbose --all
+  - cargo test --all-features --verbose --all
+  - ./test.sh
 

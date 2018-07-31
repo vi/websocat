@@ -6,7 +6,7 @@ license = "MIT"
 repository = "https://github.com/vi/websocat"
 description = "Command-line client for web sockets, like netcat/curl/socat for ws://."
 keywords = ["WebSocket", "socat", "rfc6455", "netcat", "cli"]
-exclude = ["autorelease.sh"]
+exclude = ["autorelease.sh","test.sh"]
 readme = "README.md"
 
 
