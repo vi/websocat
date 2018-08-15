@@ -67,9 +67,11 @@ C$ websocat ws://127.0.0.1:1234
 * Text and binary modes, converting between lines (or null-terminated records) and messages.
 * Inetd mode, UNIX sockets (including abstract namesaced on Linux).
 * Auto-reconnect and connection-reuse modes.
-* Linux, Windows and Mac support, with [pre-built executables](https://github.com/vi/websocat/releases).
+* Linux, Windows and Mac support, with [pre-built executables][releases].
 * Low-level WebSocket clients and servers with overridable underlying transport connection.
 * Buildable by rust starting from v1.23.0.
+
+[releases]:https://github.com/vi/websocat/releases
 
 ## Usage
 
@@ -207,14 +209,23 @@ Planned features
 
 There are also checkboxes on issues [#1](https://github.com/vi/websocat/issues/1) and [#5](https://github.com/vi/websocat/issues/5).
 
+Installation
+---
+
+There are multiple options for installing WebSocat. From easy to hard:
+
+* If you're on Linux Debian or Ubuntu (or other dpkg-based), try downloading a pre-build deb package from [GitHub releases][releases] and install from GUI or with command like `gdebi websocat_..._.deb`
+* Download a pre-build executable and install it to PATH.
+* Install the [Rust toolchain](https://rustup.rs/) and do `cargo install --features=ssl websocat`. If something fails with a `-sys` crate, try without `--features=ssl`;
+* Build Websocat from source code, then move `target/release/websocat` somewhere to the PATH.
+
 Building from source code
 ---
 
 1. Install the [Rust toolchain](https://rustup.rs/)
-2. `cargo build --release`.
+2. `cargo build --release --features=ssl`.
 3. Find the executable somewhere under `target/`, e.g. in `target/release/websocat`.
 
-Note that `wss://` support is not enabled by default. Use `cargo build --release --features=ssl` to enable it.
 
 SSL on Android
 ---
