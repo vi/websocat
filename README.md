@@ -177,18 +177,6 @@ Partial list of overlays:
 	autoreconnect:  	Re-establish underlying connection on any error or EOF
 ```
 
-## Reference
-
-There is a work-in-progress [reference document](doc.md) that contains more options and examples.
-
-## Some notes
-
-* It runs singlethreaded, but can serve multiple connections simultaneously. There is old non-async threaded version in `legacy` branch of releases prior to 0.5.
-* IPv6 is supported, surround your IP in square brackets.
-* Web socket usage is not obligatory, you can use any specs on both sides.
-* If you want a `wss://` server, use socat or nginx in addition to websocat until this function is implemented properly (see `nginx.conf` sample in the reference document).
-* Typically one line in binary stream correspond to one WebSocket text message. This is adjustable with options.
-
 Pre-built binaries for Linux (usual and musl), Windows, OS X and Android (ARM) are available on the [releases page](https://github.com/vi/websocat/releases).
 
 Limitations
@@ -196,18 +184,6 @@ Limitations
 
 * Server for `wss://` is not implemented (you can workaround it with Nginx or socat).
 * Server mode ignores incomding URL and HTTP headers.
-
-
-Planned features
----
-
-* Driving SSL server websockets (specifying cert and key)
-* Pure Rust version with SSL support?
-* SOCK_SEQPACKET mode for `exec:`?
-* SOCK_SEQPACKET SCTP mode?
-* Add WebRTC's DataChannel to the mix (separate project)?
-
-There are also checkboxes on issues [#1](https://github.com/vi/websocat/issues/1) and [#5](https://github.com/vi/websocat/issues/5).
 
 Installation
 ---
@@ -233,6 +209,25 @@ SSL on Android
 websocat's `wss://` may fail on Android. As a workaround, download certificate bundle, for example, from https://curl.haxx.se/ca/cacert.pem and specify it explicitly:
 
     SSL_CERT_FILE=cacert.pem /data/local/tmp/websocat wss://echo.websocket.org
+
+Reference
+---
+
+There is a work-in-progress [reference document](doc.md) that contains more options and examples.
+
+Some notes
+---
+
+* It runs singlethreaded, but can serve multiple connections simultaneously. There is old non-async threaded version in `legacy` branch of releases prior to 0.5.
+* IPv6 is supported, surround your IP in square brackets.
+* Web socket usage is not obligatory, you can use any specs on both sides.
+* If you want a `wss://` server, use socat or nginx in addition to websocat until this function is implemented properly (see `nginx.conf` sample in the reference document).
+* Typically one line in binary stream correspond to one WebSocket text message. This is adjustable with options.
+
+Planned features
+---
+
+There are also checkboxes on issues [#1](https://github.com/vi/websocat/issues/1) and [#5](https://github.com/vi/websocat/issues/5).
 
 See also
 ---
