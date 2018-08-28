@@ -14,7 +14,7 @@ extern crate openssl_probe;
 #[macro_use]
 extern crate structopt;
 
-use std::net::{IpAddr};
+use std::net::{IpAddr,SocketAddr};
 
 use structopt::StructOpt;
 
@@ -289,6 +289,12 @@ struct Opt {
         parse(try_from_str = "interpret_socks_destination"),
     )]
     socks_destination: Option<SocksSocketAddr>,
+    
+    #[structopt(
+        long = "socks5",
+        help = "Use specified address:port as a SOCKS5 proxy. Note that proxy authentication is not supported yet, use with `ssh -D`.",
+    )]
+    auto_socks5: Option<SocketAddr>,
 }
 
 // TODO: make it byte-oriented/OsStr?
