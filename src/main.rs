@@ -158,7 +158,7 @@ struct Opt {
     #[structopt(
         long = "header",
         short = "H",
-        help = "Add custom HTTP header to websocket client request. Separate header name and value with a colon and optionally a single space. Can be used multiple times.",
+        help = "Add custom HTTP header to websocket client request. Separate header name and value with a colon and optionally a single space. Can be used multiple times. Note that single -H may eat multiple further arguments, leading to confusing errors. Specify headers at the end or with equal sign like -H='X: y'.",
         parse(try_from_str = "interpret_custom_header")
     )]
     custom_headers: Vec<(String, Vec<u8>)>,
@@ -247,7 +247,7 @@ struct Opt {
     #[structopt(
         short = "F",
         long = "static-file",
-        help = "Serve a named static file for non-websocket connections.\nArgument syntax: <URI>:<Content-Type>:<file-path>\nArgument example: /index.html:text/html:index.html\nDirectories are not and will not be supported for security reasons.\nCan be specified multiple times.",
+        help = "Serve a named static file for non-websocket connections.\nArgument syntax: <URI>:<Content-Type>:<file-path>\nArgument example: /index.html:text/html:index.html\nDirectories are not and will not be supported for security reasons.\nCan be specified multiple times. Recommended to specify them at the end or with equal sign like `-F=...`, otherwise this option may eat positional arguments",
         parse(try_from_str = "interpret_static_file")
     )]
     serve_static_files: Vec<StaticFile>,
