@@ -350,8 +350,7 @@ pub fn unix_connect_peer(handle: &Handle, addr: &Path) -> BoxedNewPeerFuture {
                     MyUnixStream(x.clone(), true),
                     MyUnixStream(x.clone(), false),
                 )
-            })
-            .map_err(box_up_err),
+            }).map_err(box_up_err),
     )) as BoxedNewPeerFuture
 }
 
@@ -374,8 +373,7 @@ pub fn unix_listen_peer(handle: &Handle, addr: &Path, opts: &Rc<Options>) -> Box
                     MyUnixStream(x.clone(), true),
                     MyUnixStream(x.clone(), false),
                 )
-            })
-            .map_err(box_up_err),
+            }).map_err(box_up_err),
     ) as BoxedNewPeerStream
 }
 
@@ -405,8 +403,7 @@ pub fn dgram_peer(
                 })));
                 let h2 = h1.clone();
                 Ok(Peer::new(h1, h2))
-            })
-            .map_err(box_up_err),
+            }).map_err(box_up_err),
     )) as BoxedNewPeerFuture
 }
 

@@ -43,9 +43,9 @@ pub trait SpecifierClass: std::fmt::Debug {
 }
 
 macro_rules! specifier_alias {
-    (name=$n:ident, 
-            prefixes=[$($p:expr),*], 
-            alias=$x:expr, 
+    (name=$n:ident,
+            prefixes=[$($p:expr),*],
+            alias=$x:expr,
             help=$h:expr) => {
         #[derive(Debug)]
         pub struct $n;
@@ -74,11 +74,11 @@ macro_rules! specifier_alias {
 }
 
 macro_rules! specifier_class {
-    (name=$n:ident, 
-            target=$t:ident, 
-            prefixes=[$($p:expr),*], 
-            arg_handling=$c:tt, 
-            overlay=$o:expr, 
+    (name=$n:ident,
+            target=$t:ident,
+            prefixes=[$($p:expr),*],
+            arg_handling=$c:tt,
+            overlay=$o:expr,
             $so:expr,
             $ms:expr,
             help=$h:expr) => {
@@ -105,10 +105,10 @@ macro_rules! specifier_class {
     (construct target=$t:ident noarg) => {
         fn construct(&self, just_arg:&str) -> $crate::Result<Rc<Specifier>> {
             if just_arg != "" {
-                Err(format!("{}-specifer requires no parameters. `{}` is not needed", 
+                Err(format!("{}-specifer requires no parameters. `{}` is not needed",
                     self.get_name(), just_arg))?;
             }
-            Ok(Rc::new($t)) 
+            Ok(Rc::new($t))
         }
         fn construct_overlay(&self, _inner : Rc<Specifier>) -> $crate::Result<Rc<Specifier>> {
             panic!("Error: construct_overlay called on non-overlay specifier class")
@@ -117,7 +117,7 @@ macro_rules! specifier_class {
     };
     (construct target=$t:ident into) => {
         fn construct(&self, just_arg:&str) -> $crate::Result<Rc<Specifier>> {
-            Ok(Rc::new($t(just_arg.into()))) 
+            Ok(Rc::new($t(just_arg.into())))
         }
         fn construct_overlay(&self, _inner : Rc<Specifier>) -> $crate::Result<Rc<Specifier>> {
             panic!("Error: construct_overlay called on non-overlay specifier class")
@@ -126,7 +126,7 @@ macro_rules! specifier_class {
     };
     (construct target=$t:ident parse) => {
         fn construct(&self, just_arg:&str) -> $crate::Result<Rc<Specifier>> {
-            Ok(Rc::new($t(just_arg.parse()?))) 
+            Ok(Rc::new($t(just_arg.parse()?)))
         }
         fn construct_overlay(&self, _inner : Rc<Specifier>) -> $crate::Result<Rc<Specifier>> {
             panic!("Error: construct_overlay called on non-overlay specifier class")
@@ -135,7 +135,7 @@ macro_rules! specifier_class {
     };
     (construct target=$t:ident subspec) => {
         fn construct(&self, just_arg:&str) -> $crate::Result<Rc<Specifier>> {
-            Ok(Rc::new($t($crate::spec(just_arg)?))) 
+            Ok(Rc::new($t($crate::spec(just_arg)?)))
         }
         fn construct_overlay(&self, _inner : Rc<Specifier>) -> $crate::Result<Rc<Specifier>> {
             Ok(Rc::new($t(_inner)))
@@ -171,10 +171,8 @@ impl ConstructParams {
             L2rUser::FillIn(ref mut x) => {
                 *x.borrow_mut() = Default::default();
                 //*x = Rc::new(RefCell::new(Default::default()));
-            },
-            L2rUser::ReadFrom(_) => {
-                panic!("ConstructParams::reset_l2r called wrong")
-            },
+            }
+            L2rUser::ReadFrom(_) => panic!("ConstructParams::reset_l2r called wrong"),
         }
     }
     /// Clones ConstructParams, changing FillIn to ReadFrom in left_to_right field
@@ -193,16 +191,15 @@ impl ConstructParams {
             left_to_right: L2rUser::ReadFrom(l2r),
         }
     }
-    
+
     pub fn deep_clone(&self) -> Self {
-        let l2r = 
-        match self.left_to_right {
-            L2rUser::FillIn(ref x) => {
-                L2rUser::FillIn  (Rc::new(RefCell::new(x.borrow().clone())))
-            },
+        let l2r = match self.left_to_right {
+            L2rUser::FillIn(ref x) => L2rUser::FillIn(Rc::new(RefCell::new(x.borrow().clone()))),
             L2rUser::ReadFrom(_) => {
-                panic!("You are not supposed to use ConstructParams::deep_clone on ReadFrom things");
-            },
+                panic!(
+                    "You are not supposed to use ConstructParams::deep_clone on ReadFrom things"
+                );
+            }
         };
         ConstructParams {
             tokio_handle: self.tokio_handle.clone(),

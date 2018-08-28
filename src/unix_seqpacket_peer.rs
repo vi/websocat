@@ -204,7 +204,6 @@ pub fn seqpacket_listen_peer(
                     MyUnixStream(x.clone(), true),
                     MyUnixStream(x.clone(), false),
                 )
-            })
-            .map_err(box_up_err),
+            }).map_err(box_up_err),
     ) as BoxedNewPeerStream
 }

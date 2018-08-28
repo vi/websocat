@@ -17,8 +17,8 @@ use structopt::StructOpt;
 
 use tokio_core::reactor::Core;
 
-use websocat::{Options, SpecifierClass, WebsocatConfiguration1};
 use websocat::options::StaticFile;
+use websocat::{Options, SpecifierClass, WebsocatConfiguration1};
 
 type Result<T> = std::result::Result<T, Box<std::error::Error>>;
 
@@ -49,7 +49,9 @@ struct Opt {
     addr2: Option<String>,
 
     #[structopt(
-        short = "u", long = "unidirectional", help = "Inhibit copying data in one direction"
+        short = "u",
+        long = "unidirectional",
+        help = "Inhibit copying data in one direction"
     )]
     unidirectional: bool,
     #[structopt(
@@ -66,16 +68,23 @@ struct Opt {
     )]
     exit_on_eof: bool,
 
-    #[structopt(short = "t", long = "text", help = "Send message to WebSockets as text messages")]
+    #[structopt(
+        short = "t",
+        long = "text",
+        help = "Send message to WebSockets as text messages"
+    )]
     websocket_text_mode: bool,
 
     #[structopt(
-        short = "b", long = "binary", help = "Send message to WebSockets as binary messages"
+        short = "b",
+        long = "binary",
+        help = "Send message to WebSockets as binary messages"
     )]
     websocket_binary_mode: bool,
 
     #[structopt(
-        long = "oneshot", help = "Serve only once. Not to be confused with -1 (--one-message)"
+        long = "oneshot",
+        help = "Serve only once. Not to be confused with -1 (--one-message)"
     )]
     oneshot: bool,
 
@@ -92,13 +101,22 @@ struct Opt {
     )]
     dumpspec: bool,
 
-    #[structopt(long = "protocol", help = "Specify Sec-WebSocket-Protocol: header")]
+    #[structopt(
+        long = "protocol",
+        help = "Specify Sec-WebSocket-Protocol: header"
+    )]
     websocket_protocol: Option<String>,
 
-    #[structopt(long = "udp-oneshot", help = "[A] udp-listen: replies only one packet per client")]
+    #[structopt(
+        long = "udp-oneshot",
+        help = "[A] udp-listen: replies only one packet per client"
+    )]
     udp_oneshot_mode: bool,
 
-    #[structopt(long = "unlink", help = "[A] Unlink listening UNIX socket before binding to it")]
+    #[structopt(
+        long = "unlink",
+        help = "[A] Unlink listening UNIX socket before binding to it"
+    )]
     unlink_unix_socket: bool,
 
     #[structopt(
@@ -122,11 +140,15 @@ struct Opt {
     linemode_strip_newlines: bool,
 
     #[structopt(
-        long = "--no-line", help = "[A] Don't automatically insert line-to-message transformation"
+        long = "--no-line",
+        help = "[A] Don't automatically insert line-to-message transformation"
     )]
     no_auto_linemode: bool,
 
-    #[structopt(long = "origin", help = "Add Origin HTTP header to websocket client request")]
+    #[structopt(
+        long = "origin",
+        help = "Add Origin HTTP header to websocket client request"
+    )]
     origin: Option<String>,
 
     #[structopt(
@@ -137,11 +159,16 @@ struct Opt {
     )]
     custom_headers: Vec<(String, Vec<u8>)>,
 
-    #[structopt(long = "websocket-version", help = "Override the Sec-WebSocket-Version value")]
+    #[structopt(
+        long = "websocket-version",
+        help = "Override the Sec-WebSocket-Version value"
+    )]
     websocket_version: Option<String>,
 
     #[structopt(
-        long = "no-close", short = "n", help = "Don't send Close message to websocket on EOF"
+        long = "no-close",
+        short = "n",
+        help = "Don't send Close message to websocket on EOF"
     )]
     websocket_dont_close: bool,
 
@@ -174,11 +201,16 @@ struct Opt {
     buffer_size: usize,
 
     #[structopt(
-        short = "v", parse(from_occurrences), help = "Increase verbosity level to info or further"
+        short = "v",
+        parse(from_occurrences),
+        help = "Increase verbosity level to info or further"
     )]
     verbosity: u8,
 
-    #[structopt(short = "q", help = "Suppress all diagnostic messages, except of startup errors")]
+    #[structopt(
+        short = "q",
+        help = "Suppress all diagnostic messages, except of startup errors"
+    )]
     quiet: bool,
 
     #[structopt(
@@ -196,7 +228,9 @@ struct Opt {
     strict_mode: bool,
 
     #[structopt(
-        short = "0", long = "null-terminated", help = "Use \\0 instead of \\n for linemode"
+        short = "0",
+        long = "null-terminated",
+        help = "Use \\0 instead of \\n for linemode"
     )]
     linemode_zero_terminated: bool,
 
@@ -205,7 +239,7 @@ struct Opt {
         help = "When serving a websocket, only accept the given URI, like `/ws`\nThis liberates other URIs for things like serving static files or proxying."
     )]
     restrict_uri: Option<String>,
-    
+
     #[structopt(
         short = "F",
         long = "static-file",
@@ -213,32 +247,32 @@ struct Opt {
         parse(try_from_str = "interpret_static_file")
     )]
     serve_static_files: Vec<StaticFile>,
-    
-     #[structopt(
+
+    #[structopt(
         short = "e",
         long = "set-environment",
         help = "Set WEBSOCAT_* environment variables when doing exec:/cmd:/sh-c:\nCurrently it's WEBSOCAT_URI and WEBSOCAT_CLIENT for\nrequest URI and client address (if TCP)\nBeware of ShellShock or similar security problems.",
     )]
     exec_set_env: bool,
-    
+
     #[structopt(
         long = "reuser-send-zero-msg-on-disconnect",
         help = "[A] Make reuse-raw: send a zero-length message to the peer when some clients disconnects.",
     )]
     reuser_send_zero_msg_on_disconnect: bool,
-    
+
     #[structopt(
         long = "exec-sighup-on-zero-msg",
         help = "[A] Make exec: or sh-c: or cmd: send SIGHUP on UNIX when facing incoming zero-length message.",
     )]
     process_zero_sighup: bool,
-    
+
     #[structopt(
         long = "exec-sighup-on-stdin-close",
         help = "[A] Make exec: or sh-c: or cmd: send SIGHUP on UNIX when input is closed.",
     )]
     process_exit_sighup: bool,
-    
+
     #[structopt(
         long = "jsonrpc",
         help = "Format messages you type as JSON RPC 2.0 method calls. First word becomes method name, the rest becomes parameters, possibly automatically wrapped in [].",
@@ -265,21 +299,21 @@ fn interpret_custom_header(x: &str) -> Result<(String, Vec<u8>)> {
 fn interpret_static_file(x: &str) -> Result<StaticFile> {
     let colon1 = match x.find(':') {
         Some(x) => x,
-        None => Err("Argument to --static-file must contain two colons (`:`)")?
+        None => Err("Argument to --static-file must contain two colons (`:`)")?,
     };
     let uri = &x[0..colon1];
-    let rest = &x[colon1+1..];
+    let rest = &x[colon1 + 1..];
     let colon2 = match rest.find(':') {
         Some(x) => x,
-        None => Err("Argument to --static-file must contain two colons (`:`)")?
+        None => Err("Argument to --static-file must contain two colons (`:`)")?,
     };
     let ct = &rest[0..colon2];
-    let fp = &rest[colon2+1..];
+    let fp = &rest[colon2 + 1..];
     if uri.is_empty() || ct.is_empty() || fp.is_empty() {
         Err("Empty URI, content-type or path in --static-file parameter")?
     }
-    Ok(StaticFile{
-        uri: uri.to_string(), 
+    Ok(StaticFile {
+        uri: uri.to_string(),
         content_type: ct.to_string(),
         file: fp.into(),
     })
@@ -358,7 +392,7 @@ fn run() -> Result<()> {
         cmd.websocket_text_mode = true;
         recommend_explicit_text_or_bin = true;
     }
-    
+
     //if !cmd.serve_static_files.is_empty() && cmd.restrict_uri.is_none() {
     //    Err("Specify --static-file is not supported without --restrict-uri")?
     //}
@@ -481,14 +515,17 @@ fn run() -> Result<()> {
     }
 
     if !cmd.no_lints {
-        websocat2.lint_and_fixup(&move |e: &str| {
+        websocat2.lint_and_fixup(Box::new(move |e: &str| {
             if !quiet {
                 eprintln!("websocat: {}", e);
             }
-        })?;
+        }))?;
     }
     if cmd.jsonrpc {
-        websocat2.s1.overlays.insert(0, ::std::rc::Rc::new(websocat::jsonrpc_peer::JsonRpcClass));
+        websocat2
+            .s1
+            .overlays
+            .insert(0, ::std::rc::Rc::new(websocat::jsonrpc_peer::JsonRpcClass));
     }
     let websocat = websocat2.parse2()?;
 

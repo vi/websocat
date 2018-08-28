@@ -1,4 +1,6 @@
-use super::{SpecifierClass, SpecifierStack, WebsocatConfiguration2};
+#![cfg_attr(feature="cargo-clippy", allow(collapsible_if))]
+
+use super::{Result, SpecifierClass, SpecifierStack, WebsocatConfiguration2};
 use std::rc::Rc;
 use std::str::FromStr;
 
@@ -18,6 +20,8 @@ trait ClassExt {
     fn is_stdio(&self) -> bool;
     fn is_reuser(&self) -> bool;
 }
+
+pub type OnWarning = Box<for<'a> Fn(&'a str) -> () + 'static>;
 
 #[cfg_attr(rustfmt, rustfmt_skip)]
 impl ClassExt for Rc<SpecifierClass> {
@@ -140,7 +144,7 @@ impl WebsocatConfiguration2 {
         || self.contains_class("WsClientSecureClass")
         || self.contains_class("WsServerClass")
     }
-    
+
     #[cfg_attr(rustfmt, rustfmt_skip)]
     #[cfg_attr(feature="cargo-clippy", allow(nonminimal_bool))]
     pub fn exec_used(&self) -> bool {
@@ -164,12 +168,7 @@ impl WebsocatConfiguration2 {
         None
     }
 
-    pub fn lint_and_fixup<F>(&mut self, on_warning: &F) -> super::Result<()>
-    where
-        F: for<'a> Fn(&'a str) -> () + 'static,
-    {
-        let mut reuser_has_been_inserted = false;
-        let multiconnect = !self.opts.oneshot && self.s1.is_multiconnect();
+    fn l_stdio(&mut self, multiconnect: bool, reuser_has_been_inserted: &mut bool) -> Result<()> {
         use self::StdioUsageStatus::{Indirectly, IsItself, None, WithReuser};
         match (self.s1.stdio_usage_status(), self.s2.stdio_usage_status()) {
             (_, None) => (),
@@ -180,7 +179,7 @@ impl WebsocatConfiguration2 {
                         0,
                         Rc::new(super::broadcast_reuse_peer::BroadcastReuserClass),
                     );
-                    reuser_has_been_inserted = true;
+                    *reuser_has_been_inserted = true;
                 }
             }
             (IsItself, IsItself) => {
@@ -197,13 +196,20 @@ impl WebsocatConfiguration2 {
             }
         }
 
+        Ok(())
+    }
+
+    fn l_reuser(&mut self, reuser_has_been_inserted: bool) -> Result<()> {
         if self.s1.reuser_count() + self.s2.reuser_count() > 1 {
             if reuser_has_been_inserted {
                 error!("The reuser you specified conflicts with automatically inserted reuser based on usage of stdin/stdout in multiconnect mode.");
             }
             Err("Too many usages of connection reuser. Please limit to only one instance.")?;
         }
+        Ok(())
+    }
 
+    fn l_linemode(&mut self) -> Result<()> {
         if !self.opts.no_auto_linemode && self.opts.websocket_text_mode {
             match (self.s1.is_stream_oriented(), self.s2.is_stream_oriented()) {
                 (false, false) => {}
@@ -227,12 +233,16 @@ impl WebsocatConfiguration2 {
                     ));
                 }
             }
-        }
-
+        };
+        Ok(())
+    }
+    fn l_listener_on_the_right(&mut self, on_warning: &OnWarning) -> Result<()> {
         if !self.opts.oneshot && self.s2.is_multiconnect() && !self.s1.is_multiconnect() {
             on_warning("You have specified a listener on the right (as the second positional argument) instead of on the left. It will only serve one connection.\nChange arguments order to enable multiple parallel connections or use --oneshot argument to make single connection explicit.");
         }
-
+        Ok(())
+    }
+    fn l_reuser_for_append(&mut self, multiconnect: bool) -> Result<()> {
         if multiconnect
             && (self.s2.addrtype.get_name() == "WriteFileClass"
                 || self.s2.addrtype.get_name() == "AppendFileClass")
@@ -242,8 +252,10 @@ impl WebsocatConfiguration2 {
             self.s2
                 .overlays
                 .push(Rc::new(super::primitive_reuse_peer::ReuserClass));
-        }
-
+        };
+        Ok(())
+    }
+    fn l_exec(&mut self, on_warning: &OnWarning) -> Result<()> {
         if self.s1.addrtype.get_name() == "ExecClass" && self.s2.addrtype.get_name() == "ExecClass"
         {
             Err("Can't use exec: more than one time. Replace one of them with sh-c: or cmd:.")?;
@@ -254,28 +266,37 @@ impl WebsocatConfiguration2 {
                 on_warning("Warning: you specified exec: without the corresponding --exec-args at the end of command line. Unlike in cmd: or sh-c:, spaces inside exec:'s direct parameter are interpreted as part of program name, not as separator.");
             }
         }
-        
+        Ok(())
+    }
+    fn l_uri_staticfiles(&mut self, on_warning: &OnWarning) -> Result<()> {
         if self.opts.restrict_uri.is_some() && !self.contains_class("WsServerClass") {
             on_warning("--restrict-uri is meaningless without a WebSocket server");
         }
-        
+
         if !self.opts.serve_static_files.is_empty() && !self.contains_class("WsServerClass") {
             on_warning("--static-file (-F) is meaningless without a WebSocket server");
         }
-        
+
         for sf in &self.opts.serve_static_files {
             if !sf.uri.starts_with('/') {
-                on_warning(&format!("Static file's URI `{}` should begin with `/`?", sf.uri));
+                on_warning(&format!(
+                    "Static file's URI `{}` should begin with `/`?",
+                    sf.uri
+                ));
             }
             if !sf.file.exists() {
                 on_warning(&format!("File {:?} does not exist", sf.file));
             }
             if !sf.content_type.contains('/') {
-                on_warning(&format!("Content-Type `{}` lacks `/` character",
-                    sf.content_type));
+                on_warning(&format!(
+                    "Content-Type `{}` lacks `/` character",
+                    sf.content_type
+                ));
             }
         }
-
+        Ok(())
+    }
+    fn l_environ(&mut self, on_warning: &OnWarning) -> Result<()> {
         if self.opts.exec_set_env {
             if !self.exec_used() {
                 on_warning("-e (--set-environment) is meaningless without a exec: or sh-c: or cmd: address");
@@ -284,17 +305,40 @@ impl WebsocatConfiguration2 {
                 on_warning("-e (--set-environment) is currently meaningless without a websocket server and/or TCP listener");
             }
         }
-        
+
+        Ok(())
+    }
+    fn l_closebug(&mut self, on_warning: &OnWarning) -> Result<()> {
         if !self.opts.oneshot && self.s1.is_multiconnect() {
-            if self.s1.contains("TcpListenClass") || self.s1.contains("UnixListenClass") || self.s1.contains("SeqpacketListenClass") {
-                if !self.opts.unidirectional && (self.opts.unidirectional_reverse || !self.opts.exit_on_eof) {
+            if self.s1.contains("TcpListenClass")
+                || self.s1.contains("UnixListenClass")
+                || self.s1.contains("SeqpacketListenClass")
+            {
+                if !self.opts.unidirectional
+                    && (self.opts.unidirectional_reverse || !self.opts.exit_on_eof)
+                {
                     on_warning("Unfortunately, serving multiple clients without --exit-on-eof (-E) or with -U option is prone to socket leak in this websocat version");
                 }
             }
         }
-        
-        // TODO: UDP connect oneshot mode
+        Ok(())
+    }
 
+    pub fn lint_and_fixup(&mut self, on_warning: OnWarning) -> Result<()> {
+        let multiconnect = !self.opts.oneshot && self.s1.is_multiconnect();
+        let mut reuser_has_been_inserted = false;
+
+        self.l_stdio(multiconnect, &mut reuser_has_been_inserted)?;
+        self.l_reuser(reuser_has_been_inserted)?;
+        self.l_linemode()?;
+        self.l_listener_on_the_right(&on_warning)?;
+        self.l_reuser_for_append(multiconnect)?;
+        self.l_exec(&on_warning)?;
+        self.l_uri_staticfiles(&on_warning)?;
+        self.l_environ(&on_warning)?;
+        self.l_closebug(&on_warning)?;
+
+        // TODO: UDP connect oneshot mode
         // TODO: tests for the linter
         Ok(())
     }

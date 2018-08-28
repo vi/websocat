@@ -19,7 +19,7 @@ macro_rules! wt {
         let s1 = spec($s1).unwrap();
         let s2 = spec($s2).unwrap();
         let h2 = $core.handle();
-        
+
         let t = tokio_timer::wheel().build();
         let delay = t
             .sleep(std::time::Duration::new(0, $ms * 1_000_000))
@@ -38,7 +38,7 @@ macro_rules! wt {
         wt!(stage2, $h2, $s1, $s2, opts=Default::default(),$($rest)*)
     };
     (stage2, $h2:ident, $s1:ident, $s2:ident, opts=$opts:expr,$($rest:tt)*) => {{
-        
+
         let websocat = WebsocatConfiguration3 {
             opts: $opts,
             $s1,
@@ -58,7 +58,7 @@ macro_rules! wt {
     };
     (stage3, errignore,) => {
         std::rc::Rc::new(|_| {
-            
+
         })
     };
 }

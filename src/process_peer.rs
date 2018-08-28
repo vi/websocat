@@ -8,7 +8,7 @@ use std::io::{Read, Write};
 use tokio_core::reactor::Handle;
 use tokio_io::{AsyncRead, AsyncWrite};
 
-use super::{LeftSpecToRightSpec, L2rReader, L2rUser};
+use super::{L2rReader, L2rUser, LeftSpecToRightSpec};
 
 use std::cell::RefCell;
 use std::rc::Rc;
@@ -23,7 +23,7 @@ use std::process::Stdio;
 
 use std::cell::Ref;
 
-fn needenv(p : &ConstructParams) -> Option<&LeftSpecToRightSpec> {
+fn needenv(p: &ConstructParams) -> Option<&LeftSpecToRightSpec> {
     match (p.program_options.exec_set_env, &p.left_to_right) {
         (true, &L2rUser::ReadFrom(ref x)) => Some(&**x),
         _ => None,
@@ -47,9 +47,13 @@ impl Specifier for Cmd {
         };
         let h = &p.tokio_handle;
         let env = needenv(&p);
-        once(Box::new(futures::future::result(
-            process_connect_peer(h, args, env, zero_sighup, exit_sighup)
-        )) as BoxedNewPeerFuture)
+        once(Box::new(futures::future::result(process_connect_peer(
+            h,
+            args,
+            env,
+            zero_sighup,
+            exit_sighup,
+        ))) as BoxedNewPeerFuture)
     }
     specifier_boilerplate!(noglobalstate singleconnect no_subspec typ=Other);
 }
@@ -80,9 +84,13 @@ impl Specifier for ShC {
         args.arg("-c").arg(self.0.clone());
         let h = &p.tokio_handle;
         let env = needenv(&p);
-        once(Box::new(futures::future::result(
-            process_connect_peer(h, args, env, zero_sighup, exit_sighup)
-        )) as BoxedNewPeerFuture)
+        once(Box::new(futures::future::result(process_connect_peer(
+            h,
+            args,
+            env,
+            zero_sighup,
+            exit_sighup,
+        ))) as BoxedNewPeerFuture)
     }
     specifier_boilerplate!(noglobalstate singleconnect no_subspec typ=Other);
 }
@@ -117,9 +125,13 @@ impl Specifier for Exec {
         args.args(p.program_options.exec_args.clone());
         let h = &p.tokio_handle;
         let env = needenv(&p);
-        once(Box::new(futures::future::result(
-            process_connect_peer(h, args, env, zero_sighup, exit_sighup)
-        )) as BoxedNewPeerFuture)
+        once(Box::new(futures::future::result(process_connect_peer(
+            h,
+            args,
+            env,
+            zero_sighup,
+            exit_sighup,
+        ))) as BoxedNewPeerFuture)
     }
     specifier_boilerplate!(noglobalstate singleconnect no_subspec typ=Other);
 }
@@ -146,18 +158,18 @@ Example: pinger
 );
 
 fn process_connect_peer(
-        h: &Handle, 
-        mut cmd: Command,
-        l2r: Option<&LeftSpecToRightSpec>,
-        zero_sighup: bool,
-        close_sighup: bool,
+    h: &Handle,
+    mut cmd: Command,
+    l2r: Option<&LeftSpecToRightSpec>,
+    zero_sighup: bool,
+    close_sighup: bool,
 ) -> Result<Peer, Box<std::error::Error>> {
     if let Some(x) = l2r {
         if let Some(ref z) = x.client_addr {
-            cmd.env("WEBSOCAT_CLIENT",z);
+            cmd.env("WEBSOCAT_CLIENT", z);
         };
         if let Some(ref z) = x.uri {
-            cmd.env("WEBSOCAT_URI",z);
+            cmd.env("WEBSOCAT_URI", z);
         };
     }
     cmd.stdin(Stdio::piped()).stdout(Stdio::piped());
@@ -182,7 +194,8 @@ impl Read for ProcessPeer {
 
 impl Write for ProcessPeer {
     fn write(&mut self, buf: &[u8]) -> IoResult<usize> {
-        #[cfg(all(unix,feature="libc"))] {
+        #[cfg(all(unix, feature = "libc"))]
+        {
             if self.1 && buf.is_empty() {
                 // TODO use nix crate?
                 let pid = self.0.borrow().id();
@@ -214,7 +227,8 @@ impl AsyncRead for ProcessPeer {}
 
 impl AsyncWrite for ProcessPeer {
     fn shutdown(&mut self) -> futures::Poll<(), std::io::Error> {
-        #[cfg(all(unix,feature="libc"))] {
+        #[cfg(all(unix, feature = "libc"))]
+        {
             if self.2 {
                 // TODO use nix crate?
                 let pid = self.0.borrow().id();

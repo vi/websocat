@@ -109,11 +109,11 @@ pub struct LeftSpecToRightSpec {
 }
 
 pub type L2rWriter = Rc<RefCell<LeftSpecToRightSpec>>;
-pub type L2rReader = Rc<        LeftSpecToRightSpec >;
+pub type L2rReader = Rc<LeftSpecToRightSpec>;
 
 #[derive(Clone)]
 pub enum L2rUser {
-    FillIn  (L2rWriter),
+    FillIn(L2rWriter),
     ReadFrom(L2rReader),
 }
 
@@ -156,8 +156,8 @@ pub mod process_peer;
 pub mod unix_peer;
 
 pub mod broadcast_reuse_peer;
-pub mod line_peer;
 pub mod jsonrpc_peer;
+pub mod line_peer;
 pub mod primitive_reuse_peer;
 pub mod reconnect_peer;
 

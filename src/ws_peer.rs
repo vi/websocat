@@ -155,7 +155,12 @@ impl<T: WsStream + 'static> Write for WsWriteWrapper<T> {
         }
     }
     fn flush(&mut self) -> IoResult<()> {
-        match self.0.borrow_mut().poll_complete().map_err(io_other_error)? {
+        match self
+            .0
+            .borrow_mut()
+            .poll_complete()
+            .map_err(io_other_error)?
+        {
             NotReady => wouldblock(),
             Ready(()) => Ok(()),
         }

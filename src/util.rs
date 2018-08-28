@@ -1,6 +1,6 @@
 use super::{
-    futures, std, AsyncRead, AsyncWrite, BoxedNewPeerFuture, BoxedNewPeerStream, Peer,
-    PeerConstructor, Rc, L2rUser,
+    futures, std, AsyncRead, AsyncWrite, BoxedNewPeerFuture, BoxedNewPeerStream, L2rUser, Peer,
+    PeerConstructor, Rc,
 };
 use super::{Future, Stream};
 
@@ -51,7 +51,7 @@ impl PeerConstructor {
         }
     }
 
-    pub fn get_only_first_conn(self, l2r:L2rUser) -> BoxedNewPeerFuture {
+    pub fn get_only_first_conn(self, l2r: L2rUser) -> BoxedNewPeerFuture {
         use PeerConstructor::*;
         match self {
             ServeMultipleTimes(stre) => Box::new(

@@ -1,25 +1,23 @@
-#![allow(unused)]
 extern crate hyper;
 extern crate websocket;
-
 
 use self::hyper::uri::RequestUri::AbsolutePath;
 
 use self::websocket::WebSocketError;
-use futures::future::{Future,err};
+use futures::future::{err, Future};
 use futures::stream::Stream;
 
 use std::cell::RefCell;
 use std::rc::Rc;
 
-use ::options::StaticFile;
+use options::StaticFile;
 
 use self::websocket::server::upgrade::async::IntoWs;
 
 use super::readdebt::{DebtHandling, ReadDebt};
 use super::ws_peer::{Mode1, PeerForWs, WsReadWrapper, WsWriteWrapper};
 use super::{box_up_err, io_other_error, BoxedNewPeerFuture, Peer};
-use super::{ConstructParams, PeerConstructor, Specifier, L2rUser};
+use super::{ConstructParams, L2rUser, PeerConstructor, Specifier};
 
 #[derive(Debug)]
 pub struct WsServer<T: Specifier>(pub T);

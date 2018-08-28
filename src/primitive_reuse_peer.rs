@@ -22,7 +22,11 @@ impl Specifier for Reuser {
         let mut reuser = p.global_state.borrow_mut().reuser.clone();
         let l2r = p.left_to_right.clone();
         let inner = || self.0.construct(p).get_only_first_conn(l2r);
-        once(connection_reuser(&mut reuser, inner, send_zero_msg_on_disconnect))
+        once(connection_reuser(
+            &mut reuser,
+            inner,
+            send_zero_msg_on_disconnect,
+        ))
     }
     specifier_boilerplate!(singleconnect has_subspec typ=Reuser globalstate);
     self_0_is_subspecifier!(...);
@@ -58,7 +62,7 @@ type PeerSlot = Rc<RefCell<Option<Peer>>>;
 pub struct GlobalState(PeerSlot);
 
 #[derive(Clone)]
-struct PeerHandle(PeerSlot,bool);
+struct PeerHandle(PeerSlot, bool);
 
 impl Read for PeerHandle {
     fn read(&mut self, b: &mut [u8]) -> Result<usize, IoError> {

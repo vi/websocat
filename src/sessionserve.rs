@@ -1,15 +1,15 @@
 #![allow(unused)]
 use super::futures::{Future, Stream};
 use super::{
-    futures, my_copy, ConstructParams, L2rUser, Options, Peer, PeerConstructor, ProgramState,
-    Session, Specifier, Transfer, LeftSpecToRightSpec, L2rReader, L2rWriter,
+    futures, my_copy, ConstructParams, L2rReader, L2rUser, L2rWriter, LeftSpecToRightSpec, Options,
+    Peer, PeerConstructor, ProgramState, Session, Specifier, Transfer,
 };
 use std;
 use std::cell::RefCell;
+use std::cell::{Ref, RefMut};
 use std::rc::Rc;
 use tokio_core::reactor::Handle;
 use tokio_io;
-use std::cell::{Ref,RefMut};
 
 impl Session {
     pub fn run(self) -> Box<Future<Item = (), Error = Box<std::error::Error>>> {
@@ -50,15 +50,13 @@ impl Session {
                 f1.join(f2)
                     .map(|(_, _)| {
                         info!("Finished");
-                    })
-                    .map_err(|x| Box::new(x) as Box<std::error::Error>),
+                    }).map_err(|x| Box::new(x) as Box<std::error::Error>),
             ) as Ret,
             (false, false, true) => Box::new(
                 f1.select(f2)
                     .map(|(_, _)| {
                         info!("One of directions finished");
-                    })
-                    .map_err(|(x, _)| Box::new(x) as Box<std::error::Error>),
+                    }).map_err(|(x, _)| Box::new(x) as Box<std::error::Error>),
             ) as Ret,
             (true, false, _) => Box::new({
                 ::std::mem::drop(f2);
@@ -92,8 +90,7 @@ impl Session {
 }
 
 fn l2r_new() -> L2rWriter {
-    let l2r = Rc::new(RefCell::new(Default::default()));
-    l2r
+    Rc::new(RefCell::new(Default::default()))
 }
 
 #[cfg_attr(feature = "cargo-clippy", allow(needless_pass_by_value))]
@@ -122,22 +119,19 @@ where
     let opts2 = opts1.clone();
 
     let l2r = l2r_new();
-    
+
     let cp = Rc::new(RefCell::new(ConstructParams {
         tokio_handle: h.clone(),
         program_options: opts1.clone(),
         global_state: ps.clone(),
         left_to_right: L2rUser::FillIn(l2r.clone()),
     }));
-    
+
     let mut left = s1.construct(cp.borrow().clone());
 
     if opts2.oneshot {
-        left = PeerConstructor::ServeOnce(
-            left.get_only_first_conn(
-                cp.borrow().left_to_right.clone()
-            )
-        );
+        left =
+            PeerConstructor::ServeOnce(left.get_only_first_conn(cp.borrow().left_to_right.clone()));
     }
 
     match left {
@@ -155,11 +149,9 @@ where
                             .and_then(move |peer2| {
                                 let s = Session::new(peer1, peer2, opts3);
                                 s.run()
-                            })
-                            .map_err(move |e| e1_1(e)),
+                            }).map_err(move |e| e1_1(e)),
                     )
-                })
-                .for_each(|()| futures::future::ok(()));
+                }).for_each(|()| futures::future::ok(()));
             Box::new(runner.map_err(move |e| e2(e))) as Box<Future<Item = (), Error = ()>>
         }
         OverlayM(stream, mapper) => {
@@ -172,7 +164,7 @@ where
                     let e1_1 = e1.clone();
                     let s2 = s2.clone();
                     let h1 = h1.clone();
-                    let l2rc  = cp_.left_to_right.clone();
+                    let l2rc = cp_.left_to_right.clone();
                     h1.spawn(
                         mapper(peer1_, l2rc)
                             .and_then(move |peer1| {
@@ -184,11 +176,9 @@ where
                                         let s = Session::new(peer1, peer2, opts3);
                                         s.run()
                                     })
-                            })
-                            .map_err(move |e| e1_1(e)),
+                            }).map_err(move |e| e1_1(e)),
                     )
-                })
-                .for_each(|()| futures::future::ok(()));
+                }).for_each(|()| futures::future::ok(()));
             Box::new(runner.map_err(move |e| e2(e))) as Box<Future<Item = (), Error = ()>>
         }
         ServeOnce(peer1c) => {

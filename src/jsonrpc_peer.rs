@@ -52,7 +52,9 @@ impl Read for JsonRpcWrapper {
             Ok(x) => x,
             Err(e) => return Err(e),
         };
-        if n == 0 {return Ok(0); }
+        if n == 0 {
+            return Ok(0);
+        }
         let mut method = Vec::with_capacity(20);
         let mut params = Vec::with_capacity(20);
         enum PS {
@@ -71,14 +73,14 @@ impl Read for JsonRpcWrapper {
                         method.push(c);
                         s = PS::InsideMethodName;
                     }
-                },
+                }
                 PS::InsideMethodName => {
                     if c == b' ' || c == b'\t' || c == b'\n' {
                         s = PS::AfterMethodName;
                     } else {
                         method.push(c);
                     }
-                },
+                }
                 PS::AfterMethodName => {
                     if c == b' ' || c == b'\t' || c == b'\n' {
                         // ignore
@@ -86,13 +88,13 @@ impl Read for JsonRpcWrapper {
                         params.push(c);
                         s = PS::InsideParams;
                     }
-                },
+                }
                 PS::InsideParams => {
                     params.push(c);
-                },
+                }
             }
         }
-        
+
         let mut bb = ::std::io::Cursor::new(b);
         use std::io::Write;
         //{"jsonrpc":"2.0","id":412, "method":"abc", "params":[1,2]}
@@ -103,12 +105,12 @@ impl Read for JsonRpcWrapper {
         let _ = bb.write_all(&method);
         let _ = bb.write_all(b"\", \"params\":");
         let needs_brackets = params.is_empty() || params[0] != b'{' && params[0] != b'[';
-        if !params.is_empty() && params[params.len()-1] == b'\n' {
-            let l = params.len()-1;
+        if !params.is_empty() && params[params.len() - 1] == b'\n' {
+            let l = params.len() - 1;
             params.truncate(l);
         }
-        if !params.is_empty() && params[params.len()-1] == b'\r' {
-            let l = params.len()-1;
+        if !params.is_empty() && params[params.len() - 1] == b'\r' {
+            let l = params.len() - 1;
             params.truncate(l);
         }
         if needs_brackets {
@@ -126,4 +128,3 @@ impl Read for JsonRpcWrapper {
     }
 }
 impl AsyncRead for JsonRpcWrapper {}
-

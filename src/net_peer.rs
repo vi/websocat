@@ -15,9 +15,9 @@ use std::rc::Rc;
 
 use tokio_core::net::{TcpListener, TcpStream, UdpSocket};
 
+use super::L2rUser;
 use super::{box_up_err, peer_err_s, wouldblock, BoxedNewPeerFuture, BoxedNewPeerStream, Peer};
 use super::{multi, once, ConstructParams, Options, PeerConstructor, Specifier};
-use super::{L2rUser};
 
 #[derive(Debug, Clone)]
 pub struct TcpConnect(pub SocketAddr);
@@ -206,16 +206,11 @@ pub fn tcp_connect_peer(handle: &Handle, addr: &SocketAddr) -> BoxedNewPeerFutur
                 info!("Connected to TCP");
                 let x = Rc::new(x);
                 Peer::new(MyTcpStream(x.clone(), true), MyTcpStream(x.clone(), false))
-            })
-            .map_err(box_up_err),
+            }).map_err(box_up_err),
     ) as BoxedNewPeerFuture
 }
 
-pub fn tcp_listen_peer(
-        handle: &Handle,
-        addr: &SocketAddr,
-        l2r: L2rUser,
-) -> BoxedNewPeerStream {
+pub fn tcp_listen_peer(handle: &Handle, addr: &SocketAddr, l2r: L2rUser) -> BoxedNewPeerStream {
     let bound = match TcpListener::bind(&addr, handle) {
         Ok(x) => x,
         Err(e) => return peer_err_s(e),
@@ -225,19 +220,18 @@ pub fn tcp_listen_peer(
             .incoming()
             .map(move |(x, addr)| {
                 info!("Incoming TCP connection from {}", addr);
-                
+
                 match l2r {
                     L2rUser::FillIn(ref y) => {
                         let mut z = y.borrow_mut();
                         z.client_addr = Some(format!("{}", addr));
-                    },
-                    L2rUser::ReadFrom(_) => {},
+                    }
+                    L2rUser::ReadFrom(_) => {}
                 }
-                
+
                 let x = Rc::new(x);
                 Peer::new(MyTcpStream(x.clone(), true), MyTcpStream(x.clone(), false))
-            })
-            .map_err(box_up_err),
+            }).map_err(box_up_err),
     ) as BoxedNewPeerStream
 }
 
@@ -285,8 +279,7 @@ pub fn udp_connect_peer(
                 })));
                 let h2 = h1.clone();
                 Ok(Peer::new(h1, h2))
-            })
-            .map_err(box_up_err),
+            }).map_err(box_up_err),
     )) as BoxedNewPeerFuture
 }
 
@@ -305,8 +298,7 @@ pub fn udp_listen_peer(
                 })));
                 let h2 = h1.clone();
                 Ok(Peer::new(h1, h2))
-            })
-            .map_err(box_up_err),
+            }).map_err(box_up_err),
     )) as BoxedNewPeerFuture
 }
 
@@ -318,18 +310,17 @@ impl Read for UdpPeerHandle {
                 p.state = Some(UdpPeerState::ConnectMode);
                 p.s.recv(buf)
             }
-            UdpPeerState::HasAddress(oldaddr) => p
-                .s
-                .recv_from(buf)
-                .map(|(ret, addr)| {
-                    warn!("New client for the same listening UDP socket");
-                    p.state = Some(UdpPeerState::HasAddress(addr));
-                    ret
-                })
-                .map_err(|e| {
-                    p.state = Some(UdpPeerState::HasAddress(oldaddr));
-                    e
-                }),
+            UdpPeerState::HasAddress(oldaddr) => {
+                p.s.recv_from(buf)
+                    .map(|(ret, addr)| {
+                        warn!("New client for the same listening UDP socket");
+                        p.state = Some(UdpPeerState::HasAddress(addr));
+                        ret
+                    }).map_err(|e| {
+                        p.state = Some(UdpPeerState::HasAddress(oldaddr));
+                        e
+                    })
+            }
             UdpPeerState::WaitingForAddress((cmpl, pollster)) => match p.s.recv_from(buf) {
                 Ok((ret, addr)) => {
                     p.state = Some(UdpPeerState::HasAddress(addr));
