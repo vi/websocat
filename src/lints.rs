@@ -1,8 +1,15 @@
 #![cfg_attr(feature="cargo-clippy", allow(collapsible_if))]
 
-use super::{Result, SpecifierClass, SpecifierStack, WebsocatConfiguration2};
+use super::{Result, SpecifierClass, SpecifierStack, WebsocatConfiguration2, Options};
 use std::rc::Rc;
 use std::str::FromStr;
+
+extern crate hyper;
+extern crate url;
+
+use ::std::net::{SocketAddr,IpAddr};
+
+use super::proxy_peer::{SocksHostAddr, SocksSocketAddr};
 
 #[derive(Ord, PartialOrd, Eq, PartialEq, Copy, Clone)]
 pub enum StdioUsageStatus {
@@ -323,6 +330,92 @@ impl WebsocatConfiguration2 {
         }
         Ok(())
     }
+    
+    fn l_socks5_c(s: &mut SpecifierStack, opts: &mut Options, on_warning: &OnWarning) -> Result<()> {
+        let url = format!("ws://{}",s.addr);
+        
+        // Overwrite WsClientClass
+        s.addrtype = Rc::new(super::net_peer::TcpConnectClass);
+        
+        match opts.auto_socks5.unwrap() {
+            SocketAddr::V4(sa4) => {
+                s.addr = format!("{}:{}", sa4.ip(), sa4.port());
+            },
+            SocketAddr::V6(sa6) => {
+                s.addr = format!("[{}]:{}", sa6.ip(), sa6.port());
+            },
+        }
+        
+        
+        use self::hyper::Url;
+        use self::url::Host;
+        let u = Url::parse(&url)?;
+        
+        if !u.has_host() {
+            Err("WebSocket URL has not host")?;
+        }
+        
+        let port = u.port_or_known_default().unwrap_or(80);
+        let host = u.host().unwrap();
+        
+        let host = match host {
+            Host::Domain(dom) => SocksHostAddr::Name(dom.to_string()),
+            Host::Ipv4(ip4) => SocksHostAddr::Ip(IpAddr::V4(ip4)),
+            Host::Ipv6(ip6) => SocksHostAddr::Ip(IpAddr::V6(ip6)),
+        };
+        opts.socks_destination = Some(SocksSocketAddr { host, port });
+        
+        
+        
+        if opts.ws_c_uri != "ws://0.0.0.0/" {
+            on_warning("Looks like you've overridden ws-c-uri. We are overwriting it for --socks5 option.");
+        }
+        
+        opts.ws_c_uri = url;
+        
+        
+        s.overlays.push(Rc::new(super::ws_client_peer::WsConnectClass));
+        s.overlays.push(Rc::new(super::proxy_peer::SocksProxyClass));
+        
+        Ok(())
+    }
+    
+    fn l_socks5(&mut self, on_warning: &OnWarning) -> Result<()> {
+        if self.opts.socks_destination.is_some() ^ self.contains_class("SocksProxyClass") {
+            on_warning("--socks5-destination option and socks5-connect: overlay should go together");
+        }
+        
+        if self.opts.auto_socks5.is_some() && self.opts.socks_destination.is_some() {
+            Err("User-friendly --socks5 and low-level --socks5-destination options are incompatible")?;
+        }
+        
+        if self.opts.auto_socks5.is_some() {
+            if !((self.s1.addrtype.get_name() == "WsClientClass" 
+                 || self.s1.addrtype.get_name() == "WsClientSecureClass")
+                ^ 
+                (self.s2.addrtype.get_name() == "WsClientClass" 
+                || self.s2.addrtype.get_name() == "WsClientSecureClass")) {
+                
+                
+                Err("User-friendly --socks5 option supports socksifying exactly one non-raw websocket client connection. You are using two or none.")?;
+            }
+            
+            
+            if self.s1.addrtype.get_name() == "WsClientClass" {
+                WebsocatConfiguration2::l_socks5_c(&mut self.s1, &mut self.opts, on_warning)?;
+            }
+            if self.s1.addrtype.get_name() == "WsClientSecureClass" {
+                Err("Unfortunately, socksifying wss:// connection is not yet supported. Use ws-c:cmd: workaround.")?
+            }
+            if self.s2.addrtype.get_name() == "WsClientClass" {
+                WebsocatConfiguration2::l_socks5_c(&mut self.s2, &mut self.opts, on_warning)?;
+            }
+            if self.s2.addrtype.get_name() == "WsClientSecureClass" {
+                Err("Unfortunately, socksifying wss:// connection is not yet supported. Use ws-c:cmd: workaround.")?
+            }
+        }
+        Ok(())
+    }
 
     pub fn lint_and_fixup(&mut self, on_warning: OnWarning) -> Result<()> {
         let multiconnect = !self.opts.oneshot && self.s1.is_multiconnect();
@@ -337,6 +430,7 @@ impl WebsocatConfiguration2 {
         self.l_uri_staticfiles(&on_warning)?;
         self.l_environ(&on_warning)?;
         self.l_closebug(&on_warning)?;
+        self.l_socks5(&on_warning)?;
 
         // TODO: UDP connect oneshot mode
         // TODO: tests for the linter

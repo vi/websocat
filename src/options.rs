@@ -2,6 +2,8 @@ pub use super::proxy_peer::SocksSocketAddr;
 
 use super::readdebt::DebtHandling;
 
+use ::std::net::SocketAddr;
+
 #[derive(Debug, Clone)]
 pub struct StaticFile {
     pub uri: String,
@@ -20,7 +22,7 @@ pub struct Options {
     pub oneshot: bool,
     pub unlink_unix_socket: bool,
     pub exec_args: Vec<String>,
-    pub ws_c_uri: String,
+    pub ws_c_uri: String, // TODO: turn into an Option
     pub linemode_strip_newlines: bool,
     pub linemode_strict: bool,
     pub origin: Option<String>,
@@ -43,4 +45,5 @@ pub struct Options {
     pub process_zero_sighup: bool,
     pub process_exit_sighup: bool,
     pub socks_destination: Option<SocksSocketAddr>,
+    pub auto_socks5: Option<SocketAddr>,
 }

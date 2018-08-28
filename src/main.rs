@@ -484,6 +484,7 @@ fn run() -> Result<()> {
             process_zero_sighup
             process_exit_sighup
             socks_destination
+            auto_socks5
         )
     };
 
