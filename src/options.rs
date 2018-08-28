@@ -1,3 +1,5 @@
+pub use super::proxy_peer::SocksSocketAddr;
+
 use super::readdebt::DebtHandling;
 
 #[derive(Debug, Clone)]
@@ -40,4 +42,5 @@ pub struct Options {
     pub reuser_send_zero_msg_on_disconnect: bool,
     pub process_zero_sighup: bool,
     pub process_exit_sighup: bool,
+    pub socks_destination: Option<SocksSocketAddr>,
 }
