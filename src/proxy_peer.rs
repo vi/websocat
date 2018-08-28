@@ -69,7 +69,7 @@ pub fn connect_socks5_peer(
         return peer_strerr("--socks5-destination is required for socks5-connect: overlay");
     };
 
-    if let SocksHostAddr::Name(n) = &desthost {
+    if let SocksHostAddr::Name(ref n) = desthost {
         if n.len() > 255 {
             return peer_strerr("Destination host name too long for SOCKS5");
         }
@@ -88,12 +88,11 @@ pub fn connect_socks5_peer(
             }
             
             
-            let mut rq = Vec::with_capacity(20);
-            {
-                let mut c = ::std::io::Cursor::new(&mut rq);
+            let rq = {
+                let mut c = ::std::io::Cursor::new(Vec::with_capacity(20));
                 // 01 means "connect"
                 c.write_all(b"\x05\x01\x00").unwrap();
-                match &desthost {
+                match desthost {
                     SocksHostAddr::Ip(IpAddr::V4(ip4)) => {
                         c.write_all(b"\x01").unwrap();
                         c.write_all(&ip4.octets()).unwrap();
@@ -110,7 +109,8 @@ pub fn connect_socks5_peer(
                 };
                 c.write_all(&[(destport >> 8) as u8]).unwrap();
                 c.write_all(&[(destport >> 0) as u8]).unwrap();
-            }
+                c.into_inner()
+            };
             
             Box::new(write_all(w, rq).map_err(box_up_err).and_then(move |(w, _)| {
                 
