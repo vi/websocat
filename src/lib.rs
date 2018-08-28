@@ -161,6 +161,8 @@ pub mod line_peer;
 pub mod primitive_reuse_peer;
 pub mod reconnect_peer;
 
+pub mod proxy_peer;
+
 pub mod specparse;
 
 pub type PeerOverlay = Rc<Fn(Peer, L2rUser) -> BoxedNewPeerFuture>;

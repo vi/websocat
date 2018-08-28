@@ -10,6 +10,7 @@ extern crate env_logger;
 #[cfg(feature = "openssl-probe")]
 extern crate openssl_probe;
 
+#[allow(unused_imports)]
 #[macro_use]
 extern crate structopt;
 

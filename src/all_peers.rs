@@ -78,10 +78,7 @@ macro_rules! list_of_all_specifier_classes {
         $your_macro!($crate::unix_peer::unix_seqpacket_peer::SeqpacketListenClass);
 
         $your_macro!($crate::jsonrpc_peer::JsonRpcClass);
-        /*
-                                                $your_macro!($crate:: :: );
-                                                $your_macro!($crate:: :: );
-                                                $your_macro!($crate:: :: );
-                                                */
+        
+        $your_macro!($crate::proxy_peer::SocksProxyClass);
     };
 }
