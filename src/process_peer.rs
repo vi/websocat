@@ -1,4 +1,3 @@
-#![allow(unused)]
 extern crate tokio_process;
 
 use futures;
@@ -8,7 +7,7 @@ use std::io::{Read, Write};
 use tokio_core::reactor::Handle;
 use tokio_io::{AsyncRead, AsyncWrite};
 
-use super::{L2rReader, L2rUser, LeftSpecToRightSpec};
+use super::{L2rUser, LeftSpecToRightSpec};
 
 use std::cell::RefCell;
 use std::rc::Rc;
@@ -20,8 +19,6 @@ use self::tokio_process::{Child, CommandExt};
 use super::{once, ConstructParams, PeerConstructor, Specifier};
 use super::{BoxedNewPeerFuture, Peer};
 use std::process::Stdio;
-
-use std::cell::Ref;
 
 fn needenv(p: &ConstructParams) -> Option<&LeftSpecToRightSpec> {
     match (p.program_options.exec_set_env, &p.left_to_right) {

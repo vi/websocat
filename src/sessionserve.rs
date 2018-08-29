@@ -1,12 +1,10 @@
-#![allow(unused)]
 use super::futures::{Future, Stream};
 use super::{
-    futures, my_copy, ConstructParams, L2rReader, L2rUser, L2rWriter, LeftSpecToRightSpec, Options,
+    futures, my_copy, ConstructParams, L2rUser, L2rWriter, Options,
     Peer, PeerConstructor, ProgramState, Session, Specifier, Transfer,
 };
 use std;
 use std::cell::RefCell;
-use std::cell::{Ref, RefMut};
 use std::rc::Rc;
 use tokio_core::reactor::Handle;
 use tokio_io;

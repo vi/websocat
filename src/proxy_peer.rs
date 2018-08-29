@@ -1,23 +1,15 @@
-#![allow(unused)]
 use futures::future::{err, ok, Future};
-use futures::stream::Stream;
 
-use std::cell::RefCell;
 use std::rc::Rc;
 
-use options::StaticFile;
-
-use super::readdebt::{DebtHandling, ReadDebt};
 use super::{
-    box_up_err, io_other_error, peer_err, peer_strerr, simple_err, BoxedNewPeerFuture, Peer,
+    box_up_err, peer_strerr, BoxedNewPeerFuture, Peer,
 };
 use super::{ConstructParams, L2rUser, PeerConstructor, Specifier};
 use tokio_io::io::{read_exact, write_all};
 
-use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
+use std::net::{IpAddr, Ipv4Addr};
 use std::io::Write;
-
-use tokio_io::{AsyncRead,AsyncWrite};
 
 use std::ffi::OsString;
 
@@ -187,7 +179,7 @@ fn read_socks_reply(p:Peer) -> RSRRet {
 
 pub fn socks5_peer(
     inner_peer: Peer,
-    l2r: L2rUser,
+    _l2r: L2rUser,
     do_bind: bool,
     bind_script: Option<OsString>,
     socks_destination: &Option<SocksSocketAddr>,
@@ -246,14 +238,14 @@ pub fn socks5_peer(
             
             Box::new(write_all(w, rq).map_err(box_up_err).and_then(move |(w, _)| {
                 
-                let reply = [0; 4];
+                let _reply = [0; 4];
                 
                 read_socks_reply(Peer(r,w)).and_then(move |(addr,p)| {
                     info!("SOCKS5 connect/bind: {:?}", addr);
                     
                     if do_bind {
                         if let Some(bs) = bind_script {
-                            ::std::process::Command::new(bs).arg(format!("{}",addr.port)).spawn();
+                            let _ = ::std::process::Command::new(bs).arg(format!("{}",addr.port)).spawn();
                         }
                     
                         Box::new(read_socks_reply(p).and_then(move |(addr,p)| {

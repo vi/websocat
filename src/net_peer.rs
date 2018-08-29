@@ -1,4 +1,3 @@
-#![allow(unused)]
 use futures;
 use futures::future::Future;
 use futures::stream::Stream;
