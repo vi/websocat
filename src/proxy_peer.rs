@@ -19,6 +19,8 @@ use std::io::Write;
 
 use tokio_io::{AsyncRead,AsyncWrite};
 
+use std::ffi::OsString;
+
 #[derive(Debug, Clone)]
 pub enum SocksHostAddr {
     Ip(IpAddr),
@@ -36,7 +38,7 @@ pub struct SocksProxy<T: Specifier>(pub T);
 impl<T: Specifier> Specifier for SocksProxy<T> {
     fn construct(&self, cp: ConstructParams) -> PeerConstructor {
         let inner = self.0.construct(cp.clone());
-        inner.map(move |p, l2r| socks5_peer(p, l2r, false, &cp.program_options.socks_destination))
+        inner.map(move |p, l2r| socks5_peer(p, l2r, false, None, &cp.program_options.socks_destination))
     }
     specifier_boilerplate!(typ=WebSocket noglobalstate has_subspec);
     self_0_is_subspecifier!(proxy_is_multiconnect);
@@ -65,7 +67,7 @@ pub struct SocksBind<T: Specifier>(pub T);
 impl<T: Specifier> Specifier for SocksBind<T> {
     fn construct(&self, cp: ConstructParams) -> PeerConstructor {
         let inner = self.0.construct(cp.clone());
-        inner.map(move |p, l2r| socks5_peer(p, l2r, true, &cp.program_options.socks_destination))
+        inner.map(move |p, l2r| socks5_peer(p, l2r, true, cp.program_options.socks5_bind_script.clone(), &cp.program_options.socks_destination))
     }
     specifier_boilerplate!(typ=WebSocket noglobalstate has_subspec);
     self_0_is_subspecifier!(proxy_is_multiconnect);
@@ -85,7 +87,8 @@ Example: bind to a websocket using some remote SOCKS server
 
     websocat -v -t ws-u:socks5-bind:tcp:132.148.129.183:14124 - --socks5-destination 255.255.255.255:65535
 
-Note that port is typically unpredictable.
+Note that port is typically unpredictable. Use --socks5-bind-script option to know the port.
+See an example in moreexamples.md for more thorough example.
 "#
 );
 
@@ -186,6 +189,7 @@ pub fn socks5_peer(
     inner_peer: Peer,
     l2r: L2rUser,
     do_bind: bool,
+    bind_script: Option<OsString>,
     socks_destination: &Option<SocksSocketAddr>,
 ) -> BoxedNewPeerFuture {
     let (desthost, destport) = if let Some(ref sd) = *socks_destination {
@@ -248,6 +252,10 @@ pub fn socks5_peer(
                     info!("SOCKS5 connect/bind: {:?}", addr);
                     
                     if do_bind {
+                        if let Some(bs) = bind_script {
+                            ::std::process::Command::new(bs).arg(format!("{}",addr.port)).spawn();
+                        }
+                    
                         Box::new(read_socks_reply(p).and_then(move |(addr,p)| {
                             info!("SOCKS5 remote connected: {:?}", addr);
                             Box::new(ok(p))

@@ -26,6 +26,8 @@ use websocat::{Options, SpecifierClass, WebsocatConfiguration1};
 
 type Result<T> = std::result::Result<T, Box<std::error::Error>>;
 
+use std::ffi::OsString;
+
 #[derive(StructOpt, Debug)]
 #[structopt(
     after_help = "
@@ -295,6 +297,13 @@ struct Opt {
         help = "Use specified address:port as a SOCKS5 proxy. Note that proxy authentication is not supported yet, use with `ssh -D`.",
     )]
     auto_socks5: Option<SocketAddr>,
+    
+    #[structopt(
+        long = "socks5-bind-script",
+        help = "[A] Execute specified script in `socks5-bind:` mode when remote port number becomes known.",
+        parse(from_os_str),
+    )]
+    socks5_bind_script: Option<OsString>,
 }
 
 // TODO: make it byte-oriented/OsStr?
@@ -485,6 +494,7 @@ fn run() -> Result<()> {
             process_exit_sighup
             socks_destination
             auto_socks5
+            socks5_bind_script
         )
     };
 

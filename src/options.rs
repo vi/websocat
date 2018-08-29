@@ -3,6 +3,7 @@ pub use super::proxy_peer::SocksSocketAddr;
 use super::readdebt::DebtHandling;
 
 use ::std::net::SocketAddr;
+use std::ffi::OsString;
 
 #[derive(Debug, Clone)]
 pub struct StaticFile {
@@ -46,4 +47,5 @@ pub struct Options {
     pub process_exit_sighup: bool,
     pub socks_destination: Option<SocksSocketAddr>,
     pub auto_socks5: Option<SocketAddr>,
+    pub socks5_bind_script: Option<OsString>,
 }

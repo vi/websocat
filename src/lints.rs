@@ -387,6 +387,11 @@ impl WebsocatConfiguration2 {
             on_warning("--socks5-destination option and socks5-connect: overlay should go together");
         }
         
+        if self.opts.socks5_bind_script.is_some() ^ self.contains_class("SocksBindClass") {
+            on_warning("--socks5-bind-script option and socks5-bind: overlay should go together");
+        }
+        
+        
         if self.opts.auto_socks5.is_some() {
             if !((self.s1.addrtype.get_name() == "WsClientClass" 
                  || self.s1.addrtype.get_name() == "WsClientSecureClass")
