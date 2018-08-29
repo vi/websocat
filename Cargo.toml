@@ -26,6 +26,8 @@ url="1.7.1"
 openssl-probe = { version = "0.1.2", optional = true }
 smart-default = "0.2.0"
 tokio-tls = {version = "0.1.4", optional = true}
+native-tls = {version = "0.1.4", optional = true}
+readwrite = {version = "0.1.1", optional = true, features = ["tokio"]}
 
 
 [target.'cfg(unix)'.dependencies]
@@ -37,7 +39,7 @@ libc = { version = "0.2", optional = true }
 [features]
 default = ["signal_handler", "tokio-process", "unix_stdio"]
 unix_stdio = []
-ssl = ["websocket/async-ssl", "tokio-tls"]
+ssl = ["websocket/async-ssl", "tokio-tls", "native-tls", "readwrite"]
 signal_handler = ["tokio-signal"]
 workaround1=["libc"]
 seqpacket=["libc"]
