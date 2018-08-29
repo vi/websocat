@@ -381,7 +381,7 @@ impl WebsocatConfiguration2 {
     }
     
     fn l_socks5(&mut self, on_warning: &OnWarning) -> Result<()> {
-        if self.opts.socks_destination.is_some() ^ self.contains_class("SocksProxyClass") {
+        if self.opts.socks_destination.is_some() ^ (self.contains_class("SocksProxyClass") || self.contains_class("SocksBindClass")) {
             on_warning("--socks5-destination option and socks5-connect: overlay should go together");
         }
         
