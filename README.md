@@ -60,6 +60,8 @@ B$ websocat ws://127.0.0.1:1234
 C$ websocat ws://127.0.0.1:1234
 ```
 
+See [moreexamples.md](./moreexamples.md) for further examples.
+
 ## Features
 
 * Connecting to and serving WebSockets from command line.
