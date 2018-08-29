@@ -66,6 +66,7 @@ pub fn ssl_connect(
         return peer_strerr("Failed to initialize TLS");
     };
     
+    info!("Connecting to TLS");
     if let Some(dom) = dom {
         Box::new(tls.connect_async(dom.as_str(), squashed_peer).map_err(box_up_err).and_then(move |tls_stream| {
             info!("Connected to TLS");

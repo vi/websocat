@@ -335,8 +335,16 @@ impl WebsocatConfiguration2 {
         s: &mut SpecifierStack,
         opts: &mut Options,
         on_warning: &OnWarning,
+        secure: bool,
     ) -> Result<()> {
-        let url = format!("ws://{}", s.addr);
+        let url = if secure {
+            #[cfg(not(feature="ssl"))] {
+                Err("SSL support not compiled in")?;
+            }
+            format!("wss://{}", s.addr)
+        } else {
+            format!("ws://{}", s.addr)
+        };
 
         // Overwrite WsClientClass
         s.addrtype = Rc::new(super::net_peer::TcpConnectClass);
@@ -355,7 +363,7 @@ impl WebsocatConfiguration2 {
         let u = Url::parse(&url)?;
 
         if !u.has_host() {
-            Err("WebSocket URL has not host")?;
+            Err("WebSocket URL has no host")?;
         }
 
         let port = u.port_or_known_default().unwrap_or(80);
@@ -369,6 +377,9 @@ impl WebsocatConfiguration2 {
         if opts.socks_destination.is_none() {
             opts.socks_destination = Some(SocksSocketAddr { host, port });
         }
+        if secure && opts.tls_domain.is_none() {
+            opts.tls_domain = u.host_str().map(|x|x.to_string());
+        }
 
         if opts.ws_c_uri != "ws://0.0.0.0/" {
             on_warning(
@@ -380,6 +391,11 @@ impl WebsocatConfiguration2 {
 
         s.overlays
             .push(Rc::new(super::ws_client_peer::WsConnectClass));
+        if secure {
+            #[cfg(feature="ssl")]
+            s.overlays
+                .push(Rc::new(super::ssl_peer::TlsConnectClass));
+        }
         s.overlays.push(Rc::new(super::proxy_peer::SocksProxyClass));
 
         Ok(())
@@ -408,16 +424,16 @@ impl WebsocatConfiguration2 {
             }
 
             if self.s1.addrtype.get_name() == "WsClientClass" {
-                WebsocatConfiguration2::l_socks5_c(&mut self.s1, &mut self.opts, on_warning)?;
+                WebsocatConfiguration2::l_socks5_c(&mut self.s1, &mut self.opts, on_warning, false)?;
             }
             if self.s1.addrtype.get_name() == "WsClientSecureClass" {
-                Err("Unfortunately, socksifying wss:// connection is not yet supported. Use ws-c:cmd: workaround.")?
+                WebsocatConfiguration2::l_socks5_c(&mut self.s1, &mut self.opts, on_warning, true)?;
             }
             if self.s2.addrtype.get_name() == "WsClientClass" {
-                WebsocatConfiguration2::l_socks5_c(&mut self.s2, &mut self.opts, on_warning)?;
+                WebsocatConfiguration2::l_socks5_c(&mut self.s2, &mut self.opts, on_warning, false)?;
             }
             if self.s2.addrtype.get_name() == "WsClientSecureClass" {
-                Err("Unfortunately, socksifying wss:// connection is not yet supported. Use ws-c:cmd: workaround.")?
+                WebsocatConfiguration2::l_socks5_c(&mut self.s2, &mut self.opts, on_warning, true)?;
             }
         }
         Ok(())

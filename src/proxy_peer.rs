@@ -210,6 +210,7 @@ pub fn socks5_peer(
         }
     };
 
+    info!("Connecting to SOCKS server");
     let (r, w) = (inner_peer.0, inner_peer.1);
     let f = write_all(w, b"\x05\x01\x00")
         .map_err(box_up_err)
