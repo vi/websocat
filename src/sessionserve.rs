@@ -1,7 +1,7 @@
 use super::futures::{Future, Stream};
 use super::{
-    futures, my_copy, ConstructParams, L2rUser, L2rWriter, Options,
-    Peer, PeerConstructor, ProgramState, Session, Specifier, Transfer,
+    futures, my_copy, ConstructParams, L2rUser, L2rWriter, Options, Peer, PeerConstructor,
+    ProgramState, Session, Specifier, Transfer,
 };
 use std;
 use std::cell::RefCell;

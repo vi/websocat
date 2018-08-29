@@ -14,14 +14,14 @@ extern crate openssl_probe;
 #[macro_use]
 extern crate structopt;
 
-use std::net::{IpAddr,SocketAddr};
+use std::net::{IpAddr, SocketAddr};
 
 use structopt::StructOpt;
 
 use tokio_core::reactor::Core;
 
 use websocat::options::StaticFile;
-use websocat::proxy_peer::{SocksSocketAddr,SocksHostAddr};
+use websocat::proxy_peer::{SocksHostAddr, SocksSocketAddr};
 use websocat::{Options, SpecifierClass, WebsocatConfiguration1};
 
 type Result<T> = std::result::Result<T, Box<std::error::Error>>;
@@ -284,20 +284,20 @@ struct Opt {
         help = "Format messages you type as JSON RPC 2.0 method calls. First word becomes method name, the rest becomes parameters, possibly automatically wrapped in [].",
     )]
     jsonrpc: bool,
-    
+
     #[structopt(
         long = "socks5-destination",
         help = "[A] Examples: 1.2.3.4:5678  2600:::80  hostname:5678",
         parse(try_from_str = "interpret_socks_destination"),
     )]
     socks_destination: Option<SocksSocketAddr>,
-    
+
     #[structopt(
         long = "socks5",
         help = "Use specified address:port as a SOCKS5 proxy. Note that proxy authentication is not supported yet, use with `ssh -D`.",
     )]
     auto_socks5: Option<SocketAddr>,
-    
+
     #[structopt(
         long = "socks5-bind-script",
         help = "[A] Execute specified script in `socks5-bind:` mode when remote port number becomes known.",
@@ -354,21 +354,19 @@ fn interpret_socks_destination(x: &str) -> Result<SocksSocketAddr> {
     };
     let h = &x[0..colon];
     let p = &x[colon + 1..];
-    
-    let port : u16 = p.parse()?;
-    
-    let host =
-        if let Ok(ip4) = h.parse() {
-            SocksHostAddr::Ip(IpAddr::V4(ip4))
-        } else if let Ok(ip6) = h.parse() {
-            SocksHostAddr::Ip(IpAddr::V6(ip6))
-        } else {
-            SocksHostAddr::Name(h.to_string())
-        };
-    
-    Ok(SocksSocketAddr{host,port})
-}
 
+    let port: u16 = p.parse()?;
+
+    let host = if let Ok(ip4) = h.parse() {
+        SocksHostAddr::Ip(IpAddr::V4(ip4))
+    } else if let Ok(ip6) = h.parse() {
+        SocksHostAddr::Ip(IpAddr::V6(ip6))
+    } else {
+        SocksHostAddr::Name(h.to_string())
+    };
+
+    Ok(SocksSocketAddr { host, port })
+}
 
 pub mod help;
 

@@ -2,8 +2,8 @@ pub use super::proxy_peer::SocksSocketAddr;
 
 use super::readdebt::DebtHandling;
 
-use ::std::net::SocketAddr;
 use std::ffi::OsString;
+use std::net::SocketAddr;
 
 #[derive(Debug, Clone)]
 pub struct StaticFile {
