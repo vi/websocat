@@ -812,6 +812,7 @@ dependencies = [
  "tokio-signal 0.1.5 (registry+https://github.com/rust-lang/crates.io-index)",
  "tokio-stdin-stdout 0.1.4 (registry+https://github.com/rust-lang/crates.io-index)",
  "tokio-timer 0.1.2 (registry+https://github.com/rust-lang/crates.io-index)",
+ "tokio-tls 0.1.4 (registry+https://github.com/rust-lang/crates.io-index)",
  "tokio-uds 0.1.5 (registry+https://github.com/rust-lang/crates.io-index)",
  "url 1.7.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "websocket 0.20.3 (registry+https://github.com/rust-lang/crates.io-index)",

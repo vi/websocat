@@ -162,6 +162,7 @@ pub mod primitive_reuse_peer;
 pub mod reconnect_peer;
 
 pub mod proxy_peer;
+pub mod ssl_peer;
 
 pub mod specparse;
 

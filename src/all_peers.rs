@@ -11,6 +11,9 @@ macro_rules! list_of_all_specifier_classes {
         $your_macro!($crate::ws_server_peer::WsAbstractUnixServerClass);
         $your_macro!($crate::ws_server_peer::WsServerClass);
 
+        #[cfg(feature = "ssl")]
+        $your_macro!($crate::ssl_peer::TlsConnectClass);
+
         #[cfg(all(unix, feature = "unix_stdio"))]
         $your_macro!($crate::stdio_peer::StdioClass);
         #[cfg(all(unix, feature = "unix_stdio"))]
