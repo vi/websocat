@@ -304,6 +304,13 @@ struct Opt {
         parse(from_os_str),
     )]
     socks5_bind_script: Option<OsString>,
+    
+    #[structopt(
+        long = "tls-domain",
+        alias = "ssl-domain",
+        help = "Specify domain for SNI or certificate verification when using tls-connect: overlay",
+    )]
+    tls_domain: Option<String>,
 }
 
 // TODO: make it byte-oriented/OsStr?
@@ -493,6 +500,7 @@ fn run() -> Result<()> {
             socks_destination
             auto_socks5
             socks5_bind_script
+            tls_domain
         )
     };
 

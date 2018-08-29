@@ -23,7 +23,7 @@ impl<T: Specifier> Specifier for TlsConnect<T> {
     fn construct(&self, cp: ConstructParams) -> PeerConstructor {
         let inner = self.0.construct(cp.clone());
         inner.map(move |p, l2r| {
-            ssl_connect(p, l2r, None)
+            ssl_connect(p, l2r, cp.program_options.tls_domain.clone())
         })
     }
     specifier_boilerplate!(noglobalstate has_subspec);
@@ -53,7 +53,7 @@ use tokio_io::AsyncRead;
 pub fn ssl_connect(
     inner_peer: Peer,
     _l2r: L2rUser,
-    dom: Option<&str>,
+    dom: Option<String>,
 ) -> BoxedNewPeerFuture {
     let squashed_peer = readwrite::ReadWriteAsync::new(inner_peer.0, inner_peer.1);
     
@@ -67,7 +67,7 @@ pub fn ssl_connect(
     };
     
     if let Some(dom) = dom {
-        Box::new(tls.connect_async(dom, squashed_peer).map_err(box_up_err).and_then(move |tls_stream| {
+        Box::new(tls.connect_async(dom.as_str(), squashed_peer).map_err(box_up_err).and_then(move |tls_stream| {
             info!("Connected to TLS");
             let (r,w) = tls_stream.split();
             ok(Peer::new(r,w))

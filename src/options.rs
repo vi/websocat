@@ -48,4 +48,5 @@ pub struct Options {
     pub socks_destination: Option<SocksSocketAddr>,
     pub auto_socks5: Option<SocketAddr>,
     pub socks5_bind_script: Option<OsString>,
+    pub tls_domain: Option<String>,
 }
