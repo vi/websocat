@@ -338,7 +338,8 @@ impl WebsocatConfiguration2 {
         secure: bool,
     ) -> Result<()> {
         let url = if secure {
-            #[cfg(not(feature="ssl"))] {
+            #[cfg(not(feature = "ssl"))]
+            {
                 Err("SSL support not compiled in")?;
             }
             format!("wss://{}", s.addr)
@@ -378,7 +379,7 @@ impl WebsocatConfiguration2 {
             opts.socks_destination = Some(SocksSocketAddr { host, port });
         }
         if secure && opts.tls_domain.is_none() {
-            opts.tls_domain = u.host_str().map(|x|x.to_string());
+            opts.tls_domain = u.host_str().map(|x| x.to_string());
         }
 
         if opts.ws_c_uri != "ws://0.0.0.0/" {
@@ -392,9 +393,8 @@ impl WebsocatConfiguration2 {
         s.overlays
             .push(Rc::new(super::ws_client_peer::WsConnectClass));
         if secure {
-            #[cfg(feature="ssl")]
-            s.overlays
-                .push(Rc::new(super::ssl_peer::TlsConnectClass));
+            #[cfg(feature = "ssl")]
+            s.overlays.push(Rc::new(super::ssl_peer::TlsConnectClass));
         }
         s.overlays.push(Rc::new(super::proxy_peer::SocksProxyClass));
 
@@ -424,13 +424,23 @@ impl WebsocatConfiguration2 {
             }
 
             if self.s1.addrtype.get_name() == "WsClientClass" {
-                WebsocatConfiguration2::l_socks5_c(&mut self.s1, &mut self.opts, on_warning, false)?;
+                WebsocatConfiguration2::l_socks5_c(
+                    &mut self.s1,
+                    &mut self.opts,
+                    on_warning,
+                    false,
+                )?;
             }
             if self.s1.addrtype.get_name() == "WsClientSecureClass" {
                 WebsocatConfiguration2::l_socks5_c(&mut self.s1, &mut self.opts, on_warning, true)?;
             }
             if self.s2.addrtype.get_name() == "WsClientClass" {
-                WebsocatConfiguration2::l_socks5_c(&mut self.s2, &mut self.opts, on_warning, false)?;
+                WebsocatConfiguration2::l_socks5_c(
+                    &mut self.s2,
+                    &mut self.opts,
+                    on_warning,
+                    false,
+                )?;
             }
             if self.s2.addrtype.get_name() == "WsClientSecureClass" {
                 WebsocatConfiguration2::l_socks5_c(&mut self.s2, &mut self.opts, on_warning, true)?;

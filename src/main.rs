@@ -304,7 +304,7 @@ struct Opt {
         parse(from_os_str),
     )]
     socks5_bind_script: Option<OsString>,
-    
+
     #[structopt(
         long = "tls-domain",
         alias = "ssl-domain",
