@@ -363,7 +363,9 @@ impl WebsocatConfiguration2 {
             Host::Ipv4(ip4) => SocksHostAddr::Ip(IpAddr::V4(ip4)),
             Host::Ipv6(ip6) => SocksHostAddr::Ip(IpAddr::V6(ip6)),
         };
-        opts.socks_destination = Some(SocksSocketAddr { host, port });
+        if opts.socks_destination.is_none() {
+            opts.socks_destination = Some(SocksSocketAddr { host, port });
+        }
         
         
         
@@ -383,10 +385,6 @@ impl WebsocatConfiguration2 {
     fn l_socks5(&mut self, on_warning: &OnWarning) -> Result<()> {
         if self.opts.socks_destination.is_some() ^ (self.contains_class("SocksProxyClass") || self.contains_class("SocksBindClass")) {
             on_warning("--socks5-destination option and socks5-connect: overlay should go together");
-        }
-        
-        if self.opts.auto_socks5.is_some() && self.opts.socks_destination.is_some() {
-            Err("User-friendly --socks5 and low-level --socks5-destination options are incompatible")?;
         }
         
         if self.opts.auto_socks5.is_some() {
