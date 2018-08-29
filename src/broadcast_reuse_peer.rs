@@ -35,7 +35,7 @@ impl Specifier for BroadcastReuser {
         let inner = || self.0.construct(p).get_only_first_conn(l2r);
         once(connection_reuser(&h, &mut reuser, inner, bs, ql))
     }
-    specifier_boilerplate!(singleconnect has_subspec typ=Reuser globalstate);
+    specifier_boilerplate!(singleconnect has_subspec globalstate);
     self_0_is_subspecifier!(...);
 }
 

@@ -20,7 +20,7 @@ impl<T: Specifier> Specifier for TlsConnect<T> {
             ssl_connect(p, l2r)
         })
     }
-    specifier_boilerplate!(typ=WebSocket noglobalstate has_subspec);
+    specifier_boilerplate!(noglobalstate has_subspec);
     self_0_is_subspecifier!(proxy_is_multiconnect);
 }
 specifier_class!(

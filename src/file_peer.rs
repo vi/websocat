@@ -23,7 +23,7 @@ impl Specifier for ReadFile {
         }
         once(Box::new(futures::future::result(gp(&self.0))) as BoxedNewPeerFuture)
     }
-    specifier_boilerplate!(typ=Other noglobalstate singleconnect no_subspec);
+    specifier_boilerplate!(noglobalstate singleconnect no_subspec);
 }
 specifier_class!(
     name = ReadFileClass,
@@ -55,7 +55,7 @@ impl Specifier for WriteFile {
         }
         once(Box::new(futures::future::result(gp(&self.0))) as BoxedNewPeerFuture)
     }
-    specifier_boilerplate!(typ=Other noglobalstate singleconnect no_subspec);
+    specifier_boilerplate!(noglobalstate singleconnect no_subspec);
 }
 specifier_class!(
     name = WriteFileClass,
@@ -88,7 +88,7 @@ impl Specifier for AppendFile {
         }
         once(Box::new(futures::future::result(gp(&self.0))) as BoxedNewPeerFuture)
     }
-    specifier_boilerplate!(typ=Other noglobalstate singleconnect no_subspec);
+    specifier_boilerplate!(noglobalstate singleconnect no_subspec);
 }
 specifier_class!(
     name = AppendFileClass,

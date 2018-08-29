@@ -30,7 +30,7 @@ impl Specifier for UnixConnect {
     fn construct(&self, p: ConstructParams) -> PeerConstructor {
         once(unix_connect_peer(&p.tokio_handle, &self.0))
     }
-    specifier_boilerplate!(noglobalstate singleconnect no_subspec typ=Other);
+    specifier_boilerplate!(noglobalstate singleconnect no_subspec);
 }
 specifier_class!(
     name = UnixConnectClass,
@@ -65,7 +65,7 @@ impl Specifier for UnixListen {
             &p.program_options,
         ))
     }
-    specifier_boilerplate!(noglobalstate multiconnect no_subspec typ=Other);
+    specifier_boilerplate!(noglobalstate multiconnect no_subspec);
 }
 specifier_class!(
     name = UnixListenClass,
@@ -121,7 +121,7 @@ impl Specifier for UnixDgram {
             &p.program_options,
         ))
     }
-    specifier_boilerplate!(noglobalstate singleconnect no_subspec typ=Other);
+    specifier_boilerplate!(noglobalstate singleconnect no_subspec);
 }
 specifier_class!(
     name = UnixDgramClass,
@@ -168,7 +168,7 @@ impl Specifier for AbstractConnect {
     fn construct(&self, p: ConstructParams) -> PeerConstructor {
         once(unix_connect_peer(&p.tokio_handle, &to_abstract(&self.0)))
     }
-    specifier_boilerplate!(noglobalstate singleconnect no_subspec typ=Other);
+    specifier_boilerplate!(noglobalstate singleconnect no_subspec);
 }
 specifier_class!(
     name = AbstractConnectClass,
@@ -208,7 +208,7 @@ impl Specifier for AbstractListen {
             &Rc::new(Default::default()),
         ))
     }
-    specifier_boilerplate!(noglobalstate multiconnect no_subspec typ=Other);
+    specifier_boilerplate!(noglobalstate multiconnect no_subspec);
 }
 specifier_class!(
     name = AbstractListenClass,
@@ -258,7 +258,7 @@ impl Specifier for AbstractDgram {
             ))
         }
     }
-    specifier_boilerplate!(noglobalstate singleconnect no_subspec typ=Other);
+    specifier_boilerplate!(noglobalstate singleconnect no_subspec);
 }
 specifier_class!(
     name = AbstractDgramClass,

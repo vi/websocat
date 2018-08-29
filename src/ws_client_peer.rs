@@ -27,7 +27,7 @@ impl Specifier for WsClient {
         let url = self.0.clone();
         once(get_ws_client_peer(&p.tokio_handle, &url, p.program_options))
     }
-    specifier_boilerplate!(noglobalstate singleconnect no_subspec typ=WebSocket);
+    specifier_boilerplate!(noglobalstate singleconnect no_subspec);
 }
 specifier_class!(
     name = WsClientClass,
@@ -65,7 +65,7 @@ impl Specifier for WsClientSecure {
         let url = self.0.clone();
         once(get_ws_client_peer(&p.tokio_handle, &url, p.program_options))
     }
-    specifier_boilerplate!(noglobalstate singleconnect no_subspec typ=WebSocket);
+    specifier_boilerplate!(noglobalstate singleconnect no_subspec);
 }
 #[cfg(feature = "ssl")]
 specifier_class!(
@@ -109,7 +109,7 @@ impl<T: Specifier> Specifier for WsConnect<T> {
 
         inner.map(move |q, _| get_ws_client_peer_wrapped(&url, q, opts.clone()))
     }
-    specifier_boilerplate!(noglobalstate has_subspec typ=WebSocket);
+    specifier_boilerplate!(noglobalstate has_subspec);
     self_0_is_subspecifier!(proxy_is_multiconnect);
 }
 specifier_class!(

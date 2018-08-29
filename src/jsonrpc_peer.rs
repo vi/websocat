@@ -17,7 +17,7 @@ impl<T: Specifier> Specifier for JsonRpc<T> {
         let inner = self.0.construct(cp.clone());
         inner.map(move |p, _| jsonrpc_peer(p))
     }
-    specifier_boilerplate!(typ=Other noglobalstate has_subspec);
+    specifier_boilerplate!(noglobalstate has_subspec);
     self_0_is_subspecifier!(proxy_is_multiconnect);
 }
 specifier_class!(

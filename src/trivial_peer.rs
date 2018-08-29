@@ -21,7 +21,7 @@ impl Specifier for Literal {
     fn construct(&self, _: ConstructParams) -> PeerConstructor {
         once(get_literal_peer(self.0.clone()))
     }
-    specifier_boilerplate!(singleconnect no_subspec noglobalstate typ=Other);
+    specifier_boilerplate!(singleconnect no_subspec noglobalstate);
 }
 impl std::fmt::Debug for Literal {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::result::Result<(), std::fmt::Error> {
@@ -52,7 +52,7 @@ impl Specifier for Assert {
     fn construct(&self, _: ConstructParams) -> PeerConstructor {
         once(get_assert_peer(self.0.clone()))
     }
-    specifier_boilerplate!(noglobalstate singleconnect no_subspec typ=Other);
+    specifier_boilerplate!(noglobalstate singleconnect no_subspec);
 }
 impl std::fmt::Debug for Assert {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::result::Result<(), std::fmt::Error> {
@@ -81,7 +81,7 @@ impl Specifier for Assert2 {
     fn construct(&self, _: ConstructParams) -> PeerConstructor {
         once(get_assert2_peer(self.0.clone()))
     }
-    specifier_boilerplate!(noglobalstate singleconnect no_subspec typ=Other);
+    specifier_boilerplate!(noglobalstate singleconnect no_subspec);
 }
 impl std::fmt::Debug for Assert2 {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::result::Result<(), std::fmt::Error> {
@@ -110,7 +110,7 @@ impl Specifier for Clogged {
     fn construct(&self, _: ConstructParams) -> PeerConstructor {
         once(get_clogged_peer())
     }
-    specifier_boilerplate!(noglobalstate singleconnect no_subspec typ=Other);
+    specifier_boilerplate!(noglobalstate singleconnect no_subspec);
 }
 specifier_class!(
     name = CloggedClass,

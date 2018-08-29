@@ -22,7 +22,7 @@ impl Specifier for AutoReconnect {
     fn construct(&self, cp: ConstructParams) -> PeerConstructor {
         once(autoreconnector(self.0.clone(), cp))
     }
-    specifier_boilerplate!(singleconnect noglobalstate has_subspec typ=Other);
+    specifier_boilerplate!(singleconnect noglobalstate has_subspec );
     self_0_is_subspecifier!(...);
 }
 specifier_class!(

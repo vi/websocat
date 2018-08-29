@@ -28,7 +28,7 @@ impl Specifier for Reuser {
             send_zero_msg_on_disconnect,
         ))
     }
-    specifier_boilerplate!(singleconnect has_subspec typ=Reuser globalstate);
+    specifier_boilerplate!(singleconnect has_subspec globalstate);
     self_0_is_subspecifier!(...);
 }
 

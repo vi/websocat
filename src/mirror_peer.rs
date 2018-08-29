@@ -24,7 +24,7 @@ impl Specifier for Mirror {
     fn construct(&self, cp: ConstructParams) -> PeerConstructor {
         once(get_mirror_peer(cp.program_options.read_debt_handling))
     }
-    specifier_boilerplate!(noglobalstate singleconnect no_subspec typ=Other);
+    specifier_boilerplate!(noglobalstate singleconnect no_subspec);
 }
 specifier_class!(
     name = MirrorClass,
@@ -50,7 +50,7 @@ impl Specifier for LiteralReply {
     fn construct(&self, _: ConstructParams) -> PeerConstructor {
         once(get_literal_reply_peer(self.0.clone()))
     }
-    specifier_boilerplate!(noglobalstate singleconnect no_subspec typ=Other);
+    specifier_boilerplate!(noglobalstate singleconnect no_subspec);
 }
 impl std::fmt::Debug for LiteralReply {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::result::Result<(), std::fmt::Error> {

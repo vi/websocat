@@ -250,10 +250,6 @@ macro_rules! specifier_boilerplate {
     (has_subspec $($e:tt)*) => {
         specifier_boilerplate!($($e)*);
     };
-    (typ=$tn:ident $($e:tt)*) => {
-        //fn get_type(&self) -> $crate::SpecifierType { $crate::SpecifierType::$tn }
-        specifier_boilerplate!($($e)*);
-    };
     () => {
     };
     (globalstate $($e:tt)*) => {

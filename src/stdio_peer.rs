@@ -32,7 +32,7 @@ impl Specifier for Stdio {
         ret = get_stdio_peer(&mut p.global_state.borrow_mut().stdio, &p.tokio_handle);
         once(ret)
     }
-    specifier_boilerplate!(typ=Stdio globalstate singleconnect no_subspec);
+    specifier_boilerplate!(globalstate singleconnect no_subspec);
 }
 
 specifier_class!(
@@ -88,7 +88,7 @@ impl Specifier for OpenAsync {
         ret = get_file_peer(&self.0, &p.tokio_handle);
         once(ret)
     }
-    specifier_boilerplate!(typ=Other noglobalstate singleconnect no_subspec);
+    specifier_boilerplate!(noglobalstate singleconnect no_subspec);
 }
 specifier_class!(
     name = OpenAsyncClass,
@@ -117,7 +117,7 @@ impl Specifier for OpenFdAsync {
         ret = get_fd_peer(self.0, &p.tokio_handle);
         once(ret)
     }
-    specifier_boilerplate!(typ=Other noglobalstate singleconnect no_subspec);
+    specifier_boilerplate!(noglobalstate singleconnect no_subspec);
 }
 specifier_class!(
     name = OpenFdAsyncClass,

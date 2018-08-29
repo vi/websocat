@@ -52,7 +52,7 @@ impl Specifier for Cmd {
             exit_sighup,
         ))) as BoxedNewPeerFuture)
     }
-    specifier_boilerplate!(noglobalstate singleconnect no_subspec typ=Other);
+    specifier_boilerplate!(noglobalstate singleconnect no_subspec );
 }
 specifier_class!(
     name = CmdClass,
@@ -89,7 +89,7 @@ impl Specifier for ShC {
             exit_sighup,
         ))) as BoxedNewPeerFuture)
     }
-    specifier_boilerplate!(noglobalstate singleconnect no_subspec typ=Other);
+    specifier_boilerplate!(noglobalstate singleconnect no_subspec );
 }
 specifier_class!(
     name = ShCClass,
@@ -130,7 +130,7 @@ impl Specifier for Exec {
             exit_sighup,
         ))) as BoxedNewPeerFuture)
     }
-    specifier_boilerplate!(noglobalstate singleconnect no_subspec typ=Other);
+    specifier_boilerplate!(noglobalstate singleconnect no_subspec );
 }
 specifier_class!(
     name = ExecClass,

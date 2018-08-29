@@ -33,7 +33,7 @@ impl<T: Specifier> Specifier for SocksProxy<T> {
             socks5_peer(p, l2r, false, None, &cp.program_options.socks_destination)
         })
     }
-    specifier_boilerplate!(typ=WebSocket noglobalstate has_subspec);
+    specifier_boilerplate!(noglobalstate has_subspec);
     self_0_is_subspecifier!(proxy_is_multiconnect);
 }
 specifier_class!(
@@ -70,7 +70,7 @@ impl<T: Specifier> Specifier for SocksBind<T> {
             )
         })
     }
-    specifier_boilerplate!(typ=WebSocket noglobalstate has_subspec);
+    specifier_boilerplate!(noglobalstate has_subspec);
     self_0_is_subspecifier!(proxy_is_multiconnect);
 }
 specifier_class!(

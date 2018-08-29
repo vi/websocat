@@ -13,7 +13,7 @@ impl Specifier for SeqpacketConnect {
     fn construct(&self, p: ConstructParams) -> PeerConstructor {
         once(seqpacket_connect_peer(&p.tokio_handle, &self.0))
     }
-    specifier_boilerplate!(noglobalstate singleconnect no_subspec typ=Other);
+    specifier_boilerplate!(noglobalstate singleconnect no_subspec);
 }
 specifier_class!(
     name = SeqpacketConnectClass,
@@ -52,7 +52,7 @@ impl Specifier for SeqpacketListen {
             &p.program_options,
         ))
     }
-    specifier_boilerplate!(noglobalstate multiconnect no_subspec typ=Other);
+    specifier_boilerplate!(noglobalstate multiconnect no_subspec);
 }
 specifier_class!(
     name = SeqpacketListenClass,

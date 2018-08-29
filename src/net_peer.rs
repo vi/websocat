@@ -24,7 +24,7 @@ impl Specifier for TcpConnect {
     fn construct(&self, p: ConstructParams) -> PeerConstructor {
         once(tcp_connect_peer(&p.tokio_handle, &self.0))
     }
-    specifier_boilerplate!(noglobalstate singleconnect no_subspec typ=Other);
+    specifier_boilerplate!(noglobalstate singleconnect no_subspec );
 }
 specifier_class!(
     name = TcpConnectClass,
@@ -53,7 +53,7 @@ impl Specifier for TcpListen {
     fn construct(&self, p: ConstructParams) -> PeerConstructor {
         multi(tcp_listen_peer(&p.tokio_handle, &self.0, p.left_to_right))
     }
-    specifier_boilerplate!(noglobalstate multiconnect no_subspec typ=Other);
+    specifier_boilerplate!(noglobalstate multiconnect no_subspec );
 }
 specifier_class!(
     name = TcpListenClass,
@@ -86,7 +86,7 @@ impl Specifier for UdpConnect {
             &p.program_options,
         ))
     }
-    specifier_boilerplate!(noglobalstate singleconnect no_subspec typ=Other);
+    specifier_boilerplate!(noglobalstate singleconnect no_subspec );
 }
 specifier_class!(
     name = UdpConnectClass,
@@ -111,7 +111,7 @@ impl Specifier for UdpListen {
             &p.program_options,
         ))
     }
-    specifier_boilerplate!(noglobalstate singleconnect no_subspec typ=Other);
+    specifier_boilerplate!(noglobalstate singleconnect no_subspec );
 }
 specifier_class!(
     name = UdpListenClass,

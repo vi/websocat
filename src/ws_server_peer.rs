@@ -44,7 +44,7 @@ impl<T: Specifier> Specifier for WsServer<T> {
             )
         })
     }
-    specifier_boilerplate!(typ=WebSocket noglobalstate has_subspec);
+    specifier_boilerplate!(noglobalstate has_subspec);
     self_0_is_subspecifier!(proxy_is_multiconnect);
 }
 specifier_class!(
