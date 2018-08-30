@@ -34,25 +34,20 @@ pub fn shorthelp() {
     let mut lines_to_display = vec![];
     let mut do_display = true;
     #[allow(non_snake_case)]
-    let mut special_A_permit = false;
     for l in BufReader::new(&b[..]).lines() {
         if let Ok(l) = l {
             {
                 let lt = l.trim();
                 let new_paragraph_start = false || lt.starts_with('-') || l.is_empty();
                 if lt.starts_with("--help") {
-                    special_A_permit = true;
-                }
-                if l.contains("[A]") {
-                    if special_A_permit {
-                        special_A_permit = false;
-                    } else {
-                        do_display = false;
-                        if l.trim().starts_with("[A]") {
-                            // Also retroactively retract the previous line
-                            let nl = lines_to_display.len() - 1;
-                            lines_to_display.truncate(nl);
-                        }
+                    // Allowed to output [A] regardless
+                    do_display = true;
+                } else if l.contains("[A]") {
+                    do_display = false;
+                    if l.trim().starts_with("[A]") {
+                        // Also retroactively retract the previous line
+                        let nl = lines_to_display.len() - 1;
+                        lines_to_display.truncate(nl);
                     }
                 } else if new_paragraph_start {
                     do_display = true;
