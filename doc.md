@@ -80,13 +80,17 @@ FLAGS:
     -t, --text                                  Send message to WebSockets as text messages
 
 OPTIONS:
+        --socks5 <auto_socks5>
+            Use specified address:port as a SOCKS5 proxy. Note that proxy authentication is not supported yet. Example:
+            --socks5 127.0.0.1:9050
         --queue-len <broadcast_queue_len>
             [A] Number of pending queued messages for broadcast reuser [default: 16]
 
-    -B, --buffer-size <buffer_size>                Maximum message size, in bytes [default: 65536]
+    -B, --buffer-size <buffer_size>                  Maximum message size, in bytes [default: 65536]
     -H, --header <custom_headers>...
             Add custom HTTP header to websocket client request. Separate header name and value with a colon and
-            optionally a single space. Can be used multiple times.
+            optionally a single space. Can be used multiple times. Note that single -H may eat multiple further
+            arguments, leading to confusing errors. Specify headers at the end or with equal sign like -H='X: y'.
         --exec-args <exec_args>...
             [A] Arguments for the `exec:` specifier. Must be the last option, everything after it gets into the exec
             args list.
@@ -95,7 +99,12 @@ OPTIONS:
             --help=short is the list of easy options and address types
             --help=long lists all options and types (see [A] markers)
             --help=doc also shows longer description and examples.
-        --origin <origin>                          Add Origin HTTP header to websocket client request
+        --origin <origin>                            Add Origin HTTP header to websocket client request
+        --pkcs12-der <pkcs12_der>
+            A passwordless pkcs12 archive needed to accept SSL connections, certificate and key.
+            A command to output it: openssl pkcs12 -export -out output.pkcs12 -inkey key.pem -in cert.pem
+            Use with -s (--server-mode) option or with manually specified TLS overlays.
+            See moreexamples.md for more info.
         --restrict-uri <restrict_uri>
             When serving a websocket, only accept the given URI, like `/ws`
             This liberates other URIs for things like serving static files or proxying.
@@ -104,10 +113,18 @@ OPTIONS:
             Argument syntax: <URI>:<Content-Type>:<file-path>
             Argument example: /index.html:text/html:index.html
             Directories are not and will not be supported for security reasons.
-            Can be specified multiple times.
-        --protocol <websocket_protocol>            Specify Sec-WebSocket-Protocol: header
-        --websocket-version <websocket_version>    Override the Sec-WebSocket-Version value
-        --ws-c-uri <ws_c_uri>                      [A] URI to use for ws-c: overlay [default: ws://0.0.0.0/]
+            Can be specified multiple times. Recommended to specify them at the end or with equal sign like `-F=...`,
+            otherwise this option may eat positional arguments
+        --socks5-bind-script <socks5_bind_script>
+            [A] Execute specified script in `socks5-bind:` mode when remote port number becomes known.
+
+        --socks5-destination <socks_destination>     [A] Examples: 1.2.3.4:5678  2600:::80  hostname:5678
+        --tls-domain <tls_domain>
+            Specify domain for SNI or certificate verification when using tls-connect: overlay
+
+        --protocol <websocket_protocol>              Specify Sec-WebSocket-Protocol: header
+        --websocket-version <websocket_version>      Override the Sec-WebSocket-Version value
+        --ws-c-uri <ws_c_uri>                        [A] URI to use for ws-c: overlay [default: ws://0.0.0.0/]
 
 ARGS:
     <addr1>    In simple mode, WebSocket URL to connect. In advanced mode first address (there are many kinds of
@@ -200,6 +217,36 @@ Internal name for --dump-spec: WsAbstractUnixServer
 
 
 WebSocket abstract-namespaced UNIX socket server. [A]
+
+
+### `ssl-listen:`
+
+Aliases: `ssl-l:`, `tls-l:`, `tls-listen:`, `l-ssl:`, `listen-ssl:`, `listen-tls:`, `listen-tls:`  
+Internal name for --dump-spec: TlsListen
+
+
+Listen for SSL conections on a TCP port
+
+Example: Non-websocket SSL echo server
+
+    websocat -E -b --pkcs12-der=q.pkcs12 ssl-listen:127.0.0.1:1234 mirror:
+    socat - ssl:127.0.0.1:1234,verify=0
+
+
+### `wss-listen:`
+
+Aliases: `wss-l:`, `l-wss:`, `wss-listen:`  
+Internal name for --dump-spec: WssListen
+
+
+Listen for secure WebSocket conections on a TCP port
+
+Example: wss:// echo server + client for testing
+
+    websocat -E -t --pkcs12-der=q.pkcs12 wss-listen:127.0.0.1:1234 mirror:
+    websocat --ws-c-uri=wss://localhost/ -t - ws-c:cmd:'socat - ssl:127.0.0.1:1234,verify=0'
+
+See [moreexamples.md](./moreexamples.md) for info about generation of `q.pkcs12`.
 
 
 ### `stdio:`
@@ -667,6 +714,34 @@ Example: serve incoming connection from socat
     socat tcp-l:1234,fork,reuseaddr exec:'websocat -t ws-u\:stdio\: mirror\:'
 
 
+### `ssl-connect:`
+
+Aliases: `ssl-c`, `ssl:`, `tls:`, `tls-connect:`, `c-ssl:`, `connect-ssl:`, `c-tls:`, `connect-tls:`  
+Internal name for --dump-spec: TlsConnect
+
+
+Overlay to add TLS encryption atop of existing connection [A]
+
+Example: manually connect to a secure websocket
+
+    websocat -t - ws-c:tls-c:tcp:174.129.224.73:1080 --ws-c-uri ws://echo.websocket.org --tls-domain echo.websocket.org
+
+For a user-friendly solution, see --socks5 command-line option
+
+
+### `ssl-accept:`
+
+Aliases: `ssl-a:`, `tls-a:`, `tls-accept:`, `a-ssl:`, `accept-ssl:`, `accept-tls:`, `accept-tls:`  
+Internal name for --dump-spec: TlsAccept
+
+
+Accept an TLS connection using arbitrary backing stream. [A]
+
+Example: The same as in TlsListenClass's example, but with manual acceptor
+
+    websocat -E -b --pkcs12-der=q.pkcs12 tls-a:tcp-l:127.0.0.1:1234 mirror:
+
+
 ### `reuse-raw:`
 
 Aliases: `raw-reuse:`  
@@ -795,6 +870,35 @@ Internal name for --dump-spec: JsonRpc
 For simpler manual testing of websocket-based JSON-RPC services
 
 Example: TODO
+
+
+### `socks5-connect:`
+
+Internal name for --dump-spec: SocksProxy
+
+
+SOCKS5 proxy client (raw) [A]
+
+Example: connect to a websocket using local `ssh -D` proxy
+
+    websocat -t - ws-c:socks5-connect:tcp:127.0.0.1:1080 --socks5-destination echo.websocket.org:80 --ws-c-uri ws://echo.websocket.org
+
+For a user-friendly solution, see --socks5 command-line option
+
+
+### `socks5-bind:`
+
+Internal name for --dump-spec: SocksBind
+
+
+SOCKS5 proxy client (raw, bind command) [A]
+
+Example: bind to a websocket using some remote SOCKS server
+
+    websocat -v -t ws-u:socks5-bind:tcp:132.148.129.183:14124 - --socks5-destination 255.255.255.255:65535
+
+Note that port is typically unpredictable. Use --socks5-bind-script option to know the port.
+See an example in moreexamples.md for more thorough example.
 
 
 

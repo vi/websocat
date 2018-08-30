@@ -47,6 +47,7 @@ qwer
  INFO 2018-08-30T15:45:35Z: websocat::stdio_peer: Restoring blocking status for stdin
 ```
 
+This approach can also be used in Websocat builds that do not support SSL.
 
 ## Listening wss:// for development purposes
 
@@ -82,6 +83,8 @@ Verifying - Enter Export Password:<empty>
 $ websocat --pkcs12-der=q.pkcs12 -s 1234
 Listening on wss://127.0.0.1:1234/
 ```
+
+There is a pre-generated certificate `test.pkcs12` included in Git.
 
 Unfortunately, you can't easily connect to that `wss://127.0.0.1:1234/` with `websocat wss://127.0.0.1:1234` now, you need to use workaround above.
 

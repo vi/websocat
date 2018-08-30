@@ -68,9 +68,11 @@ See [moreexamples.md](./moreexamples.md) for further examples.
 * Executing external program and making it communitate to WebSocket using stdin/stdout.
 * Text and binary modes, converting between lines (or null-terminated records) and messages.
 * Inetd mode, UNIX sockets (including abstract namesaced on Linux).
+* Integration with Nginx using TCP or UNIX sockets.
+* Directly using unathenticated SOCKS5 servers for connecting to WebSockets and listening WebSocket connection.
 * Auto-reconnect and connection-reuse modes.
 * Linux, Windows and Mac support, with [pre-built executables][releases].
-* Low-level WebSocket clients and servers with overridable underlying transport connection.
+* Low-level WebSocket clients and servers with overridable underlying transport connection, e.g. calling external program to serve as a transport for websocat (for SSL, proxying, etc.).
 * Buildable by rust starting from v1.23.0.
 
 [releases]:https://github.com/vi/websocat/releases
@@ -221,9 +223,8 @@ Some notes
 ---
 
 * It runs singlethreaded, but can serve multiple connections simultaneously. There is old non-async threaded version in `legacy` branch of releases prior to 0.5.
-* IPv6 is supported, surround your IP in square brackets.
+* IPv6 is supported, surround your IP in square brackets or use it as is, depending on context.
 * Web socket usage is not obligatory, you can use any specs on both sides.
-* If you want a `wss://` server, use socat or nginx in addition to websocat until this function is implemented properly (see `nginx.conf` sample in the reference document).
 * Typically one line in binary stream correspond to one WebSocket text message. This is adjustable with options.
 
 Planned features
