@@ -15,6 +15,8 @@ function ensurenonblock() {
     perl -we 'use Fcntl qw(F_GETFL O_NONBLOCK); open F, "<&=", 0; my $flags = fcntl(F, F_GETFL, 0); if ($flags & O_NONBLOCK) { exit 1; } else { exit 0; }'
 }
 
+sleep 1
+
 ensurenonblock
 
 C1=$(find /proc/$MIR/fd -type l -printf '\n' | wc -l)
