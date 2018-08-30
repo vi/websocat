@@ -12,12 +12,6 @@ macro_rules! list_of_all_specifier_classes {
         $your_macro!($crate::ws_server_peer::WsServerClass);
 
         #[cfg(feature = "ssl")]
-        $your_macro!($crate::ssl_peer::TlsConnectClass);
-        #[cfg(feature = "ssl")]
-        $your_macro!($crate::ssl_peer::TlsAcceptClass);
-        #[cfg(feature = "ssl")]
-        $your_macro!($crate::ssl_peer::TlsListenClass);
-        #[cfg(feature = "ssl")]
         $your_macro!($crate::ssl_peer::WssListenClass);
 
         #[cfg(all(unix, feature = "unix_stdio"))]
@@ -31,6 +25,13 @@ macro_rules! list_of_all_specifier_classes {
 
         $your_macro!($crate::net_peer::TcpConnectClass);
         $your_macro!($crate::net_peer::TcpListenClass);
+        
+        #[cfg(feature = "ssl")]
+        $your_macro!($crate::ssl_peer::TlsConnectClass);
+        #[cfg(feature = "ssl")]
+        $your_macro!($crate::ssl_peer::TlsAcceptClass);
+        #[cfg(feature = "ssl")]
+        $your_macro!($crate::ssl_peer::TlsListenClass);
 
         #[cfg(feature = "tokio-process")]
         $your_macro!($crate::process_peer::ShCClass);
