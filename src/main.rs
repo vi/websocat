@@ -26,7 +26,9 @@ use websocat::{Options, SpecifierClass, WebsocatConfiguration1};
 
 type Result<T> = std::result::Result<T, Box<std::error::Error>>;
 
-use std::ffi::OsString;
+use std::ffi::{OsString};
+
+
 
 #[derive(StructOpt, Debug)]
 #[structopt(
@@ -311,6 +313,14 @@ struct Opt {
         help = "Specify domain for SNI or certificate verification when using tls-connect: overlay",
     )]
     tls_domain: Option<String>,
+    
+    #[cfg(feature = "ssl")]
+    #[structopt(
+        long = "pkcs12-der",
+        help = "A passwordless pkcs12 archive needed to accept SSL connections, certificate and key. A command to generate it: openssl pkcs12 -export -out output.pkcs12 -inkey key.pem -in cert.pem",
+        parse(try_from_os_str = "websocat::ssl_peer::interpret_pkcs12"),
+    )]
+    pkcs12_der: Option<Vec<u8>>,
 }
 
 // TODO: make it byte-oriented/OsStr?
@@ -501,7 +511,12 @@ fn run() -> Result<()> {
             auto_socks5
             socks5_bind_script
             tls_domain
-        )
+        );
+        #[cfg(feature = "ssl")] {
+            opts! {
+                pkcs12_der
+            }
+        }
     };
 
     let (s1, s2): (String, String) = match (cmd.addr1, cmd.addr2) {

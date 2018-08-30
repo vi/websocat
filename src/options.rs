@@ -12,7 +12,8 @@ pub struct StaticFile {
     pub content_type: String,
 }
 
-#[derive(SmartDefault, Debug, Clone)]
+#[derive(SmartDefault, Derivative)]
+#[derivative(Debug)]
 pub struct Options {
     pub websocket_text_mode: bool,
     pub websocket_protocol: Option<String>,
@@ -49,4 +50,6 @@ pub struct Options {
     pub auto_socks5: Option<SocketAddr>,
     pub socks5_bind_script: Option<OsString>,
     pub tls_domain: Option<String>,
+    #[derivative(Debug="ignore")]
+    pub pkcs12_der: Option<Vec<u8>>,
 }

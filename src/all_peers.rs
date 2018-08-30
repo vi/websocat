@@ -13,6 +13,12 @@ macro_rules! list_of_all_specifier_classes {
 
         #[cfg(feature = "ssl")]
         $your_macro!($crate::ssl_peer::TlsConnectClass);
+        #[cfg(feature = "ssl")]
+        $your_macro!($crate::ssl_peer::TlsAcceptClass);
+        #[cfg(feature = "ssl")]
+        $your_macro!($crate::ssl_peer::TlsListenClass);
+        #[cfg(feature = "ssl")]
+        $your_macro!($crate::ssl_peer::WssListenClass);
 
         #[cfg(all(unix, feature = "unix_stdio"))]
         $your_macro!($crate::stdio_peer::StdioClass);

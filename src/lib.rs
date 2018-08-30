@@ -23,6 +23,8 @@ extern crate slab_typesafe;
 
 #[macro_use]
 extern crate smart_default;
+#[macro_use]
+extern crate derivative;
 
 use futures::future::Future;
 use tokio_core::reactor::Handle;
