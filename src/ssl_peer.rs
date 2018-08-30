@@ -157,7 +157,7 @@ pub fn ssl_accept(inner_peer: Peer, _l2r: L2rUser, progopt:Rc<Options>) -> Boxed
     }
     
     let der = progopt.pkcs12_der.as_ref()
-        .expect("lint should have counght the missing pkcs12_der option");
+        .expect("lint should have cought the missing pkcs12_der option");
     let tls = match gettlsa(der) {
         Ok(x) => x,
         Err(e) => return peer_err(e),
