@@ -89,7 +89,7 @@ Example: The same as in TlsListenClass's example, but with manual acceptor
 
 specifier_alias!(
     name = TlsListenClass,
-    prefixes = ["ssl-l:","tls-l:","ssl-listen:","tls-listen:","l-ssl:","listen-ssl:","listen-tls:","listen-tls:"],
+    prefixes = ["ssl-listen:","ssl-l:","tls-l:","tls-listen:","l-ssl:","listen-ssl:","listen-tls:","listen-tls:"],
     alias = "tls-accept:tcp-l:",
     help = r#"
 Listen for SSL conections on a TCP port

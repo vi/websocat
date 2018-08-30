@@ -48,6 +48,42 @@ qwer
 ```
 
 
+## Listening wss:// for development purposes
+
+```
+$ openssl req -x509 -newkey rsa:4096 -keyout key.pem -out cert.pem -days 365
+Generating a 4096 bit RSA private key
+..........++
+.........................++
+writing new private key to 'key.pem'
+Enter PEM pass phrase:1234
+Verifying - Enter PEM pass phrase:1234
+-----
+You are about to be asked to enter information that will be incorporated
+into your certificate request.
+What you are about to enter is what is called a Distinguished Name or a DN.
+There are quite a few fields but you can leave some blank
+For some fields there will be a default value,
+If you enter '.', the field will be left blank.
+-----
+Country Name (2 letter code) [AU]:
+State or Province Name (full name) [Some-State]:
+Locality Name (eg, city) []:
+Organization Name (eg, company) [Internet Widgits Pty Ltd]:
+Organizational Unit Name (eg, section) []:
+Common Name (e.g. server FQDN or YOUR name) []:
+Email Address []:
+
+$ openssl pkcs12 -export -out q.pkcs12 -inkey key.pem -in cert.pem
+Enter pass phrase for key.pem:1234
+Enter Export Password:<empty>
+Verifying - Enter Export Password:<empty>
+
+$ websocat --pkcs12-der=q.pkcs12 -s 1234
+Listening on wss://127.0.0.1:1234/
+```
+
+Unfortunately, you can't easily connect to that `wss://127.0.0.1:1234/` with `websocat wss://127.0.0.1:1234` now, you need to use workaround above.
 
 # Proxy servers
 
