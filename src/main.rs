@@ -310,7 +310,7 @@ struct Opt {
     #[structopt(
         long = "tls-domain",
         alias = "ssl-domain",
-        help = "Specify domain for SNI or certificate verification when using tls-connect: overlay",
+        help = "[A] Specify domain for SNI or certificate verification when using tls-connect: overlay",
     )]
     tls_domain: Option<String>,
     

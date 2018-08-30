@@ -116,17 +116,26 @@ FLAGS:
 
 OPTIONS:
     (some options are hidden, see --help=long)
+        --socks5 <auto_socks5>
+            Use specified address:port as a SOCKS5 proxy. Note that proxy authentication is not supported yet. Example:
+            --socks5 127.0.0.1:9050
 
-    -B, --buffer-size <buffer_size>                Maximum message size, in bytes [default: 65536]
+    -B, --buffer-size <buffer_size>                  Maximum message size, in bytes [default: 65536]
     -H, --header <custom_headers>...
             Add custom HTTP header to websocket client request. Separate header name and value with a colon and
-            optionally a single space. Can be used multiple times.
+            optionally a single space. Can be used multiple times. Note that single -H may eat multiple further
+            arguments, leading to confusing errors. Specify headers at the end or with equal sign like -H='X: y'.
     -h, --help <help>
             See the help.
             --help=short is the list of easy options and address types
             --help=long lists all options and types (see [A] markers)
             --help=doc also shows longer description and examples.
-        --origin <origin>                          Add Origin HTTP header to websocket client request
+        --origin <origin>                            Add Origin HTTP header to websocket client request
+        --pkcs12-der <pkcs12_der>
+            A passwordless pkcs12 archive needed to accept SSL connections, certificate and key.
+            A command to output it: openssl pkcs12 -export -out output.pkcs12 -inkey key.pem -in cert.pem
+            Use with -s (--server-mode) option or with manually specified TLS overlays.
+            See moreexamples.md for more info.
         --restrict-uri <restrict_uri>
             When serving a websocket, only accept the given URI, like `/ws`
             This liberates other URIs for things like serving static files or proxying.
@@ -135,10 +144,12 @@ OPTIONS:
             Argument syntax: <URI>:<Content-Type>:<file-path>
             Argument example: /index.html:text/html:index.html
             Directories are not and will not be supported for security reasons.
-            Can be specified multiple times.
-        --protocol <websocket_protocol>            Specify Sec-WebSocket-Protocol: header
-        --websocket-version <websocket_version>    Override the Sec-WebSocket-Version value
-        --ws-c-uri <ws_c_uri>                      [A] URI to use for ws-c: overlay [default: ws://0.0.0.0/]
+            Can be specified multiple times. Recommended to specify them at the end or with equal sign like `-F=...`,
+            otherwise this option may eat positional arguments
+
+
+        --protocol <websocket_protocol>              Specify Sec-WebSocket-Protocol: header
+        --websocket-version <websocket_version>      Override the Sec-WebSocket-Version value
 
 ARGS:
     <addr1>    In simple mode, WebSocket URL to connect. In advanced mode first address (there are many kinds of
@@ -163,9 +174,11 @@ Partial list of address types:
 	ws://           	Insecure (ws://) WebSocket client. Argument is host and URL.
 	wss://          	Secure (wss://) WebSocket client. Argument is host and URL.
 	ws-listen:      	WebSocket server. Argument is host and port to listen.
+	wss-listen:     	Listen for secure WebSocket conections on a TCP port
 	stdio:          	Same as `-`. Read input from console, print to console.
 	tcp:            	Connect to specified TCP host and port. Argument is a socket address.
 	tcp-listen:     	Listen TCP port on specified address.
+	ssl-listen:     	Listen for SSL conections on a TCP port
 	sh-c:           	Start specified command line using `sh -c` (even on Windows)
 	cmd:            	Start specified command line using `sh -c` or `cmd /C` (depending on platform)
 	readfile:       	Synchronously read a file. Argument is a file path.
@@ -186,8 +199,7 @@ Pre-built binaries for Linux (usual and musl), Windows, OS X and Android (ARM) a
 Limitations
 ---
 
-* Server for `wss://` is not implemented (you can workaround it with Nginx or socat).
-* Server mode ignores incomding URL and HTTP headers.
+* Current version of Websocat don't receive notification about closed sockets. This makes serving without `-E` or `-u` options or in backpressure scenarious prone to socket leak.
 
 Installation
 ---
