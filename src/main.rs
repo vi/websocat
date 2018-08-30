@@ -317,7 +317,7 @@ struct Opt {
     #[cfg(feature = "ssl")]
     #[structopt(
         long = "pkcs12-der",
-        help = "A passwordless pkcs12 archive needed to accept SSL connections, certificate and key.\nA command to output it: openssl pkcs12 -export -out output.pkcs12 -inkey key.pem -in cert.pem",
+        help = "A passwordless pkcs12 archive needed to accept SSL connections, certificate and key.\nA command to output it: openssl pkcs12 -export -out output.pkcs12 -inkey key.pem -in cert.pem\nUse with -s (--server-mode) option or with manually specified TLS overlays.\nSee moreexamples.md for more info.",
         parse(try_from_os_str = "websocat::ssl_peer::interpret_pkcs12"),
     )]
     pkcs12_der: Option<Vec<u8>>,
