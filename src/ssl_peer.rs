@@ -79,13 +79,11 @@ specifier_class!(
     StreamOriented,
     MulticonnectnessDependsOnInnerType,
     help = r#"
-Overlay to add TLS encryption atop of existing connection [A]
+Accept an TLS connection using arbitrary backing stream. [A]
 
-Example: manually connect to a secure websocket
+Example: The same as in TlsListenClass's example, but with manual acceptor
 
-    websocat -t - ws-c:tls-c:tcp:174.129.224.73:1080 --ws-c-uri ws://echo.websocket.org --tls-domain echo.websocket.org
-
-For a user-friendly solution, see --socks5 command-line option
+    websocat -E -b --pkcs12-der=q.pkcs12 tls-a:tcp-l:127.0.0.1:1234 mirror:
 "#
 );
 
@@ -96,7 +94,10 @@ specifier_alias!(
     help = r#"
 Listen for SSL conections on a TCP port
 
-Example: TODO, as usual
+Example: Non-websocket SSL echo server
+
+    websocat -E -b --pkcs12-der=q.pkcs12 ssl-listen:127.0.0.1:1234 mirror:
+    socat - ssl:127.0.0.1:1234,verify=0
 "#
 );
 
@@ -107,7 +108,12 @@ specifier_alias!(
     help = r#"
 Listen for secure WebSocket conections on a TCP port
 
-Example: TODO, as usual
+Example: wss:// echo server + client for testing
+
+    websocat -E -t --pkcs12-der=q.pkcs12 wss-listen:127.0.0.1:1234 mirror:
+    websocat --ws-c-uri=wss://localhost/ -t - ws-c:cmd:'socat - ssl:127.0.0.1:1234,verify=0'
+
+See [moreexamples.md](./moreexamples.md) for info about generation of `q.pkcs12`.
 "#
 );
 

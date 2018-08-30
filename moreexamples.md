@@ -1,4 +1,55 @@
-# More examples: proxy servers
+More examples to avoid bloating up README or specifier-specific docs.
+
+
+# SSL (TLS) and wss://
+
+## Connecting to wss:// without checking certificate
+
+Unfortunately, current Websocat relies on slightly outdated dependencies which don't yet contain functions to completely turn off SSL checking. You need to rely on external program to do the SSL for now.
+
+With `socat`:
+
+```
+$ websocat -t --ws-c-uri=wss://echo.websocket.org/ - ws-c:cmd:'socat - ssl:echo.websocket.org:443,verify=0'
+sadf
+sadf
+dsafdsaf
+dsafdsaf
+```
+
+With `openssl s_client`, also showing the log output:
+
+```
+$ websocat -v -t --ws-c-uri=wss://echo.websocket.org/ - ws-c:cmd:'openssl s_client -connect echo.websocket.org:443 -quiet' 
+ INFO 2018-08-30T15:45:31Z: websocat::lints: Auto-inserting the line mode
+ INFO 2018-08-30T15:45:31Z: websocat::sessionserve: Serving Line2Message(Stdio) to Message2Line(WsConnect(Cmd("openssl s_client -connect echo.websocket.org:443 -quiet"))) with Options { websocket_text_mode: true, websocket_protocol: None, udp_oneshot_mode: false, unidirectional: false, unidirectional_reverse: false, exit_on_eof: false, oneshot: false, unlink_unix_socket: false, exec_args: [], ws_c_uri: "wss://echo.websocket.org/", linemode_strip_newlines: false, linemode_strict: false, origin: None, custom_headers: [], websocket_version: None, websocket_dont_close: false, one_message: false, no_auto_linemode: false, buffer_size: 65536, broadcast_queue_len: 16, read_debt_handling: Warn, linemode_zero_terminated: false, restrict_uri: None, serve_static_files: [], exec_set_env: false, reuser_send_zero_msg_on_disconnect: false, process_zero_sighup: false, process_exit_sighup: false, socks_destination: None, auto_socks5: None, socks5_bind_script: None, tls_domain: None }
+ INFO 2018-08-30T15:45:31Z: websocat::stdio_peer: get_stdio_peer (async)
+ INFO 2018-08-30T15:45:31Z: websocat::stdio_peer: Setting stdin to nonblocking mode
+ INFO 2018-08-30T15:45:31Z: websocat::stdio_peer: Installing signal handler
+ INFO 2018-08-30T15:45:31Z: websocat::ws_client_peer: get_ws_client_peer_wrapped
+depth=2 C = US, ST = Arizona, L = Scottsdale, O = "GoDaddy.com, Inc.", CN = Go Daddy Root Certificate Authority - G2
+verify return:1
+depth=1 C = US, ST = Arizona, L = Scottsdale, O = "GoDaddy.com, Inc.", OU = http://certs.godaddy.com/repository/, CN = Go Daddy Secure Certificate Authority - G2
+verify return:1
+depth=0 OU = Domain Control Validated, CN = *.websocket.org
+verify return:1
+ INFO 2018-08-30T15:45:31Z: websocat::ws_client_peer: Connected to ws
+123
+123
+qwer
+qwer
+ INFO 2018-08-30T15:45:35Z: websocat::sessionserve: Forward finished
+ INFO 2018-08-30T15:45:35Z: websocat::sessionserve: Forward shutdown finished
+ INFO 2018-08-30T15:45:35Z: websocat::sessionserve: Reverse finished
+ INFO 2018-08-30T15:45:35Z: websocat::sessionserve: Reverse shutdown finished
+ INFO 2018-08-30T15:45:35Z: websocat::sessionserve: Finished
+ INFO 2018-08-30T15:45:35Z: websocat::stdio_peer: Restoring blocking status for stdin
+ INFO 2018-08-30T15:45:35Z: websocat::stdio_peer: Restoring blocking status for stdin
+```
+
+
+
+# Proxy servers
 
 ## Connect to a WebSocket using a SOCKS5 proxy
 
@@ -45,3 +96,4 @@ Roundtrip using SOCKS server
  INFO 2018-08-29T22:04:47Z: websocat::stdio_peer: Restoring blocking status for stdin
  INFO 2018-08-29T22:04:47Z: websocat::stdio_peer: Restoring blocking status for stdin
 ```
+
