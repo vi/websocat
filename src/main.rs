@@ -538,17 +538,39 @@ fn run() -> Result<()> {
             // Easy mode
             recommend_explicit_text_or_bin = false;
             if cmd.server_mode {
+                #[allow(unused)]
+                let mut secure = false;
+                #[cfg(feature="ssl")] {
+                    if opts.pkcs12_der.is_some() {
+                        secure = true;
+                    }
+                }
+                
                 opts.exit_on_eof = true;
-                if cmds1.contains(':') {
-                    if !quiet {
-                        eprintln!("Listening on ws://{}/", cmds1);
+                if !secure {
+                    if cmds1.contains(':') {
+                        if !quiet {
+                            eprintln!("Listening on ws://{}/", cmds1);
+                        }
+                        (format!("ws-l:{}", cmds1), "-".to_string())
+                    } else {
+                        if !quiet {
+                            eprintln!("Listening on ws://127.0.0.1:{}/", cmds1);
+                        }
+                        (format!("ws-l:127.0.0.1:{}", cmds1), "-".to_string())
                     }
-                    (format!("ws-l:{}", cmds1), "-".to_string())
                 } else {
-                    if !quiet {
-                        eprintln!("Listening on ws://127.0.0.1:{}/", cmds1);
+                    if cmds1.contains(':') {
+                        if !quiet {
+                            eprintln!("Listening on wss://{}/", cmds1);
+                        }
+                        (format!("wss-l:{}", cmds1), "-".to_string())
+                    } else {
+                        if !quiet {
+                            eprintln!("Listening on wss://127.0.0.1:{}/", cmds1);
+                        }
+                        (format!("wss-l:127.0.0.1:{}", cmds1), "-".to_string())
                     }
-                    (format!("ws-l:127.0.0.1:{}", cmds1), "-".to_string())
                 }
             } else {
                 if !(cmds1.starts_with("ws://") || cmds1.starts_with("wss://")) {
