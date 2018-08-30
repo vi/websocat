@@ -44,7 +44,7 @@ impl<T: Specifier> Specifier for TlsConnect<T> {
 specifier_class!(
     name = TlsConnectClass,
     target = TlsConnect,
-    prefixes = ["ssl-c","ssl:","tls:","ssl-connect:","tls-connect:","c-ssl:","connect-ssl:","c-tls:","connect-tls:"],
+    prefixes = ["ssl-connect:","ssl-c","ssl:","tls:","tls-connect:","c-ssl:","connect-ssl:","c-tls:","connect-tls:"],
     arg_handling = subspec,
     overlay = true,
     StreamOriented,
@@ -73,7 +73,7 @@ impl<T: Specifier> Specifier for TlsAccept<T> {
 specifier_class!(
     name = TlsAcceptClass,
     target = TlsAccept,
-    prefixes = ["ssl-a:","tls-a:","ssl-accept:","tls-accept:","a-ssl:","accept-ssl:","accept-tls:","accept-tls:"],
+    prefixes = ["ssl-accept:","ssl-a:","tls-a:","tls-accept:","a-ssl:","accept-ssl:","accept-tls:","accept-tls:"],
     arg_handling = subspec,
     overlay = true,
     StreamOriented,
@@ -103,7 +103,7 @@ Example: Non-websocket SSL echo server
 
 specifier_alias!(
     name = WssListenClass,
-    prefixes = ["wss-l:","l-wss:","wss-listen:","wss-listen:"],
+    prefixes = ["wss-listen:", "wss-l:","l-wss:","wss-listen:"],
     alias = "ws-u:tls-accept:tcp-l:",
     help = r#"
 Listen for secure WebSocket conections on a TCP port
