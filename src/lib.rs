@@ -166,6 +166,9 @@ pub mod reconnect_peer;
 pub mod proxy_peer;
 #[cfg(feature = "ssl")]
 pub mod ssl_peer;
+#[cfg(feature = "plugins")]
+pub mod plugin_peer;
+
 
 pub mod specparse;
 

@@ -1,7 +1,12 @@
 
 /* 
- * C interface for writing custom specifiers (overlays or address types) for Websocat
- * Currently it although supports only endpoints (not overlays) and only sync mode.
+ * C interface intended for writing custom specifiers (overlays or address types) for Websocat.
+ * 
+ * Currently it supports only endpoints (not overlays), only sync mode,
+ * and only "connecting" (not listening and spawning new connections) although.
+ * 
+ * All functions related to one endpoint are called from one thread,
+ * not the same as websocat's main thread. Multiple parallel connections = multiple threads.
  */
 
 #ifndef WEBSOCAT_PLUGIN_H
@@ -14,6 +19,8 @@
 #include <stddef.h>
 
 /// Bumped only on incompatible changes
+/// Support of version 0 is going to be dropped if/when version 1 happens.
+/// But version 1 may still be supported if/when version 2 comes.
 #define WEBSOCAT_API_VERSION 0
 
 /// Must just return WEBSOCAT_API_VERSION

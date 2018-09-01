@@ -91,5 +91,8 @@ macro_rules! list_of_all_specifier_classes {
 
         $your_macro!($crate::proxy_peer::SocksProxyClass);
         $your_macro!($crate::proxy_peer::SocksBindClass);
+        
+        #[cfg(feature = "plugins")]
+        $your_macro!($crate::plugin_peer::PluginConnectClass);
     };
 }
