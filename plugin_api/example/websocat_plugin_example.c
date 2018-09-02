@@ -15,6 +15,7 @@ WEBSOCAT_EXPORT void* websocat_create_regular_sync(const char* restcmdline)
 }
 WEBSOCAT_EXPORT void websocat_destroy_regular_sync(void* endpoint)
 {
+    fprintf(stderr, "websocat_destroy_regular_sync\n");
     assert(endpoint == NULL);
 }
 

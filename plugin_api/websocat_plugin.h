@@ -36,16 +36,21 @@ WEBSOCAT_EXPORT void websocat_destroy_regular_sync(void* endpoint);
 
 
 /// Websocat requests data to be read from your endpoint.
-/// Should block if no data available.
+/// Should block if no data is available.
 /// Return 0 may mean EOF, otherwise return number of bytes you placed in the buffer.
 /// There is no error reporting mechanism.
+/// Return value is number of bytes actually processed from the buffer.
 WEBSOCAT_EXPORT size_t websocat_sync_read (void* endpoint, void* buf, size_t buflen);
 
 /// Websocat requests data to be written to your endpoint
 /// Should block if congested
 /// Don't return 0, return size of processed data.
-/// There is no proper error reporting mechanism.
-WEBSOCAT_EXPORT size_t websocat_sync_write(void* endpoint, const void* buf, size_t buflen);
+/// There is no proper error reporting mechanism
+/// Return value is number of bytes used from the buffer.
+/// If it is less than `len`, then websocat_sync_write will likely be repeated soon.
+/// It is not recommended to return little values, as data is moved around in memory 
+/// each write.
+WEBSOCAT_EXPORT size_t websocat_sync_write(void* endpoint, const void* buf, size_t len);
 
 
 

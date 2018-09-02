@@ -12,6 +12,8 @@ use ::std::cell::{RefCell};
 use ::std::io::{Read, Write};
 use ::tokio_io::{AsyncRead, AsyncWrite};
 
+use ::std::sync::{Arc};
+
 use super::util::{wouldblock,simple_err,peer_err};
 
 use super::{Result,Peer};
@@ -24,7 +26,7 @@ use self::futures::{Poll,Async};
 
 use ::std::rc::Rc;
 use ::{Specifier,ConstructParams,PeerConstructor,BoxedNewPeerFuture,once};
-
+use ::std::cell::UnsafeCell;
 
 
 // bindgen --whitelist-var 'WEBSOCAT_.*' --whitelist-type 'websocat_.*'  plugin_api/websocat_plugin_ptr.h > src/plugin_api.rs
@@ -71,26 +73,36 @@ pub fn plugin_connect_peer(arg: &str) -> BoxedNewPeerFuture {
     let (read_result,r_read) = channel(0);
     let (write_result,r_write) = channel(0);
     
+    let read_buffer  = Arc::new(UnsafeCell::new(Vec::with_capacity(1024))); 
+    let write_buffer = Arc::new(UnsafeCell::new(Vec::with_capacity(1024))); 
+    
+    
     let t = PluginThread {
         lib,
         requests,
         read_result,
         write_result,
+        read_buffer: read_buffer.clone(),
+        write_buffer: write_buffer.clone(),
     };
     
     let _ = ::std::thread::spawn(move || {
         if let Err(e) = t.run() {
             error!("plugin error: {}", e);
+        } else {
+            info!("plugin thread finished");
         }
     });
     
     let pr = PluginRead {
         request: Some(SenderState::Idle(s_requests.clone())),
         read_result: r_read,
+        read_buffer,
     };
     let pw = PluginWrite {
         request: Some(SenderState::Idle(s_requests)),
         write_result: r_write,
+        write_buffer,
     };
 
     Box::new(ok(Peer::new(pr,pw)))
@@ -99,25 +111,24 @@ pub fn plugin_connect_peer(arg: &str) -> BoxedNewPeerFuture {
 
 #[derive(Debug)]
 enum ToSyncPlugin {
-    Read (*mut   u8,usize),
-    Write(*const u8,usize),
+    Read (usize),
+    Write(usize),
 }
 
 
-/// Assumptions:
-///
-/// * Once read or write has been issued and threw WouldBlock,
-///     buffer remains available and another read or write must be
-///     called with the same buffer later
-///
-/// FIXME: shutdown handling
-unsafe impl Send for ToSyncPlugin {}
+
+/// I'm not sure what to write here
+/// TODO
+unsafe impl Send for PluginThread{}
 
 struct PluginThread {
     lib: Library,
     requests : Receiver<ToSyncPlugin>,
     read_result: Sender<usize>,
     write_result: Sender<usize>,
+    
+    read_buffer: Arc<UnsafeCell<Vec<u8>>>,
+    write_buffer: Arc<UnsafeCell<Vec<u8>>>,
 }
 
 
@@ -130,10 +141,12 @@ enum SenderState<T> {
 struct PluginRead {
     request : Option<SenderState<ToSyncPlugin>>,
     read_result: Receiver<usize>,
+    read_buffer: Arc<UnsafeCell<Vec<u8>>>,
 }
 struct PluginWrite {
     request : Option<SenderState<ToSyncPlugin>>,
     write_result: Receiver<usize>,
+    write_buffer: Arc<UnsafeCell<Vec<u8>>>,
 }
 
 
@@ -176,13 +189,16 @@ impl PluginThread {
         while let Some(Ok(rq)) = requests.next() {
             debug!("request: {:?}", rq);
             match rq {
-                ToSyncPlugin::Read(buf,len) => {
-                    let buf = buf as *mut c_void;
+                ToSyncPlugin::Read(len) => {
+                    let buf = unsafe{&mut *self.read_buffer.get()};
+                    buf.reserve(len);
+                    unsafe{buf.set_len(len)};
+                    let buf = buf.as_mut_ptr() as *mut c_void;
                     let ret = unsafe{websocat_sync_read(endpoint, buf, len)};
                     if read_ret.try_send(ret).is_err() { break };
                 },
-                ToSyncPlugin::Write(buf,len) => {
-                    let buf = buf as *const c_void;
+                ToSyncPlugin::Write(len) => {
+                    let buf = unsafe{&mut *self.write_buffer.get()}.as_mut_ptr() as *mut c_void;
                     let ret = unsafe{websocat_sync_write(endpoint, buf, len)};
                     if write_ret.try_send(ret).is_err() { break };
                 },
@@ -196,7 +212,7 @@ impl PluginThread {
 }
 
 macro_rules! read_or_write {
-    ($self:expr, $typ:expr, $rr:expr, $cmd:expr) => {{
+    ($self:expr, $typ:expr, $rr:expr, $cmd:expr, pre=$pre:block, post($l:ident)=$post:block) => {{
         use self::SenderState::{Idle,InProgress,RequestSent};
         
         trace!($typ);
@@ -211,6 +227,7 @@ macro_rules! read_or_write {
                     match ss.poll() {
                         Ok(Async::Ready(s)) => {
                             trace!(concat!($typ," InProgress Ready"));
+                            $pre;
                             $self.request = Some(RequestSent(s));
                         },
                         Ok(Async::NotReady) => {
@@ -229,10 +246,11 @@ macro_rules! read_or_write {
                     // simulating Future::and_then manually
                     
                     match $rr.poll() {
-                        Ok(Async::Ready(Some(ret))) => {
+                        Ok(Async::Ready(Some($l))) => {
                             trace!(concat!($typ," RequestSent Ready(Some)"));
                             $self.request = Some(Idle(s));
-                            return Ok(ret);
+                            $post;
+                            return Ok($l);
                         }
                         Ok(Async::NotReady) => {
                             trace!(concat!($typ," RequestSent NotReady"));
@@ -262,7 +280,16 @@ impl Read for PluginRead {
             self,
             "read", 
             self.read_result,
-            ToSyncPlugin::Read(buf.as_mut_ptr(),buf.len())
+            ToSyncPlugin::Read(buf.len()),
+            pre={},
+            post(l)={
+                let b = unsafe{&mut *self.read_buffer.get()};
+                if buf.len() < l {
+                    error!("Buffer suddenly shrunk");
+                }
+                let minlen = buf.len().min(l);
+                buf[0..minlen].copy_from_slice(&b[0..minlen]);
+            }
         )
     }
 }
@@ -276,7 +303,13 @@ impl Write for PluginWrite {
             self,
             "write", 
             self.write_result,
-            ToSyncPlugin::Write(buf.as_ptr(),buf.len())
+            ToSyncPlugin::Write(buf.len()),
+            pre={
+                let b = unsafe{&mut *self.write_buffer.get()};
+                b.clear();
+                b.extend_from_slice(buf);
+            },
+            post(l)={}
         )
     }
     fn flush(&mut self) -> ::std::result::Result<(), ::std::io::Error> {
