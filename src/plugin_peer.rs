@@ -173,13 +173,13 @@ impl PluginThread {
             Err("Plugin API version mismatch")?;
         }
         
-        initsym!(websocat_create_regular_sync);
-        initsym!(websocat_destroy_regular_sync);
-        initsym!(websocat_sync_read);
-        initsym!(websocat_sync_write);
+        initsym!(websocat_create_connection);
+        initsym!(websocat_destroy_connection);
+        initsym!(websocat_read);
+        initsym!(websocat_write);
         
         let arg = CStr::from_bytes_with_nul(b"qwerty\0").unwrap();
-        let endpoint = unsafe{websocat_create_regular_sync(arg.as_ptr())};
+        let endpoint = unsafe{websocat_create_connection(arg.as_ptr())};
         
         let requests : Receiver<ToSyncPlugin> = self.requests;
         let mut read_ret:  Sender<usize>   = self.read_result;
@@ -194,18 +194,24 @@ impl PluginThread {
                     buf.reserve(len);
                     unsafe{buf.set_len(len)};
                     let buf = buf.as_mut_ptr() as *mut c_void;
-                    let ret = unsafe{websocat_sync_read(endpoint, buf, len)};
-                    if read_ret.try_send(ret).is_err() { break };
+                    let ret = unsafe{websocat_read(endpoint, buf, len as u32)};
+                    if (ret<0) {
+                        unimplemented!();
+                    }
+                    if read_ret.try_send(ret as usize).is_err() { break };
                 },
                 ToSyncPlugin::Write(len) => {
                     let buf = unsafe{&mut *self.write_buffer.get()}.as_mut_ptr() as *mut c_void;
-                    let ret = unsafe{websocat_sync_write(endpoint, buf, len)};
-                    if write_ret.try_send(ret).is_err() { break };
+                    let ret = unsafe{websocat_write(endpoint, buf, len as u32)};
+                    if (ret<=0) {
+                        unimplemented!();
+                    }
+                    if write_ret.try_send(ret as usize).is_err() { break };
                 },
             };
         };
         
-        unsafe{websocat_destroy_regular_sync(endpoint)};
+        unsafe{websocat_destroy_connection(endpoint)};
         
         Ok(())
     }

@@ -6,20 +6,20 @@
 // Simulate `yes` tool, outputting "y\n" repeatedly.
 
 
-WEBSOCAT_EXPORT int websocat_api_version() { return WEBSOCAT_API_VERSION; }
+WEBSOCAT_EXPORT uint32_t websocat_api_version() { return WEBSOCAT_API_VERSION; }
 
-WEBSOCAT_EXPORT void* websocat_create_regular_sync(const char* restcmdline)
+WEBSOCAT_EXPORT void* websocat_create_connection(const char* restcmdline)
 {
-    fprintf(stderr, "websocat_create_regular_sync restcmdline=%s\n", restcmdline);
+    fprintf(stderr, "websocat_create_connection restcmdline=%s\n", restcmdline);
     return NULL;
 }
-WEBSOCAT_EXPORT void websocat_destroy_regular_sync(void* endpoint)
+WEBSOCAT_EXPORT void websocat_destroy_connection(void* endpoint)
 {
-    fprintf(stderr, "websocat_destroy_regular_sync\n");
+    fprintf(stderr, "websocat_create_connection\n");
     assert(endpoint == NULL);
 }
 
-WEBSOCAT_EXPORT size_t websocat_sync_read (void* endpoint, void* buf, size_t buflen)
+WEBSOCAT_EXPORT int32_t websocat_read (void* endpoint, void* buf, uint32_t buflen)
 {
     assert(endpoint == NULL);
     assert(buflen >= 2);
@@ -29,7 +29,7 @@ WEBSOCAT_EXPORT size_t websocat_sync_read (void* endpoint, void* buf, size_t buf
     return 2;
 }
 
-WEBSOCAT_EXPORT size_t websocat_sync_write(void* endpoint, const void* buf, size_t buflen)
+WEBSOCAT_EXPORT int32_t websocat_write(void* endpoint, const void* buf, uint32_t buflen)
 {
     assert(endpoint == NULL);
     // Ignore everything
