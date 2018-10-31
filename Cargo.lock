@@ -798,7 +798,6 @@ dependencies = [
 [[package]]
 name = "tokio-core"
 version = "0.1.17"
-source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
  "bytes 0.4.10 (registry+https://github.com/rust-lang/crates.io-index)",
  "futures 0.1.25 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -812,6 +811,12 @@ dependencies = [
  "tokio-reactor 0.1.6 (registry+https://github.com/rust-lang/crates.io-index)",
  "tokio-timer 0.2.7 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
+
+[[package]]
+name = "tokio-core"
+version = "0.1.17"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+replace = "tokio-core 0.1.17"
 
 [[package]]
 name = "tokio-current-thread"
