@@ -583,12 +583,12 @@ impl fmt::Debug for Handle {
 }
 
 struct MyNotify {
-    unpark: tokio_reactor::Handle,
+    unpark: ::tokio_reactor::Handle,
     notified: AtomicBool,
 }
 
 impl MyNotify {
-    fn new(unpark: tokio_reactor::Handle) -> Self {
+    fn new(unpark: ::tokio_reactor::Handle) -> Self {
         MyNotify {
             unpark,
             notified: AtomicBool::new(true),
