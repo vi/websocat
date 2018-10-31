@@ -3,7 +3,7 @@ os:
   - osx
 language: rust
 rust:
-  - 1.23.0
+  - 1.28.0
 script:
   - cargo build --no-default-features --verbose --all
   - cargo test --no-default-features --verbose --all
