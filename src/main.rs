@@ -321,6 +321,15 @@ struct Opt {
         parse(try_from_os_str = "websocat::ssl_peer::interpret_pkcs12"),
     )]
     pkcs12_der: Option<Vec<u8>>,
+
+
+    #[cfg(feature = "ssl")]
+    #[structopt(
+        long = "insecure",
+        short= "k",
+        help = "Accept invalid ceritificates and hostnames while connecting to TLS",
+    )]
+    tls_insecure: bool,
 }
 
 // TODO: make it byte-oriented/OsStr?
@@ -515,6 +524,7 @@ fn run() -> Result<()> {
         #[cfg(feature = "ssl")] {
             opts! {
                 pkcs12_der
+                tls_insecure
             }
         }
     };

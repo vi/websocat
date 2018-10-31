@@ -13,7 +13,7 @@ use std::rc::Rc;
 
 use self::websocket::client::Url;
 
-use super::{box_up_err, peer_err, BoxedNewPeerFuture, Peer};
+use super::{box_up_err, peer_err, peer_strerr, BoxedNewPeerFuture, Peer, Result};
 
 use super::ws_peer::{Mode1, PeerForWs, WsReadWrapper, WsWriteWrapper};
 use super::{once, ConstructParams, Options, PeerConstructor, Specifier};
@@ -139,7 +139,7 @@ Example: connect to echo server, observing WebSocket TCP packet exchange
 fn get_ws_client_peer_impl<S, F>(uri: &Url, opts: Rc<Options>, f: F) -> BoxedNewPeerFuture
 where
     S: WsStream + Send + 'static,
-    F: FnOnce(ClientBuilder) -> ClientNew<S>,
+    F: FnOnce(ClientBuilder) -> Result<ClientNew<S>>,
 {
     let mode1 = if opts.websocket_text_mode {
         Mode1::Text
@@ -172,7 +172,10 @@ where
     } else {
         stage4
     };
-    let after_connect = f(stage5);
+    let after_connect = match f(stage5) {
+        Ok(x) => x,
+        Err(_) => return peer_strerr("Failed to make TLS connector"),
+    };
     Box::new(
         after_connect
             .map(move |(duplex, _)| {
@@ -194,12 +197,25 @@ where
 
 pub fn get_ws_client_peer(handle: &Handle, uri: &Url, opts: Rc<Options>) -> BoxedNewPeerFuture {
     info!("get_ws_client_peer");
+
+    let tls_insecure = opts.tls_insecure;
     get_ws_client_peer_impl(uri, opts, |before_connect| {
         #[cfg(feature = "ssl")]
-        let after_connect = before_connect.async_connect(None, handle);
+        let after_connect = {
+            let mut tls_opts = None;
+            if tls_insecure {
+                tls_opts = Some(
+                    super::ssl_peer::native_tls::TlsConnector::builder()
+                        .danger_accept_invalid_certs(true)
+                        .danger_accept_invalid_hostnames(true)
+                        .build()?
+                );
+            };
+            before_connect.async_connect(tls_opts, handle)
+        };
         #[cfg(not(feature = "ssl"))]
         let after_connect = before_connect.async_connect_insecure(handle);
-        after_connect
+        Ok(after_connect)
     })
 }
 
@@ -210,6 +226,6 @@ unsafe impl Send for PeerForWs {
 pub fn get_ws_client_peer_wrapped(uri: &Url, inner: Peer, opts: Rc<Options>) -> BoxedNewPeerFuture {
     info!("get_ws_client_peer_wrapped");
     get_ws_client_peer_impl(uri, opts, |before_connect| {
-        before_connect.async_connect_on(PeerForWs(inner))
+        Ok(before_connect.async_connect_on(PeerForWs(inner)))
     })
 }

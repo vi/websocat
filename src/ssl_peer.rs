@@ -5,7 +5,7 @@ use std::rc::Rc;
 use super::{box_up_err, peer_err, BoxedNewPeerFuture, Peer};
 use super::{ConstructParams, L2rUser, PeerConstructor, Specifier, Options};
 
-extern crate native_tls;
+pub extern crate native_tls;
 extern crate readwrite;
 extern crate tokio_tls;
 
@@ -36,7 +36,12 @@ pub struct TlsConnect<T: Specifier>(pub T);
 impl<T: Specifier> Specifier for TlsConnect<T> {
     fn construct(&self, cp: ConstructParams) -> PeerConstructor {
         let inner = self.0.construct(cp.clone());
-        inner.map(move |p, l2r| ssl_connect(p, l2r, cp.program_options.tls_domain.clone()))
+        inner.map(move |p, l2r| ssl_connect(
+            p,
+            l2r,
+            cp.program_options.tls_domain.clone(),
+            cp.program_options.tls_insecure,
+        ))
     }
     specifier_boilerplate!(noglobalstate has_subspec);
     self_0_is_subspecifier!(proxy_is_multiconnect);
@@ -120,15 +125,23 @@ See [moreexamples.md](./moreexamples.md) for info about generation of `q.pkcs12`
 
 use tokio_io::AsyncRead;
 
-pub fn ssl_connect(inner_peer: Peer, _l2r: L2rUser, dom: Option<String>) -> BoxedNewPeerFuture {
+pub fn ssl_connect(inner_peer: Peer, _l2r: L2rUser, dom: Option<String>, tls_insecure: bool) -> BoxedNewPeerFuture {
     let squashed_peer = readwrite::ReadWriteAsync::new(inner_peer.0, inner_peer.1);
 
-    fn gettlsc() -> native_tls::Result<TlsConnectorExt> {
-        let tlsc : TlsConnector = TlsConnector::builder().build()?;
+    fn gettlsc(nohost:bool,noverify:bool) -> native_tls::Result<TlsConnectorExt> {
+        let mut b = TlsConnector::builder();
+        if nohost {
+            b.danger_accept_invalid_hostnames(true);
+        }
+        if noverify {
+            b.danger_accept_invalid_hostnames(true);
+            b.danger_accept_invalid_certs(true);
+        }
+        let tlsc : TlsConnector = b.build()?;
         Ok(TlsConnectorExt::from(tlsc))
     }
 
-    let tls = match gettlsc() {
+    let tls = match gettlsc(dom.is_none(), tls_insecure) {
         Ok(x) => x,
         Err(e) => return peer_err(e),
     };
