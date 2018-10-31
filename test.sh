@@ -1,5 +1,10 @@
 #!/bin/bash
 
+if [ "$TRAVIS_OS_NAME" = "osx" ]; then
+    echo "Not supported on Mac";
+    exit 0
+fi
+
 set -ex
 
 PATH=target/debug:$PATH
