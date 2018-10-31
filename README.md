@@ -89,7 +89,7 @@ There are multiple options for installing WebSocat. From easy to hard:
 ## Usage
 
 ```
-websocat 1.1.0
+websocat 1.2.0
 Vitaly "_Vi" Shukela <vi0oss@gmail.com>
 Command-line client for web sockets, like netcat/curl/socat for ws://.
 
@@ -115,6 +115,7 @@ FLAGS:
     -s, --server-mode                           Simple server mode: specify TCP port or addr:port as single argument
     -S, --strict                                strict line/message mode: drop too long messages instead of splitting
                                                 them, drop incomplete lines.
+    -k, --insecure                              Accept invalid ceritificates and hostnames while connecting to TLS
     -u, --unidirectional                        Inhibit copying data in one direction
     -U, --unidirectional-reverse                Inhibit copying data in the other direction (or maybe in both directions
                                                 if combined with -u)
@@ -208,7 +209,7 @@ Pre-built binaries for Linux (usual and musl), Windows, OS X and Android (ARM) a
 Limitations
 ---
 
-* Current version of Websocat don't receive notification about closed sockets. This makes serving without `-E` or `-u` options or in backpressure scenarious prone to socket leak.
+* Current version of Websocat don't receive notification about closed sockets. This makes serving without `-E` or `-u` options or in backpressure scenarios prone to socket leak.
 
 Building from source code
 ---
@@ -224,6 +225,8 @@ SSL on Android
 websocat's `wss://` may fail on Android. As a workaround, download certificate bundle, for example, from https://curl.haxx.se/ca/cacert.pem and specify it explicitly:
 
     SSL_CERT_FILE=cacert.pem /data/local/tmp/websocat wss://echo.websocket.org
+
+Or just use `--insecure` option.
 
 Reference
 ---

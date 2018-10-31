@@ -29,7 +29,7 @@ Some address types may be "aliases" to other address types or combinations of ov
 
 ```
 
-websocat 1.1.0
+websocat 1.2.0
 Vitaly "_Vi" Shukela <vi0oss@gmail.com>
 Command-line client for web sockets, like netcat/curl/socat for ws://.
 
@@ -68,6 +68,7 @@ FLAGS:
     -s, --server-mode                           Simple server mode: specify TCP port or addr:port as single argument
     -S, --strict                                strict line/message mode: drop too long messages instead of splitting
                                                 them, drop incomplete lines.
+    -k, --insecure                              Accept invalid ceritificates and hostnames while connecting to TLS
         --udp-oneshot                           [A] udp-listen: replies only one packet per client
     -u, --unidirectional                        Inhibit copying data in one direction
     -U, --unidirectional-reverse                Inhibit copying data in the other direction (or maybe in both directions
@@ -120,7 +121,7 @@ OPTIONS:
 
         --socks5-destination <socks_destination>     [A] Examples: 1.2.3.4:5678  2600:::80  hostname:5678
         --tls-domain <tls_domain>
-            Specify domain for SNI or certificate verification when using tls-connect: overlay
+            [A] Specify domain for SNI or certificate verification when using tls-connect: overlay
 
         --protocol <websocket_protocol>              Specify Sec-WebSocket-Protocol: header
         --websocket-version <websocket_version>      Override the Sec-WebSocket-Version value
@@ -219,20 +220,6 @@ Internal name for --dump-spec: WsAbstractUnixServer
 WebSocket abstract-namespaced UNIX socket server. [A]
 
 
-### `ssl-listen:`
-
-Aliases: `ssl-l:`, `tls-l:`, `tls-listen:`, `l-ssl:`, `listen-ssl:`, `listen-tls:`, `listen-tls:`  
-Internal name for --dump-spec: TlsListen
-
-
-Listen for SSL conections on a TCP port
-
-Example: Non-websocket SSL echo server
-
-    websocat -E -b --pkcs12-der=q.pkcs12 ssl-listen:127.0.0.1:1234 mirror:
-    socat - ssl:127.0.0.1:1234,verify=0
-
-
 ### `wss-listen:`
 
 Aliases: `wss-l:`, `l-wss:`, `wss-listen:`  
@@ -317,6 +304,20 @@ Example: echo server
 Example: redirect TCP to a websocket
 
     websocat tcp-l:0.0.0.0:8088 ws://echo.websocket.org
+
+
+### `ssl-listen:`
+
+Aliases: `ssl-l:`, `tls-l:`, `tls-listen:`, `l-ssl:`, `listen-ssl:`, `listen-tls:`, `listen-tls:`  
+Internal name for --dump-spec: TlsListen
+
+
+Listen for SSL conections on a TCP port
+
+Example: Non-websocket SSL echo server
+
+    websocat -E -b --pkcs12-der=q.pkcs12 ssl-listen:127.0.0.1:1234 mirror:
+    socat - ssl:127.0.0.1:1234,verify=0
 
 
 ### `sh-c:`
