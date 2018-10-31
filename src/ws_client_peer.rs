@@ -198,6 +198,7 @@ where
 pub fn get_ws_client_peer(handle: &Handle, uri: &Url, opts: Rc<Options>) -> BoxedNewPeerFuture {
     info!("get_ws_client_peer");
 
+    #[allow(unused)]
     let tls_insecure = opts.tls_insecure;
     get_ws_client_peer_impl(uri, opts, |before_connect| {
         #[cfg(feature = "ssl")]
