@@ -10,12 +10,14 @@ use std::io;
 use std::rc::{Rc, Weak};
 use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, AtomicBool, ATOMIC_USIZE_INIT, Ordering};
-use std::time::{Duration};
+use std::time::{Instant, Duration};
 
 use tokio;
-use tokio::executor::current_thread::{TaskExecutor};
+use tokio::executor::current_thread::{CurrentThread, TaskExecutor};
+use tokio_executor;
 use tokio_executor::park::{Park, Unpark, ParkThread, UnparkThread};
 use tokio_timer::timer::{self, Timer};
+use tokio_reactor::Reactor;
 
 use futures::{Future, IntoFuture, Async};
 use futures::future::{self, Executor, ExecuteError};
@@ -49,8 +51,16 @@ pub struct Core {
     /// Handle to the Tokio runtime
     rt: tokio::runtime::current_thread::Runtime,
 
+    /// Executes tasks
+    executor: RefCell<CurrentThread<Timer<Reactor>>>,
+
     /// Timer handle
     timer_handle: timer::Handle,
+    
+    reactor_handle: tokio::reactor::Handle,
+
+    /// Wakes up the thread when the `run` future is notified
+    notify_future: Arc<MyNotify>,
 
     /// Wakes up the thread when a message is posted to `rx`
     notify_rx: Arc<MyNotify>,
@@ -60,8 +70,6 @@ pub struct Core {
 
     /// Receive messages
     rx: RefCell<Spawn<mpsc::UnboundedReceiver<Message>>>,
-
-    reactor_handle: ::tokio::reactor::Handle,
 
     // Shared inner state
     inner: Rc<RefCell<Inner>>,
@@ -91,17 +99,16 @@ pub struct Remote {
     id: usize,
     tx: mpsc::UnboundedSender<Message>,
     new_handle: tokio::reactor::Handle,
-    //spawner_handle: tokio::executor::current_thread::Handle,
     timer_handle: timer::Handle,
 }
 
-/// A non-sendable handle to an event loop, useful for manufacturing instances
-/// of `LoopData`.
+/// A non-sendable handle to an event loop, typically passed into functions that
+/// create I/O objects to bind them to this event loop.
 #[derive(Clone)]
 pub struct Handle {
     remote: Remote,
     inner: Weak<RefCell<Inner>>,
-    //thread_pool: ::tokio::runtime::current_thread::TaskExecutor,
+    thread_pool: ::tokio::runtime::current_thread::Handle,
 }
 
 enum Message {
@@ -114,16 +121,24 @@ impl Core {
     /// Creates a new event loop, returning any error that happened during the
     /// creation.
     pub fn new() -> io::Result<Core> {
+        let reactor = Reactor::new()?;
+
+        let reactor_handle = reactor.handle();
+
         // Create a new parker
-        let timer = Timer::new(ParkThread::new());
+        let timer = Timer::new(reactor);
 
         // Create notifiers
+        let notify_future = Arc::new(MyNotify::new(timer.unpark()));
         let notify_rx = Arc::new(MyNotify::new(timer.unpark()));
 
         // New Tokio reactor + threadpool
-        let mut rt = tokio::runtime::current_thread::Runtime::new()?;
+        let rt = tokio::runtime::current_thread::Runtime::new()?;
 
         let timer_handle = timer.handle();
+
+        // Executor to run !Send futures
+        let executor = RefCell::new(CurrentThread::new_with_park(timer));
 
         // Used to send messages across threads
         let (tx, rx) = mpsc::unbounded();
@@ -133,23 +148,19 @@ impl Core {
 
         let id = NEXT_LOOP_ID.fetch_add(1, Ordering::Relaxed);
 
-        let reactor_handle : ::tokio::reactor::Handle = rt.block_on(::tokio::prelude::future::lazy(||{
-            ::tokio::prelude::future::ok(
-                ::tokio::reactor::Handle::current()
-            )
-        })).map_err(|_:()|()).unwrap();
-
         Ok(Core {
             id,
             rt,
+            notify_future,
             notify_rx,
             tx,
             rx,
+            executor,
             timer_handle,
+            reactor_handle,
             inner: Rc::new(RefCell::new(Inner {
                 pending_spawn: vec![],
             })),
-            reactor_handle,
         })
     }
 
@@ -163,7 +174,7 @@ impl Core {
         Handle {
             remote: self.remote(),
             inner: Rc::downgrade(&self.inner),
-            //thread_pool: self.rt.executor().clone(),
+            thread_pool: self.rt.handle(),
         }
     }
 
@@ -181,7 +192,6 @@ impl Core {
             id: self.id,
             tx: self.tx.clone(),
             new_handle: self.reactor_handle.clone(),
-            //spawner_handle: ::tokio::executor::current_thread::Handle
             timer_handle: self.timer_handle.clone()
         }
     }
@@ -197,7 +207,8 @@ impl Core {
     ///
     /// This function will return the value that the future resolves to once
     /// the future has finished. If the future never resolves then this function
-    /// will never return.
+    /// will never return. Any other futures spawned on this core may still be
+    /// incomplete when this function returns.
     ///
     /// # Panics
     ///
@@ -207,7 +218,44 @@ impl Core {
     pub fn run<F>(&mut self, f: F) -> Result<F::Item, F::Error>
         where F: Future,
     {
-        self.rt.block_on(f)
+        let mut task = executor::spawn(f);
+        let handle1 = self.reactor_handle.clone();
+        let handle2 = self.reactor_handle.clone();
+        let mut executor1 = ::tokio::runtime::current_thread::TaskExecutor::current();
+        let mut executor2 = ::tokio::runtime::current_thread::TaskExecutor::current();
+        let timer_handle = self.timer_handle.clone();
+
+        // Make sure the future will run at least once on enter
+        self.notify_future.notify(0);
+
+        loop {
+            if self.notify_future.take() {
+                let mut enter = tokio_executor::enter()
+                    .ok().expect("cannot recursively call into `Core`");
+
+                let notify = &self.notify_future;
+                let mut current_thread = self.executor.borrow_mut();
+
+                let res = try!(CURRENT_LOOP.set(self, || {
+                    ::tokio_reactor::with_default(&handle1, &mut enter, |enter| {
+                        tokio_executor::with_default(&mut executor1, enter, |enter| {
+                            timer::with_default(&timer_handle, enter, |enter| {
+                                current_thread.enter(enter)
+                                    .block_on(future::lazy(|| {
+                                        Ok::<_, ()>(task.poll_future_notify(notify, 0))
+                                    })).unwrap()
+                            })
+                        })
+                    })
+                }));
+
+                if let Async::Ready(e) = res {
+                    return Ok(e)
+                }
+            }
+
+            self.poll(None, &handle2, &mut executor2);
+        }
     }
 
     /// Performs one iteration of the event loop, blocking on waiting for events
@@ -216,10 +264,60 @@ impl Core {
     /// It only makes sense to call this method if you've previously spawned
     /// a future onto this event loop.
     ///
-    /// `loop { lp.turn(None) }` is equivalent to calling `run` with an
+    /// `loop { core.turn(None) }` is equivalent to calling `run` with an
     /// empty future (one that never finishes).
-    pub fn turn(&mut self, _max_wait: Option<Duration>) {
-        unimplemented!()
+    pub fn turn(&mut self, max_wait: Option<Duration>) {
+        let handle = self.reactor_handle.clone();
+        let mut executor = ::tokio::runtime::current_thread::TaskExecutor::current();
+        self.poll(max_wait, &handle, &mut executor);
+    }
+
+    fn poll(&mut self, max_wait: Option<Duration>,
+            handle: &tokio::reactor::Handle,
+            sender: &mut tokio::runtime::current_thread::TaskExecutor) {
+        let mut enter = tokio_executor::enter()
+            .ok().expect("cannot recursively call into `Core`");
+        let timer_handle = self.timer_handle.clone();
+
+        ::tokio_reactor::with_default(handle, &mut enter, |enter| {
+            tokio_executor::with_default(sender, enter, |enter| {
+                timer::with_default(&timer_handle, enter, |enter| {
+                    let start = Instant::now();
+
+                    // Process all the events that came in, dispatching appropriately
+                    if self.notify_rx.take() {
+                        CURRENT_LOOP.set(self, || self.consume_queue());
+                    }
+
+                    // Drain any futures pending spawn
+                    {
+                        let mut e = self.executor.borrow_mut();
+                        let mut i = self.inner.borrow_mut();
+
+                        for f in i.pending_spawn.drain(..) {
+                            // Little hack
+                            e.enter(enter).block_on(future::lazy(|| {
+                                TaskExecutor::current().spawn_local(f).unwrap();
+                                Ok::<_, ()>(())
+                            })).unwrap();
+                        }
+                    }
+
+                    CURRENT_LOOP.set(self, || {
+                        self.executor.borrow_mut()
+                            .enter(enter)
+                            .turn(max_wait)
+                            .ok().expect("error in `CurrentThread::turn`");
+                    });
+
+                    let after_poll = Instant::now();
+                    debug!("loop poll - {:?}", after_poll - start);
+                    debug!("loop time - {:?}", after_poll);
+
+                    debug!("loop process, {:?}", after_poll.elapsed());
+                })
+            });
+        });
     }
 
     fn consume_queue(&self) {
@@ -439,9 +537,7 @@ impl Handle {
     pub fn spawn_send<F>(&self, f: F)
         where F: Future<Item=(), Error=()> + Send + 'static,
     {
-        let _ = ::tokio::runtime::current_thread::TaskExecutor::current().spawn_local(
-            Box::new(f)
-        );
+        self.thread_pool.spawn(f);
     }
 
     /// Spawns a closure on this event loop.
@@ -487,12 +583,12 @@ impl fmt::Debug for Handle {
 }
 
 struct MyNotify {
-    unpark: UnparkThread,
+    unpark: tokio_reactor::Handle,
     notified: AtomicBool,
 }
 
 impl MyNotify {
-    fn new(unpark: UnparkThread) -> Self {
+    fn new(unpark: tokio_reactor::Handle) -> Self {
         MyNotify {
             unpark,
             notified: AtomicBool::new(true),

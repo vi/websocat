@@ -20,10 +20,7 @@ macro_rules! wt {
         let s2 = spec($s2).unwrap();
         let h2 = $core.handle();
 
-        let t = tokio_timer::wheel().build();
-        let delay = t
-            .sleep(std::time::Duration::new(0, $ms * 1_000_000))
-            .map_err(|_| ());
+        let delay = tokio_timer::Delay::new(std::time::Instant::now() + std::time::Duration::new(0, $ms * 1_000_000)).map_err(|_|());
 
         delay.and_then(|()| wt!(stage2, h2, s1, s2, $($rest)*) )
     }};
