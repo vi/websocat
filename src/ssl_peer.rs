@@ -9,8 +9,8 @@ extern crate native_tls;
 extern crate readwrite;
 extern crate tokio_tls;
 
-use self::native_tls::{TlsConnector,TlsAcceptor,Pkcs12};
-use self::tokio_tls::{TlsConnectorExt,TlsAcceptorExt};
+use self::native_tls::{TlsConnector,TlsAcceptor,Identity as Pkcs12};
+use self::tokio_tls::{TlsConnector as TlsConnectorExt,TlsAcceptor as TlsAcceptorExt};
 
 use ::std::ffi::{OsStr,OsString};
 
@@ -123,8 +123,9 @@ use tokio_io::AsyncRead;
 pub fn ssl_connect(inner_peer: Peer, _l2r: L2rUser, dom: Option<String>) -> BoxedNewPeerFuture {
     let squashed_peer = readwrite::ReadWriteAsync::new(inner_peer.0, inner_peer.1);
 
-    fn gettlsc() -> native_tls::Result<TlsConnector> {
-        Ok(TlsConnector::builder()?.build()?)
+    fn gettlsc() -> native_tls::Result<TlsConnectorExt> {
+        let tlsc : TlsConnector = TlsConnector::builder().build()?;
+        Ok(TlsConnectorExt::from(tlsc))
     }
 
     let tls = match gettlsc() {
@@ -135,7 +136,7 @@ pub fn ssl_connect(inner_peer: Peer, _l2r: L2rUser, dom: Option<String>) -> Boxe
     info!("Connecting to TLS");
     if let Some(dom) = dom {
         Box::new(
-            tls.connect_async(dom.as_str(), squashed_peer)
+            tls.connect(dom.as_str(), squashed_peer)
                 .map_err(box_up_err)
                 .and_then(move |tls_stream| {
                     info!("Connected to TLS");
@@ -144,7 +145,7 @@ pub fn ssl_connect(inner_peer: Peer, _l2r: L2rUser, dom: Option<String>) -> Boxe
                 }),
         )
     } else {
-        Box::new(tls.danger_connect_async_without_providing_domain_for_certificate_verification_and_server_name_indication(squashed_peer).map_err(box_up_err).and_then(move |tls_stream| {
+        Box::new(tls.connect("domainverificationdisabled", squashed_peer).map_err(box_up_err).and_then(move |tls_stream| {
             warn!("Connected to TLS without proper verification of certificate. Use --tls-domain option.");
             let (r,w) = tls_stream.split();
             ok(Peer::new(r,w))
@@ -157,9 +158,9 @@ pub fn ssl_connect(inner_peer: Peer, _l2r: L2rUser, dom: Option<String>) -> Boxe
 pub fn ssl_accept(inner_peer: Peer, _l2r: L2rUser, progopt:Rc<Options>) -> BoxedNewPeerFuture {
     let squashed_peer = readwrite::ReadWriteAsync::new(inner_peer.0, inner_peer.1);
 
-    fn gettlsa(cert:&[u8]) -> native_tls::Result<TlsAcceptor> {
-        let pkcs12  = Pkcs12::from_der(&cert[..], "")?;
-        Ok(TlsAcceptor::builder(pkcs12)?.build()?)
+    fn gettlsa(cert:&[u8]) -> native_tls::Result<TlsAcceptorExt> {
+        let pkcs12  = Pkcs12::from_pkcs12(&cert[..], "")?;
+        Ok(TlsAcceptorExt::from(TlsAcceptor::builder(pkcs12).build()?))
     }
     
     let der = progopt.pkcs12_der.as_ref()
@@ -171,7 +172,7 @@ pub fn ssl_accept(inner_peer: Peer, _l2r: L2rUser, progopt:Rc<Options>) -> Boxed
 
     info!("Accepting a TLS connection");
     Box::new(
-            tls.accept_async(squashed_peer)
+            tls.accept(squashed_peer)
                 .map_err(box_up_err)
                 .and_then(move |tls_stream| {
                     info!("Connected to TLS");
