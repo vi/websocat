@@ -1,6 +1,7 @@
 os:
   - linux
   - osx
+  - windows
 language: rust
 rust:
   - 1.28.0
