@@ -82,6 +82,7 @@ See [moreexamples.md](./moreexamples.md) for further examples.
 There are multiple options for installing WebSocat. From easy to hard:
 
 * If you're on Linux Debian or Ubuntu (or other dpkg-based), try downloading a pre-build deb package from [GitHub releases][releases] and install from GUI or with command like `gdebi websocat_..._.deb`
+* If you're on FreeBSD, you may install WebSocat with the following command: `pkg install websocat`
 * Download a pre-build executable and install it to PATH.
 * Install the [Rust toolchain](https://rustup.rs/) and do `cargo install --features=ssl websocat`. If something fails with a `-sys` crate, try without `--features=ssl`;
 * Build Websocat from source code (see below), then move `target/release/websocat` somewhere to the PATH.
