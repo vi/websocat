@@ -11,7 +11,7 @@ readme = "README.md"
 
 
 [dependencies]
-websocket = { version = "0.21.0", default-features = false, features=["async"] }
+websocket = { version = "0.22.0", default-features = false, features=["async"] }
 env_logger = {version="0.5.9", default-features = false }
 log = {version="0.4.1", default-features = false, features=["release_max_level_debug"]}
 futures = {version = "0.1.17" }
@@ -29,6 +29,7 @@ tokio-tls = {version = "0.2.0", optional = true}
 native-tls = {version = "0.2.1", optional = true}
 readwrite = {version = "0.1.1", optional = true, features = ["tokio"]}
 derivative="1.0.0"
+tokio-codec = "0.1.1"
 
 
 [target.'cfg(unix)'.dependencies]
@@ -49,7 +50,7 @@ seqpacket=["libc"]
 #"tokio-process:0.1.6" = {path="/mnt/src/git/tokio-process"}
 "tokio-core:0.1.17" = {path="tokio-core-singlethreaded"}
 #"tokio-core:0.1.17" = {path="/mnt/src/git/tokio-core"}
-#"websocket:0.20.4" = {path="/mnt/src/git/rust-websocket"}
+#"websocket:0.22.0" = {path="/mnt/src/git/rust-websocket"}
 
 
 [dev-dependencies]

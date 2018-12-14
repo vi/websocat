@@ -1,4 +1,5 @@
 extern crate websocket;
+extern crate tokio_codec;
 
 use self::websocket::stream::async::Stream as WsStream;
 use self::websocket::OwnedMessage;
@@ -22,12 +23,12 @@ use super::readdebt::{ProcessMessageResult, ReadDebt};
 type MultiProducerWsSink<T> = Rc<
     RefCell<
         futures::stream::SplitSink<
-            tokio_io::codec::Framed<T, websocket::async::MessageCodec<websocket::OwnedMessage>>,
+            (tokio_codec::Framed<T, websocket::async::MessageCodec<websocket::OwnedMessage>>),
         >,
     >,
 >;
 type WsSource<T> = futures::stream::SplitStream<
-    tokio_io::codec::Framed<T, websocket::async::MessageCodec<websocket::OwnedMessage>>,
+    tokio_codec::Framed<T, websocket::async::MessageCodec<websocket::OwnedMessage>>,
 >;
 
 pub struct WsReadWrapper<T: WsStream + 'static> {

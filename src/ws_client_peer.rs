@@ -195,7 +195,7 @@ where
     ) as BoxedNewPeerFuture
 }
 
-pub fn get_ws_client_peer(handle: &Handle, uri: &Url, opts: Rc<Options>) -> BoxedNewPeerFuture {
+pub fn get_ws_client_peer(_handle: &Handle, uri: &Url, opts: Rc<Options>) -> BoxedNewPeerFuture {
     info!("get_ws_client_peer");
 
     #[allow(unused)]
@@ -212,10 +212,10 @@ pub fn get_ws_client_peer(handle: &Handle, uri: &Url, opts: Rc<Options>) -> Boxe
                         .build()?
                 );
             };
-            before_connect.async_connect(tls_opts, handle)
+            before_connect.async_connect(tls_opts)
         };
         #[cfg(not(feature = "ssl"))]
-        let after_connect = before_connect.async_connect_insecure(handle);
+        let after_connect = before_connect.async_connect_insecure();
         Ok(after_connect)
     })
 }
