@@ -9,7 +9,7 @@ use futures::stream::Stream;
 use std;
 use std::io::Result as IoResult;
 use std::io::{Read, Write};
-use tokio_io::{self, AsyncRead, AsyncWrite};
+use tokio_io::{AsyncRead, AsyncWrite};
 
 use std::cell::RefCell;
 use std::rc::Rc;

@@ -9,6 +9,11 @@
 //! 5. `Peer` - an active connection. Once we have two of them, we can start a:
 //! 6. `Session` with two `Transfer`s - forward and reverse.
 
+
+#![allow(renamed_and_removed_lints)]
+#![allow(unknown_lints)]
+#![cfg_attr(feature = "cargo-clippy", allow(deprecated_cfg_attr))]
+
 extern crate futures;
 extern crate tokio_core;
 #[macro_use]

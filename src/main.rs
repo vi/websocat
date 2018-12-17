@@ -1,3 +1,7 @@
+#![allow(renamed_and_removed_lints)]
+#![allow(unknown_lints)]
+#![cfg_attr(feature = "cargo-clippy", allow(deprecated_cfg_attr))]
+
 #[macro_use]
 extern crate websocat;
 
@@ -569,18 +573,16 @@ fn run() -> Result<()> {
                         }
                         (format!("ws-l:127.0.0.1:{}", cmds1), "-".to_string())
                     }
-                } else {
-                    if cmds1.contains(':') {
-                        if !quiet {
-                            eprintln!("Listening on wss://{}/", cmds1);
-                        }
-                        (format!("wss-l:{}", cmds1), "-".to_string())
-                    } else {
-                        if !quiet {
-                            eprintln!("Listening on wss://127.0.0.1:{}/", cmds1);
-                        }
-                        (format!("wss-l:127.0.0.1:{}", cmds1), "-".to_string())
+                } else if cmds1.contains(':') {
+                    if !quiet {
+                        eprintln!("Listening on wss://{}/", cmds1);
                     }
+                    (format!("wss-l:{}", cmds1), "-".to_string())
+                } else {
+                    if !quiet {
+                        eprintln!("Listening on wss://127.0.0.1:{}/", cmds1);
+                    }
+                    (format!("wss-l:127.0.0.1:{}", cmds1), "-".to_string())
                 }
             } else {
                 if !(cmds1.starts_with("ws://") || cmds1.starts_with("wss://")) {
