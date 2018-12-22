@@ -8,7 +8,6 @@ use futures::stream::Stream;
 use std;
 use std::io::Result as IoResult;
 use std::io::{Read, Write};
-use tokio_core::reactor::Handle;
 use tokio_io::{AsyncRead, AsyncWrite};
 
 use std::cell::RefCell;
@@ -27,8 +26,8 @@ use super::{multi, once, ConstructParams, Options, PeerConstructor, Specifier};
 #[derive(Debug, Clone)]
 pub struct UnixConnect(pub PathBuf);
 impl Specifier for UnixConnect {
-    fn construct(&self, p: ConstructParams) -> PeerConstructor {
-        once(unix_connect_peer(&p.tokio_handle, &self.0))
+    fn construct(&self, _: ConstructParams) -> PeerConstructor {
+        once(unix_connect_peer(&self.0))
     }
     specifier_boilerplate!(noglobalstate singleconnect no_subspec);
 }
@@ -60,7 +59,6 @@ pub struct UnixListen(pub PathBuf);
 impl Specifier for UnixListen {
     fn construct(&self, p: ConstructParams) -> PeerConstructor {
         multi(unix_listen_peer(
-            &p.tokio_handle,
             &self.0,
             &p.program_options,
         ))
@@ -115,7 +113,6 @@ pub struct UnixDgram(pub PathBuf, pub PathBuf);
 impl Specifier for UnixDgram {
     fn construct(&self, p: ConstructParams) -> PeerConstructor {
         once(dgram_peer(
-            &p.tokio_handle,
             &self.0,
             &self.1,
             &p.program_options,
@@ -165,8 +162,8 @@ fn to_abstract(x: &str) -> PathBuf {
 #[derive(Debug, Clone)]
 pub struct AbstractConnect(pub String);
 impl Specifier for AbstractConnect {
-    fn construct(&self, p: ConstructParams) -> PeerConstructor {
-        once(unix_connect_peer(&p.tokio_handle, &to_abstract(&self.0)))
+    fn construct(&self, _: ConstructParams) -> PeerConstructor {
+        once(unix_connect_peer(&to_abstract(&self.0)))
     }
     specifier_boilerplate!(noglobalstate singleconnect no_subspec);
 }
@@ -201,9 +198,8 @@ so non-prebuilt versions may have problems with them.
 #[derive(Debug, Clone)]
 pub struct AbstractListen(pub String);
 impl Specifier for AbstractListen {
-    fn construct(&self, p: ConstructParams) -> PeerConstructor {
+    fn construct(&self, _: ConstructParams) -> PeerConstructor {
         multi(unix_listen_peer(
-            &p.tokio_handle,
             &to_abstract(&self.0),
             &Rc::new(Default::default()),
         ))
@@ -242,7 +238,6 @@ impl Specifier for AbstractDgram {
         #[cfg(not(all(target_os = "linux", feature = "workaround1")))]
         {
             once(dgram_peer(
-                &p.tokio_handle,
                 &to_abstract(&self.0),
                 &to_abstract(&self.1),
                 &p.program_options,
@@ -251,7 +246,6 @@ impl Specifier for AbstractDgram {
         #[cfg(all(target_os = "linux", feature = "workaround1"))]
         {
             once(dgram_peer_workaround(
-                &p.tokio_handle,
                 &to_abstract(&self.0),
                 &to_abstract(&self.1),
                 &p.program_options,
@@ -340,9 +334,10 @@ impl Drop for MyUnixStream {
     }
 }
 
-pub fn unix_connect_peer(handle: &Handle, addr: &Path) -> BoxedNewPeerFuture {
-    Box::new(futures::future::result(
-        UnixStream::connect(&addr, handle)
+pub fn unix_connect_peer(addr: &Path) -> BoxedNewPeerFuture {
+    use futures::Future;
+    Box::new(
+        UnixStream::connect(&addr)
             .map(|x| {
                 info!("Connected to a unix socket");
                 let x = Rc::new(x);
@@ -351,14 +346,14 @@ pub fn unix_connect_peer(handle: &Handle, addr: &Path) -> BoxedNewPeerFuture {
                     MyUnixStream(x.clone(), false),
                 )
             }).map_err(box_up_err),
-    )) as BoxedNewPeerFuture
+    ) as BoxedNewPeerFuture
 }
 
-pub fn unix_listen_peer(handle: &Handle, addr: &Path, opts: &Rc<Options>) -> BoxedNewPeerStream {
+pub fn unix_listen_peer(addr: &Path, opts: &Rc<Options>) -> BoxedNewPeerStream {
     if opts.unlink_unix_socket {
         let _ = ::std::fs::remove_file(addr);
     };
-    let bound = match UnixListener::bind(&addr, handle) {
+    let bound = match UnixListener::bind(&addr) {
         Ok(x) => x,
         Err(e) => return peer_err_s(e),
     };
@@ -366,7 +361,7 @@ pub fn unix_listen_peer(handle: &Handle, addr: &Path, opts: &Rc<Options>) -> Box
     Box::new(
         bound
             .incoming()
-            .map(|(x, _addr)| {
+            .map(|x| {
                 info!("Incoming unix socket connection");
                 let x = Rc::new(x);
                 Peer::new(
@@ -387,13 +382,12 @@ struct DgramPeer {
 struct DgramPeerHandle(Rc<RefCell<DgramPeer>>);
 
 pub fn dgram_peer(
-    handle: &Handle,
     bindaddr: &Path,
     connectaddr: &Path,
     opts: &Rc<Options>,
 ) -> BoxedNewPeerFuture {
     Box::new(futures::future::result(
-        UnixDatagram::bind(bindaddr, handle)
+        UnixDatagram::bind(bindaddr)
             .and_then(|x| {
                 x.connect(connectaddr)?;
 
@@ -409,7 +403,6 @@ pub fn dgram_peer(
 
 #[cfg(all(target_os = "linux", feature = "workaround1"))]
 pub fn dgram_peer_workaround(
-    handle: &Handle,
     bindaddr: &Path,
     connectaddr: &Path,
     opts: &Rc<Options>,
@@ -465,7 +458,6 @@ pub fn dgram_peer_workaround(
         }
     }
     fn getpeer(
-        handle: &Handle,
         bindaddr: &Path,
         connectaddr: &Path,
         opts: &Rc<Options>,
@@ -473,7 +465,7 @@ pub fn dgram_peer_workaround(
         if let Some(fd) = getfd(bindaddr, connectaddr) {
             let s: ::std::os::unix::net::UnixDatagram =
                 unsafe { ::std::os::unix::io::FromRawFd::from_raw_fd(fd) };
-            let ss = UnixDatagram::from_datagram(s, handle)?;
+            let ss = UnixDatagram::from_std(s, &tokio_reactor::Handle::default() )?;
             let h1 = DgramPeerHandle(Rc::new(RefCell::new(DgramPeer {
                 s: ss,
                 oneshot_mode: opts.udp_oneshot_mode,
@@ -485,7 +477,7 @@ pub fn dgram_peer_workaround(
         }
     }
     Box::new(futures::future::result({
-        getpeer(handle, bindaddr, connectaddr, opts)
+        getpeer(bindaddr, connectaddr, opts)
     })) as BoxedNewPeerFuture
 }
 
@@ -512,5 +504,26 @@ impl AsyncRead for DgramPeerHandle {}
 impl AsyncWrite for DgramPeerHandle {
     fn shutdown(&mut self) -> futures::Poll<(), std::io::Error> {
         Ok(().into())
+    }
+}
+
+trait HacksForMigratingFromTokioCore  {
+    fn recv(&self, buf: &mut [u8]) -> std::io::Result<usize>;
+    fn send(&self, buf: &[u8]) -> std::io::Result<usize>;
+}
+
+impl HacksForMigratingFromTokioCore for UnixDatagram {
+    fn recv(&self, buf: &mut [u8]) -> std::io::Result<usize> {
+        match self.poll_recv(buf)? {
+            futures::Async::Ready(n) => Ok(n),
+            futures::Async::NotReady => Err(std::io::ErrorKind::WouldBlock.into()),
+        }
+    }
+
+    fn send(&self, buf: &[u8]) -> std::io::Result<usize> {
+        match self.poll_send(buf)? {
+            futures::Async::Ready(n) => Ok(n),
+            futures::Async::NotReady => Err(std::io::ErrorKind::WouldBlock.into()),
+        }
     }
 }

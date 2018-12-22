@@ -41,12 +41,13 @@ derivative="1.0.0"
 tokio-codec = "0.1.1"
 tokio-tcp = "0.1.2"
 tokio-udp = "0.1.3"
+tokio-reactor = "0.1.7"
 
 
 [target.'cfg(unix)'.dependencies]
 tokio-file-unix = "^0.4.2"
 tokio-signal = { version = "0.1", optional = true }
-tokio-uds = "=0.1.5"
+tokio-uds = "0.2.3"
 libc = { version = "0.2", optional = true }
 
 [features]

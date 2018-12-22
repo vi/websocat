@@ -1,6 +1,6 @@
 use super::{
     box_up_err, futures, libc, multi, once, peer_err_s, simple_err, BoxedNewPeerFuture,
-    BoxedNewPeerStream, ConstructParams, Handle, MyUnixStream, Options, Peer, PeerConstructor,
+    BoxedNewPeerStream, ConstructParams, MyUnixStream, Options, Peer, PeerConstructor,
     Specifier, UnixListener, UnixStream,
 };
 use futures::Stream;
@@ -10,8 +10,8 @@ use std::rc::Rc;
 #[derive(Debug, Clone)]
 pub struct SeqpacketConnect(pub PathBuf);
 impl Specifier for SeqpacketConnect {
-    fn construct(&self, p: ConstructParams) -> PeerConstructor {
-        once(seqpacket_connect_peer(&p.tokio_handle, &self.0))
+    fn construct(&self, _: ConstructParams) -> PeerConstructor {
+        once(seqpacket_connect_peer(&self.0))
     }
     specifier_boilerplate!(noglobalstate singleconnect no_subspec);
 }
@@ -47,7 +47,6 @@ pub struct SeqpacketListen(pub PathBuf);
 impl Specifier for SeqpacketListen {
     fn construct(&self, p: ConstructParams) -> PeerConstructor {
         multi(seqpacket_listen_peer(
-            &p.tokio_handle,
             &self.0,
             &p.program_options,
         ))
@@ -80,7 +79,7 @@ Example: forward connections from a UNIX seqpacket socket to a WebSocket
 "#
 );
 
-pub fn seqpacket_connect_peer(handle: &Handle, addr: &Path) -> BoxedNewPeerFuture {
+pub fn seqpacket_connect_peer(addr: &Path) -> BoxedNewPeerFuture {
     fn getfd(addr: &Path) -> Option<i32> {
         use self::libc::{
             c_char, close, connect, sa_family_t, sockaddr_un, socket, socklen_t, AF_UNIX,
@@ -116,11 +115,11 @@ pub fn seqpacket_connect_peer(handle: &Handle, addr: &Path) -> BoxedNewPeerFutur
             Some(s)
         }
     }
-    fn getpeer(handle: &Handle, addr: &Path) -> Result<Peer, Box<::std::error::Error>> {
+    fn getpeer(addr: &Path) -> Result<Peer, Box<::std::error::Error>> {
         if let Some(fd) = getfd(addr) {
             let s: ::std::os::unix::net::UnixStream =
                 unsafe { ::std::os::unix::io::FromRawFd::from_raw_fd(fd) };
-            let ss = UnixStream::from_stream(s, handle)?;
+            let ss = UnixStream::from_std(s, &tokio_reactor::Handle::default())?;
             let x = Rc::new(ss);
             Ok(Peer::new(
                 MyUnixStream(x.clone(), true),
@@ -130,11 +129,10 @@ pub fn seqpacket_connect_peer(handle: &Handle, addr: &Path) -> BoxedNewPeerFutur
             Err("Failed to get or connect socket")?
         }
     }
-    Box::new(futures::future::result({ getpeer(handle, addr) })) as BoxedNewPeerFuture
+    Box::new(futures::future::result({ getpeer(addr) })) as BoxedNewPeerFuture
 }
 
 pub fn seqpacket_listen_peer(
-    handle: &Handle,
     addr: &Path,
     opts: &Rc<Options>,
 ) -> BoxedNewPeerStream {
@@ -190,14 +188,14 @@ pub fn seqpacket_listen_peer(
     };
     let l1: ::std::os::unix::net::UnixListener =
         unsafe { ::std::os::unix::io::FromRawFd::from_raw_fd(fd) };
-    let bound = match UnixListener::from_listener(l1, handle) {
+    let bound = match UnixListener::from_std(l1, &tokio_reactor::Handle::default()) {
         Ok(x) => x,
         Err(e) => return peer_err_s(e),
     };
     Box::new(
         bound
             .incoming()
-            .map(|(x, _addr)| {
+            .map(|x| {
                 info!("Incoming unix socket connection");
                 let x = Rc::new(x);
                 Peer::new(
