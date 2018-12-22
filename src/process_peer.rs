@@ -4,7 +4,6 @@ use futures;
 use std;
 use std::io::Result as IoResult;
 use std::io::{Read, Write};
-use tokio_core::reactor::Handle;
 use tokio_io::{AsyncRead, AsyncWrite};
 
 use super::{L2rUser, LeftSpecToRightSpec};
@@ -42,10 +41,8 @@ impl Specifier for Cmd {
             args.arg("-c").arg(self.0.clone());
             args
         };
-        let h = &p.tokio_handle;
         let env = needenv(&p);
         once(Box::new(futures::future::result(process_connect_peer(
-            h,
             args,
             env,
             zero_sighup,
@@ -79,10 +76,8 @@ impl Specifier for ShC {
         let exit_sighup = p.program_options.process_exit_sighup;
         let mut args = Command::new("sh");
         args.arg("-c").arg(self.0.clone());
-        let h = &p.tokio_handle;
         let env = needenv(&p);
         once(Box::new(futures::future::result(process_connect_peer(
-            h,
             args,
             env,
             zero_sighup,
@@ -120,10 +115,8 @@ impl Specifier for Exec {
         let exit_sighup = p.program_options.process_exit_sighup;
         let mut args = Command::new(self.0.clone());
         args.args(p.program_options.exec_args.clone());
-        let h = &p.tokio_handle;
         let env = needenv(&p);
         once(Box::new(futures::future::result(process_connect_peer(
-            h,
             args,
             env,
             zero_sighup,
@@ -155,7 +148,6 @@ Example: pinger
 );
 
 fn process_connect_peer(
-    h: &Handle,
     mut cmd: Command,
     l2r: Option<&LeftSpecToRightSpec>,
     zero_sighup: bool,
@@ -170,7 +162,7 @@ fn process_connect_peer(
         };
     }
     cmd.stdin(Stdio::piped()).stdout(Stdio::piped());
-    let child = cmd.spawn_async(h)?;
+    let child = cmd.spawn_async()?;
     let ph = ProcessPeer(Rc::new(RefCell::new(child)), zero_sighup, close_sighup);
     Ok(Peer::new(ph.clone(), ph))
 }
