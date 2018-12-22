@@ -28,12 +28,11 @@ pub struct BroadcastReuser(pub Rc<Specifier>);
 impl Specifier for BroadcastReuser {
     fn construct(&self, p: ConstructParams) -> PeerConstructor {
         let mut reuser = p.global_state.borrow_mut().reuser2.clone();
-        let h = p.tokio_handle.clone();
         let bs = p.program_options.buffer_size;
         let ql = p.program_options.broadcast_queue_len;
         let l2r = p.left_to_right.clone();
         let inner = || self.0.construct(p).get_only_first_conn(l2r);
-        once(connection_reuser(&h, &mut reuser, inner, bs, ql))
+        once(connection_reuser(&mut reuser, inner, bs, ql))
     }
     specifier_boilerplate!(singleconnect has_subspec globalstate);
     self_0_is_subspecifier!(...);
@@ -217,7 +216,6 @@ fn makeclient(ps: HBroadCaster, queue_len: usize) -> Peer {
 }
 
 pub fn connection_reuser<F: FnOnce() -> BoxedNewPeerFuture>(
-    h: &Handle,
     s: &mut GlobalState,
     inner_peer: F,
     buffer_size: usize,
@@ -226,7 +224,6 @@ pub fn connection_reuser<F: FnOnce() -> BoxedNewPeerFuture>(
     let need_init = s.borrow().is_none();
 
     let rc = s.clone();
-    let hh = h.clone();
     if need_init {
         info!("Initializing");
         Box::new(inner_peer().and_then(move |inner| {
@@ -237,7 +234,7 @@ pub fn connection_reuser<F: FnOnce() -> BoxedNewPeerFuture>(
                     inner_peer: inner,
                     clients: Clients::new(),
                 });
-                hh.spawn(InnerPeerReader(rc.clone(), vec![0; buffer_size]));
+                tokio_executor::spawn(InnerPeerReader(rc.clone(), vec![0; buffer_size]));
             }
 
             let ps: HBroadCaster = rc.clone();

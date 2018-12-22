@@ -3,7 +3,6 @@ use super::{PeerConstructor, ProgramState};
 use std;
 use std::cell::RefCell;
 use std::rc::Rc;
-use Handle;
 
 pub enum ClassMessageBoundaryStatus {
     StreamOriented,
@@ -157,7 +156,6 @@ pub struct SpecifierStack {
 
 #[derive(Clone)]
 pub struct ConstructParams {
-    pub tokio_handle: Handle,
     pub global_state: Rc<RefCell<ProgramState>>,
     pub program_options: Rc<Options>,
     pub left_to_right: L2rUser,
@@ -185,7 +183,6 @@ impl ConstructParams {
             L2rUser::ReadFrom(_) => panic!("ConstructParams::reply called wrong"),
         };
         ConstructParams {
-            tokio_handle: self.tokio_handle.clone(),
             global_state: self.global_state.clone(),
             program_options: self.program_options.clone(),
             left_to_right: L2rUser::ReadFrom(l2r),
@@ -202,7 +199,6 @@ impl ConstructParams {
             }
         };
         ConstructParams {
-            tokio_handle: self.tokio_handle.clone(),
             global_state: self.global_state.clone(),
             program_options: self.program_options.clone(),
             left_to_right: l2r,
