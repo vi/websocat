@@ -6,14 +6,13 @@ use std;
 use std::io::Result as IoResult;
 use std::io::{Read, Write};
 use std::net::SocketAddr;
-use tokio_core::reactor::Handle;
 use tokio_io::{AsyncRead, AsyncWrite};
 
 use std::cell::RefCell;
 use std::rc::Rc;
 
-use tokio_core::net::{UdpSocket};
 use tokio_tcp::{TcpStream, TcpListener};
+use tokio_udp::UdpSocket;
 
 use super::L2rUser;
 use super::{box_up_err, peer_err_s, wouldblock, BoxedNewPeerFuture, BoxedNewPeerStream, Peer};
@@ -82,7 +81,6 @@ pub struct UdpConnect(pub SocketAddr);
 impl Specifier for UdpConnect {
     fn construct(&self, p: ConstructParams) -> PeerConstructor {
         once(udp_connect_peer(
-            &p.tokio_handle,
             &self.0,
             &p.program_options,
         ))
@@ -107,7 +105,6 @@ pub struct UdpListen(pub SocketAddr);
 impl Specifier for UdpListen {
     fn construct(&self, p: ConstructParams) -> PeerConstructor {
         once(udp_listen_peer(
-            &p.tokio_handle,
             &self.0,
             &p.program_options,
         ))
@@ -262,14 +259,13 @@ fn get_zero_address(addr: &SocketAddr) -> SocketAddr {
 }
 
 pub fn udp_connect_peer(
-    handle: &Handle,
     addr: &SocketAddr,
     opts: &Rc<Options>,
 ) -> BoxedNewPeerFuture {
     let za = get_zero_address(addr);
 
     Box::new(futures::future::result(
-        UdpSocket::bind(&za, handle)
+        UdpSocket::bind(&za)
             .and_then(|x| {
                 x.connect(addr)?;
 
@@ -285,12 +281,11 @@ pub fn udp_connect_peer(
 }
 
 pub fn udp_listen_peer(
-    handle: &Handle,
     addr: &SocketAddr,
     opts: &Rc<Options>,
 ) -> BoxedNewPeerFuture {
     Box::new(futures::future::result(
-        UdpSocket::bind(addr, handle)
+        UdpSocket::bind(addr)
             .and_then(|x| {
                 let h1 = UdpPeerHandle(Rc::new(RefCell::new(UdpPeer {
                     s: x,
@@ -309,10 +304,10 @@ impl Read for UdpPeerHandle {
         match p.state.take().expect("Assertion failed 193912") {
             UdpPeerState::ConnectMode => {
                 p.state = Some(UdpPeerState::ConnectMode);
-                p.s.recv(buf)
+                p.s.recv2(buf)
             }
             UdpPeerState::HasAddress(oldaddr) => {
-                p.s.recv_from(buf)
+                p.s.recv_from2(buf)
                     .map(|(ret, addr)| {
                         warn!("New client for the same listening UDP socket");
                         p.state = Some(UdpPeerState::HasAddress(addr));
@@ -322,7 +317,7 @@ impl Read for UdpPeerHandle {
                         e
                     })
             }
-            UdpPeerState::WaitingForAddress((cmpl, pollster)) => match p.s.recv_from(buf) {
+            UdpPeerState::WaitingForAddress((cmpl, pollster)) => match p.s.recv_from2(buf) {
                 Ok((ret, addr)) => {
                     p.state = Some(UdpPeerState::HasAddress(addr));
                     let _ = cmpl.send(());
@@ -343,7 +338,7 @@ impl Write for UdpPeerHandle {
         match p.state.take().expect("Assertion failed 193913") {
             UdpPeerState::ConnectMode => {
                 p.state = Some(UdpPeerState::ConnectMode);
-                p.s.send(buf)
+                p.s.send2(buf)
             }
             UdpPeerState::HasAddress(a) => {
                 if p.oneshot_mode {
@@ -351,7 +346,7 @@ impl Write for UdpPeerHandle {
                 } else {
                     p.state = Some(UdpPeerState::HasAddress(a));
                 }
-                p.s.send_to(buf, &a)
+                p.s.send_to2(buf, &a)
             }
             UdpPeerState::WaitingForAddress((cmpl, mut pollster)) => {
                 let _ = pollster.poll(); // register wakeup
@@ -371,5 +366,43 @@ impl AsyncRead for UdpPeerHandle {}
 impl AsyncWrite for UdpPeerHandle {
     fn shutdown(&mut self) -> futures::Poll<(), std::io::Error> {
         Ok(().into())
+    }
+}
+
+/// Squirreled await from deprecated UdpSocket functions
+trait UndeprecateNonpollSendRecv {
+    fn recv2(&mut self, buf: &mut [u8]) -> std::io::Result<usize>;
+    fn recv_from2(&mut self, buf: &mut [u8]) -> std::io::Result<(usize, SocketAddr)>;
+    fn send2(&mut self, buf: &[u8]) -> std::io::Result<usize>;
+    fn send_to2(&mut self, buf: &[u8], target: &SocketAddr) -> std::io::Result<usize>;
+}
+
+impl UndeprecateNonpollSendRecv for  UdpSocket {
+    fn recv2(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
+        match self.poll_recv(buf)? {
+            futures::Async::Ready(n) => Ok(n),
+            futures::Async::NotReady => Err(std::io::ErrorKind::WouldBlock.into()),
+        }
+    }
+
+    fn recv_from2(&mut self, buf: &mut [u8]) -> std::io::Result<(usize, SocketAddr)> {
+        match self.poll_recv_from(buf)? {
+            futures::Async::Ready(ret) => Ok(ret),
+            futures::Async::NotReady => Err(std::io::ErrorKind::WouldBlock.into()),
+        }
+    }
+
+    fn send2(&mut self, buf: &[u8]) -> std::io::Result<usize> {
+        match self.poll_send(buf)? {
+            futures::Async::Ready(n) => Ok(n),
+            futures::Async::NotReady => Err(std::io::ErrorKind::WouldBlock.into()),
+        }
+    }
+
+    fn send_to2(&mut self, buf: &[u8], target: &SocketAddr) -> std::io::Result<usize> {
+        match self.poll_send_to(buf, target)? {
+            futures::Async::Ready(n) => Ok(n),
+            futures::Async::NotReady => Err(std::io::ErrorKind::WouldBlock.into()),
+        }
     }
 }
