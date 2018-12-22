@@ -18,6 +18,7 @@ extern crate futures;
 extern crate tokio_core;
 #[macro_use]
 extern crate tokio_io;
+extern crate tokio_tcp;
 extern crate websocket;
 
 #[macro_use]

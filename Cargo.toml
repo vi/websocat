@@ -9,6 +9,15 @@ keywords = ["WebSocket", "socat", "rfc6455", "netcat", "cli"]
 exclude = ["autorelease.sh","test.sh","test.pkcs12"]
 readme = "README.md"
 
+[package.metadata.deb]
+section = "utility"
+extended-description = """\
+A tool allows you to interconnect two specifiers, like in socat, \
+but with Websocket and some other additional functions."""
+features = ["ssl", "workaround1", "seqpacket", "unix_stdio"]
+#depends = "$auto"
+depends = "libssl1.1, libc6 (>= 2.19), libgcc1 (>= 1:4.9.0)"
+
 
 [dependencies]
 websocket = { version = "0.22.0", default-features = false, features=["async"] }
@@ -30,6 +39,7 @@ native-tls = {version = "0.2.1", optional = true}
 readwrite = {version = "0.1.1", optional = true, features = ["tokio"]}
 derivative="1.0.0"
 tokio-codec = "0.1.1"
+tokio-tcp = "0.1.2"
 
 
 [target.'cfg(unix)'.dependencies]
@@ -64,12 +74,3 @@ lto = true
 debug-assertions = false
 codegen-units = 1
 panic = 'abort'
-
-[package.metadata.deb]
-section = "utility"
-extended-description = """\
-A tool allows you to interconnect two specifiers, like in socat, \
-but with Websocket and some other additional functions."""
-features = ["ssl", "workaround1", "seqpacket", "unix_stdio"]
-#depends = "$auto"
-depends = "libssl1.1, libc6 (>= 2.19), libgcc1 (>= 1:4.9.0)"

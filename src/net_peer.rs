@@ -12,7 +12,8 @@ use tokio_io::{AsyncRead, AsyncWrite};
 use std::cell::RefCell;
 use std::rc::Rc;
 
-use tokio_core::net::{TcpListener, TcpStream, UdpSocket};
+use tokio_core::net::{UdpSocket};
+use tokio_tcp::{TcpStream, TcpListener};
 
 use super::L2rUser;
 use super::{box_up_err, peer_err_s, wouldblock, BoxedNewPeerFuture, BoxedNewPeerStream, Peer};
@@ -21,8 +22,8 @@ use super::{multi, once, ConstructParams, Options, PeerConstructor, Specifier};
 #[derive(Debug, Clone)]
 pub struct TcpConnect(pub SocketAddr);
 impl Specifier for TcpConnect {
-    fn construct(&self, p: ConstructParams) -> PeerConstructor {
-        once(tcp_connect_peer(&p.tokio_handle, &self.0))
+    fn construct(&self, _: ConstructParams) -> PeerConstructor {
+        once(tcp_connect_peer(&self.0))
     }
     specifier_boilerplate!(noglobalstate singleconnect no_subspec );
 }
@@ -51,7 +52,7 @@ Example: redirect websocket connections to local SSH server over IPv6
 pub struct TcpListen(pub SocketAddr);
 impl Specifier for TcpListen {
     fn construct(&self, p: ConstructParams) -> PeerConstructor {
-        multi(tcp_listen_peer(&p.tokio_handle, &self.0, p.left_to_right))
+        multi(tcp_listen_peer(&self.0, p.left_to_right))
     }
     specifier_boilerplate!(noglobalstate multiconnect no_subspec );
 }
@@ -198,9 +199,9 @@ impl Drop for MyTcpStream {
     }
 }
 
-pub fn tcp_connect_peer(handle: &Handle, addr: &SocketAddr) -> BoxedNewPeerFuture {
+pub fn tcp_connect_peer(addr: &SocketAddr) -> BoxedNewPeerFuture {
     Box::new(
-        TcpStream::connect(&addr, handle)
+        TcpStream::connect(&addr)
             .map(|x| {
                 info!("Connected to TCP");
                 let x = Rc::new(x);
@@ -209,21 +210,22 @@ pub fn tcp_connect_peer(handle: &Handle, addr: &SocketAddr) -> BoxedNewPeerFutur
     ) as BoxedNewPeerFuture
 }
 
-pub fn tcp_listen_peer(handle: &Handle, addr: &SocketAddr, l2r: L2rUser) -> BoxedNewPeerStream {
-    let bound = match TcpListener::bind(&addr, handle) {
+pub fn tcp_listen_peer(addr: &SocketAddr, l2r: L2rUser) -> BoxedNewPeerStream {
+    let bound = match TcpListener::bind(&addr) {
         Ok(x) => x,
         Err(e) => return peer_err_s(e),
     };
     Box::new(
         bound
             .incoming()
-            .map(move |(x, addr)| {
-                info!("Incoming TCP connection from {}", addr);
+            .map(move |x| {
+                let addr = x.peer_addr().ok();
+                info!("Incoming TCP connection from {:?}", addr);
 
                 match l2r {
                     L2rUser::FillIn(ref y) => {
                         let mut z = y.borrow_mut();
-                        z.client_addr = Some(format!("{}", addr));
+                        z.client_addr = addr.map(|a|format!("{}", a));
                     }
                     L2rUser::ReadFrom(_) => {}
                 }
