@@ -12,7 +12,6 @@ use std::io::Result as IoResult;
 use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
 use std::rc::Rc;
-use tokio_core::reactor::Handle;
 use tokio_io::{AsyncRead, AsyncWrite};
 
 #[cfg(unix)]
@@ -29,7 +28,7 @@ pub struct Stdio;
 impl Specifier for Stdio {
     fn construct(&self, p: ConstructParams) -> PeerConstructor {
         let ret;
-        ret = get_stdio_peer(&mut p.global_state.borrow_mut().stdio, &p.tokio_handle);
+        ret = get_stdio_peer(&mut p.global_state.borrow_mut().stdio);
         once(ret)
     }
     specifier_boilerplate!(globalstate singleconnect no_subspec);
@@ -136,7 +135,7 @@ Example: Serve random data to clients v2
 "#
 );
 
-fn get_stdio_peer_impl(s: &mut GlobalState, handle: &Handle) -> Result<Peer> {
+fn get_stdio_peer_impl(s: &mut GlobalState) -> Result<Peer> {
     let si;
     let so;
     {
@@ -160,22 +159,22 @@ fn get_stdio_peer_impl(s: &mut GlobalState, handle: &Handle) -> Result<Peer> {
         #[cfg(all(unix, feature = "signal_handler"))]
         {
             info!("Installing signal handler");
-            let ctrl_c = tokio_signal::ctrl_c(&handle).flatten_stream();
+            let ctrl_c = tokio_signal::ctrl_c().flatten_stream();
             let prog = ctrl_c.for_each(move |()| {
                 restore_blocking_status(&s_clone);
                 ::std::process::exit(0);
                 #[allow(unreachable_code)]
                 Ok(())
             });
-            handle.spawn(prog.map_err(|_| ()));
+            tokio_executor::spawn(Box::new(prog.map_err(|_| ())));
         }
     }
     Ok(Peer::new(si, so))
 }
 
-pub fn get_stdio_peer(s: &mut GlobalState, handle: &Handle) -> BoxedNewPeerFuture {
+pub fn get_stdio_peer(s: &mut GlobalState) -> BoxedNewPeerFuture {
     info!("get_stdio_peer (async)");
-    Box::new(futures::future::result(get_stdio_peer_impl(s, handle))) as BoxedNewPeerFuture
+    Box::new(futures::future::result(get_stdio_peer_impl(s))) as BoxedNewPeerFuture
 }
 
 #[derive(Default, Clone)]
