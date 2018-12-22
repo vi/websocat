@@ -6,7 +6,6 @@ use self::websocket::stream::async::Stream as WsStream;
 use self::websocket::ClientBuilder;
 use futures::future::Future;
 use futures::stream::Stream;
-use tokio_core::reactor::Handle;
 
 use std::cell::RefCell;
 use std::rc::Rc;
@@ -25,7 +24,7 @@ pub struct WsClient(pub Url);
 impl Specifier for WsClient {
     fn construct(&self, p: ConstructParams) -> PeerConstructor {
         let url = self.0.clone();
-        once(get_ws_client_peer(&p.tokio_handle, &url, p.program_options))
+        once(get_ws_client_peer(&url, p.program_options))
     }
     specifier_boilerplate!(noglobalstate singleconnect no_subspec);
 }
@@ -195,7 +194,7 @@ where
     ) as BoxedNewPeerFuture
 }
 
-pub fn get_ws_client_peer(_handle: &Handle, uri: &Url, opts: Rc<Options>) -> BoxedNewPeerFuture {
+pub fn get_ws_client_peer(uri: &Url, opts: Rc<Options>) -> BoxedNewPeerFuture {
     info!("get_ws_client_peer");
 
     #[allow(unused)]
