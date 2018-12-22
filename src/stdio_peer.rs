@@ -83,9 +83,9 @@ connections on port 1234 and redirect the data to local SSH server.
 #[derive(Clone, Debug)]
 pub struct OpenAsync(pub PathBuf);
 impl Specifier for OpenAsync {
-    fn construct(&self, p: ConstructParams) -> PeerConstructor {
+    fn construct(&self, _: ConstructParams) -> PeerConstructor {
         let ret;
-        ret = get_file_peer(&self.0, &p.tokio_handle);
+        ret = get_file_peer(&self.0);
         once(ret)
     }
     specifier_boilerplate!(noglobalstate singleconnect no_subspec);
@@ -112,9 +112,9 @@ Example: Serve big blobs of random data to clients
 #[derive(Clone, Debug)]
 pub struct OpenFdAsync(pub i32);
 impl Specifier for OpenFdAsync {
-    fn construct(&self, p: ConstructParams) -> PeerConstructor {
+    fn construct(&self, _: ConstructParams) -> PeerConstructor {
         let ret;
-        ret = get_fd_peer(self.0, &p.tokio_handle);
+        ret = get_fd_peer(self.0);
         once(ret)
     }
     specifier_boilerplate!(noglobalstate singleconnect no_subspec);
@@ -152,8 +152,8 @@ fn get_stdio_peer_impl(s: &mut GlobalState, handle: &Handle) -> Result<Peer> {
         }
         let stdout = self::UnixFile::new_nb(std::io::stdout())?;
 
-        si = stdin.into_reader(&handle)?;
-        so = stdout.into_io(&handle)?;
+        si = stdin.into_reader(&tokio_reactor::Handle::default())?;
+        so = stdout.into_io(&tokio_reactor::Handle::default())?;
 
         let s_clone = s.clone();
 
@@ -204,7 +204,7 @@ fn restore_blocking_status(s: &GlobalState) {
     }
 }
 
-type ImplPollEvented = ::tokio_core::reactor::PollEvented<UnixFile<std::fs::File>>;
+type ImplPollEvented = ::tokio_reactor::PollEvented<UnixFile<std::fs::File>>;
 
 #[derive(Clone)]
 struct FileWrapper(Rc<RefCell<ImplPollEvented>>);
@@ -230,7 +230,7 @@ impl Write for FileWrapper {
     }
 }
 
-fn get_file_peer_impl(p: &Path, handle: &Handle) -> Result<Peer> {
+fn get_file_peer_impl(p: &Path) -> Result<Peer> {
     let oo = OpenOptions::new()
         .read(true)
         .write(true)
@@ -238,26 +238,26 @@ fn get_file_peer_impl(p: &Path, handle: &Handle) -> Result<Peer> {
         .open(p)?;
     let f = self::UnixFile::new_nb(oo)?;
 
-    let s = f.into_io(&handle)?;
+    let s = f.into_io(&tokio_reactor::Handle::default())?;
     let ss = FileWrapper(Rc::new(RefCell::new(s)));
     Ok(Peer::new(ss.clone(), ss))
 }
 
-pub fn get_file_peer(p: &Path, handle: &Handle) -> BoxedNewPeerFuture {
+pub fn get_file_peer(p: &Path) -> BoxedNewPeerFuture {
     info!("get_file_peer");
-    Box::new(futures::future::result(get_file_peer_impl(p, handle))) as BoxedNewPeerFuture
+    Box::new(futures::future::result(get_file_peer_impl(p))) as BoxedNewPeerFuture
 }
 
-fn get_fd_peer_impl(fd: i32, handle: &Handle) -> Result<Peer> {
+fn get_fd_peer_impl(fd: i32) -> Result<Peer> {
     let ff: FsFile = unsafe { std::os::unix::io::FromRawFd::from_raw_fd(fd) };
     let f = self::UnixFile::new_nb(ff)?;
 
-    let s = f.into_io(&handle)?;
+    let s = f.into_io(&tokio_reactor::Handle::default())?;
     let ss = FileWrapper(Rc::new(RefCell::new(s)));
     Ok(Peer::new(ss.clone(), ss))
 }
 
-pub fn get_fd_peer(fd: i32, handle: &Handle) -> BoxedNewPeerFuture {
+pub fn get_fd_peer(fd: i32) -> BoxedNewPeerFuture {
     info!("get_fd_peer");
-    Box::new(futures::future::result(get_fd_peer_impl(fd, handle))) as BoxedNewPeerFuture
+    Box::new(futures::future::result(get_fd_peer_impl(fd))) as BoxedNewPeerFuture
 }
