@@ -62,7 +62,7 @@ pub struct WsClientSecure(pub Url);
 impl Specifier for WsClientSecure {
     fn construct(&self, p: ConstructParams) -> PeerConstructor {
         let url = self.0.clone();
-        once(get_ws_client_peer(&p.tokio_handle, &url, p.program_options))
+        once(get_ws_client_peer(&url, p.program_options))
     }
     specifier_boilerplate!(noglobalstate singleconnect no_subspec);
 }
