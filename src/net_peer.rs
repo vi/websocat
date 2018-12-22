@@ -309,7 +309,9 @@ impl Read for UdpPeerHandle {
             UdpPeerState::HasAddress(oldaddr) => {
                 p.s.recv_from2(buf)
                     .map(|(ret, addr)| {
-                        warn!("New client for the same listening UDP socket");
+                        if addr != oldaddr {
+                            warn!("New client for the same listening UDP socket");
+                        }
                         p.state = Some(UdpPeerState::HasAddress(addr));
                         ret
                     }).map_err(|e| {
