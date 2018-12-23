@@ -24,7 +24,6 @@ websocket = { version = "0.22.0", default-features = false, features=["async"] }
 env_logger = {version="0.5.9", default-features = false }
 log = {version="0.4.1", default-features = false, features=["release_max_level_debug"]}
 futures = {version = "0.1.17" }
-tokio-core =  { version = "=0.1.17" }
 tokio-io = "0.1.5"
 tokio-stdin-stdout = "0.1.5"
 structopt = { version = "0.2", default-features = false }
@@ -62,7 +61,6 @@ seqpacket=["libc"]
 
 [replace]
 #"tokio-process:0.1.6" = {path="/mnt/src/git/tokio-process"}
-"tokio-core:0.1.17" = {path="tokio-core-singlethreaded"}
 #"tokio-core:0.1.17" = {path="/mnt/src/git/tokio-core"}
 #"websocket:0.22.0" = {path="/mnt/src/git/rust-websocket"}
 
