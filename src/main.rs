@@ -605,12 +605,14 @@ fn run() -> Result<()> {
         opts.linemode_strict = true;
     }
 
+    debug!("Done first phase of interpreting options.");
     let websocat1 = WebsocatConfiguration1 {
         opts,
         addr1: s1,
         addr2: s2,
     };
     let mut websocat2 = websocat1.parse1()?;
+    debug!("Done second phase of interpreting options.");
 
     if websocat2.inetd_mode() {
         quiet = true;
@@ -636,7 +638,9 @@ fn run() -> Result<()> {
             .overlays
             .insert(0, ::std::rc::Rc::new(websocat::jsonrpc_peer::JsonRpcClass));
     }
+    debug!("Done third phase of interpreting options.");
     let websocat = websocat2.parse2()?;
+    debug!("Done fourth phase of interpreting options.");
 
     if cmd.dumpspec {
         println!("{:?}", websocat.s1);
@@ -647,13 +651,12 @@ fn run() -> Result<()> {
 
     let mut core = tokio::runtime::current_thread::Runtime::new()?;
 
-    let prog = websocat.serve(
-        std::rc::Rc::new(move |e| {
-            if !quiet {
-                eprintln!("websocat: {}", e);
-            }
-        }),
-    );
+    let error_handler = std::rc::Rc::new(move |e| {
+        if !quiet {
+            eprintln!("websocat: {}", e);
+        }
+    });
+    let prog = websocat.serve(error_handler);
     debug!("Preparation done. Now actually starting.");
     core.block_on(prog).map_err(|()| "error running".to_string())?;
     Ok(())
