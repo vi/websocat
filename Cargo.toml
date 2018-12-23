@@ -41,8 +41,8 @@ tokio-codec = "0.1.1"
 tokio-tcp = "0.1.2"
 tokio-udp = "0.1.3"
 tokio-reactor = "0.1.7"
-tokio-executor = "0.1.5"
 tokio = "0.1.11"
+tokio-current-thread = "0.1.4"
 
 
 [target.'cfg(unix)'.dependencies]

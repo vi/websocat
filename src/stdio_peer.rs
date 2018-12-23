@@ -4,7 +4,7 @@ extern crate tokio_file_unix;
 extern crate tokio_signal;
 extern crate tokio_stdin_stdout;
 extern crate tokio_reactor;
-extern crate tokio_executor;
+
 
 use futures;
 use futures::future::Future;
@@ -23,7 +23,7 @@ use std::fs::{File as FsFile, OpenOptions};
 use super::{BoxedNewPeerFuture, Peer, Result};
 use futures::Stream;
 
-use super::{once, ConstructParams, PeerConstructor, Specifier};
+use super::{once, ConstructParams, PeerConstructor, Specifier, spawn_hack};
 
 #[derive(Clone, Debug)]
 pub struct Stdio;
@@ -168,7 +168,7 @@ fn get_stdio_peer_impl(s: &mut GlobalState) -> Result<Peer> {
                 #[allow(unreachable_code)]
                 Ok(())
             });
-            tokio_executor::spawn(Box::new(prog.map_err(|_| ())));
+            spawn_hack(Box::new(prog.map_err(|_| ())));
         }
     }
     Ok(Peer::new(si, so))

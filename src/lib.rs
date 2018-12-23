@@ -20,8 +20,7 @@ extern crate tokio_io;
 extern crate tokio_tcp;
 extern crate tokio_udp;
 extern crate tokio_reactor;
-extern crate tokio_executor;
-extern crate tokio;
+extern crate tokio_current_thread;
 extern crate websocket;
 
 #[macro_use]
@@ -43,8 +42,6 @@ use futures::Stream;
 use std::cell::RefCell;
 use std::rc::Rc;
 use std::str::FromStr;
-
-use tokio::runtime::current_thread::TaskExecutor;
 
 type Result<T> = std::result::Result<T, Box<std::error::Error>>;
 
@@ -191,7 +188,7 @@ pub enum PeerConstructor {
 pub fn spawn_hack<T>(f: T) where
     T: Future<Item = (), Error = ()> + 'static 
 {
-    TaskExecutor::current().spawn_local(Box::new(f)).unwrap()
+    tokio_current_thread::TaskExecutor::current().spawn_local(Box::new(f)).unwrap()
 }
 
 pub mod util;
