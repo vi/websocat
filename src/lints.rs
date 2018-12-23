@@ -448,8 +448,8 @@ impl WebsocatConfiguration2 {
         }
         Ok(())
     }
-    
-    #[cfg(feature="ssl")]
+
+    #[cfg(feature = "ssl")]
     fn l_ssl(&mut self, _on_warning: &OnWarning) -> Result<()> {
         if self.contains_class("TlsAcceptClass") ^ self.opts.pkcs12_der.is_some() {
             Err("SSL listerer and --pkcs12-der option should go together")?;
@@ -471,7 +471,7 @@ impl WebsocatConfiguration2 {
         self.l_environ(&on_warning)?;
         self.l_closebug(&on_warning)?;
         self.l_socks5(&on_warning)?;
-        #[cfg(feature="ssl")]
+        #[cfg(feature = "ssl")]
         self.l_ssl(&on_warning)?;
 
         // TODO: UDP connect oneshot mode

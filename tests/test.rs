@@ -2,8 +2,8 @@ extern crate websocat;
 
 extern crate env_logger;
 extern crate futures;
-extern crate tokio_timer;
 extern crate tokio;
+extern crate tokio_timer;
 
 use futures::future::Future;
 

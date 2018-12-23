@@ -1,9 +1,9 @@
 extern crate tokio_reactor;
 
 use super::{
-    futures, libc, multi, once, peer_err_s, simple_err, BoxedNewPeerFuture,
-    BoxedNewPeerStream, ConstructParams, MyUnixStream, Options, Peer, PeerConstructor,
-    Specifier, UnixListener, UnixStream,
+    futures, libc, multi, once, peer_err_s, simple_err, BoxedNewPeerFuture, BoxedNewPeerStream,
+    ConstructParams, MyUnixStream, Options, Peer, PeerConstructor, Specifier, UnixListener,
+    UnixStream,
 };
 use futures::Stream;
 use std::path::{Path, PathBuf};
@@ -48,10 +48,7 @@ Example: forward connections from websockets to a UNIX seqpacket abstract socket
 pub struct SeqpacketListen(pub PathBuf);
 impl Specifier for SeqpacketListen {
     fn construct(&self, p: ConstructParams) -> PeerConstructor {
-        multi(seqpacket_listen_peer(
-            &self.0,
-            &p.program_options,
-        ))
+        multi(seqpacket_listen_peer(&self.0, &p.program_options))
     }
     specifier_boilerplate!(noglobalstate multiconnect no_subspec);
 }
@@ -134,10 +131,7 @@ pub fn seqpacket_connect_peer(addr: &Path) -> BoxedNewPeerFuture {
     Box::new(futures::future::result({ getpeer(addr) })) as BoxedNewPeerFuture
 }
 
-pub fn seqpacket_listen_peer(
-    addr: &Path,
-    opts: &Rc<Options>,
-) -> BoxedNewPeerStream {
+pub fn seqpacket_listen_peer(addr: &Path, opts: &Rc<Options>) -> BoxedNewPeerStream {
     fn getfd(addr: &Path, opts: &Rc<Options>) -> Option<i32> {
         use self::libc::{
             bind, c_char, close, listen, sa_family_t, sockaddr_un, socket, socklen_t, unlink,
@@ -194,7 +188,7 @@ pub fn seqpacket_listen_peer(
         Ok(x) => x,
         Err(e) => return peer_err_s(e),
     };
-    use ::tk_listen::ListenExt;
+    use tk_listen::ListenExt;
     Box::new(
         bound
             .incoming()
@@ -206,6 +200,7 @@ pub fn seqpacket_listen_peer(
                     MyUnixStream(x.clone(), true),
                     MyUnixStream(x.clone(), false),
                 )
-            }).map_err(|()| ::simple_err2("unreachable error?")),
+            })
+            .map_err(|()| ::simple_err2("unreachable error?")),
     ) as BoxedNewPeerStream
 }

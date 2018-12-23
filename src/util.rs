@@ -41,13 +41,13 @@ impl PeerConstructor {
                     Box::new(mapper(p, l2r).and_then(move |x| ff(x, l2rc)))
                 }),
             ), // This implementation (without Overlay{1,M} cases)
-            // causes task to be spawned too late (before establishing ws upgrade)
-            // when serving clients:
-            
-            //ServeOnce(x) => ServeOnce(Box::new(x.and_then(f)) as BoxedNewPeerFuture),
-            //ServeMultipleTimes(s) => {
-            //    ServeMultipleTimes(Box::new(s.and_then(f)) as BoxedNewPeerStream)
-            //}
+               // causes task to be spawned too late (before establishing ws upgrade)
+               // when serving clients:
+
+               //ServeOnce(x) => ServeOnce(Box::new(x.and_then(f)) as BoxedNewPeerFuture),
+               //ServeMultipleTimes(s) => {
+               //    ServeMultipleTimes(Box::new(s.and_then(f)) as BoxedNewPeerStream)
+               //}
         }
     }
 

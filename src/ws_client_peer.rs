@@ -190,7 +190,8 @@ where
                 let ws_sin = WsWriteWrapper(mpsink, mode1, !opts.websocket_dont_close);
 
                 Peer::new(ws_str, ws_sin)
-            }).map_err(box_up_err),
+            })
+            .map_err(box_up_err),
     ) as BoxedNewPeerFuture
 }
 
@@ -208,7 +209,7 @@ pub fn get_ws_client_peer(uri: &Url, opts: Rc<Options>) -> BoxedNewPeerFuture {
                     super::ssl_peer::native_tls::TlsConnector::builder()
                         .danger_accept_invalid_certs(true)
                         .danger_accept_invalid_hostnames(true)
-                        .build()?
+                        .build()?,
                 );
             };
             before_connect.async_connect(tls_opts)

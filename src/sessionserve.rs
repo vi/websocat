@@ -3,12 +3,11 @@ use super::{
     futures, my_copy, ConstructParams, L2rUser, L2rWriter, Options, Peer, PeerConstructor,
     ProgramState, Session, Specifier, Transfer,
 };
+use spawn_hack;
 use std;
 use std::cell::RefCell;
 use std::rc::Rc;
 use tokio_io;
-use spawn_hack;
-
 
 impl Session {
     pub fn run(self) -> Box<Future<Item = (), Error = Box<std::error::Error>>> {
@@ -49,13 +48,15 @@ impl Session {
                 f1.join(f2)
                     .map(|(_, _)| {
                         info!("Finished");
-                    }).map_err(|x| Box::new(x) as Box<std::error::Error>),
+                    })
+                    .map_err(|x| Box::new(x) as Box<std::error::Error>),
             ) as Ret,
             (false, false, true) => Box::new(
                 f1.select(f2)
                     .map(|(_, _)| {
                         info!("One of directions finished");
-                    }).map_err(|(x, _)| Box::new(x) as Box<std::error::Error>),
+                    })
+                    .map_err(|(x, _)| Box::new(x) as Box<std::error::Error>),
             ) as Ret,
             (true, false, _) => Box::new({
                 ::std::mem::drop(f2);
@@ -101,9 +102,7 @@ pub fn serve<OE>(
 where
     OE: Fn(Box<std::error::Error>) -> () + 'static,
 {
-    futures::future::ok(()).and_then(|()|
-        serve_impl(s1, s2, opts, onerror)
-    )
+    futures::future::ok(()).and_then(|()| serve_impl(s1, s2, opts, onerror))
 }
 
 #[cfg_attr(feature = "cargo-clippy", allow(needless_pass_by_value))]
@@ -173,13 +172,15 @@ where
                             .and_then(move |peer2| {
                                 let s = Session::new(peer1, peer2, opts3);
                                 s.run()
-                            }).map_err(move |e| e1_1(e))
-                        .then(move |r|{
-                            cpc2.set(cpc2.get()-1);
-                            futures::future::result(r)
-                        })
+                            })
+                            .map_err(move |e| e1_1(e))
+                            .then(move |r| {
+                                cpc2.set(cpc2.get() - 1);
+                                futures::future::result(r)
+                            }),
                     )
-                }).for_each(|()| futures::future::ok(()));
+                })
+                .for_each(|()| futures::future::ok(()));
             Box::new(runner.map_err(move |e| e2(e))) as Box<Future<Item = (), Error = ()>>
         }
         OverlayM(stream, mapper) => {
@@ -216,13 +217,15 @@ where
                                         let s = Session::new(peer1, peer2, opts3);
                                         s.run()
                                     })
-                            }).map_err(move |e| e1_1(e))
-                        .then(move |r|{
-                            cpc2.set(cpc2.get()-1);
-                            futures::future::result(r)
-                        })
+                            })
+                            .map_err(move |e| e1_1(e))
+                            .then(move |r| {
+                                cpc2.set(cpc2.get() - 1);
+                                futures::future::result(r)
+                            }),
                     )
-                }).for_each(|()| futures::future::ok(()));
+                })
+                .for_each(|()| futures::future::ok(()));
             Box::new(runner.map_err(move |e| e2(e))) as Box<Future<Item = (), Error = ()>>
         }
         ServeOnce(peer1c) => {

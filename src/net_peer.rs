@@ -11,7 +11,7 @@ use tokio_io::{AsyncRead, AsyncWrite};
 use std::cell::RefCell;
 use std::rc::Rc;
 
-use tokio_tcp::{TcpStream, TcpListener};
+use tokio_tcp::{TcpListener, TcpStream};
 use tokio_udp::UdpSocket;
 
 use super::L2rUser;
@@ -80,10 +80,7 @@ Example: redirect TCP to a websocket
 pub struct UdpConnect(pub SocketAddr);
 impl Specifier for UdpConnect {
     fn construct(&self, p: ConstructParams) -> PeerConstructor {
-        once(udp_connect_peer(
-            &self.0,
-            &p.program_options,
-        ))
+        once(udp_connect_peer(&self.0, &p.program_options))
     }
     specifier_boilerplate!(noglobalstate singleconnect no_subspec );
 }
@@ -104,10 +101,7 @@ Send and receive packets to specified UDP socket, from random UDP port
 pub struct UdpListen(pub SocketAddr);
 impl Specifier for UdpListen {
     fn construct(&self, p: ConstructParams) -> PeerConstructor {
-        once(udp_listen_peer(
-            &self.0,
-            &p.program_options,
-        ))
+        once(udp_listen_peer(&self.0, &p.program_options))
     }
     specifier_boilerplate!(noglobalstate singleconnect no_subspec );
 }
@@ -203,7 +197,8 @@ pub fn tcp_connect_peer(addr: &SocketAddr) -> BoxedNewPeerFuture {
                 info!("Connected to TCP");
                 let x = Rc::new(x);
                 Peer::new(MyTcpStream(x.clone(), true), MyTcpStream(x.clone(), false))
-            }).map_err(box_up_err),
+            })
+            .map_err(box_up_err),
     ) as BoxedNewPeerFuture
 }
 
@@ -212,7 +207,7 @@ pub fn tcp_listen_peer(addr: &SocketAddr, l2r: L2rUser) -> BoxedNewPeerStream {
         Ok(x) => x,
         Err(e) => return peer_err_s(e),
     };
-    use ::tk_listen::ListenExt;
+    use tk_listen::ListenExt;
     Box::new(
         bound
             .incoming()
@@ -224,14 +219,15 @@ pub fn tcp_listen_peer(addr: &SocketAddr, l2r: L2rUser) -> BoxedNewPeerStream {
                 match l2r {
                     L2rUser::FillIn(ref y) => {
                         let mut z = y.borrow_mut();
-                        z.client_addr = addr.map(|a|format!("{}", a));
+                        z.client_addr = addr.map(|a| format!("{}", a));
                     }
                     L2rUser::ReadFrom(_) => {}
                 }
 
                 let x = Rc::new(x);
                 Peer::new(MyTcpStream(x.clone(), true), MyTcpStream(x.clone(), false))
-            }).map_err(|()| ::simple_err2("unreachable error?")),
+            })
+            .map_err(|()| ::simple_err2("unreachable error?")),
     ) as BoxedNewPeerStream
 }
 
@@ -260,10 +256,7 @@ fn get_zero_address(addr: &SocketAddr) -> SocketAddr {
     SocketAddr::new(ip, 0)
 }
 
-pub fn udp_connect_peer(
-    addr: &SocketAddr,
-    opts: &Rc<Options>,
-) -> BoxedNewPeerFuture {
+pub fn udp_connect_peer(addr: &SocketAddr, opts: &Rc<Options>) -> BoxedNewPeerFuture {
     let za = get_zero_address(addr);
 
     Box::new(futures::future::result(
@@ -278,14 +271,12 @@ pub fn udp_connect_peer(
                 })));
                 let h2 = h1.clone();
                 Ok(Peer::new(h1, h2))
-            }).map_err(box_up_err),
+            })
+            .map_err(box_up_err),
     )) as BoxedNewPeerFuture
 }
 
-pub fn udp_listen_peer(
-    addr: &SocketAddr,
-    opts: &Rc<Options>,
-) -> BoxedNewPeerFuture {
+pub fn udp_listen_peer(addr: &SocketAddr, opts: &Rc<Options>) -> BoxedNewPeerFuture {
     Box::new(futures::future::result(
         UdpSocket::bind(addr)
             .and_then(|x| {
@@ -296,7 +287,8 @@ pub fn udp_listen_peer(
                 })));
                 let h2 = h1.clone();
                 Ok(Peer::new(h1, h2))
-            }).map_err(box_up_err),
+            })
+            .map_err(box_up_err),
     )) as BoxedNewPeerFuture
 }
 
@@ -316,7 +308,8 @@ impl Read for UdpPeerHandle {
                         }
                         p.state = Some(UdpPeerState::HasAddress(addr));
                         ret
-                    }).map_err(|e| {
+                    })
+                    .map_err(|e| {
                         p.state = Some(UdpPeerState::HasAddress(oldaddr));
                         e
                     })
@@ -381,7 +374,7 @@ trait UndeprecateNonpollSendRecv {
     fn send_to2(&mut self, buf: &[u8], target: &SocketAddr) -> std::io::Result<usize>;
 }
 
-impl UndeprecateNonpollSendRecv for  UdpSocket {
+impl UndeprecateNonpollSendRecv for UdpSocket {
     fn recv2(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
         match self.poll_recv(buf)? {
             futures::Async::Ready(n) => Ok(n),

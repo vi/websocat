@@ -25,7 +25,7 @@ macro_rules! list_of_all_specifier_classes {
 
         $your_macro!($crate::net_peer::TcpConnectClass);
         $your_macro!($crate::net_peer::TcpListenClass);
-        
+
         #[cfg(feature = "ssl")]
         $your_macro!($crate::ssl_peer::TlsConnectClass);
         #[cfg(feature = "ssl")]

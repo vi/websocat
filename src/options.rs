@@ -50,7 +50,7 @@ pub struct Options {
     pub auto_socks5: Option<SocketAddr>,
     pub socks5_bind_script: Option<OsString>,
     pub tls_domain: Option<String>,
-    #[derivative(Debug="ignore")]
+    #[derivative(Debug = "ignore")]
     pub pkcs12_der: Option<Vec<u8>>,
     pub tls_insecure: bool,
 

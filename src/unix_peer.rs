@@ -1,5 +1,5 @@
-extern crate tokio_uds;
 extern crate tokio_reactor;
+extern crate tokio_uds;
 
 #[cfg(any(feature = "workaround1", feature = "seqpacket"))]
 extern crate libc;
@@ -59,10 +59,7 @@ Example: forward connections from websockets to a UNIX stream socket
 pub struct UnixListen(pub PathBuf);
 impl Specifier for UnixListen {
     fn construct(&self, p: ConstructParams) -> PeerConstructor {
-        multi(unix_listen_peer(
-            &self.0,
-            &p.program_options,
-        ))
+        multi(unix_listen_peer(&self.0, &p.program_options))
     }
     specifier_boilerplate!(noglobalstate multiconnect no_subspec);
 }
@@ -113,11 +110,7 @@ TODO: --chmod option?
 pub struct UnixDgram(pub PathBuf, pub PathBuf);
 impl Specifier for UnixDgram {
     fn construct(&self, p: ConstructParams) -> PeerConstructor {
-        once(dgram_peer(
-            &self.0,
-            &self.1,
-            &p.program_options,
-        ))
+        once(dgram_peer(&self.0, &self.1, &p.program_options))
     }
     specifier_boilerplate!(noglobalstate singleconnect no_subspec);
 }
@@ -346,7 +339,8 @@ pub fn unix_connect_peer(addr: &Path) -> BoxedNewPeerFuture {
                     MyUnixStream(x.clone(), true),
                     MyUnixStream(x.clone(), false),
                 )
-            }).map_err(box_up_err),
+            })
+            .map_err(box_up_err),
     ) as BoxedNewPeerFuture
 }
 
@@ -359,7 +353,7 @@ pub fn unix_listen_peer(addr: &Path, opts: &Rc<Options>) -> BoxedNewPeerStream {
         Err(e) => return peer_err_s(e),
     };
     // TODO: chmod
-    use ::tk_listen::ListenExt;
+    use tk_listen::ListenExt;
     Box::new(
         bound
             .incoming()
@@ -371,7 +365,8 @@ pub fn unix_listen_peer(addr: &Path, opts: &Rc<Options>) -> BoxedNewPeerStream {
                     MyUnixStream(x.clone(), true),
                     MyUnixStream(x.clone(), false),
                 )
-            }).map_err(|()| ::simple_err2("unreachable error?")),
+            })
+            .map_err(|()| ::simple_err2("unreachable error?")),
     ) as BoxedNewPeerStream
 }
 
@@ -384,11 +379,7 @@ struct DgramPeer {
 #[derive(Clone)]
 struct DgramPeerHandle(Rc<RefCell<DgramPeer>>);
 
-pub fn dgram_peer(
-    bindaddr: &Path,
-    connectaddr: &Path,
-    opts: &Rc<Options>,
-) -> BoxedNewPeerFuture {
+pub fn dgram_peer(bindaddr: &Path, connectaddr: &Path, opts: &Rc<Options>) -> BoxedNewPeerFuture {
     Box::new(futures::future::result(
         UnixDatagram::bind(bindaddr)
             .and_then(|x| {
@@ -400,7 +391,8 @@ pub fn dgram_peer(
                 })));
                 let h2 = h1.clone();
                 Ok(Peer::new(h1, h2))
-            }).map_err(box_up_err),
+            })
+            .map_err(box_up_err),
     )) as BoxedNewPeerFuture
 }
 
@@ -468,7 +460,7 @@ pub fn dgram_peer_workaround(
         if let Some(fd) = getfd(bindaddr, connectaddr) {
             let s: ::std::os::unix::net::UnixDatagram =
                 unsafe { ::std::os::unix::io::FromRawFd::from_raw_fd(fd) };
-            let ss = UnixDatagram::from_std(s, &tokio_reactor::Handle::default() )?;
+            let ss = UnixDatagram::from_std(s, &tokio_reactor::Handle::default())?;
             let h1 = DgramPeerHandle(Rc::new(RefCell::new(DgramPeer {
                 s: ss,
                 oneshot_mode: opts.udp_oneshot_mode,
@@ -510,7 +502,7 @@ impl AsyncWrite for DgramPeerHandle {
     }
 }
 
-trait HacksForMigratingFromTokioCore  {
+trait HacksForMigratingFromTokioCore {
     fn recv(&self, buf: &mut [u8]) -> std::io::Result<usize>;
     fn send(&self, buf: &[u8]) -> std::io::Result<usize>;
 }

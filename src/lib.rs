@@ -9,7 +9,6 @@
 //! 5. `Peer` - an active connection. Once we have two of them, we can start a:
 //! 6. `Session` with two `Transfer`s - forward and reverse.
 
-
 #![allow(renamed_and_removed_lints)]
 #![allow(unknown_lints)]
 #![cfg_attr(feature = "cargo-clippy", allow(deprecated_cfg_attr))]
@@ -17,10 +16,10 @@
 extern crate futures;
 #[macro_use]
 extern crate tokio_io;
+extern crate tokio_current_thread;
+extern crate tokio_reactor;
 extern crate tokio_tcp;
 extern crate tokio_udp;
-extern crate tokio_reactor;
-extern crate tokio_current_thread;
 extern crate websocket;
 
 extern crate tk_listen;
@@ -86,10 +85,7 @@ pub struct WebsocatConfiguration3 {
 }
 
 impl WebsocatConfiguration3 {
-    pub fn serve<OE>(
-        self,
-        onerror: std::rc::Rc<OE>,
-    ) -> impl Future<Item = (), Error = ()>
+    pub fn serve<OE>(self, onerror: std::rc::Rc<OE>) -> impl Future<Item = (), Error = ()>
     where
         OE: Fn(Box<std::error::Error>) -> () + 'static,
     {
@@ -145,7 +141,7 @@ pub mod all_peers;
 pub mod lints;
 mod my_copy;
 
-pub use util::{brokenpipe, io_other_error, wouldblock, simple_err2};
+pub use util::{brokenpipe, io_other_error, simple_err2, wouldblock};
 
 #[cfg(all(unix, feature = "unix_stdio"))]
 pub mod stdio_peer;
@@ -187,10 +183,13 @@ pub enum PeerConstructor {
 }
 
 /// A remnant of the hack
-pub fn spawn_hack<T>(f: T) where
-    T: Future<Item = (), Error = ()> + 'static 
+pub fn spawn_hack<T>(f: T)
+where
+    T: Future<Item = (), Error = ()> + 'static,
 {
-    tokio_current_thread::TaskExecutor::current().spawn_local(Box::new(f)).unwrap()
+    tokio_current_thread::TaskExecutor::current()
+        .spawn_local(Box::new(f))
+        .unwrap()
 }
 
 pub mod util;

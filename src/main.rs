@@ -30,9 +30,7 @@ use websocat::{Options, SpecifierClass, WebsocatConfiguration1};
 
 type Result<T> = std::result::Result<T, Box<std::error::Error>>;
 
-use std::ffi::{OsString};
-
-
+use std::ffi::OsString;
 
 #[derive(StructOpt, Debug)]
 #[structopt(
@@ -113,10 +111,7 @@ struct Opt {
     )]
     dumpspec: bool,
 
-    #[structopt(
-        long = "protocol",
-        help = "Specify Sec-WebSocket-Protocol: header"
-    )]
+    #[structopt(long = "protocol", help = "Specify Sec-WebSocket-Protocol: header")]
     websocket_protocol: Option<String>,
 
     #[structopt(
@@ -263,80 +258,79 @@ struct Opt {
     #[structopt(
         short = "e",
         long = "set-environment",
-        help = "Set WEBSOCAT_* environment variables when doing exec:/cmd:/sh-c:\nCurrently it's WEBSOCAT_URI and WEBSOCAT_CLIENT for\nrequest URI and client address (if TCP)\nBeware of ShellShock or similar security problems.",
+        help = "Set WEBSOCAT_* environment variables when doing exec:/cmd:/sh-c:\nCurrently it's WEBSOCAT_URI and WEBSOCAT_CLIENT for\nrequest URI and client address (if TCP)\nBeware of ShellShock or similar security problems."
     )]
     exec_set_env: bool,
 
     #[structopt(
         long = "reuser-send-zero-msg-on-disconnect",
-        help = "[A] Make reuse-raw: send a zero-length message to the peer when some clients disconnects.",
+        help = "[A] Make reuse-raw: send a zero-length message to the peer when some clients disconnects."
     )]
     reuser_send_zero_msg_on_disconnect: bool,
 
     #[structopt(
         long = "exec-sighup-on-zero-msg",
-        help = "[A] Make exec: or sh-c: or cmd: send SIGHUP on UNIX when facing incoming zero-length message.",
+        help = "[A] Make exec: or sh-c: or cmd: send SIGHUP on UNIX when facing incoming zero-length message."
     )]
     process_zero_sighup: bool,
 
     #[structopt(
         long = "exec-sighup-on-stdin-close",
-        help = "[A] Make exec: or sh-c: or cmd: send SIGHUP on UNIX when input is closed.",
+        help = "[A] Make exec: or sh-c: or cmd: send SIGHUP on UNIX when input is closed."
     )]
     process_exit_sighup: bool,
 
     #[structopt(
         long = "jsonrpc",
-        help = "Format messages you type as JSON RPC 2.0 method calls. First word becomes method name, the rest becomes parameters, possibly automatically wrapped in [].",
+        help = "Format messages you type as JSON RPC 2.0 method calls. First word becomes method name, the rest becomes parameters, possibly automatically wrapped in []."
     )]
     jsonrpc: bool,
 
     #[structopt(
         long = "socks5-destination",
         help = "[A] Examples: 1.2.3.4:5678  2600:::80  hostname:5678",
-        parse(try_from_str = "interpret_socks_destination"),
+        parse(try_from_str = "interpret_socks_destination")
     )]
     socks_destination: Option<SocksSocketAddr>,
 
     #[structopt(
         long = "socks5",
-        help = "Use specified address:port as a SOCKS5 proxy. Note that proxy authentication is not supported yet. Example: --socks5 127.0.0.1:9050",
+        help = "Use specified address:port as a SOCKS5 proxy. Note that proxy authentication is not supported yet. Example: --socks5 127.0.0.1:9050"
     )]
     auto_socks5: Option<SocketAddr>,
 
     #[structopt(
         long = "socks5-bind-script",
         help = "[A] Execute specified script in `socks5-bind:` mode when remote port number becomes known.",
-        parse(from_os_str),
+        parse(from_os_str)
     )]
     socks5_bind_script: Option<OsString>,
 
     #[structopt(
         long = "tls-domain",
         alias = "ssl-domain",
-        help = "[A] Specify domain for SNI or certificate verification when using tls-connect: overlay",
+        help = "[A] Specify domain for SNI or certificate verification when using tls-connect: overlay"
     )]
     tls_domain: Option<String>,
-    
+
     #[cfg(feature = "ssl")]
     #[structopt(
         long = "pkcs12-der",
         help = "A passwordless pkcs12 archive needed to accept SSL connections, certificate and key.\nA command to output it: openssl pkcs12 -export -out output.pkcs12 -inkey key.pem -in cert.pem\nUse with -s (--server-mode) option or with manually specified TLS overlays.\nSee moreexamples.md for more info.",
-        parse(try_from_os_str = "websocat::ssl_peer::interpret_pkcs12"),
+        parse(try_from_os_str = "websocat::ssl_peer::interpret_pkcs12")
     )]
     pkcs12_der: Option<Vec<u8>>,
-
 
     #[cfg(feature = "ssl")]
     #[structopt(
         long = "insecure",
-        short= "k",
-        help = "Accept invalid ceritificates and hostnames while connecting to TLS",
+        short = "k",
+        help = "Accept invalid ceritificates and hostnames while connecting to TLS"
     )]
     tls_insecure: bool,
 
     /// Maximum number of simultaneous connections for listening mode
-    #[structopt(long="conncap")]
+    #[structopt(long = "conncap")]
     max_parallel_conns: Option<usize>,
 }
 
@@ -428,7 +422,8 @@ mod logging {
             1 => Level::Info,
             2 => Level::Debug,
             _ => Level::Trace,
-        }.to_level_filter();
+        }
+        .to_level_filter();
 
         LoggerBuilder::new()
             .filter(Some("websocat"), lf)
@@ -530,7 +525,8 @@ fn run() -> Result<()> {
             tls_domain
             max_parallel_conns
         );
-        #[cfg(feature = "ssl")] {
+        #[cfg(feature = "ssl")]
+        {
             opts! {
                 pkcs12_der
                 tls_insecure
@@ -559,12 +555,13 @@ fn run() -> Result<()> {
             if cmd.server_mode {
                 #[allow(unused)]
                 let mut secure = false;
-                #[cfg(feature="ssl")] {
+                #[cfg(feature = "ssl")]
+                {
                     if opts.pkcs12_der.is_some() {
                         secure = true;
                     }
                 }
-                
+
                 opts.exit_on_eof = true;
                 if !secure {
                     if cmds1.contains(':') {
@@ -663,7 +660,8 @@ fn run() -> Result<()> {
     });
     let prog = websocat.serve(error_handler);
     debug!("Preparation done. Now actually starting.");
-    core.block_on(prog).map_err(|()| "error running".to_string())?;
+    core.block_on(prog)
+        .map_err(|()| "error running".to_string())?;
     Ok(())
 }
 

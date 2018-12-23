@@ -1,10 +1,9 @@
 #[cfg(unix)]
 extern crate tokio_file_unix;
+extern crate tokio_reactor;
 #[cfg(all(unix, feature = "signal_handler"))]
 extern crate tokio_signal;
 extern crate tokio_stdin_stdout;
-extern crate tokio_reactor;
-
 
 use futures;
 use futures::future::Future;
@@ -23,7 +22,7 @@ use std::fs::{File as FsFile, OpenOptions};
 use super::{BoxedNewPeerFuture, Peer, Result};
 use futures::Stream;
 
-use super::{once, ConstructParams, PeerConstructor, Specifier, spawn_hack};
+use super::{once, spawn_hack, ConstructParams, PeerConstructor, Specifier};
 
 #[derive(Clone, Debug)]
 pub struct Stdio;

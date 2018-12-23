@@ -1,5 +1,5 @@
-extern crate websocket;
 extern crate tokio_codec;
+extern crate websocket;
 
 use self::websocket::stream::async::Stream as WsStream;
 use self::websocket::OwnedMessage;
