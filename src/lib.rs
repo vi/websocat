@@ -15,7 +15,6 @@
 #![cfg_attr(feature = "cargo-clippy", allow(deprecated_cfg_attr))]
 
 extern crate futures;
-extern crate tokio_core;
 #[macro_use]
 extern crate tokio_io;
 extern crate tokio_tcp;
@@ -36,7 +35,6 @@ extern crate smart_default;
 extern crate derivative;
 
 use futures::future::Future;
-use tokio_core::reactor::Handle;
 use tokio_io::{AsyncRead, AsyncWrite};
 
 use futures::Stream;
@@ -88,13 +86,12 @@ pub struct WebsocatConfiguration3 {
 impl WebsocatConfiguration3 {
     pub fn serve<OE>(
         self,
-        h: Handle,
         onerror: std::rc::Rc<OE>,
     ) -> Box<Future<Item = (), Error = ()>>
     where
         OE: Fn(Box<std::error::Error>) -> () + 'static,
     {
-        serve(h, self.s1, self.s2, self.opts, onerror)
+        serve(self.s1, self.s2, self.opts, onerror)
     }
 }
 
@@ -185,6 +182,24 @@ pub enum PeerConstructor {
     ServeMultipleTimes(BoxedNewPeerStream),
     Overlay1(BoxedNewPeerFuture, PeerOverlay),
     OverlayM(BoxedNewPeerStream, PeerOverlay),
+}
+
+/// Hack to avoid thinking how to reach Executor which is supposed to be
+/// always single-threaded in websocat.
+/// Singlet-threaded => assume Send/Sync do not matter.
+pub fn spawn_hack<T>(f: T) where
+    T: Future<Item = (), Error = ()> + 'static 
+{
+    let bf : Box<Future<Item=(),Error=()>> = Box::new(f);
+    let bfs : Box<Future<Item=(),Error=()> + Send>;
+
+    unsafe {
+        bfs = Box::from_raw( std::mem::transmute( Box::into_raw(bf) )  );
+    }
+
+    use tokio_executor::Executor;
+    tokio_executor::DefaultExecutor::current().spawn(bfs)
+        .unwrap()
 }
 
 pub mod util;

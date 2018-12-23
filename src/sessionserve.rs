@@ -6,8 +6,9 @@ use super::{
 use std;
 use std::cell::RefCell;
 use std::rc::Rc;
-use tokio_core::reactor::Handle;
 use tokio_io;
+use spawn_hack;
+
 
 impl Session {
     pub fn run(self) -> Box<Future<Item = (), Error = Box<std::error::Error>>> {
@@ -93,7 +94,6 @@ fn l2r_new() -> L2rWriter {
 
 #[cfg_attr(feature = "cargo-clippy", allow(needless_pass_by_value))]
 pub fn serve<OE>(
-    h: Handle,
     s1: Rc<Specifier>,
     s2: Rc<Specifier>,
     opts: Options,
@@ -107,8 +107,6 @@ where
 
     use PeerConstructor::{Overlay1, OverlayM, ServeMultipleTimes, ServeOnce};
 
-    let h1 = h.clone();
-
     let e1 = onerror.clone();
     let e2 = onerror.clone();
     let e3 = onerror.clone();
@@ -119,7 +117,6 @@ where
     let l2r = l2r_new();
 
     let cp = Rc::new(RefCell::new(ConstructParams {
-        tokio_handle: h.clone(),
         program_options: opts1.clone(),
         global_state: ps.clone(),
         left_to_right: L2rUser::FillIn(l2r.clone()),
@@ -141,7 +138,7 @@ where
                     let cp2 = cp.borrow().reply();
                     cp.borrow_mut().reset_l2r();
                     let l2rc = cp2.left_to_right.clone();
-                    h1.spawn(
+                    spawn_hack(
                         s2.construct(cp2)
                             .get_only_first_conn(l2rc)
                             .and_then(move |peer2| {
@@ -161,9 +158,8 @@ where
                     let opts3 = opts2.clone();
                     let e1_1 = e1.clone();
                     let s2 = s2.clone();
-                    let h1 = h1.clone();
                     let l2rc = cp_.left_to_right.clone();
-                    h1.spawn(
+                    spawn_hack(
                         mapper(peer1_, l2rc)
                             .and_then(move |peer1| {
                                 let cp2 = cp_.reply();

@@ -10,7 +10,7 @@ use super::{brokenpipe, simple_err, wouldblock, BoxedNewPeerFuture, Peer};
 use std::io::{Error as IoError, Read, Write};
 use tokio_io::{AsyncRead, AsyncWrite};
 
-use super::{once, ConstructParams, Handle, PeerConstructor, Specifier};
+use super::{once, ConstructParams, PeerConstructor, Specifier};
 use futures::Async;
 use futures::AsyncSink;
 use futures::Future;
@@ -85,6 +85,12 @@ struct PeerHandleR(
     BroadcastClientIndex,
 );
 struct InnerPeerReader(HBroadCaster, Vec<u8>);
+
+unsafe impl Send for InnerPeerReader {
+    //! Hack to avoid thinking how to reach Executor which is supposed to be
+    //! always single-threaded in websocat.
+    //! Singlet-threaded => assume Send/Sync do not matter.
+}
 
 impl Future for InnerPeerReader {
     type Item = ();

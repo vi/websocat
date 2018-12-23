@@ -4,10 +4,10 @@ extern crate env_logger;
 extern crate futures;
 extern crate tokio_core;
 extern crate tokio_timer;
+extern crate tokio;
 
 use futures::future::Future;
 
-use tokio_core::reactor::Core;
 use websocat::{spec, Options, WebsocatConfiguration3};
 
 fn dflt() -> Options {
@@ -18,7 +18,6 @@ macro_rules! wt {
     ($core:ident, $s1:expr, $s2:expr,delay = $ms:expr, $($rest:tt)*) => {{
         let s1 = spec($s1).unwrap();
         let s2 = spec($s2).unwrap();
-        let h2 = $core.handle();
 
         let delay = tokio_timer::Delay::new(std::time::Instant::now() + std::time::Duration::new(0, $ms * 1_000_000)).map_err(|_|());
 
@@ -27,7 +26,6 @@ macro_rules! wt {
     ($core:ident, $s1:expr, $s2:expr,nodelay,$($rest:tt)*) => {{
         let s1 = spec($s1).unwrap();
         let s2 = spec($s2).unwrap();
-        let h2 = $core.handle();
 
         wt!(stage2, h2, s1, s2, $($rest)*)
     }};
@@ -43,7 +41,6 @@ macro_rules! wt {
         };
 
         websocat.serve(
-            $h2,
             wt!(stage3, $($rest)*),
         )
     }};
@@ -63,12 +60,12 @@ macro_rules! wt {
 macro_rules! prepare {
     ($core:ident) => {
         let _ = env_logger::try_init();
-        let mut $core = Core::new().unwrap();
+        let mut $core = tokio::runtime::current_thread::Runtime::new().unwrap();
     };
 }
 macro_rules! run {
     ($core:ident, $prog:expr) => {
-        $core.run($prog).map_err(|()| panic!()).unwrap();
+        $core.block_on($prog).map_err(|()| panic!()).unwrap();
     };
 }
 
@@ -162,8 +159,8 @@ fn ws_persist() {
         errpanic,
     );
 
-    core.handle().spawn(prog1);
-    core.handle().spawn(prog2);
+    core.spawn(prog1);
+    core.spawn(prog2);
     let prog = prog3;
     run!(core, prog);
 }

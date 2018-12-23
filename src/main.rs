@@ -648,7 +648,6 @@ fn run() -> Result<()> {
     let mut core = Core::new()?;
 
     let prog = websocat.serve(
-        core.handle(),
         std::rc::Rc::new(move |e| {
             if !quiet {
                 eprintln!("websocat: {}", e);
