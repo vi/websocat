@@ -212,9 +212,11 @@ pub fn tcp_listen_peer(addr: &SocketAddr, l2r: L2rUser) -> BoxedNewPeerStream {
         Ok(x) => x,
         Err(e) => return peer_err_s(e),
     };
+    use ::tk_listen::ListenExt;
     Box::new(
         bound
             .incoming()
+            .sleep_on_error(::std::time::Duration::from_millis(500))
             .map(move |x| {
                 let addr = x.peer_addr().ok();
                 info!("Incoming TCP connection from {:?}", addr);
@@ -229,7 +231,7 @@ pub fn tcp_listen_peer(addr: &SocketAddr, l2r: L2rUser) -> BoxedNewPeerStream {
 
                 let x = Rc::new(x);
                 Peer::new(MyTcpStream(x.clone(), true), MyTcpStream(x.clone(), false))
-            }).map_err(box_up_err),
+            }).map_err(|()| ::simple_err2("unreachable error?")),
     ) as BoxedNewPeerStream
 }
 

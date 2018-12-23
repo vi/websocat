@@ -96,6 +96,10 @@ pub fn simple_err(e: String) -> std::io::Error {
     let e1: Box<std::error::Error + Send + Sync> = e.into();
     ::std::io::Error::new(::std::io::ErrorKind::Other, e1)
 }
+pub fn simple_err2(e: &'static str) -> Box<std::error::Error> {
+    let e1: Box<std::error::Error + Send + Sync> = e.to_string().into();
+    e1 as Box<std::error::Error>
+}
 pub fn box_up_err<E: std::error::Error + 'static>(e: E) -> Box<std::error::Error> {
     Box::new(e) as Box<std::error::Error>
 }

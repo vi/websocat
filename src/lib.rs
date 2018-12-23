@@ -23,6 +23,8 @@ extern crate tokio_reactor;
 extern crate tokio_current_thread;
 extern crate websocket;
 
+extern crate tk_listen;
+
 #[macro_use]
 extern crate log;
 
@@ -143,7 +145,7 @@ pub mod all_peers;
 pub mod lints;
 mod my_copy;
 
-pub use util::{brokenpipe, io_other_error, wouldblock};
+pub use util::{brokenpipe, io_other_error, wouldblock, simple_err2};
 
 #[cfg(all(unix, feature = "unix_stdio"))]
 pub mod stdio_peer;

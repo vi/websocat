@@ -1,7 +1,7 @@
 extern crate tokio_reactor;
 
 use super::{
-    box_up_err, futures, libc, multi, once, peer_err_s, simple_err, BoxedNewPeerFuture,
+    futures, libc, multi, once, peer_err_s, simple_err, BoxedNewPeerFuture,
     BoxedNewPeerStream, ConstructParams, MyUnixStream, Options, Peer, PeerConstructor,
     Specifier, UnixListener, UnixStream,
 };
@@ -194,9 +194,11 @@ pub fn seqpacket_listen_peer(
         Ok(x) => x,
         Err(e) => return peer_err_s(e),
     };
+    use ::tk_listen::ListenExt;
     Box::new(
         bound
             .incoming()
+            .sleep_on_error(::std::time::Duration::from_millis(500))
             .map(|x| {
                 info!("Incoming unix socket connection");
                 let x = Rc::new(x);
@@ -204,6 +206,6 @@ pub fn seqpacket_listen_peer(
                     MyUnixStream(x.clone(), true),
                     MyUnixStream(x.clone(), false),
                 )
-            }).map_err(box_up_err),
+            }).map_err(|()| ::simple_err2("unreachable error?")),
     ) as BoxedNewPeerStream
 }

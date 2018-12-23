@@ -359,9 +359,11 @@ pub fn unix_listen_peer(addr: &Path, opts: &Rc<Options>) -> BoxedNewPeerStream {
         Err(e) => return peer_err_s(e),
     };
     // TODO: chmod
+    use ::tk_listen::ListenExt;
     Box::new(
         bound
             .incoming()
+            .sleep_on_error(::std::time::Duration::from_millis(500))
             .map(|x| {
                 info!("Incoming unix socket connection");
                 let x = Rc::new(x);
@@ -369,7 +371,7 @@ pub fn unix_listen_peer(addr: &Path, opts: &Rc<Options>) -> BoxedNewPeerStream {
                     MyUnixStream(x.clone(), true),
                     MyUnixStream(x.clone(), false),
                 )
-            }).map_err(box_up_err),
+            }).map_err(|()| ::simple_err2("unreachable error?")),
     ) as BoxedNewPeerStream
 }
 
