@@ -334,6 +334,10 @@ struct Opt {
         help = "Accept invalid ceritificates and hostnames while connecting to TLS",
     )]
     tls_insecure: bool,
+
+    /// Maximum number of simultaneous connections for listening mode
+    #[structopt(long="conncap")]
+    max_parallel_conns: Option<usize>,
 }
 
 // TODO: make it byte-oriented/OsStr?
@@ -524,6 +528,7 @@ fn run() -> Result<()> {
             auto_socks5
             socks5_bind_script
             tls_domain
+            max_parallel_conns
         );
         #[cfg(feature = "ssl")] {
             opts! {

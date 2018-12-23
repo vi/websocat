@@ -53,4 +53,6 @@ pub struct Options {
     #[derivative(Debug="ignore")]
     pub pkcs12_der: Option<Vec<u8>>,
     pub tls_insecure: bool,
+
+    pub max_parallel_conns: Option<usize>,
 }

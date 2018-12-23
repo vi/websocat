@@ -143,10 +143,25 @@ where
             PeerConstructor::ServeOnce(left.get_only_first_conn(cp.borrow().left_to_right.clone()));
     }
 
+    let max_parallel_conns = opts1.max_parallel_conns;
+    let current_parallel_conns = Rc::new(::std::cell::Cell::new(0usize));
+
     match left {
         ServeMultipleTimes(stream) => {
             let runner = stream
                 .map(move |peer1| {
+                    let mut cpc = current_parallel_conns.get();
+                    let cpc2 = current_parallel_conns.clone();
+                    cpc += 1;
+                    if let Some(cap) = max_parallel_conns {
+                        if cpc > cap {
+                            warn!("Dropping connection because of connection cap");
+                            return;
+                        }
+                    }
+                    info!("Serving {} ongoing connections", cpc);
+                    current_parallel_conns.set(cpc);
+
                     let opts3 = opts2.clone();
                     let e1_1 = e1.clone();
                     let cp2 = cp.borrow().reply();
@@ -158,7 +173,11 @@ where
                             .and_then(move |peer2| {
                                 let s = Session::new(peer1, peer2, opts3);
                                 s.run()
-                            }).map_err(move |e| e1_1(e)),
+                            }).map_err(move |e| e1_1(e))
+                        .then(move |r|{
+                            cpc2.set(cpc2.get()-1);
+                            futures::future::result(r)
+                        })
                     )
                 }).for_each(|()| futures::future::ok(()));
             Box::new(runner.map_err(move |e| e2(e))) as Box<Future<Item = (), Error = ()>>
@@ -167,6 +186,19 @@ where
             let runner = stream
                 .map(move |peer1_| {
                     debug!("Underlying connection established");
+
+                    let mut cpc = current_parallel_conns.get();
+                    let cpc2 = current_parallel_conns.clone();
+                    cpc += 1;
+                    if let Some(cap) = max_parallel_conns {
+                        if cpc > cap {
+                            warn!("Dropping connection because of connection cap");
+                            return;
+                        }
+                    }
+                    info!("Serving {} ongoing connections", cpc);
+                    current_parallel_conns.set(cpc);
+
                     let cp_ = cp.borrow().deep_clone();
                     cp.borrow_mut().reset_l2r();
                     let opts3 = opts2.clone();
@@ -184,7 +216,11 @@ where
                                         let s = Session::new(peer1, peer2, opts3);
                                         s.run()
                                     })
-                            }).map_err(move |e| e1_1(e)),
+                            }).map_err(move |e| e1_1(e))
+                        .then(move |r|{
+                            cpc2.set(cpc2.get()-1);
+                            futures::future::result(r)
+                        })
                     )
                 }).for_each(|()| futures::future::ok(()));
             Box::new(runner.map_err(move |e| e2(e))) as Box<Future<Item = (), Error = ()>>
