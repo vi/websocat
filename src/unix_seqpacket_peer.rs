@@ -1,3 +1,5 @@
+extern crate tokio_reactor;
+
 use super::{
     box_up_err, futures, libc, multi, once, peer_err_s, simple_err, BoxedNewPeerFuture,
     BoxedNewPeerStream, ConstructParams, MyUnixStream, Options, Peer, PeerConstructor,

@@ -3,6 +3,8 @@ extern crate tokio_file_unix;
 #[cfg(all(unix, feature = "signal_handler"))]
 extern crate tokio_signal;
 extern crate tokio_stdin_stdout;
+extern crate tokio_reactor;
+extern crate tokio_executor;
 
 use futures;
 use futures::future::Future;

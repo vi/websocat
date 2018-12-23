@@ -1,4 +1,5 @@
 extern crate tokio_uds;
+extern crate tokio_reactor;
 
 #[cfg(any(feature = "workaround1", feature = "seqpacket"))]
 extern crate libc;
