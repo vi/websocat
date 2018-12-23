@@ -17,6 +17,7 @@ use futures::Future;
 use futures::Sink;
 use futures::Stream;
 use std::ops::DerefMut;
+use spawn_hack;
 
 use futures::unsync::mpsc;
 
@@ -85,12 +86,6 @@ struct PeerHandleR(
     BroadcastClientIndex,
 );
 struct InnerPeerReader(HBroadCaster, Vec<u8>);
-
-unsafe impl Send for InnerPeerReader {
-    //! Hack to avoid thinking how to reach Executor which is supposed to be
-    //! always single-threaded in websocat.
-    //! Singlet-threaded => assume Send/Sync do not matter.
-}
 
 impl Future for InnerPeerReader {
     type Item = ();
@@ -240,7 +235,7 @@ pub fn connection_reuser<F: FnOnce() -> BoxedNewPeerFuture>(
                     inner_peer: inner,
                     clients: Clients::new(),
                 });
-                tokio_executor::spawn(InnerPeerReader(rc.clone(), vec![0; buffer_size]));
+                spawn_hack(InnerPeerReader(rc.clone(), vec![0; buffer_size]));
             }
 
             let ps: HBroadCaster = rc.clone();

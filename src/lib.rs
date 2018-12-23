@@ -21,6 +21,7 @@ extern crate tokio_tcp;
 extern crate tokio_udp;
 extern crate tokio_reactor;
 extern crate tokio_executor;
+extern crate tokio;
 extern crate websocket;
 
 #[macro_use]
@@ -42,6 +43,8 @@ use futures::Stream;
 use std::cell::RefCell;
 use std::rc::Rc;
 use std::str::FromStr;
+
+use tokio::runtime::current_thread::TaskExecutor;
 
 type Result<T> = std::result::Result<T, Box<std::error::Error>>;
 
@@ -184,22 +187,11 @@ pub enum PeerConstructor {
     OverlayM(BoxedNewPeerStream, PeerOverlay),
 }
 
-/// Hack to avoid thinking how to reach Executor which is supposed to be
-/// always single-threaded in websocat.
-/// Singlet-threaded => assume Send/Sync do not matter.
+/// A remnant of the hack
 pub fn spawn_hack<T>(f: T) where
     T: Future<Item = (), Error = ()> + 'static 
 {
-    let bf : Box<Future<Item=(),Error=()>> = Box::new(f);
-    let bfs : Box<Future<Item=(),Error=()> + Send>;
-
-    unsafe {
-        bfs = Box::from_raw( std::mem::transmute( Box::into_raw(bf) )  );
-    }
-
-    use tokio_executor::Executor;
-    tokio_executor::DefaultExecutor::current().spawn(bfs)
-        .unwrap()
+    TaskExecutor::current().spawn_local(Box::new(f)).unwrap()
 }
 
 pub mod util;
