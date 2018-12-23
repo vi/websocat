@@ -6,10 +6,12 @@
 extern crate websocat;
 
 extern crate futures;
-extern crate tokio_core;
+extern crate tokio;
 extern crate tokio_stdin_stdout;
 
 extern crate env_logger;
+#[macro_use]
+extern crate log;
 
 #[cfg(feature = "openssl-probe")]
 extern crate openssl_probe;
@@ -21,8 +23,6 @@ extern crate structopt;
 use std::net::{IpAddr, SocketAddr};
 
 use structopt::StructOpt;
-
-use tokio_core::reactor::Core;
 
 use websocat::options::StaticFile;
 use websocat::proxy_peer::{SocksHostAddr, SocksSocketAddr};
@@ -645,7 +645,7 @@ fn run() -> Result<()> {
         return Ok(());
     }
 
-    let mut core = Core::new()?;
+    let mut core = tokio::runtime::current_thread::Runtime::new()?;
 
     let prog = websocat.serve(
         std::rc::Rc::new(move |e| {
@@ -654,7 +654,8 @@ fn run() -> Result<()> {
             }
         }),
     );
-    core.run(prog).map_err(|()| "error running".to_string())?;
+    debug!("Preparation done. Now actually starting.");
+    core.block_on(prog).map_err(|()| "error running".to_string())?;
     Ok(())
 }
 
