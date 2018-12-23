@@ -33,11 +33,11 @@ pub struct Options {
     pub websocket_dont_close: bool,
     pub one_message: bool,
     pub no_auto_linemode: bool,
-    #[default = "65536"]
+    #[default = 65536]
     pub buffer_size: usize,
-    #[default = "16"]
+    #[default = 16]
     pub broadcast_queue_len: usize,
-    #[default = "DebtHandling::Silent"]
+    #[default(DebtHandling::Silent)]
     pub read_debt_handling: DebtHandling,
     pub linemode_zero_terminated: bool,
     pub restrict_uri: Option<String>,

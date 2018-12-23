@@ -4,7 +4,7 @@ os:
   - windows
 language: rust
 rust:
-  - 1.28.0
+  - 1.30.1
 script:
   - cargo build --no-default-features --verbose --all
   - cargo test --no-default-features --verbose --all
