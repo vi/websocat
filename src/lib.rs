@@ -87,7 +87,7 @@ impl WebsocatConfiguration3 {
     pub fn serve<OE>(
         self,
         onerror: std::rc::Rc<OE>,
-    ) -> Box<Future<Item = (), Error = ()>>
+    ) -> impl Future<Item = (), Error = ()>
     where
         OE: Fn(Box<std::error::Error>) -> () + 'static,
     {

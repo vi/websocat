@@ -92,8 +92,22 @@ fn l2r_new() -> L2rWriter {
     Rc::new(RefCell::new(Default::default()))
 }
 
-#[cfg_attr(feature = "cargo-clippy", allow(needless_pass_by_value))]
 pub fn serve<OE>(
+    s1: Rc<Specifier>,
+    s2: Rc<Specifier>,
+    opts: Options,
+    onerror: std::rc::Rc<OE>,
+) -> impl Future<Item = (), Error = ()>
+where
+    OE: Fn(Box<std::error::Error>) -> () + 'static,
+{
+    futures::future::ok(()).and_then(|()|
+        serve_impl(s1, s2, opts, onerror)
+    )
+}
+
+#[cfg_attr(feature = "cargo-clippy", allow(needless_pass_by_value))]
+fn serve_impl<OE>(
     s1: Rc<Specifier>,
     s2: Rc<Specifier>,
     opts: Options,
