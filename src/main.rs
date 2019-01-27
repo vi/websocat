@@ -325,7 +325,7 @@ struct Opt {
     #[structopt(
         long = "insecure",
         short = "k",
-        help = "Accept invalid ceritificates and hostnames while connecting to TLS"
+        help = "Accept invalid certificates and hostnames while connecting to TLS"
     )]
     tls_insecure: bool,
 
