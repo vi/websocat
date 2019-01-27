@@ -67,7 +67,7 @@ See [moreexamples.md](./moreexamples.md) for further examples.
 * Connecting to and serving WebSockets from command line.
 * Executing external program and making it communicate to WebSocket using stdin/stdout.
 * Text and binary modes, converting between lines (or null-terminated records) and messages.
-* Inetd mode, UNIX sockets (including abstract namesaced on Linux).
+* Inetd mode, UNIX sockets (including abstract namespaced on Linux).
 * Integration with Nginx using TCP or UNIX sockets.
 * Directly using unauthenticated SOCKS5 servers for connecting to WebSockets and listening WebSocket connection.
 * Auto-reconnect and connection-reuse modes.
