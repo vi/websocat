@@ -68,7 +68,7 @@ FLAGS:
     -s, --server-mode                           Simple server mode: specify TCP port or addr:port as single argument
     -S, --strict                                strict line/message mode: drop too long messages instead of splitting
                                                 them, drop incomplete lines.
-    -k, --insecure                              Accept invalid ceritificates and hostnames while connecting to TLS
+    -k, --insecure                              Accept invalid certificates and hostnames while connecting to TLS
         --udp-oneshot                           [A] udp-listen: replies only one packet per client
     -u, --unidirectional                        Inhibit copying data in one direction
     -U, --unidirectional-reverse                Inhibit copying data in the other direction (or maybe in both directions
@@ -226,7 +226,7 @@ Aliases: `wss-l:`, `l-wss:`, `wss-listen:`
 Internal name for --dump-spec: WssListen
 
 
-Listen for secure WebSocket conections on a TCP port
+Listen for secure WebSocket connections on a TCP port
 
 Example: wss:// echo server + client for testing
 
@@ -312,7 +312,7 @@ Aliases: `ssl-l:`, `tls-l:`, `tls-listen:`, `l-ssl:`, `listen-ssl:`, `listen-tls
 Internal name for --dump-spec: TlsListen
 
 
-Listen for SSL conections on a TCP port
+Listen for SSL connections on a TCP port
 
 Example: Non-websocket SSL echo server
 
@@ -530,7 +530,7 @@ Internal name for --dump-spec: UnixDgram
 
 
 Send packets to one path, receive from the other. [A]
-A socket for sending must be already openend.
+A socket for sending must be already opened.
 
 I don't know if this mode has any use, it is here just for completeness.
 
@@ -580,7 +580,7 @@ Internal name for --dump-spec: AbstractDgram
 
 
 Send packets to one address, receive from the other. [A]
-A socket for sending must be already openend.
+A socket for sending must be already opened.
 
 I don't know if this mode has any use, it is here just for completeness.
 
@@ -833,7 +833,7 @@ contains no inner newlines (or zero bytes) and terminates with one newline.
 
 Reverse of the `line2msg:`.
 
-Unless --null-terminated, replaces both newlines (\x0A) and carrige returns (\x0D) with spaces (\x20) for each read.
+Unless --null-terminated, replaces both newlines (\x0A) and carriage returns (\x0D) with spaces (\x20) for each read.
 
 Does not affect writing at all. Use this specifier on both ends to get bi-directional behaviour.
 
