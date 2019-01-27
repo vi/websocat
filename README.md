@@ -65,11 +65,11 @@ See [moreexamples.md](./moreexamples.md) for further examples.
 ## Features
 
 * Connecting to and serving WebSockets from command line.
-* Executing external program and making it communitate to WebSocket using stdin/stdout.
+* Executing external program and making it communicate to WebSocket using stdin/stdout.
 * Text and binary modes, converting between lines (or null-terminated records) and messages.
 * Inetd mode, UNIX sockets (including abstract namesaced on Linux).
 * Integration with Nginx using TCP or UNIX sockets.
-* Directly using unathenticated SOCKS5 servers for connecting to WebSockets and listening WebSocket connection.
+* Directly using unauthenticated SOCKS5 servers for connecting to WebSockets and listening WebSocket connection.
 * Auto-reconnect and connection-reuse modes.
 * Linux, Windows and Mac support, with [pre-built executables][releases].
 * Low-level WebSocket clients and servers with overridable underlying transport connection, e.g. calling external program to serve as a transport for websocat (for SSL, proxying, etc.).
@@ -116,7 +116,7 @@ FLAGS:
     -s, --server-mode                           Simple server mode: specify TCP port or addr:port as single argument
     -S, --strict                                strict line/message mode: drop too long messages instead of splitting
                                                 them, drop incomplete lines.
-    -k, --insecure                              Accept invalid ceritificates and hostnames while connecting to TLS
+    -k, --insecure                              Accept invalid certificates and hostnames while connecting to TLS
     -u, --unidirectional                        Inhibit copying data in one direction
     -U, --unidirectional-reverse                Inhibit copying data in the other direction (or maybe in both directions
                                                 if combined with -u)
@@ -185,11 +185,11 @@ Partial list of address types:
 	ws://           	Insecure (ws://) WebSocket client. Argument is host and URL.
 	wss://          	Secure (wss://) WebSocket client. Argument is host and URL.
 	ws-listen:      	WebSocket server. Argument is host and port to listen.
-	wss-listen:     	Listen for secure WebSocket conections on a TCP port
+	wss-listen:     	Listen for secure WebSocket connections on a TCP port
 	stdio:          	Same as `-`. Read input from console, print to console.
 	tcp:            	Connect to specified TCP host and port. Argument is a socket address.
 	tcp-listen:     	Listen TCP port on specified address.
-	ssl-listen:     	Listen for SSL conections on a TCP port
+	ssl-listen:     	Listen for SSL connections on a TCP port
 	sh-c:           	Start specified command line using `sh -c` (even on Windows)
 	cmd:            	Start specified command line using `sh -c` or `cmd /C` (depending on platform)
 	readfile:       	Synchronously read a file. Argument is a file path.
