@@ -5,8 +5,7 @@ More examples to avoid bloating up README or specifier-specific docs.
 
 ## Connecting to wss:// without checking certificate
 
-Unfortunately, current Websocat relies on slightly outdated dependencies which don't yet contain functions to completely turn off SSL checking. You need to rely on external program to do the SSL for now.
-
+Websocat has `-k` option to turn off checking of SSL certificate. As alternative (or when using older versions of Websocat) you can use external programs to provide SSL for websocat.
 With `socat`:
 
 ```
@@ -86,7 +85,11 @@ Listening on wss://127.0.0.1:1234/
 
 There is a pre-generated certificate `test.pkcs12` included in Git.
 
-Unfortunately, you can't easily connect to that `wss://127.0.0.1:1234/` with `websocat wss://127.0.0.1:1234` now, you need to use workaround above.
+Workaround method for creating a `wss://` server:
+
+```
+socat openssl-listen:1234,cert=cert.pem,key=key.pem,verify=0,fork,reuseaddr system:"websocat -t inetd-ws\\: open-fd\\:2"
+```
 
 # Proxy servers
 
