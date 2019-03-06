@@ -14,15 +14,15 @@ use Peer;
 
 use my_copy::{copy, CopyOptions};
 
-const BAD_REQUEST :&[u8] = b"HTTP/1.1 400 Bad Reqeust\r\nServer: websocat\r\nContent-Type: text/plain\r\nConnection: close\r\n\r\nOnly WebSocket connections are welcome here\n";
+const BAD_REQUEST :&[u8] = b"HTTP/1.1 400 Bad Request\r\nServer: websocat\r\nContent-Type: text/plain\r\nConnection: close\r\n\r\nOnly WebSocket connections are welcome here\n";
 
 const NOT_FOUND: &[u8] = b"HTTP/1.1 404 Not Found\r\nServer: websocat\r\nContent-Type: text/plain\r\nConnection: close\r\n\r\nURI does not match any -F option and is not a WebSocket connection.\n";
 
 const NOT_FOUND2: &[u8] = b"HTTP/1.1 500 Not Found\r\nServer: websocat\r\nContent-Type: text/plain\r\nConnection: close\r\n\r\nFailed to open the file on server side.\n";
 
-const BAD_METHOD :&[u8] = b"HTTP/1.1 400 Bad Reqeust\r\nServer: websocat\r\nContent-Type: text/plain\r\nConnection: close\r\n\r\nHTTP method should be GET\n";
+const BAD_METHOD :&[u8] = b"HTTP/1.1 400 Bad Request\r\nServer: websocat\r\nContent-Type: text/plain\r\nConnection: close\r\n\r\nHTTP method should be GET\n";
 
-const BAD_URI_FORMAT :&[u8] = b"HTTP/1.1 400 Bad Reqeust\r\nServer: websocat\r\nContent-Type: text/plain\r\nConnection: close\r\n\r\nURI should be an absolute path\n";
+const BAD_URI_FORMAT :&[u8] = b"HTTP/1.1 400 Bad Request\r\nServer: websocat\r\nContent-Type: text/plain\r\nConnection: close\r\n\r\nURI should be an absolute path\n";
 
 fn get_static_file_reply(len: Option<u64>, ct: &str) -> Vec<u8> {
     let mut q = Vec::with_capacity(256);
