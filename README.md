@@ -91,7 +91,7 @@ There are multiple options for installing WebSocat. From easy to hard:
 ## Usage
 
 ```
-websocat 1.2.0
+websocat 1.3.0
 Vitaly "_Vi" Shukela <vi0oss@gmail.com>
 Command-line client for web sockets, like netcat/curl/socat for ws://.
 
@@ -142,12 +142,14 @@ OPTIONS:
             --help=short is the list of easy options and address types
             --help=long lists all options and types (see [A] markers)
             --help=doc also shows longer description and examples.
+        --conncap <max_parallel_conns>               Maximum number of simultaneous connections for listening mode
         --origin <origin>                            Add Origin HTTP header to websocket client request
         --pkcs12-der <pkcs12_der>
-            A passwordless pkcs12 archive needed to accept SSL connections, certificate and key.
+            Pkcs12 archive needed to accept SSL connections, certificate and key.
             A command to output it: openssl pkcs12 -export -out output.pkcs12 -inkey key.pem -in cert.pem
             Use with -s (--server-mode) option or with manually specified TLS overlays.
             See moreexamples.md for more info.
+        --pkcs12-passwd <pkcs12_passwd>              Password for --pkcs12-der pkcs12 archive. Required on Mac.
         --restrict-uri <restrict_uri>
             When serving a websocket, only accept the given URI, like `/ws`
             This liberates other URIs for things like serving static files or proxying.
@@ -206,7 +208,7 @@ Partial list of overlays:
 	autoreconnect:  	Re-establish underlying connection on any error or EOF
 ```
 
-Pre-built binaries for Linux (usual and musl), Windows, OS X and Android (ARM) are available on the [releases page](https://github.com/vi/websocat/releases).
+Pre-built binaries for Linux (usual and musl), Windows, OS X and Android are available on the [releases page](https://github.com/vi/websocat/releases).
 
 Limitations
 ---
