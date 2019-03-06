@@ -115,6 +115,7 @@ ST=amd64-mingw32msvc-strip
 E=.exe
 r
 
+PATH=$PATH:/mnt/src/git/osxcross/target/bin
 T=x86_64-apple-darwin
 CA="cargo +stable"
 TT=mac
