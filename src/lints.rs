@@ -454,6 +454,18 @@ impl WebsocatConfiguration2 {
         if self.contains_class("TlsAcceptClass") ^ self.opts.pkcs12_der.is_some() {
             Err("SSL listerer and --pkcs12-der option should go together")?;
         }
+        #[cfg(target_os = "macos")] {
+            if self.opts.pkcs12_der.is_some() && self.opts.pkcs12_passwd.is_none() {
+                _on_warning("PKCS12 archives without password may be unsupported on Mac");
+
+                for x in ::std::env::args() {
+                    if x.contains("test.pkcs12") {
+                        _on_warning("If you want a pre-made test certificate, use other file: `--pkcs12-der 1234.pkcs12 --pkcs12-passwd 1234`");
+                        break;
+                    }
+                }
+            }
+        }
         Ok(())
     }
 
