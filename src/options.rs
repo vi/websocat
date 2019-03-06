@@ -52,6 +52,8 @@ pub struct Options {
     pub tls_domain: Option<String>,
     #[derivative(Debug = "ignore")]
     pub pkcs12_der: Option<Vec<u8>>,
+    #[derivative(Debug = "ignore")]
+    pub pkcs12_passwd: Option<String>,
     pub tls_insecure: bool,
 
     pub max_parallel_conns: Option<usize>,
