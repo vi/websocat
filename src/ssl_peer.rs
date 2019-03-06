@@ -117,7 +117,7 @@ specifier_alias!(
     ],
     alias = "tls-accept:tcp-l:",
     help = r#"
-Listen for SSL conections on a TCP port
+Listen for SSL connections on a TCP port
 
 Example: Non-websocket SSL echo server
 
@@ -131,7 +131,7 @@ specifier_alias!(
     prefixes = ["wss-listen:", "wss-l:", "l-wss:", "wss-listen:"],
     alias = "ws-u:tls-accept:tcp-l:",
     help = r#"
-Listen for secure WebSocket conections on a TCP port
+Listen for secure WebSocket connections on a TCP port
 
 Example: wss:// echo server + client for testing
 

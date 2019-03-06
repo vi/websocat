@@ -37,7 +37,7 @@ contains no inner newlines (or zero bytes) and terminates with one newline.
 
 Reverse of the `line2msg:`.
 
-Unless --null-terminated, replaces both newlines (\x0A) and carrige returns (\x0D) with spaces (\x20) for each read.
+Unless --null-terminated, replaces both newlines (\x0A) and carriage returns (\x0D) with spaces (\x20) for each read.
 
 Does not affect writing at all. Use this specifier on both ends to get bi-directional behaviour.
 

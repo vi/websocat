@@ -138,7 +138,7 @@ specifier_class!(
     SingleConnect,
     help = r#"
 Send packets to one path, receive from the other. [A]
-A socket for sending must be already openend.
+A socket for sending must be already opened.
 
 I don't know if this mode has any use, it is here just for completeness.
 
@@ -272,7 +272,7 @@ specifier_class!(
     SingleConnect,
     help = r#"
 Send packets to one address, receive from the other. [A]
-A socket for sending must be already openend.
+A socket for sending must be already opened.
 
 I don't know if this mode has any use, it is here just for completeness.
 
