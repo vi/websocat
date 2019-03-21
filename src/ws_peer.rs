@@ -55,6 +55,7 @@ impl<T: WsStream + 'static> Read for WsReadWrapper<T> {
                     brokenpipe()
                 }
                 Ready(Some(OwnedMessage::Ping(x))) => {
+                    debug!("incoming ping");
                     let om = OwnedMessage::Pong(x);
                     let mut sink = self.pingreply.borrow_mut();
                     let mut proceed = false;
@@ -74,11 +75,11 @@ impl<T: WsStream + 'static> Read for WsReadWrapper<T> {
                         let _ = sink.poll_complete().map_err(io_other_error)?;
                     }
 
-                    Ok(0)
+                    continue;
                 }
                 Ready(Some(OwnedMessage::Pong(_))) => {
                     warn!("Received a pong from websocket");
-                    Ok(0)
+                    continue;
                 }
                 Ready(Some(OwnedMessage::Text(x))) => {
                     debug!("incoming text");
