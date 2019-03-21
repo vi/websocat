@@ -180,12 +180,24 @@ pub fn ws_upgrade_peer(
                     let (sink, stream) = y.split();
                     let mpsink = Rc::new(RefCell::new(sink));
 
-                    if let Some(d) = ping_interval {
+                    // FIXME: ping code duplicate between client and server
+
+                    let ping_aborter = if let Some(d) = ping_interval {
                         debug!("Starting pinger");
+
+                        let (tx,rx) = ::futures::unsync::oneshot::channel();
+
                         let intv = ::std::time::Duration::from_secs(d);
-                        let pinger = super::ws_peer::WsPinger::new(mpsink.clone(), intv);
+                        let pinger = super::ws_peer::WsPinger::new(
+                            mpsink.clone(),
+                            intv,
+                            rx,
+                        );
                         ::tokio_current_thread::spawn(pinger);
-                    }
+                        Some(tx)
+                    } else {
+                        None
+                    };
 
                     let pong_timeout = if let Some(d) = ping_timeout {
                         let to = ::std::time::Duration::from_secs(d);
@@ -200,6 +212,7 @@ pub fn ws_upgrade_peer(
                         pingreply: mpsink.clone(),
                         debt: ReadDebt(Default::default(), ws_read_debt_handling),
                         pong_timeout,
+                        ping_aborter,
                     };
                     let ws_sin =
                         WsWriteWrapper(mpsink, mode1, true /* send Close on shutdown */);
