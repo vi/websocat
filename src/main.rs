@@ -111,8 +111,13 @@ struct Opt {
     )]
     dumpspec: bool,
 
-    #[structopt(long = "protocol", help = "Specify Sec-WebSocket-Protocol: header")]
+    /// Specify this Sec-WebSocket-Protocol: header when connecting 
+    #[structopt(long = "protocol")]
     websocket_protocol: Option<String>,
+
+    /// Force this Sec-WebSocket-Protocol: header when accepting a connection
+    #[structopt(long = "server-protocol")]
+    websocket_reply_protocol: Option<String>,
 
     #[structopt(
         long = "udp-oneshot",
@@ -512,6 +517,7 @@ fn run() -> Result<()> {
         opts!(
             websocket_text_mode
             websocket_protocol
+            websocket_reply_protocol
             udp_oneshot_mode
             unidirectional
             unidirectional_reverse

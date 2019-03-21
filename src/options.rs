@@ -17,6 +17,7 @@ pub struct StaticFile {
 pub struct Options {
     pub websocket_text_mode: bool,
     pub websocket_protocol: Option<String>,
+    pub websocket_reply_protocol: Option<String>,
     pub udp_oneshot_mode: bool,
     pub unidirectional: bool,
     pub unidirectional_reverse: bool,

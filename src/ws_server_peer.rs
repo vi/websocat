@@ -42,6 +42,7 @@ impl<T: Specifier> Specifier for WsServer<T> {
                 serve_static_files.clone(),
                 cp.program_options.ws_ping_interval,
                 cp.program_options.ws_ping_timeout,
+                cp.program_options.websocket_reply_protocol.clone(),
                 l2r,
             )
         })
@@ -125,6 +126,7 @@ pub fn ws_upgrade_peer(
     serve_static_files: Rc<Vec<StaticFile>>,
     ping_interval: Option<u64>,
     ping_timeout: Option<u64>,
+    websocket_protocol: Option<String>,
     l2r: L2rUser,
 ) -> BoxedNewPeerFuture {
     let step1 = PeerForWs(inner_peer);
@@ -138,10 +140,68 @@ pub fn ws_upgrade_peer(
             )
         })
         .and_then(
-            move |x| -> Box<Future<Item = Peer, Error = websocket::WebSocketError>> {
+            move |mut x| -> Box<Future<Item = Peer, Error = websocket::WebSocketError>> {
                 info!("Incoming connection to websocket: {}", x.request.subject.1);
+
+                use ::websocket::header::WebSocketProtocol;
+
+                let mut protocol_check = true;
+                {
+                    let pp : Option<&WebSocketProtocol> = x.request.headers.get();
+                    if let Some(rp) = websocket_protocol {
+                        // Unconditionally set this protocol
+                        x.headers.set_raw("Sec-WebSocket-Protocol",
+                            vec![rp.as_bytes().to_vec()],
+                        );
+                        // Warn if not present in client protocols
+                        let mut present = false;
+                        if let Some(pp) = pp {
+                            if let Some(pp) = pp.iter().next() {
+                                if pp == &rp {
+                                    present = true;
+                                }
+                            }
+                        }
+                        if !present {
+                            if pp.is_none() {
+                                warn!("Client failed to specify Sec-WebSocket-Protocol header. Replying with it anyway, against the RFC.");
+                            } else {
+                                protocol_check = false;
+                            }
+                        }
+                    } else {
+                        // No protocol specified, just choosing the first if any.
+                        if let Some(pp) = pp {
+                            if pp.len() > 1 {
+                                warn!("Multiple `Sec-WebSocket-Protocol`s specified in the request. Choosing the first one. Use --server-protocol to make it explicit.")
+                            }
+                            if let Some(pp) = pp.iter().next() {
+                                x.headers.set_raw(
+                                    "Sec-WebSocket-Protocol",
+                                    vec![pp.as_bytes().to_vec()],
+                                );
+                            }
+                        }
+                    }
+                }
+
                 debug!("{:?}", x.request);
                 debug!("{:?}", x.headers);
+
+                if !protocol_check {
+                    return Box::new(
+                            x.reject()
+                                .and_then(|_| {
+                                    warn!("Requested Sec-WebSocket-Protocol does not match --server-protocol option");
+                                    ::futures::future::err(::util::simple_err(
+                                        "Requested Sec-WebSocket-Protocol does not match --server-protocol option"
+                                            .to_string(),
+                                    ))
+                                })
+                                .map_err(|e| websocket::WebSocketError::IoError(io_other_error(e))),
+                        )
+                            as Box<Future<Item = Peer, Error = websocket::WebSocketError>>;
+                }
                 
                 
                 match l2r {
