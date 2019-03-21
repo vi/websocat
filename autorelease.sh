@@ -16,7 +16,7 @@ ST=strip
 FE=""
 CA="cargo +stable"
 
-V=$(cat Cargo.toml | grep '^version' | grep -o '\".*\"' | tr -d '"' | cut -d. -f 1-2)
+V=$(cat Cargo.toml | grep '^version' | grep -o '\".*\"' | tr -d '"' | cut -d. -f 1-3)
 
 echo Version: $V
 
@@ -159,49 +159,46 @@ l2
 FE=
 b
 
+
+F=$D/websocat_${V}_ssl1.1_amd64.deb
+if [ ! -e "$F" ]; then
+    cargo +stable deb --target=x86_64-unknown-linux-gnu
+    cp -v target/x86_64-unknown-linux-gnu/debian/websocat_${V}_amd64.deb "$F"
+    debian.vi-server.org-add "$F"
+else
+    echo "$F already exists"
+fi
+
+F=$D/websocat_${V}_ssl1.1_i386.deb
+if [ ! -e "$F" ]; then
+    cargo +stable deb --target=x86_64-unknown-linux-gnu
+    cp -v target/i686-unknown-linux-gnu/debian/websocat_${V}_i386.deb "$F"
+    debian.vi-server.org-add "$F"
+else
+    echo "$F already exists"
+fi
+
+F=$D/websocat_${V}_ssl1.0_amd64.deb
+if [ ! -e "$F" ]; then
+    trap 'mv Cargo.toml.bak Cargo.toml; rm -Rf target/ && mv target_ target' EXIT
+    mv target target_
+    ln -s /tmp/qqq target
+    cp Cargo.toml Cargo.toml.bak
+    cat Cargo.toml.bak | sed 's!libssl1.1!libssl1.0.0!' > Cargo.toml
+    docker run --rm -it -v $PWD:/wd --entrypoint /bin/bash ubu1604rust -c 'source /root/.profile && mkdir /tmp/qqq && cd /wd && cargo deb --target=x86_64-unknown-linux-gnu && PKG_CONFIG_ALLOW_CROSS=1 cargo deb --target=i686-unknown-linux-gnu && cp target/*/debian/*.deb /wd/'
+    cp -v websocat_${V}_amd64.deb "$F"
+    cp -v websocat_${V}_i386.deb "${F/amd64/i386}"
+else
+    echo "ssl1.0 files already exist"
+fi
+
+set +x
+echo "Next steps: 1. create tag; 2. upload release; 3. upload to crates.io; 4. debian.vi-server.org-upload"
+
 exit 0
 
 }
 
 all
 
-S=_nossl
-FE=
 
-T=i686-unknown-linux-gnu
-r
-
-T=i686-unknown-linux-musl
-r
-
-T=arm-linux-androideabi
-r
-
-T=arm-unknown-linux-musleabi
-r
-
-ST=/mnt/src/git/osxcross/target/bin/x86_64-apple-darwin15-strip
-T=x86_64-apple-darwin
-r
-
-FE=
-ST=i586-mingw32msvc-strip
-E=.exe
-T=i686-pc-windows-gnu
-r
-
-
-FE=ssl
-S=
-ST=i586-mingw32msvc-strip
-E=.exe
-T=i686-pc-windows-gnu
-r
-
-ST=/mnt/src/git/osxcross/target/bin/x86_64-apple-darwin15-strip
-T=x86_64-apple-darwin
-E=
-r
-
-set +x
-echo "Next steps: 1. create tag; 2. upload release; 3. upload to crates.io"
