@@ -172,6 +172,13 @@ struct Opt {
     custom_headers: Vec<(String, Vec<u8>)>,
 
     #[structopt(
+        long = "server-header",
+        help = "Add custom HTTP header to websocket upgrade reply. Separate header name and value with a colon and optionally a single space. Can be used multiple times. Note that single -H may eat multiple further arguments, leading to confusing errors.",
+        parse(try_from_str = "interpret_custom_header")
+    )]
+    custom_reply_headers: Vec<(String, Vec<u8>)>,
+
+    #[structopt(
         long = "websocket-version",
         help = "Override the Sec-WebSocket-Version value"
     )]
@@ -529,6 +536,7 @@ fn run() -> Result<()> {
             linemode_strip_newlines
             origin
             custom_headers
+            custom_reply_headers
             websocket_version
             websocket_dont_close
             one_message

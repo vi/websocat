@@ -30,6 +30,7 @@ pub struct Options {
     pub linemode_strict: bool,
     pub origin: Option<String>,
     pub custom_headers: Vec<(String, Vec<u8>)>,
+    pub custom_reply_headers: Vec<(String, Vec<u8>)>,
     pub websocket_version: Option<String>,
     pub websocket_dont_close: bool,
     pub one_message: bool,

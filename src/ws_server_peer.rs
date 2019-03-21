@@ -43,6 +43,7 @@ impl<T: Specifier> Specifier for WsServer<T> {
                 cp.program_options.ws_ping_interval,
                 cp.program_options.ws_ping_timeout,
                 cp.program_options.websocket_reply_protocol.clone(),
+                cp.program_options.custom_reply_headers.clone(),
                 l2r,
             )
         })
@@ -127,6 +128,7 @@ pub fn ws_upgrade_peer(
     ping_interval: Option<u64>,
     ping_timeout: Option<u64>,
     websocket_protocol: Option<String>,
+    custom_reply_headers: Vec<(String, Vec<u8>)>,
     l2r: L2rUser,
 ) -> BoxedNewPeerFuture {
     let step1 = PeerForWs(inner_peer);
@@ -183,6 +185,10 @@ pub fn ws_upgrade_peer(
                             }
                         }
                     }
+                }
+
+                for (hn, hv) in custom_reply_headers {
+                    x.headers.append_raw(hn, hv);
                 }
 
                 debug!("{:?}", x.request);
