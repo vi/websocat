@@ -469,6 +469,31 @@ impl WebsocatConfiguration2 {
         Ok(())
     }
 
+    fn l_ping(&mut self, _on_warning: &OnWarning) -> Result<()> {
+        if self.opts.ws_ping_interval.is_some() || self.opts.ws_ping_timeout.is_some() {
+            if !self.websocket_used() {
+                _on_warning("--ping-interval or --ping-timeout options are not effective if no WebSocket usage is specified")
+            }
+        }
+        if self.opts.ws_ping_timeout.is_some() && self.opts.ws_ping_interval.is_none() {
+            _on_warning("--ping-timeout specified without --ping-interval. This will probably lead to unconditional disconnection after that interval.")
+        }
+        if let (Some(t), Some(i)) = (self.opts.ws_ping_timeout, self.opts.ws_ping_interval) {
+            if t <= i {
+                _on_warning("--ping-timeout's value is not more than --ping-interval. Expect spurious disconnections.");
+            }
+        }
+        if self.opts.ws_ping_timeout.is_some() {
+            if self.opts.unidirectional_reverse || self.opts.exit_on_eof {
+                // OK
+            } else {
+                _on_warning("--ping-interval is currenty not very effective without -E or -U")
+            }
+        }
+        Ok(())
+    }
+
+
     pub fn lint_and_fixup(&mut self, on_warning: OnWarning) -> Result<()> {
         let multiconnect = !self.opts.oneshot && self.s1.is_multiconnect();
         let mut reuser_has_been_inserted = false;
@@ -485,6 +510,7 @@ impl WebsocatConfiguration2 {
         self.l_socks5(&on_warning)?;
         #[cfg(feature = "ssl")]
         self.l_ssl(&on_warning)?;
+        self.l_ping(&on_warning)?;
 
         // TODO: UDP connect oneshot mode
         // TODO: tests for the linter
