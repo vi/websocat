@@ -29,7 +29,7 @@ Some address types may be "aliases" to other address types or combinations of ov
 
 ```
 
-websocat 1.3.0
+websocat 1.4.0
 Vitaly "_Vi" Shukela <vi0oss@gmail.com>
 Command-line client for web sockets, like netcat/curl/socat for ws://.
 
@@ -87,11 +87,15 @@ OPTIONS:
         --queue-len <broadcast_queue_len>
             [A] Number of pending queued messages for broadcast reuser [default: 16]
 
-    -B, --buffer-size <buffer_size>                  Maximum message size, in bytes [default: 65536]
+    -B, --buffer-size <buffer_size>                     Maximum message size, in bytes [default: 65536]
     -H, --header <custom_headers>...
             Add custom HTTP header to websocket client request. Separate header name and value with a colon and
             optionally a single space. Can be used multiple times. Note that single -H may eat multiple further
             arguments, leading to confusing errors. Specify headers at the end or with equal sign like -H='X: y'.
+        --server-header <custom_reply_headers>...
+            Add custom HTTP header to websocket upgrade reply. Separate header name and value with a colon and
+            optionally a single space. Can be used multiple times. Note that single -H may eat multiple further
+            arguments, leading to confusing errors.
         --exec-args <exec_args>...
             [A] Arguments for the `exec:` specifier. Must be the last option, everything after it gets into the exec
             args list.
@@ -100,14 +104,14 @@ OPTIONS:
             --help=short is the list of easy options and address types
             --help=long lists all options and types (see [A] markers)
             --help=doc also shows longer description and examples.
-        --conncap <max_parallel_conns>               Maximum number of simultaneous connections for listening mode
-        --origin <origin>                            Add Origin HTTP header to websocket client request
+        --conncap <max_parallel_conns>                  Maximum number of simultaneous connections for listening mode
+        --origin <origin>                               Add Origin HTTP header to websocket client request
         --pkcs12-der <pkcs12_der>
             Pkcs12 archive needed to accept SSL connections, certificate and key.
             A command to output it: openssl pkcs12 -export -out output.pkcs12 -inkey key.pem -in cert.pem
             Use with -s (--server-mode) option or with manually specified TLS overlays.
             See moreexamples.md for more info.
-        --pkcs12-passwd <pkcs12_passwd>              Password for --pkcs12-der pkcs12 archive. Required on Mac.
+        --pkcs12-passwd <pkcs12_passwd>                 Password for --pkcs12-der pkcs12 archive. Required on Mac.
         --restrict-uri <restrict_uri>
             When serving a websocket, only accept the given URI, like `/ws`
             This liberates other URIs for things like serving static files or proxying.
@@ -121,13 +125,20 @@ OPTIONS:
         --socks5-bind-script <socks5_bind_script>
             [A] Execute specified script in `socks5-bind:` mode when remote port number becomes known.
 
-        --socks5-destination <socks_destination>     [A] Examples: 1.2.3.4:5678  2600:::80  hostname:5678
+        --socks5-destination <socks_destination>        [A] Examples: 1.2.3.4:5678  2600:::80  hostname:5678
         --tls-domain <tls_domain>
             [A] Specify domain for SNI or certificate verification when using tls-connect: overlay
 
-        --protocol <websocket_protocol>              Specify Sec-WebSocket-Protocol: header
-        --websocket-version <websocket_version>      Override the Sec-WebSocket-Version value
-        --ws-c-uri <ws_c_uri>                        [A] URI to use for ws-c: overlay [default: ws://0.0.0.0/]
+        --protocol <websocket_protocol>                 Specify this Sec-WebSocket-Protocol: header when connecting
+        --server-protocol <websocket_reply_protocol>
+            Force this Sec-WebSocket-Protocol: header when accepting a connection
+
+        --websocket-version <websocket_version>         Override the Sec-WebSocket-Version value
+        --ws-c-uri <ws_c_uri>                           [A] URI to use for ws-c: overlay [default: ws://0.0.0.0/]
+        --ping-interval <ws_ping_interval>              Send WebSocket pings each this number of seconds
+        --ping-timeout <ws_ping_timeout>
+            Drop WebSocket connection if Pong message not received for this number of seconds
+
 
 ARGS:
     <addr1>    In simple mode, WebSocket URL to connect. In advanced mode first address (there are many kinds of
