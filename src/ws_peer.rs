@@ -35,6 +35,7 @@ pub struct WsReadWrapper<T: WsStream + 'static> {
     pub s: WsSource<T>,
     pub pingreply: MultiProducerWsSink<T>,
     pub debt: ReadDebt,
+    pub pong_timeout: Option<(::tokio_timer::Delay, ::std::time::Duration)>,
 }
 
 impl<T: WsStream + 'static> AsyncRead for WsReadWrapper<T> {}
@@ -79,6 +80,10 @@ impl<T: WsStream + 'static> Read for WsReadWrapper<T> {
                 }
                 Ready(Some(OwnedMessage::Pong(_))) => {
                     info!("Received a pong from websocket");
+
+                    if let Some((de,intvl)) = self.pong_timeout.as_mut() {
+                        de.reset(::std::time::Instant::now() + *intvl);
+                    }
                     continue;
                 }
                 Ready(Some(OwnedMessage::Text(x))) => {
@@ -95,7 +100,21 @@ impl<T: WsStream + 'static> Read for WsReadWrapper<T> {
                         ProcessMessageResult::Recurse => continue,
                     }
                 }
-                NotReady => wouldblock(),
+                NotReady => {
+                    use ::futures::Async;
+                    use ::futures::Future;
+                    if let Some((de,_intvl)) = self.pong_timeout.as_mut() {
+                        match de.poll() {
+                            Err(e) => error!("tokio-timer's Delay: {}", e),
+                            Ok(Async::NotReady) => (),
+                            Ok(Async::Ready(_inst)) => {
+                                warn!("Closing WebSocket connection due to ping timeout");
+                                return brokenpipe();
+                            }
+                        }
+                    }
+                    wouldblock()
+                },
             };
         }
     }

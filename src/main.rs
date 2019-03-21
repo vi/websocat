@@ -344,6 +344,10 @@ struct Opt {
     /// Send WebSocket pings each this number of seconds
     #[structopt(long = "ping-interval")]
     ws_ping_interval: Option<u64>,
+
+    /// Drop WebSocket connection if Pong message not received for this number of seconds
+    #[structopt(long = "ping-timeout")]
+    ws_ping_timeout: Option<u64>,
 }
 
 // TODO: make it byte-oriented/OsStr?
@@ -537,6 +541,7 @@ fn run() -> Result<()> {
             tls_domain
             max_parallel_conns
             ws_ping_interval
+            ws_ping_timeout
         );
         #[cfg(feature = "ssl")]
         {

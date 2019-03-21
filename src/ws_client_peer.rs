@@ -182,6 +182,8 @@ where
                 let (sink, stream) = duplex.split();
                 let mpsink = Rc::new(RefCell::new(sink));
 
+                // FIXME: ping code duplicate between client and server
+
                 if let Some(d) = opts.ws_ping_interval {
                     debug!("Starting pinger");
                     let intv = ::std::time::Duration::from_secs(d);
@@ -189,10 +191,19 @@ where
                     ::tokio_current_thread::spawn(pinger);
                 }
 
+                let pong_timeout = if let Some(d) = opts.ws_ping_timeout {
+                    let to = ::std::time::Duration::from_secs(d);
+                    let de = ::tokio_timer::Delay::new(std::time::Instant::now() + to);
+                    Some((de, to))
+                } else {
+                    None
+                };
+
                 let ws_str = WsReadWrapper {
                     s: stream,
                     pingreply: mpsink.clone(),
                     debt: super::readdebt::ReadDebt(Default::default(), opts.read_debt_handling),
+                    pong_timeout,
                 };
                 let ws_sin = WsWriteWrapper(mpsink, mode1, !opts.websocket_dont_close);
 

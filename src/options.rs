@@ -58,4 +58,5 @@ pub struct Options {
 
     pub max_parallel_conns: Option<usize>,
     pub ws_ping_interval: Option<u64>,
+    pub ws_ping_timeout: Option<u64>,
 }

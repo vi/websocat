@@ -41,6 +41,7 @@ impl<T: Specifier> Specifier for WsServer<T> {
                 restrict_uri.clone(),
                 serve_static_files.clone(),
                 cp.program_options.ws_ping_interval,
+                cp.program_options.ws_ping_timeout,
                 l2r,
             )
         })
@@ -123,6 +124,7 @@ pub fn ws_upgrade_peer(
     restrict_uri: Rc<Option<String>>,
     serve_static_files: Rc<Vec<StaticFile>>,
     ping_interval: Option<u64>,
+    ping_timeout: Option<u64>,
     l2r: L2rUser,
 ) -> BoxedNewPeerFuture {
     let step1 = PeerForWs(inner_peer);
@@ -185,10 +187,19 @@ pub fn ws_upgrade_peer(
                         ::tokio_current_thread::spawn(pinger);
                     }
 
+                    let pong_timeout = if let Some(d) = ping_timeout {
+                        let to = ::std::time::Duration::from_secs(d);
+                        let de = ::tokio_timer::Delay::new(std::time::Instant::now() + to);
+                        Some((de, to))
+                    } else {
+                        None
+                    };
+
                     let ws_str = WsReadWrapper {
                         s: stream,
                         pingreply: mpsink.clone(),
                         debt: ReadDebt(Default::default(), ws_read_debt_handling),
+                        pong_timeout,
                     };
                     let ws_sin =
                         WsWriteWrapper(mpsink, mode1, true /* send Close on shutdown */);
