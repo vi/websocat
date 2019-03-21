@@ -454,7 +454,8 @@ impl WebsocatConfiguration2 {
         if self.contains_class("TlsAcceptClass") ^ self.opts.pkcs12_der.is_some() {
             Err("SSL listerer and --pkcs12-der option should go together")?;
         }
-        #[cfg(target_os = "macos")] {
+        #[cfg(target_os = "macos")]
+        {
             if self.opts.pkcs12_der.is_some() && self.opts.pkcs12_passwd.is_none() {
                 _on_warning("PKCS12 archives without password may be unsupported on Mac");
 
@@ -492,7 +493,6 @@ impl WebsocatConfiguration2 {
         }
         Ok(())
     }
-
 
     pub fn lint_and_fixup(&mut self, on_warning: OnWarning) -> Result<()> {
         let multiconnect = !self.opts.oneshot && self.s1.is_multiconnect();

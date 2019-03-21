@@ -187,14 +187,10 @@ where
                 let ping_aborter = if let Some(d) = opts.ws_ping_interval {
                     debug!("Starting pinger");
 
-                    let (tx,rx) = ::futures::unsync::oneshot::channel();
+                    let (tx, rx) = ::futures::unsync::oneshot::channel();
 
                     let intv = ::std::time::Duration::from_secs(d);
-                    let pinger = super::ws_peer::WsPinger::new(
-                        mpsink.clone(),
-                        intv,
-                        rx,
-                    );
+                    let pinger = super::ws_peer::WsPinger::new(mpsink.clone(), intv, rx);
                     ::tokio_current_thread::spawn(pinger);
                     Some(tx)
                 } else {
@@ -217,7 +213,6 @@ where
                     ping_aborter,
                 };
                 let ws_sin = WsWriteWrapper(mpsink, mode1, !opts.websocket_dont_close);
-
 
                 Peer::new(ws_str, ws_sin)
             })

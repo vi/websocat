@@ -193,7 +193,7 @@ pub fn ssl_connect(
 pub fn ssl_accept(inner_peer: Peer, _l2r: L2rUser, progopt: Rc<Options>) -> BoxedNewPeerFuture {
     let squashed_peer = readwrite::ReadWriteAsync::new(inner_peer.0, inner_peer.1);
 
-    fn gettlsa(cert: &[u8], passwd:&str) -> native_tls::Result<TlsAcceptorExt> {
+    fn gettlsa(cert: &[u8], passwd: &str) -> native_tls::Result<TlsAcceptorExt> {
         let pkcs12 = Pkcs12::from_pkcs12(&cert[..], passwd)?;
         Ok(TlsAcceptorExt::from(TlsAcceptor::builder(pkcs12).build()?))
     }
@@ -205,7 +205,7 @@ pub fn ssl_accept(inner_peer: Peer, _l2r: L2rUser, progopt: Rc<Options>) -> Boxe
     let passwd = progopt
         .pkcs12_passwd
         .as_ref()
-        .map(|x|x.as_str())
+        .map(|x| x.as_str())
         .unwrap_or("");
     let tls = match gettlsa(der, passwd) {
         Ok(x) => x,

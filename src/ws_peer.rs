@@ -52,7 +52,7 @@ impl<T: WsStream + 'static> Read for WsReadWrapper<T> {
                     let _ = abt.send(());
                 }
                 brokenpipe()
-            }}
+            }};
         }
         loop {
             return match self.s.poll().map_err(io_other_error)? {
@@ -90,7 +90,7 @@ impl<T: WsStream + 'static> Read for WsReadWrapper<T> {
                 Ready(Some(OwnedMessage::Pong(_))) => {
                     info!("Received a pong from websocket");
 
-                    if let Some((de,intvl)) = self.pong_timeout.as_mut() {
+                    if let Some((de, intvl)) = self.pong_timeout.as_mut() {
                         de.reset(::std::time::Instant::now() + *intvl);
                     }
                     continue;
@@ -110,9 +110,9 @@ impl<T: WsStream + 'static> Read for WsReadWrapper<T> {
                     }
                 }
                 NotReady => {
-                    use ::futures::Async;
-                    use ::futures::Future;
-                    if let Some((de,_intvl)) = self.pong_timeout.as_mut() {
+                    use futures::Async;
+                    use futures::Future;
+                    if let Some((de, _intvl)) = self.pong_timeout.as_mut() {
                         match de.poll() {
                             Err(e) => error!("tokio-timer's Delay: {}", e),
                             Ok(Async::NotReady) => (),
@@ -123,7 +123,7 @@ impl<T: WsStream + 'static> Read for WsReadWrapper<T> {
                         }
                     }
                     wouldblock()
-                },
+                }
             };
         }
     }
@@ -228,7 +228,6 @@ impl Write for PeerForWs {
     }
 }
 
-
 enum WsPingerState {
     WaitingForTimer,
     StartSend,
@@ -244,7 +243,11 @@ pub struct WsPinger<T: WsStream + 'static> {
 }
 
 impl<T: WsStream + 'static> WsPinger<T> {
-    pub fn new(sink: MultiProducerWsSink<T>, interval: ::std::time::Duration, aborter: ::futures::unsync::oneshot::Receiver<()>) -> Self {
+    pub fn new(
+        sink: MultiProducerWsSink<T>,
+        interval: ::std::time::Duration,
+        aborter: ::futures::unsync::oneshot::Receiver<()>,
+    ) -> Self {
         WsPinger {
             st: WsPingerState::WaitingForTimer,
             t: ::tokio_timer::Interval::new_interval(interval),
@@ -258,10 +261,10 @@ impl<T: WsStream + 'static> ::futures::Future for WsPinger<T> {
     type Item = ();
     type Error = ();
 
-    fn poll(&mut self) -> ::futures::Poll<(),()> {
-        use ::futures::Async;
-        use ::futures::AsyncSink;
+    fn poll(&mut self) -> ::futures::Poll<(), ()> {
         use self::WsPingerState::*;
+        use futures::Async;
+        use futures::AsyncSink;
         loop {
             match self.aborter.poll() {
                 Err(e) => warn!("unsync/oneshot: {}", e),
@@ -269,19 +272,17 @@ impl<T: WsStream + 'static> ::futures::Future for WsPinger<T> {
                 Ok(Async::Ready(())) => {
                     debug!("Pinger aborted");
                     return Ok(Async::Ready(()));
-                },
+                }
             }
             match self.st {
-                WaitingForTimer => {
-                    match self.t.poll() {
-                        Err(e) => warn!("wspinger: {}", e),
-                        Ok(Async::Ready(None)) => warn!("tokio-timer's interval stream ended?"),
-                        Ok(Async::NotReady) => return Ok(Async::NotReady),
-                        Ok(Async::Ready(Some(_instant))) => {
-                            self.st = StartSend;
-                            info!("Sending WebSocket ping");
-                            continue;
-                        },
+                WaitingForTimer => match self.t.poll() {
+                    Err(e) => warn!("wspinger: {}", e),
+                    Ok(Async::Ready(None)) => warn!("tokio-timer's interval stream ended?"),
+                    Ok(Async::NotReady) => return Ok(Async::NotReady),
+                    Ok(Async::Ready(Some(_instant))) => {
+                        self.st = StartSend;
+                        info!("Sending WebSocket ping");
+                        continue;
                     }
                 },
                 StartSend => {
@@ -290,23 +291,21 @@ impl<T: WsStream + 'static> ::futures::Future for WsPinger<T> {
                         Err(e) => info!("wsping: {}", e),
                         Ok(AsyncSink::NotReady(_om)) => {
                             return Ok(Async::NotReady);
-                        },
+                        }
                         Ok(AsyncSink::Ready) => {
                             self.st = PollComplete;
                             continue;
                         }
                     }
-                },
-                PollComplete => {
-                    match self.si.borrow_mut().poll_complete() {
-                        Err(e) => info!("wsping: {}", e),
-                        Ok(Async::NotReady) => {
-                            return Ok(Async::NotReady);
-                        },
-                        Ok(Async::Ready(())) => {
-                            self.st = WaitingForTimer;
-                            continue;
-                        },
+                }
+                PollComplete => match self.si.borrow_mut().poll_complete() {
+                    Err(e) => info!("wsping: {}", e),
+                    Ok(Async::NotReady) => {
+                        return Ok(Async::NotReady);
+                    }
+                    Ok(Async::Ready(())) => {
+                        self.st = WaitingForTimer;
+                        continue;
                     }
                 },
             }
@@ -314,4 +313,3 @@ impl<T: WsStream + 'static> ::futures::Future for WsPinger<T> {
         }
     }
 }
-

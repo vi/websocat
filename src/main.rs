@@ -111,7 +111,7 @@ struct Opt {
     )]
     dumpspec: bool,
 
-    /// Specify this Sec-WebSocket-Protocol: header when connecting 
+    /// Specify this Sec-WebSocket-Protocol: header when connecting
     #[structopt(long = "protocol")]
     websocket_protocol: Option<String>,
 
@@ -336,10 +336,9 @@ struct Opt {
     #[cfg(feature = "ssl")]
     #[structopt(
         long = "pkcs12-passwd",
-        help = "Password for --pkcs12-der pkcs12 archive. Required on Mac.",
+        help = "Password for --pkcs12-der pkcs12 archive. Required on Mac."
     )]
     pkcs12_passwd: Option<String>,
-
 
     #[cfg(feature = "ssl")]
     #[structopt(
