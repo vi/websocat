@@ -494,6 +494,30 @@ impl WebsocatConfiguration2 {
         Ok(())
     }
 
+    fn l_proto(&mut self, _on_warning: &OnWarning) -> Result<()> {
+        if self.opts.websocket_protocol.is_some() {
+            if false
+                || self.contains_class("WsConnectClass")
+                || self.contains_class("WsClientClass")
+                || self.contains_class("WsClientSecureClass")
+            {
+                // OK
+            } else {
+                if self.contains_class("WsServerClass") {
+                    _on_warning("--protocol option is unused. Maybe you want --server-protocol?")
+                } else {
+                    _on_warning("--protocol option is unused.")
+                }
+            }
+        }
+        if self.opts.websocket_reply_protocol.is_some() {
+            if ! self.contains_class("WsServerClass") {
+                _on_warning("--server-protocol option is unused.")
+            }
+        }
+        Ok(())
+    }
+
     pub fn lint_and_fixup(&mut self, on_warning: OnWarning) -> Result<()> {
         let multiconnect = !self.opts.oneshot && self.s1.is_multiconnect();
         let mut reuser_has_been_inserted = false;
@@ -511,6 +535,7 @@ impl WebsocatConfiguration2 {
         #[cfg(feature = "ssl")]
         self.l_ssl(&on_warning)?;
         self.l_ping(&on_warning)?;
+        self.l_proto(&on_warning)?;
 
         // TODO: UDP connect oneshot mode
         // TODO: tests for the linter
