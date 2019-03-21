@@ -40,6 +40,7 @@ impl<T: Specifier> Specifier for WsServer<T> {
                 rdh,
                 restrict_uri.clone(),
                 serve_static_files.clone(),
+                cp.program_options.ws_ping_interval,
                 l2r,
             )
         })
@@ -121,6 +122,7 @@ pub fn ws_upgrade_peer(
     ws_read_debt_handling: DebtHandling,
     restrict_uri: Rc<Option<String>>,
     serve_static_files: Rc<Vec<StaticFile>>,
+    ping_interval: Option<u64>,
     l2r: L2rUser,
 ) -> BoxedNewPeerFuture {
     let step1 = PeerForWs(inner_peer);
@@ -175,6 +177,13 @@ pub fn ws_upgrade_peer(
                     info!("Upgraded");
                     let (sink, stream) = y.split();
                     let mpsink = Rc::new(RefCell::new(sink));
+
+                    if let Some(d) = ping_interval {
+                        debug!("Starting pinger");
+                        let intv = ::std::time::Duration::from_secs(d);
+                        let pinger = super::ws_peer::WsPinger::new(mpsink.clone(), intv);
+                        ::tokio_current_thread::spawn(pinger);
+                    }
 
                     let ws_str = WsReadWrapper {
                         s: stream,

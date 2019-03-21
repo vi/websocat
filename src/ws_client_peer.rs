@@ -182,12 +182,20 @@ where
                 let (sink, stream) = duplex.split();
                 let mpsink = Rc::new(RefCell::new(sink));
 
+                if let Some(d) = opts.ws_ping_interval {
+                    debug!("Starting pinger");
+                    let intv = ::std::time::Duration::from_secs(d);
+                    let pinger = super::ws_peer::WsPinger::new(mpsink.clone(), intv);
+                    ::tokio_current_thread::spawn(pinger);
+                }
+
                 let ws_str = WsReadWrapper {
                     s: stream,
                     pingreply: mpsink.clone(),
                     debt: super::readdebt::ReadDebt(Default::default(), opts.read_debt_handling),
                 };
                 let ws_sin = WsWriteWrapper(mpsink, mode1, !opts.websocket_dont_close);
+
 
                 Peer::new(ws_str, ws_sin)
             })

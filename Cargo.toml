@@ -44,6 +44,7 @@ tokio-reactor = "0.1.7"
 tokio = "0.1.11"
 tokio-current-thread = "0.1.4"
 tk-listen = "0.2.1"
+tokio-timer = "0.2.0"
 
 
 [target.'cfg(unix)'.dependencies]
@@ -66,8 +67,6 @@ seqpacket=["libc"]
 #"websocket:0.22.0" = {path="/mnt/src/git/rust-websocket"}
 
 
-[dev-dependencies]
-tokio-timer = "0.2.0"
 
 [profile.release]
 opt-level = "s"

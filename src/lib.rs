@@ -35,6 +35,8 @@ extern crate smart_default;
 #[macro_use]
 extern crate derivative;
 
+extern crate tokio_timer;
+
 use futures::future::Future;
 use tokio_io::{AsyncRead, AsyncWrite};
 

@@ -340,6 +340,10 @@ struct Opt {
     /// Maximum number of simultaneous connections for listening mode
     #[structopt(long = "conncap")]
     max_parallel_conns: Option<usize>,
+
+    /// Send WebSocket pings each this number of seconds
+    #[structopt(long = "ping-interval")]
+    ws_ping_interval: Option<u64>,
 }
 
 // TODO: make it byte-oriented/OsStr?
@@ -532,6 +536,7 @@ fn run() -> Result<()> {
             socks5_bind_script
             tls_domain
             max_parallel_conns
+            ws_ping_interval
         );
         #[cfg(feature = "ssl")]
         {

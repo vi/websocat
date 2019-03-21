@@ -78,7 +78,7 @@ impl<T: WsStream + 'static> Read for WsReadWrapper<T> {
                     continue;
                 }
                 Ready(Some(OwnedMessage::Pong(_))) => {
-                    warn!("Received a pong from websocket");
+                    info!("Received a pong from websocket");
                     continue;
                 }
                 Ready(Some(OwnedMessage::Text(x))) => {
@@ -199,3 +199,81 @@ impl Write for PeerForWs {
         (self.0).1.flush()
     }
 }
+
+
+enum WsPingerState {
+    WaitingForTimer,
+    StartSend,
+    PollComplete,
+}
+
+/// Periodically sends WebSocket pings
+pub struct WsPinger<T: WsStream + 'static> {
+    st: WsPingerState,
+    si: MultiProducerWsSink<T>,
+    t: ::tokio_timer::Interval,
+}
+
+impl<T: WsStream + 'static> WsPinger<T> {
+    pub fn new(sink: MultiProducerWsSink<T>, interval: ::std::time::Duration) -> Self {
+        WsPinger {
+            st: WsPingerState::WaitingForTimer,
+            t: ::tokio_timer::Interval::new_interval(interval),
+            si: sink,
+        }
+    }
+}
+
+impl<T: WsStream + 'static> ::futures::Future for WsPinger<T> {
+    type Item = ();
+    type Error = ();
+
+    fn poll(&mut self) -> ::futures::Poll<(),()> {
+        use ::futures::Async;
+        use ::futures::AsyncSink;
+        use self::WsPingerState::*;
+        loop {
+            match self.st {
+                WaitingForTimer => {
+                    match self.t.poll() {
+                        Err(e) => warn!("wspinger: {}", e),
+                        Ok(Async::Ready(None)) => warn!("tokio-timer's interval stream ended?"),
+                        Ok(Async::NotReady) => return Ok(Async::NotReady),
+                        Ok(Async::Ready(Some(_instant))) => {
+                            self.st = StartSend;
+                            info!("Sending WebSocket ping");
+                            continue;
+                        },
+                    }
+                },
+                StartSend => {
+                    let om = OwnedMessage::Ping(vec![]);
+                    match self.si.borrow_mut().start_send(om) {
+                        Err(e) => info!("wsping: {}", e),
+                        Ok(AsyncSink::NotReady(_om)) => {
+                            return Ok(Async::NotReady);
+                        },
+                        Ok(AsyncSink::Ready) => {
+                            self.st = PollComplete;
+                            continue;
+                        }
+                    }
+                },
+                PollComplete => {
+                    match self.si.borrow_mut().poll_complete() {
+                        Err(e) => info!("wsping: {}", e),
+                        Ok(Async::NotReady) => {
+                            return Ok(Async::NotReady);
+                        },
+                        Ok(Async::Ready(())) => {
+                            self.st = WaitingForTimer;
+                            continue;
+                        },
+                    }
+                },
+            }
+            return Ok(Async::Ready(()));
+        }
+    }
+}
+

@@ -57,4 +57,5 @@ pub struct Options {
     pub tls_insecure: bool,
 
     pub max_parallel_conns: Option<usize>,
+    pub ws_ping_interval: Option<u64>,
 }
