@@ -171,7 +171,7 @@ fi
 
 F=$D/websocat_${V}_ssl1.1_i386.deb
 if [ ! -e "$F" ]; then
-    cargo +stable deb --target=x86_64-unknown-linux-gnu
+    cargo +stable deb --target=i686-unknown-linux-gnu
     cp -v target/i686-unknown-linux-gnu/debian/websocat_${V}_i386.deb "$F"
     debian.vi-server.org-add "$F"
 else
