@@ -131,6 +131,31 @@ fn ws() {
 }
 
 #[test]
+fn ws_ll() {
+    prepare!(core);
+    let prog1 = wt!(
+        core,
+        "literal:qwert3y",
+        "ws-ll-s:tcp-l:127.0.0.1:45915",
+        nodelay,
+        noopts,
+        errpanic,
+    );
+    let prog2 = wt!(
+        core,
+        "ws-ll-c:tcp:127.0.0.1:45915",
+        "assert:qwert3y",
+        delay = 200,
+        noopts,
+        errpanic,
+    );
+
+    let prog = prog1.join(prog2);
+    run!(core, prog);
+}
+
+
+#[test]
 fn ws_persist() {
     prepare!(core);
     let prog1 = wt!(
