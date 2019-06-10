@@ -14,13 +14,13 @@ use self::tokio_tls::{TlsAcceptor as TlsAcceptorExt, TlsConnector as TlsConnecto
 
 use std::ffi::{OsStr, OsString};
 
-pub fn interpret_pkcs12(x: &OsStr) -> ::std::result::Result<Option<Vec<u8>>, OsString> {
+pub fn interpret_pkcs12(x: &OsStr) -> ::std::result::Result<Vec<u8>, OsString> {
     match (|| {
         use std::io::Read;
         let mut f = ::std::fs::File::open(x)?;
         let mut v = Vec::with_capacity(2048);
         f.read_to_end(&mut v)?;
-        Ok(Some(v))
+        Ok(v)
     })() {
         Err(e) => {
             let e: Box<dyn (::std::error::Error)> = e;
