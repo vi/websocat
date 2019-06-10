@@ -43,7 +43,7 @@ pub fn http_serve(
     p: Peer,
     incoming: Option<Incoming<(Method, RequestUri)>>,
     serve_static_files: Rc<Vec<StaticFile>>,
-) -> Box<Future<Item = (), Error = ()>> {
+) -> Box<dyn Future<Item = (), Error = ()>> {
     let mut serve_file = None;
     let content = if serve_static_files.is_empty() {
         BAD_REQUEST.to_vec()

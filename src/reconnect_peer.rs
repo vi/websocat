@@ -17,7 +17,7 @@ use futures::{Async, Future, Poll};
 // TODO: stop if writing part and reading parts are closed (shutdown)?
 
 #[derive(Debug)]
-pub struct AutoReconnect(pub Rc<Specifier>);
+pub struct AutoReconnect(pub Rc<dyn Specifier>);
 impl Specifier for AutoReconnect {
     fn construct(&self, cp: ConstructParams) -> PeerConstructor {
         once(autoreconnector(self.0.clone(), cp))
@@ -54,7 +54,7 @@ struct State2 {
 }
 
 struct State {
-    s: Rc<Specifier>,
+    s: Rc<dyn Specifier>,
     p: Option<Peer>,
     n: Option<BoxedNewPeerFuture>,
     cp: ConstructParams,
@@ -66,7 +66,7 @@ impl State {
     //type Item = &'mut Peer;
     //type Error = Box<::std::error::Error>;
 
-    fn poll(&mut self) -> Poll<&mut Peer, Box<::std::error::Error>> {
+    fn poll(&mut self) -> Poll<&mut Peer, Box<dyn (::std::error::Error)>> {
         let pp = &mut self.p;
         let nn = &mut self.n;
 
@@ -202,7 +202,7 @@ impl AsyncWrite for PeerHandle {
     }
 }
 
-pub fn autoreconnector(s: Rc<Specifier>, cp: ConstructParams) -> BoxedNewPeerFuture {
+pub fn autoreconnector(s: Rc<dyn Specifier>, cp: ConstructParams) -> BoxedNewPeerFuture {
     let s = Rc::new(RefCell::new(State {
         cp,
         s,

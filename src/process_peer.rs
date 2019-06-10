@@ -152,7 +152,7 @@ fn process_connect_peer(
     l2r: Option<&LeftSpecToRightSpec>,
     zero_sighup: bool,
     close_sighup: bool,
-) -> Result<Peer, Box<std::error::Error>> {
+) -> Result<Peer, Box<dyn std::error::Error>> {
     if let Some(x) = l2r {
         if let Some(ref z) = x.client_addr {
             cmd.env("WEBSOCAT_CLIENT", z);

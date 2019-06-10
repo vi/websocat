@@ -10,7 +10,7 @@ use std::rc::Rc;
 use tokio_io;
 
 impl Session {
-    pub fn run(self) -> Box<Future<Item = (), Error = Box<std::error::Error>>> {
+    pub fn run(self) -> Box<dyn Future<Item = (), Error = Box<dyn std::error::Error>>> {
         let once = self.2.one_message;
         let co = my_copy::CopyOptions {
             stop_on_reader_zero_read: true,
@@ -42,29 +42,29 @@ impl Session {
             self.2.unidirectional_reverse,
             self.2.exit_on_eof,
         );
-        type Ret = Box<Future<Item = (), Error = Box<std::error::Error>>>;
+        type Ret = Box<dyn Future<Item = (), Error = Box<dyn std::error::Error>>>;
         match (unif, unir, eeof) {
             (false, false, false) => Box::new(
                 f1.join(f2)
                     .map(|(_, _)| {
                         info!("Finished");
                     })
-                    .map_err(|x| Box::new(x) as Box<std::error::Error>),
+                    .map_err(|x| Box::new(x) as Box<dyn std::error::Error>),
             ) as Ret,
             (false, false, true) => Box::new(
                 f1.select(f2)
                     .map(|(_, _)| {
                         info!("One of directions finished");
                     })
-                    .map_err(|(x, _)| Box::new(x) as Box<std::error::Error>),
+                    .map_err(|(x, _)| Box::new(x) as Box<dyn std::error::Error>),
             ) as Ret,
             (true, false, _) => Box::new({
                 ::std::mem::drop(f2);
-                f1.map_err(|x| Box::new(x) as Box<std::error::Error>)
+                f1.map_err(|x| Box::new(x) as Box<dyn std::error::Error>)
             }) as Ret,
             (false, true, _) => Box::new({
                 ::std::mem::drop(f1);
-                f2.map_err(|x| Box::new(x) as Box<std::error::Error>)
+                f2.map_err(|x| Box::new(x) as Box<dyn std::error::Error>)
             }) as Ret,
             (true, true, _) => Box::new({
                 // Just open connection and close it.
@@ -94,26 +94,26 @@ fn l2r_new() -> L2rWriter {
 }
 
 pub fn serve<OE>(
-    s1: Rc<Specifier>,
-    s2: Rc<Specifier>,
+    s1: Rc<dyn Specifier>,
+    s2: Rc<dyn Specifier>,
     opts: Options,
     onerror: std::rc::Rc<OE>,
 ) -> impl Future<Item = (), Error = ()>
 where
-    OE: Fn(Box<std::error::Error>) -> () + 'static,
+    OE: Fn(Box<dyn std::error::Error>) -> () + 'static,
 {
     futures::future::ok(()).and_then(|()| serve_impl(s1, s2, opts, onerror))
 }
 
 #[cfg_attr(feature = "cargo-clippy", allow(needless_pass_by_value))]
 fn serve_impl<OE>(
-    s1: Rc<Specifier>,
-    s2: Rc<Specifier>,
+    s1: Rc<dyn Specifier>,
+    s2: Rc<dyn Specifier>,
     opts: Options,
     onerror: std::rc::Rc<OE>,
-) -> Box<Future<Item = (), Error = ()>>
+) -> Box<dyn Future<Item = (), Error = ()>>
 where
-    OE: Fn(Box<std::error::Error>) -> () + 'static,
+    OE: Fn(Box<dyn std::error::Error>) -> () + 'static,
 {
     info!("Serving {:?} to {:?} with {:?}", s1, s2, opts);
     let ps = Rc::new(RefCell::new(ProgramState::default()));
@@ -181,7 +181,7 @@ where
                     )
                 })
                 .for_each(|()| futures::future::ok(()));
-            Box::new(runner.map_err(move |e| e2(e))) as Box<Future<Item = (), Error = ()>>
+            Box::new(runner.map_err(move |e| e2(e))) as Box<dyn Future<Item = (), Error = ()>>
         }
         OverlayM(stream, mapper) => {
             let runner = stream
@@ -226,7 +226,7 @@ where
                     )
                 })
                 .for_each(|()| futures::future::ok(()));
-            Box::new(runner.map_err(move |e| e2(e))) as Box<Future<Item = (), Error = ()>>
+            Box::new(runner.map_err(move |e| e2(e))) as Box<dyn Future<Item = (), Error = ()>>
         }
         ServeOnce(peer1c) => {
             let runner = peer1c.and_then(move |peer1| {
@@ -243,7 +243,7 @@ where
                     })
                 })
             });
-            Box::new(runner.map_err(move |e| e3(e))) as Box<Future<Item = (), Error = ()>>
+            Box::new(runner.map_err(move |e| e3(e))) as Box<dyn Future<Item = (), Error = ()>>
         }
         Overlay1(peer1c, mapper) => {
             let runner = peer1c.and_then(move |peer1_| {
@@ -264,7 +264,7 @@ where
                     })
                 })
             });
-            Box::new(runner.map_err(move |e| e3(e))) as Box<Future<Item = (), Error = ()>>
+            Box::new(runner.map_err(move |e| e3(e))) as Box<dyn Future<Item = (), Error = ()>>
         }
     }
 }

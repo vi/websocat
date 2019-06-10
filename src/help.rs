@@ -1,6 +1,6 @@
 use super::{Opt, SpecifierClass, StructOpt};
 
-fn spechelp(sc: &SpecifierClass, overlays: bool, advanced: bool) {
+fn spechelp(sc: &dyn SpecifierClass, overlays: bool, advanced: bool) {
     if !advanced && sc.help().contains("[A]") {
         return;
     }
@@ -122,7 +122,7 @@ pub fn longhelp() {
     list_of_all_specifier_classes!(my);
 }
 
-fn specdoc(sc: &SpecifierClass, overlays: bool) {
+fn specdoc(sc: &dyn SpecifierClass, overlays: bool) {
     if sc.is_overlay() ^ overlays {
         return;
     }

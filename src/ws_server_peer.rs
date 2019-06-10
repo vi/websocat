@@ -132,7 +132,7 @@ pub fn ws_upgrade_peer(
     l2r: L2rUser,
 ) -> BoxedNewPeerFuture {
     let step1 = PeerForWs(inner_peer);
-    let step2: Box<Future<Item = self::websocket::server::upgrade::async::Upgrade<_>, Error = _>> =
+    let step2: Box<dyn Future<Item = self::websocket::server::upgrade::async::Upgrade<_>, Error = _>> =
         step1.into_ws();
     let step3 = step2
         .or_else(|(innerpeer, hyper_incoming, _bytesmut, e)| {
@@ -142,7 +142,7 @@ pub fn ws_upgrade_peer(
             )
         })
         .and_then(
-            move |mut x| -> Box<Future<Item = Peer, Error = websocket::WebSocketError>> {
+            move |mut x| -> Box<dyn Future<Item = Peer, Error = websocket::WebSocketError>> {
                 info!("Incoming connection to websocket: {}", x.request.subject.1);
 
                 use ::websocket::header::WebSocketProtocol;
@@ -206,7 +206,7 @@ pub fn ws_upgrade_peer(
                                 })
                                 .map_err(|e| websocket::WebSocketError::IoError(io_other_error(e))),
                         )
-                            as Box<Future<Item = Peer, Error = websocket::WebSocketError>>;
+                            as Box<dyn Future<Item = Peer, Error = websocket::WebSocketError>>;
                 }
                 
                 
@@ -237,7 +237,7 @@ pub fn ws_upgrade_peer(
                                 })
                                 .map_err(|e| websocket::WebSocketError::IoError(io_other_error(e))),
                         )
-                            as Box<Future<Item = Peer, Error = websocket::WebSocketError>>;
+                            as Box<dyn Future<Item = Peer, Error = websocket::WebSocketError>>;
                     }
                 };
                 Box::new(x.accept().map(move |(y, headers)| {
@@ -284,7 +284,7 @@ pub fn ws_upgrade_peer(
                         WsWriteWrapper(mpsink, mode1, true /* send Close on shutdown */);
 
                     Peer::new(ws_str, ws_sin)
-                })) as Box<Future<Item = Peer, Error = websocket::WebSocketError>>
+                })) as Box<dyn Future<Item = Peer, Error = websocket::WebSocketError>>
             },
         );
     let step4 = step3.map_err(box_up_err);

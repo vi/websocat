@@ -25,7 +25,7 @@ declare_slab_token!(BroadcastClientIndex);
 use slab_typesafe::Slab;
 
 #[derive(Debug)]
-pub struct BroadcastReuser(pub Rc<Specifier>);
+pub struct BroadcastReuser(pub Rc<dyn Specifier>);
 impl Specifier for BroadcastReuser {
     fn construct(&self, p: ConstructParams) -> PeerConstructor {
         let mut reuser = p.global_state.borrow_mut().reuser2.clone();

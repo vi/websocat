@@ -89,7 +89,7 @@ pub fn packet2line_peer(inner_peer: Peer, null_terminated: bool) -> BoxedNewPeer
     let thepeer = Peer::new(filtered, inner_peer.1);
     Box::new(ok(thepeer)) as BoxedNewPeerFuture
 }
-struct Packet2LineWrapper(Box<AsyncRead>, bool);
+struct Packet2LineWrapper(Box<dyn AsyncRead>, bool);
 
 impl Read for Packet2LineWrapper {
     fn read(&mut self, b: &mut [u8]) -> Result<usize, IoError> {
@@ -159,7 +159,7 @@ pub fn line2packet_peer(
     Box::new(ok(thepeer)) as BoxedNewPeerFuture
 }
 struct Line2PacketWrapper {
-    inner: Box<AsyncRead>,
+    inner: Box<dyn AsyncRead>,
     queue: Vec<u8>,
     retain_newlines: bool,
     allow_incomplete_lines: bool,

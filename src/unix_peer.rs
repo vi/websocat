@@ -119,7 +119,7 @@ specifier_class!(
     target = UnixDgram,
     prefixes = ["unix-dgram:"],
     arg_handling = {
-        fn construct(self: &UnixDgramClass, just_arg: &str) -> super::Result<Rc<Specifier>> {
+        fn construct(self: &UnixDgramClass, just_arg: &str) -> super::Result<Rc<dyn Specifier>> {
             let splits: Vec<&str> = just_arg.split(':').collect();
             if splits.len() != 2 {
                 Err("Expected two colon-separted paths")?;
@@ -128,8 +128,8 @@ specifier_class!(
         }
         fn construct_overlay(
             self: &UnixDgramClass,
-            _inner: Rc<Specifier>,
-        ) -> super::Result<Rc<Specifier>> {
+            _inner: Rc<dyn Specifier>,
+        ) -> super::Result<Rc<dyn Specifier>> {
             panic!("Error: construct_overlay called on non-overlay specifier class")
         }
     },
@@ -253,7 +253,7 @@ specifier_class!(
     target = AbstractDgram,
     prefixes = ["abstract-dgram:"],
     arg_handling = {
-        fn construct(self: &AbstractDgramClass, just_arg: &str) -> super::Result<Rc<Specifier>> {
+        fn construct(self: &AbstractDgramClass, just_arg: &str) -> super::Result<Rc<dyn Specifier>> {
             let splits: Vec<&str> = just_arg.split(':').collect();
             if splits.len() != 2 {
                 Err("Expected two colon-separted addresses")?;
@@ -262,8 +262,8 @@ specifier_class!(
         }
         fn construct_overlay(
             self: &AbstractDgramClass,
-            _inner: Rc<Specifier>,
-        ) -> super::Result<Rc<Specifier>> {
+            _inner: Rc<dyn Specifier>,
+        ) -> super::Result<Rc<dyn Specifier>> {
             panic!("Error: construct_overlay called on non-overlay specifier class")
         }
     },

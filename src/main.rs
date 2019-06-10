@@ -28,7 +28,7 @@ use websocat::options::StaticFile;
 use websocat::proxy_peer::{SocksHostAddr, SocksSocketAddr};
 use websocat::{Options, SpecifierClass, WebsocatConfiguration1};
 
-type Result<T> = std::result::Result<T, Box<std::error::Error>>;
+type Result<T> = std::result::Result<T, Box<dyn std::error::Error>>;
 
 use std::ffi::OsString;
 
@@ -434,7 +434,7 @@ mod logging {
     use self::env_logger::Builder as LoggerBuilder;
     use self::log::Level;
 
-    pub fn setup_env_logger(ll: u8) -> Result<(), Box<::std::error::Error>> {
+    pub fn setup_env_logger(ll: u8) -> Result<(), Box<dyn (::std::error::Error)>> {
         if ::std::env::var("RUST_LOG").is_ok() {
             if ll > 0 {
                 eprintln!("websocat: RUST_LOG environment variable overrides any -v");

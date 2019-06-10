@@ -33,13 +33,13 @@ specifier_class!(
     target = WsClient,
     prefixes = ["ws://"],
     arg_handling = {
-        fn construct(self: &WsClientClass, arg: &str) -> super::Result<Rc<Specifier>> {
+        fn construct(self: &WsClientClass, arg: &str) -> super::Result<Rc<dyn Specifier>> {
             Ok(Rc::new(WsClient(format!("ws:{}", arg).parse()?)))
         }
         fn construct_overlay(
             self: &WsClientClass,
-            _inner: Rc<Specifier>,
-        ) -> super::Result<Rc<Specifier>> {
+            _inner: Rc<dyn Specifier>,
+        ) -> super::Result<Rc<dyn Specifier>> {
             panic!("Error: construct_overlay called on non-overlay specifier class")
         }
     },

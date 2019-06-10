@@ -15,7 +15,7 @@ use futures::Future;
 use std::ops::DerefMut;
 
 #[derive(Debug)]
-pub struct Reuser(pub Rc<Specifier>);
+pub struct Reuser(pub Rc<dyn Specifier>);
 impl Specifier for Reuser {
     fn construct(&self, p: ConstructParams) -> PeerConstructor {
         let send_zero_msg_on_disconnect = p.program_options.reuser_send_zero_msg_on_disconnect;

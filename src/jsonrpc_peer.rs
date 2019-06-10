@@ -42,7 +42,7 @@ pub fn jsonrpc_peer(inner_peer: Peer) -> BoxedNewPeerFuture {
     let thepeer = Peer::new(filtered, inner_peer.1);
     Box::new(ok(thepeer)) as BoxedNewPeerFuture
 }
-struct JsonRpcWrapper(Box<AsyncRead>, u64);
+struct JsonRpcWrapper(Box<dyn AsyncRead>, u64);
 
 impl Read for JsonRpcWrapper {
     fn read(&mut self, b: &mut [u8]) -> Result<usize, IoError> {

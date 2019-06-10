@@ -28,10 +28,10 @@ trait ClassExt {
     fn is_reuser(&self) -> bool;
 }
 
-pub type OnWarning = Box<for<'a> Fn(&'a str) -> () + 'static>;
+pub type OnWarning = Box<dyn for<'a> Fn(&'a str) -> () + 'static>;
 
 #[cfg_attr(rustfmt, rustfmt_skip)]
-impl ClassExt for Rc<SpecifierClass> {
+impl ClassExt for Rc<dyn SpecifierClass> {
     fn is_stdio(&self) -> bool {
         [
             "StdioClass",
@@ -53,7 +53,7 @@ pub trait SpecifierStackExt {
     fn contains(&self, t: &'static str) -> bool;
     fn is_multiconnect(&self) -> bool;
     fn is_stream_oriented(&self) -> bool;
-    fn insert_line_class_in_proper_place(&mut self, x: Rc<SpecifierClass>);
+    fn insert_line_class_in_proper_place(&mut self, x: Rc<dyn SpecifierClass>);
 }
 impl SpecifierStackExt for SpecifierStack {
     fn stdio_usage_status(&self) -> StdioUsageStatus {
@@ -123,7 +123,7 @@ impl SpecifierStackExt for SpecifierStack {
         }
         q
     }
-    fn insert_line_class_in_proper_place(&mut self, x: Rc<SpecifierClass>) {
+    fn insert_line_class_in_proper_place(&mut self, x: Rc<dyn SpecifierClass>) {
         use super::ClassMessageBoundaryStatus::*;
         let mut insert_idx = 0;
         for overlay in &self.overlays {

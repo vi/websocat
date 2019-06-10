@@ -81,34 +81,34 @@ pub fn multi(x: BoxedNewPeerStream) -> PeerConstructor {
 }
 
 pub fn peer_err<E: std::error::Error + 'static>(e: E) -> BoxedNewPeerFuture {
-    Box::new(futures::future::err(Box::new(e) as Box<std::error::Error>)) as BoxedNewPeerFuture
+    Box::new(futures::future::err(Box::new(e) as Box<dyn std::error::Error>)) as BoxedNewPeerFuture
 }
 pub fn peer_err_s<E: std::error::Error + 'static>(e: E) -> BoxedNewPeerStream {
     Box::new(futures::stream::iter_result(vec![Err(
-        Box::new(e) as Box<std::error::Error>
+        Box::new(e) as Box<dyn std::error::Error>
     )])) as BoxedNewPeerStream
 }
 pub fn peer_strerr(e: &str) -> BoxedNewPeerFuture {
-    let q: Box<std::error::Error> = From::from(e);
+    let q: Box<dyn std::error::Error> = From::from(e);
     Box::new(futures::future::err(q)) as BoxedNewPeerFuture
 }
 pub fn simple_err(e: String) -> std::io::Error {
-    let e1: Box<std::error::Error + Send + Sync> = e.into();
+    let e1: Box<dyn std::error::Error + Send + Sync> = e.into();
     ::std::io::Error::new(::std::io::ErrorKind::Other, e1)
 }
-pub fn simple_err2(e: &'static str) -> Box<std::error::Error> {
-    let e1: Box<std::error::Error + Send + Sync> = e.to_string().into();
-    e1 as Box<std::error::Error>
+pub fn simple_err2(e: &'static str) -> Box<dyn std::error::Error> {
+    let e1: Box<dyn std::error::Error + Send + Sync> = e.to_string().into();
+    e1 as Box<dyn std::error::Error>
 }
-pub fn box_up_err<E: std::error::Error + 'static>(e: E) -> Box<std::error::Error> {
-    Box::new(e) as Box<std::error::Error>
+pub fn box_up_err<E: std::error::Error + 'static>(e: E) -> Box<dyn std::error::Error> {
+    Box::new(e) as Box<dyn std::error::Error>
 }
 
 impl Peer {
     pub fn new<R: AsyncRead + 'static, W: AsyncWrite + 'static>(r: R, w: W) -> Self {
         Peer(
-            Box::new(r) as Box<AsyncRead>,
-            Box::new(w) as Box<AsyncWrite>,
+            Box::new(r) as Box<dyn AsyncRead>,
+            Box::new(w) as Box<dyn AsyncWrite>,
         )
     }
 }

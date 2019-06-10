@@ -46,7 +46,7 @@ use std::cell::RefCell;
 use std::rc::Rc;
 use std::str::FromStr;
 
-type Result<T> = std::result::Result<T, Box<std::error::Error>>;
+type Result<T> = std::result::Result<T, Box<dyn std::error::Error>>;
 
 pub struct WebsocatConfiguration1 {
     pub opts: Options,
@@ -82,14 +82,14 @@ impl WebsocatConfiguration2 {
 
 pub struct WebsocatConfiguration3 {
     pub opts: Options,
-    pub s1: Rc<Specifier>,
-    pub s2: Rc<Specifier>,
+    pub s1: Rc<dyn Specifier>,
+    pub s2: Rc<dyn Specifier>,
 }
 
 impl WebsocatConfiguration3 {
     pub fn serve<OE>(self, onerror: std::rc::Rc<OE>) -> impl Future<Item = (), Error = ()>
     where
-        OE: Fn(Box<std::error::Error>) -> () + 'static,
+        OE: Fn(Box<dyn std::error::Error>) -> () + 'static,
     {
         serve(self.s1, self.s2, self.opts, onerror)
     }
@@ -125,10 +125,10 @@ pub enum L2rUser {
     ReadFrom(L2rReader),
 }
 
-pub struct Peer(Box<AsyncRead>, Box<AsyncWrite>);
+pub struct Peer(Box<dyn AsyncRead>, Box<dyn AsyncWrite>);
 
-pub type BoxedNewPeerFuture = Box<Future<Item = Peer, Error = Box<std::error::Error>>>;
-pub type BoxedNewPeerStream = Box<Stream<Item = Peer, Error = Box<std::error::Error>>>;
+pub type BoxedNewPeerFuture = Box<dyn Future<Item = Peer, Error = Box<dyn std::error::Error>>>;
+pub type BoxedNewPeerStream = Box<dyn Stream<Item = Peer, Error = Box<dyn std::error::Error>>>;
 
 #[macro_use]
 pub mod specifier;
@@ -175,7 +175,7 @@ pub mod ssl_peer;
 
 pub mod specparse;
 
-pub type PeerOverlay = Rc<Fn(Peer, L2rUser) -> BoxedNewPeerFuture>;
+pub type PeerOverlay = Rc<dyn Fn(Peer, L2rUser) -> BoxedNewPeerFuture>;
 
 pub enum PeerConstructor {
     ServeOnce(BoxedNewPeerFuture),
@@ -202,8 +202,8 @@ pub mod readdebt;
 pub use specparse::spec;
 
 pub struct Transfer {
-    from: Box<AsyncRead>,
-    to: Box<AsyncWrite>,
+    from: Box<dyn AsyncRead>,
+    to: Box<dyn AsyncWrite>,
 }
 pub struct Session(Transfer, Transfer, Rc<Options>);
 

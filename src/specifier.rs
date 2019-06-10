@@ -28,9 +28,9 @@ pub trait SpecifierClass: std::fmt::Debug {
     fn help(&self) -> &'static str;
     /// Given the command line text, construct the specifier
     /// arg is what comes after the colon (e.g. `//echo.websocket.org` in `ws://echo.websocket.org`)
-    fn construct(&self, arg: &str) -> Result<Rc<Specifier>>;
+    fn construct(&self, arg: &str) -> Result<Rc<dyn Specifier>>;
     /// Given the inner specifier, construct this specifier.
-    fn construct_overlay(&self, inner: Rc<Specifier>) -> Result<Rc<Specifier>>;
+    fn construct_overlay(&self, inner: Rc<dyn Specifier>) -> Result<Rc<dyn Specifier>>;
     /// Returns if this specifier is an overlay
     fn is_overlay(&self) -> bool;
     /// True if it is not expected to preserve message boundaries on reads
@@ -61,10 +61,10 @@ macro_rules! specifier_alias {
             fn is_overlay(&self) -> bool {
                 false
             }
-            fn construct(&self, _arg:&str) -> $crate::Result<Rc<Specifier>> {
+            fn construct(&self, _arg:&str) -> $crate::Result<Rc<dyn Specifier>> {
                 panic!("Error: construct called on alias class")
             }
-            fn construct_overlay(&self, _inner : Rc<Specifier>) -> $crate::Result<Rc<Specifier>> {
+            fn construct_overlay(&self, _inner : Rc<dyn Specifier>) -> $crate::Result<Rc<dyn Specifier>> {
                 panic!("Error: construct_overlay called on alias class")
             }
             fn alias_info(&self) -> Option<&'static str> { Some($x) }
@@ -102,41 +102,41 @@ macro_rules! specifier_class {
         }
     };
     (construct target=$t:ident noarg) => {
-        fn construct(&self, just_arg:&str) -> $crate::Result<Rc<Specifier>> {
+        fn construct(&self, just_arg:&str) -> $crate::Result<Rc<dyn Specifier>> {
             if just_arg != "" {
                 Err(format!("{}-specifer requires no parameters. `{}` is not needed",
                     self.get_name(), just_arg))?;
             }
             Ok(Rc::new($t))
         }
-        fn construct_overlay(&self, _inner : Rc<Specifier>) -> $crate::Result<Rc<Specifier>> {
+        fn construct_overlay(&self, _inner : Rc<dyn Specifier>) -> $crate::Result<Rc<dyn Specifier>> {
             panic!("Error: construct_overlay called on non-overlay specifier class")
         }
         fn alias_info(&self) -> Option<&'static str> { None }
     };
     (construct target=$t:ident into) => {
-        fn construct(&self, just_arg:&str) -> $crate::Result<Rc<Specifier>> {
+        fn construct(&self, just_arg:&str) -> $crate::Result<Rc<dyn Specifier>> {
             Ok(Rc::new($t(just_arg.into())))
         }
-        fn construct_overlay(&self, _inner : Rc<Specifier>) -> $crate::Result<Rc<Specifier>> {
+        fn construct_overlay(&self, _inner : Rc<dyn Specifier>) -> $crate::Result<Rc<dyn Specifier>> {
             panic!("Error: construct_overlay called on non-overlay specifier class")
         }
         fn alias_info(&self) -> Option<&'static str> { None }
     };
     (construct target=$t:ident parse) => {
-        fn construct(&self, just_arg:&str) -> $crate::Result<Rc<Specifier>> {
+        fn construct(&self, just_arg:&str) -> $crate::Result<Rc<dyn Specifier>> {
             Ok(Rc::new($t(just_arg.parse()?)))
         }
-        fn construct_overlay(&self, _inner : Rc<Specifier>) -> $crate::Result<Rc<Specifier>> {
+        fn construct_overlay(&self, _inner : Rc<dyn Specifier>) -> $crate::Result<Rc<dyn Specifier>> {
             panic!("Error: construct_overlay called on non-overlay specifier class")
         }
         fn alias_info(&self) -> Option<&'static str> { None }
     };
     (construct target=$t:ident subspec) => {
-        fn construct(&self, just_arg:&str) -> $crate::Result<Rc<Specifier>> {
+        fn construct(&self, just_arg:&str) -> $crate::Result<Rc<dyn Specifier>> {
             Ok(Rc::new($t($crate::spec(just_arg)?)))
         }
-        fn construct_overlay(&self, _inner : Rc<Specifier>) -> $crate::Result<Rc<Specifier>> {
+        fn construct_overlay(&self, _inner : Rc<dyn Specifier>) -> $crate::Result<Rc<dyn Specifier>> {
             Ok(Rc::new($t(_inner)))
         }
         fn alias_info(&self) -> Option<&'static str> { None }
@@ -150,8 +150,8 @@ macro_rules! specifier_class {
 #[derive(Debug)]
 pub struct SpecifierStack {
     pub addr: String,
-    pub addrtype: Rc<SpecifierClass>,
-    pub overlays: Vec<Rc<SpecifierClass>>,
+    pub addrtype: Rc<dyn SpecifierClass>,
+    pub overlays: Vec<Rc<dyn SpecifierClass>>,
 }
 
 #[derive(Clone)]
@@ -218,7 +218,7 @@ pub trait Specifier: std::fmt::Debug {
     fn uses_global_state(&self) -> bool;
 }
 
-impl Specifier for Rc<Specifier> {
+impl Specifier for Rc<dyn Specifier> {
     fn construct(&self, p: ConstructParams) -> PeerConstructor {
         (**self).construct(p)
     }

@@ -2,7 +2,7 @@ use super::{Result, Specifier, SpecifierClass, SpecifierStack};
 use std::rc::Rc;
 use std::str::FromStr;
 
-pub fn spec(s: &str) -> Result<Rc<Specifier>> {
+pub fn spec(s: &str) -> Result<Rc<dyn Specifier>> {
     Specifier::from_stack(&SpecifierStack::from_str(s)?)
 }
 
@@ -45,7 +45,7 @@ fn some_checks(s: &str) -> Result<()> {
 }
 
 impl FromStr for SpecifierStack {
-    type Err = Box<::std::error::Error>;
+    type Err = Box<dyn (::std::error::Error)>;
     #[cfg_attr(feature = "cargo-clippy", allow(cyclomatic_complexity))]
     fn from_str(s: &str) -> Result<SpecifierStack> {
         some_checks(s)?;
@@ -66,12 +66,12 @@ impl FromStr for SpecifierStack {
                                 s = format!("{}{}", a, rest);
                                 continue 'a;
                             } else if $x.is_overlay() {
-                                overlays.push(Rc::new($x) as Rc<SpecifierClass>);
+                                overlays.push(Rc::new($x) as Rc<dyn SpecifierClass>);
                                 s = rest.to_string();
                                 continue 'a;
                             } else {
                                 addr = rest.to_string();
-                                addrtype = Rc::new($x) as Rc<SpecifierClass>;
+                                addrtype = Rc::new($x) as Rc<dyn SpecifierClass>;
                                 #[allow(unused_assignments)]
                                 {
                                     found = true;
@@ -103,8 +103,8 @@ impl FromStr for SpecifierStack {
     }
 }
 
-impl Specifier {
-    pub fn from_stack(st: &SpecifierStack) -> Result<Rc<Specifier>> {
+impl dyn Specifier {
+    pub fn from_stack(st: &SpecifierStack) -> Result<Rc<dyn Specifier>> {
         let mut x = st.addrtype.construct(st.addr.as_str())?;
         for overlay in st.overlays.iter().rev() {
             x = overlay.construct_overlay(x)?;
