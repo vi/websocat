@@ -1,3 +1,5 @@
+#![allow(unused)]
+
 extern crate websocket_lowlevel;
 
 use futures::future::Future;
@@ -73,5 +75,16 @@ Example: TODO
 
 pub fn get_ws_lowlevel_peer(mode: WsLlContext, inner: Peer, opts: Rc<Options>) -> BoxedNewPeerFuture {
     info!("get_ws_lowlevel_peer");
-    unimplemented!()
+    
+    use ::tokio_codec::Decoder;
+
+    let c = websocket_lowlevel::codec::ws::MessageCodec::new(mode);
+    let duplex = c.framed(PeerForWs(inner));
+
+    let close_on_shutdown =  !opts.websocket_dont_close;
+    let p = super::ws_peer::finish_building_ws_peer(&*opts, duplex, close_on_shutdown);
+
+    Box::new(
+        ::futures::future::ok(p)
+    ) as BoxedNewPeerFuture
 }
