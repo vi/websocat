@@ -21,6 +21,7 @@ extern crate tokio_reactor;
 extern crate tokio_tcp;
 extern crate tokio_udp;
 extern crate websocket;
+extern crate websocket_lowlevel;
 
 extern crate tk_listen;
 
@@ -156,6 +157,7 @@ pub mod trivial_peer;
 pub mod ws_client_peer;
 pub mod ws_peer;
 pub mod ws_server_peer;
+pub mod ws_lowlevel_peer;
 
 #[cfg(feature = "tokio-process")]
 pub mod process_peer;

@@ -10,6 +10,8 @@ macro_rules! list_of_all_specifier_classes {
         $your_macro!($crate::ws_server_peer::WsUnixServerClass);
         $your_macro!($crate::ws_server_peer::WsAbstractUnixServerClass);
         $your_macro!($crate::ws_server_peer::WsServerClass);
+        $your_macro!($crate::ws_lowlevel_peer::WsLlClientClass);
+        $your_macro!($crate::ws_lowlevel_peer::WsLlServerClass);
 
         #[cfg(feature = "ssl")]
         $your_macro!($crate::ssl_peer::WssListenClass);
