@@ -313,3 +313,51 @@ impl<T: WsStream + 'static> ::futures::Future for WsPinger<T> {
         }
     }
 }
+
+
+pub type Duplex<S> = ::tokio_codec::Framed<S, websocket::async::MessageCodec<websocket::OwnedMessage>>;
+
+pub fn finish_building_ws_peer<S>(opts: &super::Options, duplex: Duplex<S>, close_on_shutdown: bool) -> Peer
+    where S : tokio_io::AsyncRead + tokio_io::AsyncWrite + 'static + Send
+{
+    let (sink, stream) = duplex.split();
+    let mpsink = Rc::new(RefCell::new(sink));
+
+    let mode1 = if opts.websocket_text_mode {
+        Mode1::Text
+    } else {
+        Mode1::Binary
+    };
+
+    let ping_aborter = if let Some(d) = opts.ws_ping_interval {
+        debug!("Starting pinger");
+
+        let (tx, rx) = ::futures::unsync::oneshot::channel();
+
+        let intv = ::std::time::Duration::from_secs(d);
+        let pinger = super::ws_peer::WsPinger::new(mpsink.clone(), intv, rx);
+        ::tokio_current_thread::spawn(pinger);
+        Some(tx)
+    } else {
+        None
+    };
+
+    let pong_timeout = if let Some(d) = opts.ws_ping_timeout {
+        let to = ::std::time::Duration::from_secs(d);
+        let de = ::tokio_timer::Delay::new(std::time::Instant::now() + to);
+        Some((de, to))
+    } else {
+        None
+    };
+
+    let ws_str = WsReadWrapper {
+        s: stream,
+        pingreply: mpsink.clone(),
+        debt: super::readdebt::ReadDebt(Default::default(), opts.read_debt_handling),
+        pong_timeout,
+        ping_aborter,
+    };
+    let ws_sin = WsWriteWrapper(mpsink, mode1, close_on_shutdown);
+
+    Peer::new(ws_str, ws_sin)
+}

@@ -5,17 +5,14 @@ use self::hyper::uri::RequestUri::AbsolutePath;
 
 use self::websocket::WebSocketError;
 use futures::future::{err, Future};
-use futures::stream::Stream;
 
-use std::cell::RefCell;
 use std::rc::Rc;
 
 use options::StaticFile;
 
 use self::websocket::server::upgrade::async::IntoWs;
 
-use super::readdebt::{DebtHandling, ReadDebt};
-use super::ws_peer::{Mode1, PeerForWs, WsReadWrapper, WsWriteWrapper};
+use super::ws_peer::{PeerForWs};
 use super::{box_up_err, io_other_error, BoxedNewPeerFuture, Peer};
 use super::{ConstructParams, L2rUser, PeerConstructor, Specifier};
 
@@ -23,27 +20,18 @@ use super::{ConstructParams, L2rUser, PeerConstructor, Specifier};
 pub struct WsServer<T: Specifier>(pub T);
 impl<T: Specifier> Specifier for WsServer<T> {
     fn construct(&self, cp: ConstructParams) -> PeerConstructor {
-        let mode1 = if cp.program_options.websocket_text_mode {
-            Mode1::Text
-        } else {
-            Mode1::Binary
-        };
         let restrict_uri = Rc::new(cp.program_options.restrict_uri.clone());
         let serve_static_files = Rc::new(cp.program_options.serve_static_files.clone());
         let inner = self.0.construct(cp.clone());
         //let l2r = cp.left_to_right;
-        let rdh = cp.program_options.read_debt_handling;
         inner.map(move |p, l2r| {
             ws_upgrade_peer(
                 p,
-                mode1,
-                rdh,
                 restrict_uri.clone(),
                 serve_static_files.clone(),
-                cp.program_options.ws_ping_interval,
-                cp.program_options.ws_ping_timeout,
                 cp.program_options.websocket_reply_protocol.clone(),
                 cp.program_options.custom_reply_headers.clone(),
+                cp.program_options.clone(),
                 l2r,
             )
         })
@@ -121,14 +109,11 @@ pub mod http_serve;
 
 pub fn ws_upgrade_peer(
     inner_peer: Peer,
-    mode1: Mode1,
-    ws_read_debt_handling: DebtHandling,
     restrict_uri: Rc<Option<String>>,
     serve_static_files: Rc<Vec<StaticFile>>,
-    ping_interval: Option<u64>,
-    ping_timeout: Option<u64>,
     websocket_protocol: Option<String>,
     custom_reply_headers: Vec<(String, Vec<u8>)>,
+    opts: Rc<super::Options>,
     l2r: L2rUser,
 ) -> BoxedNewPeerFuture {
     let step1 = PeerForWs(inner_peer);
@@ -244,47 +229,7 @@ pub fn ws_upgrade_peer(
                 Box::new(x.accept().map(move |(y, headers)| {
                     debug!("{:?}", headers);
                     info!("Upgraded");
-                    let (sink, stream) = y.split();
-                    let mpsink = Rc::new(RefCell::new(sink));
-
-                    // FIXME: ping code duplicate between client and server
-
-                    let ping_aborter = if let Some(d) = ping_interval {
-                        debug!("Starting pinger");
-
-                        let (tx,rx) = ::futures::unsync::oneshot::channel();
-
-                        let intv = ::std::time::Duration::from_secs(d);
-                        let pinger = super::ws_peer::WsPinger::new(
-                            mpsink.clone(),
-                            intv,
-                            rx,
-                        );
-                        ::tokio_current_thread::spawn(pinger);
-                        Some(tx)
-                    } else {
-                        None
-                    };
-
-                    let pong_timeout = if let Some(d) = ping_timeout {
-                        let to = ::std::time::Duration::from_secs(d);
-                        let de = ::tokio_timer::Delay::new(std::time::Instant::now() + to);
-                        Some((de, to))
-                    } else {
-                        None
-                    };
-
-                    let ws_str = WsReadWrapper {
-                        s: stream,
-                        pingreply: mpsink.clone(),
-                        debt: ReadDebt(Default::default(), ws_read_debt_handling),
-                        pong_timeout,
-                        ping_aborter,
-                    };
-                    let ws_sin =
-                        WsWriteWrapper(mpsink, mode1, true /* send Close on shutdown */);
-
-                    Peer::new(ws_str, ws_sin)
+                    super::ws_peer::finish_building_ws_peer(&*opts, y, true /* send Close on shutdown */)
                 })) as Box<dyn Future<Item = Peer, Error = websocket::WebSocketError>>
             },
         );

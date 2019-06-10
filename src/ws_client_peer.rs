@@ -5,16 +5,14 @@ use self::websocket::client::async::ClientNew;
 use self::websocket::stream::async::Stream as WsStream;
 use self::websocket::ClientBuilder;
 use futures::future::Future;
-use futures::stream::Stream;
 
-use std::cell::RefCell;
 use std::rc::Rc;
 
 use self::websocket::client::Url;
 
 use super::{box_up_err, peer_err, peer_strerr, BoxedNewPeerFuture, Peer, Result};
 
-use super::ws_peer::{Mode1, PeerForWs, WsReadWrapper, WsWriteWrapper};
+use super::ws_peer::{PeerForWs};
 use super::{once, ConstructParams, Options, PeerConstructor, Specifier};
 
 use self::hyper::header::Headers;
@@ -140,12 +138,6 @@ where
     S: WsStream + Send + 'static,
     F: FnOnce(ClientBuilder) -> Result<ClientNew<S>>,
 {
-    let mode1 = if opts.websocket_text_mode {
-        Mode1::Text
-    } else {
-        Mode1::Binary
-    };
-
     let stage1 = ClientBuilder::from_url(uri);
     let stage2 = if opts.custom_headers.is_empty() {
         stage1
@@ -179,42 +171,8 @@ where
         after_connect
             .map(move |(duplex, _)| {
                 info!("Connected to ws",);
-                let (sink, stream) = duplex.split();
-                let mpsink = Rc::new(RefCell::new(sink));
-
-                // FIXME: ping code duplicate between client and server
-
-                let ping_aborter = if let Some(d) = opts.ws_ping_interval {
-                    debug!("Starting pinger");
-
-                    let (tx, rx) = ::futures::unsync::oneshot::channel();
-
-                    let intv = ::std::time::Duration::from_secs(d);
-                    let pinger = super::ws_peer::WsPinger::new(mpsink.clone(), intv, rx);
-                    ::tokio_current_thread::spawn(pinger);
-                    Some(tx)
-                } else {
-                    None
-                };
-
-                let pong_timeout = if let Some(d) = opts.ws_ping_timeout {
-                    let to = ::std::time::Duration::from_secs(d);
-                    let de = ::tokio_timer::Delay::new(std::time::Instant::now() + to);
-                    Some((de, to))
-                } else {
-                    None
-                };
-
-                let ws_str = WsReadWrapper {
-                    s: stream,
-                    pingreply: mpsink.clone(),
-                    debt: super::readdebt::ReadDebt(Default::default(), opts.read_debt_handling),
-                    pong_timeout,
-                    ping_aborter,
-                };
-                let ws_sin = WsWriteWrapper(mpsink, mode1, !opts.websocket_dont_close);
-
-                Peer::new(ws_str, ws_sin)
+                let close_on_shutdown =  !opts.websocket_dont_close;
+                super::ws_peer::finish_building_ws_peer(&*opts, duplex, close_on_shutdown)
             })
             .map_err(box_up_err),
     ) as BoxedNewPeerFuture

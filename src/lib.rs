@@ -20,6 +20,7 @@ extern crate tokio_current_thread;
 extern crate tokio_reactor;
 extern crate tokio_tcp;
 extern crate tokio_udp;
+extern crate tokio_codec;
 extern crate websocket;
 extern crate websocket_lowlevel;
 
