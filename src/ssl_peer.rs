@@ -23,7 +23,7 @@ pub fn interpret_pkcs12(x: &OsStr) -> ::std::result::Result<Option<Vec<u8>>, OsS
         Ok(Some(v))
     })() {
         Err(e) => {
-            let e: Box<::std::error::Error> = e;
+            let e: Box<dyn (::std::error::Error)> = e;
             let o: OsString = format!("{}", e).into();
             Err(o)
         }

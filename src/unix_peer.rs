@@ -456,7 +456,7 @@ pub fn dgram_peer_workaround(
         bindaddr: &Path,
         connectaddr: &Path,
         opts: &Rc<Options>,
-    ) -> Result<Peer, Box<::std::error::Error>> {
+    ) -> Result<Peer, Box<dyn (::std::error::Error)>> {
         if let Some(fd) = getfd(bindaddr, connectaddr) {
             let s: ::std::os::unix::net::UnixDatagram =
                 unsafe { ::std::os::unix::io::FromRawFd::from_raw_fd(fd) };

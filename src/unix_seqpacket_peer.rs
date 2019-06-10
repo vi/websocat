@@ -114,7 +114,7 @@ pub fn seqpacket_connect_peer(addr: &Path) -> BoxedNewPeerFuture {
             Some(s)
         }
     }
-    fn getpeer(addr: &Path) -> Result<Peer, Box<::std::error::Error>> {
+    fn getpeer(addr: &Path) -> Result<Peer, Box<dyn (::std::error::Error)>> {
         if let Some(fd) = getfd(addr) {
             let s: ::std::os::unix::net::UnixStream =
                 unsafe { ::std::os::unix::io::FromRawFd::from_raw_fd(fd) };
