@@ -20,7 +20,8 @@ depends = "libssl1.1, libc6 (>= 2.19), libgcc1 (>= 1:4.9.0)"
 
 
 [dependencies]
-websocket = { version = "0.22.0", default-features = false, features=["async"] }
+websocket = { path="/mnt/src/git/rust-websocket", default-features = false, features=["async"] }
+websocket-lowlevel = { path = "/mnt/src/git/rust-websocket/websocket-lowlevel", default-features = false, features=["async"] }
 env_logger = { version = "0.6.0", default-features = false }
 log = {version="0.4.1", default-features = false, features=["release_max_level_debug"]}
 futures = {version = "0.1.17" }
@@ -62,10 +63,11 @@ signal_handler = ["tokio-signal"]
 workaround1=["libc"]
 seqpacket=["libc"]
 
-[replace]
+
+#[patch."crates-io"]
 #"tokio-process:0.1.6" = {path="/mnt/src/git/tokio-process"}
 #"tokio-core:0.1.17" = {path="/mnt/src/git/tokio-core"}
-#"websocket:0.22.0" = {path="/mnt/src/git/rust-websocket"}
+#"websocket" = {path="/mnt/src/git/rust-websocket"}
 
 
 
