@@ -9,6 +9,8 @@ extern crate futures;
 extern crate tokio;
 extern crate tokio_stdin_stdout;
 
+extern crate websocket_lowlevel;
+
 extern crate env_logger;
 #[macro_use]
 extern crate log;
@@ -359,6 +361,15 @@ struct Opt {
     /// Drop WebSocket connection if Pong message not received for this number of seconds
     #[structopt(long = "ping-timeout")]
     ws_ping_timeout: Option<u64>,
+    
+    /// [A] Just a Sec-WebSocket-Key value without running main Websocat
+    #[structopt(long = "just-generate-key")]
+    just_generate_key: bool,
+
+    /// [A] Just a Sec-WebSocket-Accept value based on supplied
+    /// Sec-WebSocket-Key value without running main Websocat
+    #[structopt(long = "just-generate-accept")]
+    just_generate_accept: Option<String>,
 }
 
 // TODO: make it byte-oriented/OsStr?
@@ -485,6 +496,18 @@ fn run() -> Result<()> {
         }
 
         help::shorthelp();
+        return Ok(());
+    }
+
+    if cmd.just_generate_key {
+        println!("{}", websocket_lowlevel::header::WebSocketKey::new().serialize());
+        return Ok(());
+    }
+
+    if let Some(key) = cmd.just_generate_accept {
+        use std::str::FromStr;
+        let k = websocket_lowlevel::header::WebSocketKey::from_str(&key)?;
+        println!("{}", websocket_lowlevel::header::WebSocketAccept::new(&k).serialize());
         return Ok(());
     }
 
