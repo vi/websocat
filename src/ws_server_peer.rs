@@ -132,8 +132,9 @@ pub fn ws_upgrade_peer(
     l2r: L2rUser,
 ) -> BoxedNewPeerFuture {
     let step1 = PeerForWs(inner_peer);
-    let step2: Box<dyn Future<Item = self::websocket::server::upgrade::async::Upgrade<_>, Error = _>> =
-        step1.into_ws();
+    let step2: Box<
+        dyn Future<Item = self::websocket::server::upgrade::async::Upgrade<_>, Error = _>,
+    > = step1.into_ws();
     let step3 = step2
         .or_else(|(innerpeer, hyper_incoming, _bytesmut, e)| {
             http_serve::http_serve(innerpeer.0, hyper_incoming, serve_static_files)

@@ -511,7 +511,7 @@ impl WebsocatConfiguration2 {
             }
         }
         if self.opts.websocket_reply_protocol.is_some() {
-            if ! self.contains_class("WsServerClass") {
+            if !self.contains_class("WsServerClass") {
                 _on_warning("--server-protocol option is unused.")
             }
         }

@@ -81,7 +81,9 @@ pub fn multi(x: BoxedNewPeerStream) -> PeerConstructor {
 }
 
 pub fn peer_err<E: std::error::Error + 'static>(e: E) -> BoxedNewPeerFuture {
-    Box::new(futures::future::err(Box::new(e) as Box<dyn std::error::Error>)) as BoxedNewPeerFuture
+    Box::new(futures::future::err(
+        Box::new(e) as Box<dyn std::error::Error>
+    )) as BoxedNewPeerFuture
 }
 pub fn peer_err_s<E: std::error::Error + 'static>(e: E) -> BoxedNewPeerStream {
     Box::new(futures::stream::iter_result(vec![Err(

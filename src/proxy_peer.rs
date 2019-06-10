@@ -93,7 +93,8 @@ See an example in moreexamples.md for more thorough example.
 "#
 );
 
-type RSRRet = Box<dyn Future<Item = (SocksSocketAddr, Peer), Error = Box<dyn (::std::error::Error)>>>;
+type RSRRet =
+    Box<dyn Future<Item = (SocksSocketAddr, Peer), Error = Box<dyn (::std::error::Error)>>>;
 fn read_socks_reply(p: Peer) -> RSRRet {
     let (r, w) = (p.0, p.1);
     let reply = [0; 4];
