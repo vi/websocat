@@ -91,7 +91,7 @@ macro_rules! list_of_all_specifier_classes {
 
         $your_macro!($crate::jsonrpc_peer::JsonRpcClass);
 
-        $your_macro!($crate::proxy_peer::SocksProxyClass);
-        $your_macro!($crate::proxy_peer::SocksBindClass);
+        $your_macro!($crate::socks5_peer::SocksProxyClass);
+        $your_macro!($crate::socks5_peer::SocksBindClass);
     };
 }

@@ -1,4 +1,4 @@
-pub use super::proxy_peer::SocksSocketAddr;
+pub use super::socks5_peer::SocksSocketAddr;
 
 use super::readdebt::DebtHandling;
 

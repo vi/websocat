@@ -9,7 +9,7 @@ extern crate url;
 
 use std::net::{IpAddr, SocketAddr};
 
-use super::proxy_peer::{SocksHostAddr, SocksSocketAddr};
+use super::socks5_peer::{SocksHostAddr, SocksSocketAddr};
 
 #[derive(Ord, PartialOrd, Eq, PartialEq, Copy, Clone)]
 pub enum StdioUsageStatus {
@@ -396,7 +396,7 @@ impl WebsocatConfiguration2 {
             #[cfg(feature = "ssl")]
             s.overlays.push(Rc::new(super::ssl_peer::TlsConnectClass));
         }
-        s.overlays.push(Rc::new(super::proxy_peer::SocksProxyClass));
+        s.overlays.push(Rc::new(super::socks5_peer::SocksProxyClass));
 
         Ok(())
     }

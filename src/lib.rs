@@ -172,7 +172,7 @@ pub mod line_peer;
 pub mod primitive_reuse_peer;
 pub mod reconnect_peer;
 
-pub mod proxy_peer;
+pub mod socks5_peer;
 #[cfg(feature = "ssl")]
 pub mod ssl_peer;
 

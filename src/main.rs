@@ -27,7 +27,7 @@ use std::net::{IpAddr, SocketAddr};
 use structopt::StructOpt;
 
 use websocat::options::StaticFile;
-use websocat::proxy_peer::{SocksHostAddr, SocksSocketAddr};
+use websocat::socks5_peer::{SocksHostAddr, SocksSocketAddr};
 use websocat::{Options, SpecifierClass, WebsocatConfiguration1};
 
 type Result<T> = std::result::Result<T, Box<dyn std::error::Error>>;
