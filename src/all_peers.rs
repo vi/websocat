@@ -16,6 +16,8 @@ macro_rules! list_of_all_specifier_classes {
         #[cfg(feature = "ssl")]
         $your_macro!($crate::ssl_peer::WssListenClass);
 
+        $your_macro!($crate::http_peer::HttpRequestClass);
+
         #[cfg(all(unix, feature = "unix_stdio"))]
         $your_macro!($crate::stdio_peer::StdioClass);
         #[cfg(all(unix, feature = "unix_stdio"))]

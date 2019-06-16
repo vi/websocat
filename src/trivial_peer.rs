@@ -238,3 +238,55 @@ impl Read for CloggedPeer {
         wouldblock()
     }
 }
+
+
+// TODO: make Prepend{Read,Write} available from command line
+
+/// First act like a LiteralPeer, then start proxying inner Read
+pub struct PrependRead {
+    pub debt: ReadDebt,
+    pub inner: Box<dyn AsyncRead>,
+}
+
+impl AsyncRead for PrependRead {}
+
+impl Read for PrependRead {
+    fn read(&mut self, buf: &mut [u8]) -> std::result::Result<usize, std::io::Error> {
+        if let Some(ret) = self.debt.check_debt(buf) {
+            return ret;
+        }
+        self.inner.read(buf)
+    }
+}
+
+/// First write `header` to `inner`, then start copying data directly to it.
+pub struct PrependWrite {
+    pub header: Vec<u8>,
+    pub remaining: usize,
+    pub inner: Box<dyn AsyncWrite>,
+}
+
+impl AsyncWrite for PrependWrite {
+    fn shutdown(&mut self) -> futures::Poll<(), std::io::Error> {
+        self.inner.shutdown()
+    }
+}
+impl Write for PrependWrite {
+    fn write(&mut self, buf: &[u8]) -> IoResult<usize> {
+        loop {
+            if self.remaining == 0 {
+                return self.inner.write(buf);
+            }
+            let offset = self.header.len() - self.remaining;
+            let ret = self.inner.write(&self.header[offset..])?;
+            self.remaining -= ret;
+            if self.remaining == 0 {
+                self.header.clear();
+                self.header.shrink_to_fit();
+            }
+        }
+    }
+    fn flush(&mut self) -> IoResult<()> {
+        self.inner.flush()
+    }
+}
