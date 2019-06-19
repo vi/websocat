@@ -146,6 +146,10 @@ where
     let current_parallel_conns = Rc::new(::std::cell::Cell::new(0usize));
 
     match left {
+        PeerConstructor::Error(e) => {
+            e1(e);
+            Box::new(futures::future::ok(())) as Box<dyn Future<Item = (), Error = ()>>
+        },
         ServeMultipleTimes(stream) => {
             let runner = stream
                 .map(move |peer1| {

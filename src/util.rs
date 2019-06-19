@@ -23,6 +23,7 @@ impl PeerConstructor {
         let f = Rc::new(func);
         use PeerConstructor::*;
         match self {
+            Error(e) => Error(e),
             ServeOnce(x) => Overlay1(x, f),
             ServeMultipleTimes(s) => OverlayM(s, f),
             Overlay1(x, mapper) => Overlay1(
@@ -54,6 +55,7 @@ impl PeerConstructor {
     pub fn get_only_first_conn(self, l2r: L2rUser) -> BoxedNewPeerFuture {
         use PeerConstructor::*;
         match self {
+            Error(e) => Box::new(futures::future::err(e)) as BoxedNewPeerFuture,
             ServeMultipleTimes(stre) => Box::new(
                 stre.into_future()
                     .map(move |(std_peer, _)| std_peer.expect("Nowhere to connect it"))

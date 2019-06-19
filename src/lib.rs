@@ -188,6 +188,7 @@ pub enum PeerConstructor {
     ServeMultipleTimes(BoxedNewPeerStream),
     Overlay1(BoxedNewPeerFuture, PeerOverlay),
     OverlayM(BoxedNewPeerStream, PeerOverlay),
+    Error(Box<dyn std::error::Error>),
 }
 
 /// A remnant of the hack
