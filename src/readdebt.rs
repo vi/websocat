@@ -37,6 +37,7 @@ impl ReadDebt {
             self.0 = Some(buf_in[l..].to_vec());
         }
 
+        debug!("Fullfulling the debt of {} bytes", l);
         ProcessMessageResult::Return(Ok(l))
     }
     pub fn check_debt(

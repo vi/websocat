@@ -61,7 +61,9 @@ Content you write becomes body, content you read is body that server has sent.
 
 URI is specified using a separate command-line parameter
 
-Example: TODO
+Example:
+
+    websocat -Ub - http-request:tcp:example.com:80 --request-uri=http://example.com/ --request-header 'Connection: close'
 "#
 );
 
@@ -194,8 +196,8 @@ pub fn http_request_peer(
                         Ok(Peer::new(r,w))
                     } else {
                         debug!("{} bytes of debt to be read", remaining);
-                        let w = super::trivial_peer::PrependWrite {
-                            inner: w,
+                        let r = super::trivial_peer::PrependRead {
+                            inner: r,
                             header: res.buf,
                             remaining,
                         };

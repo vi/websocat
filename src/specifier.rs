@@ -132,6 +132,24 @@ macro_rules! specifier_class {
         }
         fn alias_info(&self) -> Option<&'static str> { None }
     };
+    (construct target=$t:ident parseresolve) => {
+        fn construct(&self, just_arg:&str) -> $crate::Result<Rc<dyn Specifier>> {
+            use std::net::ToSocketAddrs;
+            info!("Resolving hostname to IP addresses");
+            let addrs : Vec<std::net::SocketAddr> = just_arg.to_socket_addrs()?.collect();
+            if addrs.is_empty() {
+                Err("Failed to resolve this hostname to IP")?;
+            }
+            for addr in &addrs {
+                debug!("Got IP: {}", addr);
+            }
+            Ok(Rc::new($t(addrs)))
+        }
+        fn construct_overlay(&self, _inner : Rc<dyn Specifier>) -> $crate::Result<Rc<dyn Specifier>> {
+            panic!("Error: construct_overlay called on non-overlay specifier class")
+        }
+        fn alias_info(&self) -> Option<&'static str> { None }
+    };
     (construct target=$t:ident subspec) => {
         fn construct(&self, just_arg:&str) -> $crate::Result<Rc<dyn Specifier>> {
             Ok(Rc::new($t($crate::spec(just_arg)?)))

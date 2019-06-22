@@ -19,10 +19,11 @@ use super::{box_up_err, peer_err_s, wouldblock, BoxedNewPeerFuture, BoxedNewPeer
 use super::{multi, once, ConstructParams, Options, PeerConstructor, Specifier};
 
 #[derive(Debug, Clone)]
-pub struct TcpConnect(pub SocketAddr);
+pub struct TcpConnect(pub Vec<SocketAddr>);
 impl Specifier for TcpConnect {
     fn construct(&self, _: ConstructParams) -> PeerConstructor {
-        once(tcp_connect_peer(&self.0))
+        // FIXME: connect to multiple things
+        once(tcp_connect_peer(&self.0[0]))
     }
     specifier_boilerplate!(noglobalstate singleconnect no_subspec );
 }
@@ -30,7 +31,7 @@ specifier_class!(
     name = TcpConnectClass,
     target = TcpConnect,
     prefixes = ["tcp:", "tcp-connect:", "connect-tcp:", "tcp-c:", "c-tcp:"],
-    arg_handling = parse,
+    arg_handling = parseresolve,
     overlay = false,
     StreamOriented,
     SingleConnect,

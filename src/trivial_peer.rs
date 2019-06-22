@@ -166,8 +166,10 @@ impl AsyncRead for LiteralPeer {}
 impl Read for LiteralPeer {
     fn read(&mut self, buf: &mut [u8]) -> std::result::Result<usize, std::io::Error> {
         if let Some(ret) = self.debt.check_debt(buf) {
+            debug!("LiteralPeer debt");
             return ret;
         }
+        debug!("LiteralPeer finished");
         Ok(0)
     }
 }
@@ -242,9 +244,10 @@ impl Read for CloggedPeer {
 
 // TODO: make Prepend{Read,Write} available from command line
 
-/// First act like a LiteralPeer, then start proxying inner Read
+/// First read content of `header`, then start relaying from `inner`.
 pub struct PrependRead {
-    pub debt: ReadDebt,
+    pub header: Vec<u8>,
+    pub remaining: usize,
     pub inner: Box<dyn AsyncRead>,
 }
 
@@ -252,10 +255,21 @@ impl AsyncRead for PrependRead {}
 
 impl Read for PrependRead {
     fn read(&mut self, buf: &mut [u8]) -> std::result::Result<usize, std::io::Error> {
-        if let Some(ret) = self.debt.check_debt(buf) {
-            return ret;
+        if self.remaining == 0 {
+            trace!("PrependRead relay");
+            return self.inner.read(buf);
         }
-        self.inner.read(buf)
+        let l = buf.len().min(self.remaining);
+        debug!("PrependRead read debt {}", l);
+        let offset = self.header.len() - self.remaining;
+        buf[..l].copy_from_slice(&self.header[offset..(offset+l)]);
+        let ret = l;
+        self.remaining -= ret;
+        if self.remaining == 0 {
+            self.header.clear();
+            self.header.shrink_to_fit();
+        }
+        Ok(l)
     }
 }
 
