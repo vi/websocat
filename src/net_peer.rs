@@ -23,7 +23,7 @@ pub struct TcpConnect(pub Vec<SocketAddr>);
 impl Specifier for TcpConnect {
     fn construct(&self, _: ConstructParams) -> PeerConstructor {
         // FIXME: connect to multiple things
-        once(tcp_connect_peer(&self.0[0]))
+        once(tcp_connect_peer(&self.0[..]))
     }
     specifier_boilerplate!(noglobalstate singleconnect no_subspec );
 }
@@ -191,16 +191,31 @@ impl Drop for MyTcpStream {
     }
 }
 
-pub fn tcp_connect_peer(addr: &SocketAddr) -> BoxedNewPeerFuture {
-    Box::new(
-        TcpStream::connect(&addr)
-            .map(|x| {
-                info!("Connected to TCP");
+pub fn tcp_connect_peer(addrs: &[SocketAddr]) -> BoxedNewPeerFuture {
+    // Apply Happy Eyeballs in case of multiple proposed addresses.
+    if addrs.len() > 1 {
+        debug!("Setting up a race between multiple TCP client sockets. Who connects the first?");
+    }
+    use futures::stream::futures_unordered::FuturesUnordered;
+    let mut fu = FuturesUnordered::new();
+    for addr in addrs {
+        let addr = addr.clone();
+        fu.push(
+            TcpStream::connect(&addr)
+            .map(move |x| {
+                info!("Connected to TCP {}", addr);
                 let x = Rc::new(x);
                 Peer::new(MyTcpStream(x.clone(), true), MyTcpStream(x.clone(), false))
             })
-            .map_err(box_up_err),
-    ) as BoxedNewPeerFuture
+            .map_err(box_up_err)
+        );
+    }
+    let p = fu.into_future().and_then(|(x, _losers)| {
+        let peer = x.unwrap();
+        debug!("We have a winner. Disconnecting losers.");
+        futures::future::ok(peer)       
+    });
+    Box::new(p.map_err(|(e,_)|e)) as BoxedNewPeerFuture
 }
 
 pub fn tcp_listen_peer(addr: &SocketAddr, l2r: L2rUser) -> BoxedNewPeerStream {
