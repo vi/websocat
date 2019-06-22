@@ -22,6 +22,9 @@ extern crate openssl_probe;
 #[macro_use]
 extern crate structopt;
 
+extern crate http_bytes;
+use http_bytes::http;
+
 use std::net::{IpAddr, SocketAddr};
 
 use structopt::StructOpt;
@@ -370,6 +373,14 @@ struct Opt {
     /// Sec-WebSocket-Key value without running main Websocat
     #[structopt(long = "just-generate-accept")]
     just_generate_accept: Option<String>,
+
+    /// [A] URI to use for `http-request:` specifier
+    #[structopt(long = "request-uri")]
+    request_uri: Option<http::Uri>,
+
+    /// [A] Method to use for `http-request:` specifier
+    #[structopt(long = "request-method", short="X")]
+    request_method: Option<http::Method>,
 }
 
 // TODO: make it byte-oriented/OsStr?
@@ -578,6 +589,8 @@ fn run() -> Result<()> {
             max_parallel_conns
             ws_ping_interval
             ws_ping_timeout
+            request_uri
+            request_method
         );
         #[cfg(feature = "ssl")]
         {

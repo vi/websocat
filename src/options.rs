@@ -12,6 +12,9 @@ pub struct StaticFile {
     pub content_type: String,
 }
 
+extern crate http_bytes;
+use http_bytes::http;
+
 #[derive(SmartDefault, Derivative)]
 #[derivative(Debug)]
 pub struct Options {
@@ -25,7 +28,7 @@ pub struct Options {
     pub oneshot: bool,
     pub unlink_unix_socket: bool,
     pub exec_args: Vec<String>,
-    pub ws_c_uri: String, // TODO: turn into an Option
+    pub ws_c_uri: String, // TODO: delete this
     pub linemode_strip_newlines: bool,
     pub linemode_strict: bool,
     pub origin: Option<String>,
@@ -61,4 +64,7 @@ pub struct Options {
     pub max_parallel_conns: Option<usize>,
     pub ws_ping_interval: Option<u64>,
     pub ws_ping_timeout: Option<u64>,
+
+    pub request_uri: Option<http::Uri>,
+    pub request_method: Option<http::Method>,
 }

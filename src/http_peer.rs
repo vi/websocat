@@ -18,13 +18,25 @@ use std::ffi::OsString;
 extern crate http_bytes;
 use http_bytes::http;
 
+use http_bytes::{Request,Response};
+use http::Uri;
+use http::Method;
+
 #[derive(Debug)]
 pub struct HttpRequest<T: Specifier>(pub T);
 impl<T: Specifier> Specifier for HttpRequest<T> {
     fn construct(&self, cp: ConstructParams) -> PeerConstructor {
         let inner = self.0.construct(cp.clone());
         inner.map(move |p, l2r| {
-            http_request_peer(p, l2r)
+            let mut b = ::http::request::Builder::default();
+            if let Some(uri) = cp.program_options.request_uri.as_ref() {
+                b.uri(uri);
+            }
+            if let Some(method) = cp.program_options.request_method.as_ref() {
+                b.method(method);
+            }
+            let request = b.body(()).unwrap();
+            http_request_peer(&request, p, l2r)
         })
     }
     specifier_boilerplate!(noglobalstate has_subspec);
@@ -134,11 +146,10 @@ impl<R:AsyncRead> Future for WaitForHttpHead<R> {
 }
 
 pub fn http_request_peer(
+    request: &Request,
     inner_peer: Peer,
     _l2r: L2rUser,
 ) -> BoxedNewPeerFuture {
-   
-    let request = ::http::request::Builder::default().body(()).unwrap();
     let request = ::http_bytes::request_header_to_vec(&request);
 
     let (r, w) = (inner_peer.0, inner_peer.1);
