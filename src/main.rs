@@ -381,6 +381,14 @@ struct Opt {
     /// [A] Method to use for `http-request:` specifier
     #[structopt(long = "request-method", short="X")]
     request_method: Option<http::Method>,
+
+    /// Specify HTTP request headers
+    /// TODO: add short option, remove existing -H
+    #[structopt(
+        long = "request-header", 
+        parse(try_from_str = "interpret_custom_header2"),
+    )]
+    request_headers: Vec<(http::header::HeaderName, http::header::HeaderValue)>,
 }
 
 // TODO: make it byte-oriented/OsStr?
@@ -397,6 +405,24 @@ fn interpret_custom_header(x: &str) -> Result<(String, Vec<u8>)> {
         hv = &x[colon + 2..];
     }
     Ok((hn.to_owned(), hv.as_bytes().to_vec()))
+}
+
+fn interpret_custom_header2(x: &str) -> Result<(http::header::HeaderName, http::header::HeaderValue)> {
+    let colon = x.find(':');
+    let colon = if let Some(colon) = colon {
+        colon
+    } else {
+        Err("Specified header must contain `:` character")?
+    };
+    let hn = &x[0..colon];
+    let mut hv = &x[colon + 1..];
+    if hv.starts_with(' ') {
+        hv = &x[colon + 2..];
+    }
+    use std::str::FromStr;
+    let hn = http::header::HeaderName::from_str(hn)?;
+    let hv = http::header::HeaderValue::from_str(hv)?;
+    Ok((hn,hv))
 }
 
 fn interpret_static_file(x: &str) -> Result<StaticFile> {
@@ -591,6 +617,7 @@ fn run() -> Result<()> {
             ws_ping_timeout
             request_uri
             request_method
+            request_headers
         );
         #[cfg(feature = "ssl")]
         {

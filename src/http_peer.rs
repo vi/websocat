@@ -35,6 +35,9 @@ impl<T: Specifier> Specifier for HttpRequest<T> {
             if let Some(method) = cp.program_options.request_method.as_ref() {
                 b.method(method);
             }
+            for (hn, hv) in &cp.program_options.request_headers {
+                b.header(hn, hv);
+            }
             let request = b.body(()).unwrap();
             http_request_peer(&request, p, l2r)
         })
@@ -63,7 +66,7 @@ Example: TODO
 );
 
 
-#[derive(Copy,Clone,PartialEq)]
+#[derive(Copy,Clone,PartialEq,Debug)]
 enum HttpHeaderEndDetectionState {
     Neutral,
     FirstCr,
@@ -113,10 +116,15 @@ impl<R:AsyncRead> Future for WaitForHttpHead<R> {
             }
             let ret = try_nb!(io.read(&mut buf[self.offset..]));
 
+            if ret == 0 {
+                Err("Trimmed HTTP head")?;
+            }
+
             // parse
             for i in self.offset..(self.offset+ret) {
                 let x = buf[i];
                 use self::HttpHeaderEndDetectionState::*;
+                //eprint!("{:?} -> ", self.state);
                 self.state = match (self.state, x) {
                     (Neutral, b'\r') => FirstCr,
                     (FirstCr, b'\n') => FirstLf,
@@ -124,6 +132,7 @@ impl<R:AsyncRead> Future for WaitForHttpHead<R> {
                     (SecondCr, b'\n') => FoundHeaderEnd,
                     _ => Neutral,
                 };
+                //eprintln!("{:?}", self.state);
                 if self.state == FoundHeaderEnd {
                     drop((buf,io));
                     let io = self.io.take().unwrap();
