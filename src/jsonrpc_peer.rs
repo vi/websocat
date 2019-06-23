@@ -39,7 +39,7 @@ Example: TODO
 
 pub fn jsonrpc_peer(inner_peer: Peer) -> BoxedNewPeerFuture {
     let filtered = JsonRpcWrapper(inner_peer.0, 1);
-    let thepeer = Peer::new(filtered, inner_peer.1);
+    let thepeer = Peer::new(filtered, inner_peer.1, inner_peer.2);
     Box::new(ok(thepeer)) as BoxedNewPeerFuture
 }
 struct JsonRpcWrapper(Box<dyn AsyncRead>, u64);

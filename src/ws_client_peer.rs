@@ -172,7 +172,7 @@ where
             .map(move |(duplex, _)| {
                 info!("Connected to ws",);
                 let close_on_shutdown =  !opts.websocket_dont_close;
-                super::ws_peer::finish_building_ws_peer(&*opts, duplex, close_on_shutdown)
+                super::ws_peer::finish_building_ws_peer(&*opts, duplex, close_on_shutdown, None)
             })
             .map_err(box_up_err),
     ) as BoxedNewPeerFuture

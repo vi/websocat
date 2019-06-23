@@ -338,6 +338,7 @@ pub fn unix_connect_peer(addr: &Path) -> BoxedNewPeerFuture {
                 Peer::new(
                     MyUnixStream(x.clone(), true),
                     MyUnixStream(x.clone(), false),
+                    None /* TODO */,
                 )
             })
             .map_err(box_up_err),
@@ -364,6 +365,7 @@ pub fn unix_listen_peer(addr: &Path, opts: &Rc<Options>) -> BoxedNewPeerStream {
                 Peer::new(
                     MyUnixStream(x.clone(), true),
                     MyUnixStream(x.clone(), false),
+                    None /* TODO */,
                 )
             })
             .map_err(|()| ::simple_err2("unreachable error?")),
@@ -390,7 +392,7 @@ pub fn dgram_peer(bindaddr: &Path, connectaddr: &Path, opts: &Rc<Options>) -> Bo
                     oneshot_mode: opts.udp_oneshot_mode,
                 })));
                 let h2 = h1.clone();
-                Ok(Peer::new(h1, h2))
+                Ok(Peer::new(h1, h2, None))
             })
             .map_err(box_up_err),
     )) as BoxedNewPeerFuture
@@ -466,7 +468,7 @@ pub fn dgram_peer_workaround(
                 oneshot_mode: opts.udp_oneshot_mode,
             })));
             let h2 = h1.clone();
-            Ok(Peer::new(h1, h2))
+            Ok(Peer::new(h1, h2, None))
         } else {
             Err("Failed to get, bind or connect socket")?
         }

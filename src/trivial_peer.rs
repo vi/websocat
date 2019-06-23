@@ -138,26 +138,26 @@ pub fn get_literal_peer_now(b: Vec<u8>) -> LiteralPeer {
 pub fn get_literal_peer(b: Vec<u8>) -> BoxedNewPeerFuture {
     let r = get_literal_peer_now(b);
     let w = DevNull;
-    let p = Peer::new(r, w);
+    let p = Peer::new(r, w, None);
     Box::new(futures::future::ok(p)) as BoxedNewPeerFuture
 }
 pub fn get_assert_peer(b: Vec<u8>) -> BoxedNewPeerFuture {
     let r = DevNull;
     let w = AssertPeer(vec![], b, true);
-    let p = Peer::new(r, w);
+    let p = Peer::new(r, w, None);
     Box::new(futures::future::ok(p)) as BoxedNewPeerFuture
 }
 pub fn get_assert2_peer(b: Vec<u8>) -> BoxedNewPeerFuture {
     let r = DevNull;
     let w = AssertPeer(vec![], b, false);
-    let p = Peer::new(r, w);
+    let p = Peer::new(r, w, None);
     Box::new(futures::future::ok(p)) as BoxedNewPeerFuture
 }
 /// A special peer that returns NotReady without registering for any wakeup, deliberately hanging all connections forever.
 pub fn get_clogged_peer() -> BoxedNewPeerFuture {
     let r = CloggedPeer;
     let w = CloggedPeer;
-    let p = Peer::new(r, w);
+    let p = Peer::new(r, w, None);
     Box::new(futures::future::ok(p)) as BoxedNewPeerFuture
 }
 

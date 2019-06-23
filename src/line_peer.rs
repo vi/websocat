@@ -86,7 +86,7 @@ Example: TODO
 
 pub fn packet2line_peer(inner_peer: Peer, null_terminated: bool) -> BoxedNewPeerFuture {
     let filtered = Packet2LineWrapper(inner_peer.0, null_terminated);
-    let thepeer = Peer::new(filtered, inner_peer.1);
+    let thepeer = Peer::new(filtered, inner_peer.1, inner_peer.2);
     Box::new(ok(thepeer)) as BoxedNewPeerFuture
 }
 struct Packet2LineWrapper(Box<dyn AsyncRead>, bool);
@@ -155,7 +155,7 @@ pub fn line2packet_peer(
         eof: false,
         null_terminated,
     };
-    let thepeer = Peer::new(filtered, inner_peer.1);
+    let thepeer = Peer::new(filtered, inner_peer.1, inner_peer.2);
     Box::new(ok(thepeer)) as BoxedNewPeerFuture
 }
 struct Line2PacketWrapper {

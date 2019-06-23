@@ -205,7 +205,11 @@ pub fn tcp_connect_peer(addrs: &[SocketAddr]) -> BoxedNewPeerFuture {
             .map(move |x| {
                 info!("Connected to TCP {}", addr);
                 let x = Rc::new(x);
-                Peer::new(MyTcpStream(x.clone(), true), MyTcpStream(x.clone(), false))
+                Peer::new(
+                    MyTcpStream(x.clone(), true),
+                    MyTcpStream(x.clone(), false),
+                    None /* TODO */
+                )
             })
             .map_err(box_up_err)
         );
@@ -241,7 +245,11 @@ pub fn tcp_listen_peer(addr: &SocketAddr, l2r: L2rUser) -> BoxedNewPeerStream {
                 }
 
                 let x = Rc::new(x);
-                Peer::new(MyTcpStream(x.clone(), true), MyTcpStream(x.clone(), false))
+                Peer::new(
+                    MyTcpStream(x.clone(), true),
+                    MyTcpStream(x.clone(), false),
+                    None, /* TODO */
+                )
             })
             .map_err(|()| ::simple_err2("unreachable error?")),
     ) as BoxedNewPeerStream
@@ -286,7 +294,7 @@ pub fn udp_connect_peer(addr: &SocketAddr, opts: &Rc<Options>) -> BoxedNewPeerFu
                     oneshot_mode: opts.udp_oneshot_mode,
                 })));
                 let h2 = h1.clone();
-                Ok(Peer::new(h1, h2))
+                Ok(Peer::new(h1, h2, None))
             })
             .map_err(box_up_err),
     )) as BoxedNewPeerFuture
@@ -302,7 +310,7 @@ pub fn udp_listen_peer(addr: &SocketAddr, opts: &Rc<Options>) -> BoxedNewPeerFut
                     oneshot_mode: opts.udp_oneshot_mode,
                 })));
                 let h2 = h1.clone();
-                Ok(Peer::new(h1, h2))
+                Ok(Peer::new(h1, h2, None))
             })
             .map_err(box_up_err),
     )) as BoxedNewPeerFuture

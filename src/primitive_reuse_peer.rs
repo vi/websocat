@@ -128,7 +128,7 @@ pub fn connection_reuser<F: FnOnce() -> BoxedNewPeerFuture>(
 
             let ph1 = PeerHandle(ps, send_zero_msg_on_disconnect);
             let ph2 = ph1.clone();
-            let peer = Peer::new(ph1, ph2);
+            let peer = Peer::new(ph1, ph2, None /* TODO */);
             ok(peer)
         })) as BoxedNewPeerFuture
     } else {
@@ -137,7 +137,7 @@ pub fn connection_reuser<F: FnOnce() -> BoxedNewPeerFuture>(
 
         let ph1 = PeerHandle(ps, send_zero_msg_on_disconnect);
         let ph2 = ph1.clone();
-        let peer = Peer::new(ph1, ph2);
+        let peer = Peer::new(ph1, ph2, None /* TODO */);
         Box::new(ok(peer)) as BoxedNewPeerFuture
     }
 }

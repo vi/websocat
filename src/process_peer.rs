@@ -164,7 +164,7 @@ fn process_connect_peer(
     cmd.stdin(Stdio::piped()).stdout(Stdio::piped());
     let child = cmd.spawn_async()?;
     let ph = ProcessPeer(Rc::new(RefCell::new(child)), zero_sighup, close_sighup);
-    Ok(Peer::new(ph.clone(), ph))
+    Ok(Peer::new(ph.clone(), ph, None /* TODO */))
 }
 
 #[derive(Clone)]

@@ -96,7 +96,7 @@ See an example in moreexamples.md for more thorough example.
 type RSRRet =
     Box<dyn Future<Item = (SocksSocketAddr, Peer), Error = Box<dyn (::std::error::Error)>>>;
 fn read_socks_reply(p: Peer) -> RSRRet {
-    let (r, w) = (p.0, p.1);
+    let (r, w, hup) = (p.0, p.1, p.2);
     let reply = [0; 4];
 
     fn myerr(x: &'static str) -> RSRRet {
@@ -139,7 +139,7 @@ fn read_socks_reply(p: Peer) -> RSRRet {
                                     addrport[3],
                                 );
                                 let host = SocksHostAddr::Ip(IpAddr::V4(ip));
-                                ok((SocksSocketAddr { host, port }, Peer(r, w)))
+                                ok((SocksSocketAddr { host, port }, Peer(r, w, hup)))
                             },
                         ))
                     }
@@ -155,7 +155,7 @@ fn read_socks_reply(p: Peer) -> RSRRet {
                                 let mut ip = [0u8; 16];
                                 ip.copy_from_slice(&addrport[0..16]);
                                 let host = SocksHostAddr::Ip(IpAddr::V6(ip.into()));
-                                ok((SocksSocketAddr { host, port }, Peer(r, w)))
+                                ok((SocksSocketAddr { host, port }, Peer(r, w, hup)))
                             },
                         ))
                     }
@@ -175,7 +175,7 @@ fn read_socks_reply(p: Peer) -> RSRRet {
                                                 .unwrap_or("(invalid hostname)")
                                                 .to_string(),
                                         );
-                                        ok((SocksSocketAddr { host, port }, Peer(r, w)))
+                                        ok((SocksSocketAddr { host, port }, Peer(r, w, hup)))
                                     },
                                 )
                             },
@@ -212,7 +212,7 @@ pub fn socks5_peer(
     };
 
     info!("Connecting to SOCKS server");
-    let (r, w) = (inner_peer.0, inner_peer.1);
+    let (r, w, hup) = (inner_peer.0, inner_peer.1, inner_peer.2);
     let f = write_all(w, b"\x05\x01\x00")
         .map_err(box_up_err)
         .and_then(move |(w, _)| {
@@ -260,7 +260,7 @@ pub fn socks5_peer(
                             .and_then(move |(w, _)| {
                                 let _reply = [0; 4];
 
-                                read_socks_reply(Peer(r, w)).and_then(move |(addr, p)| {
+                                read_socks_reply(Peer(r, w, hup)).and_then(move |(addr, p)| {
                                     info!("SOCKS5 connect/bind: {:?}", addr);
 
                                     if do_bind {

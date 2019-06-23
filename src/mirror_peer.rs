@@ -87,7 +87,7 @@ pub fn get_mirror_peer(debt_handling: DebtHandling) -> BoxedNewPeerFuture {
         ch: receiver,
     };
     let w = MirrorWrite(sender);
-    let p = Peer::new(r, w);
+    let p = Peer::new(r, w, None);
     Box::new(futures::future::ok(p)) as BoxedNewPeerFuture
 }
 pub fn get_literal_reply_peer(content: Vec<u8>) -> BoxedNewPeerFuture {
@@ -98,7 +98,7 @@ pub fn get_literal_reply_peer(content: Vec<u8>) -> BoxedNewPeerFuture {
         content,
     };
     let w = LiteralReplyHandle(sender);
-    let p = Peer::new(r, w);
+    let p = Peer::new(r, w, None);
     Box::new(futures::future::ok(p)) as BoxedNewPeerFuture
 }
 

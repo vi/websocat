@@ -150,6 +150,7 @@ pub fn ssl_connect(
     dom: Option<String>,
     tls_insecure: bool,
 ) -> BoxedNewPeerFuture {
+    let hup = inner_peer.2;
     let squashed_peer = readwrite::ReadWriteAsync::new(inner_peer.0, inner_peer.1);
 
     fn gettlsc(nohost: bool, noverify: bool) -> native_tls::Result<TlsConnectorExt> {
@@ -178,19 +179,20 @@ pub fn ssl_connect(
                 .and_then(move |tls_stream| {
                     info!("Connected to TLS");
                     let (r, w) = tls_stream.split();
-                    ok(Peer::new(r, w))
+                    ok(Peer::new(r, w, hup))
                 }),
         )
     } else {
         Box::new(tls.connect("domainverificationdisabled", squashed_peer).map_err(box_up_err).and_then(move |tls_stream| {
             warn!("Connected to TLS without proper verification of certificate. Use --tls-domain option.");
             let (r,w) = tls_stream.split();
-            ok(Peer::new(r,w))
+            ok(Peer::new(r,w, hup))
         }))
     }
 }
 
 pub fn ssl_accept(inner_peer: Peer, _l2r: L2rUser, progopt: Rc<Options>) -> BoxedNewPeerFuture {
+    let hup = inner_peer.2;
     let squashed_peer = readwrite::ReadWriteAsync::new(inner_peer.0, inner_peer.1);
 
     fn gettlsa(cert: &[u8], passwd: &str) -> native_tls::Result<TlsAcceptorExt> {
@@ -219,7 +221,7 @@ pub fn ssl_accept(inner_peer: Peer, _l2r: L2rUser, progopt: Rc<Options>) -> Boxe
             .and_then(move |tls_stream| {
                 info!("Connected to TLS");
                 let (r, w) = tls_stream.split();
-                ok(Peer::new(r, w))
+                ok(Peer::new(r, w, hup))
             }),
     )
 }

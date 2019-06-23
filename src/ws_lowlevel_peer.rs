@@ -73,16 +73,18 @@ Example: TODO
 "#
 );
 
-pub fn get_ws_lowlevel_peer(mode: WsLlContext, inner: Peer, opts: Rc<Options>) -> BoxedNewPeerFuture {
+pub fn get_ws_lowlevel_peer(mode: WsLlContext, mut inner: Peer, opts: Rc<Options>) -> BoxedNewPeerFuture {
     info!("get_ws_lowlevel_peer");
     
     use ::tokio_codec::Decoder;
 
     let c = websocket_lowlevel::codec::ws::MessageCodec::new(mode);
+    let hup = inner.2;
+    inner.2 = None;
     let duplex = c.framed(PeerForWs(inner));
 
     let close_on_shutdown =  !opts.websocket_dont_close;
-    let p = super::ws_peer::finish_building_ws_peer(&*opts, duplex, close_on_shutdown);
+    let p = super::ws_peer::finish_building_ws_peer(&*opts, duplex, close_on_shutdown, hup);
 
     Box::new(
         ::futures::future::ok(p)

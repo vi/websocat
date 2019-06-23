@@ -229,7 +229,7 @@ pub fn http_request_peer(
 ) -> BoxedNewPeerFuture {
     let request = ::http_bytes::request_header_to_vec(&request);
 
-    let (r, w) = (inner_peer.0, inner_peer.1);
+    let (r, w, hup) = (inner_peer.0, inner_peer.1, inner_peer.2);
 
     info!("Issuing HTTP request");
     let f = ::tokio_io::io::write_all(w, request)
@@ -259,7 +259,7 @@ pub fn http_request_peer(
                     }
                     let remaining = res.buf.len() - res.offset;
                     if remaining == 0 {
-                        Ok(Peer::new(r,w))
+                        Ok(Peer::new(r,w,hup))
                     } else {
                         debug!("{} bytes of debt to be read", remaining);
                         let r = super::trivial_peer::PrependRead {
@@ -267,7 +267,7 @@ pub fn http_request_peer(
                             header: res.buf,
                             remaining,
                         };
-                        Ok(Peer::new(r,w))
+                        Ok(Peer::new(r,w,hup))
                     }
                 })();
                 ::futures::future::result(ret)

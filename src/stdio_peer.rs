@@ -170,7 +170,7 @@ fn get_stdio_peer_impl(s: &mut GlobalState) -> Result<Peer> {
             spawn_hack(Box::new(prog.map_err(|_| ())));
         }
     }
-    Ok(Peer::new(si, so))
+    Ok(Peer::new(si, so, None))
 }
 
 pub fn get_stdio_peer(s: &mut GlobalState) -> BoxedNewPeerFuture {
@@ -240,7 +240,7 @@ fn get_file_peer_impl(p: &Path) -> Result<Peer> {
 
     let s = f.into_io(&tokio_reactor::Handle::default())?;
     let ss = FileWrapper(Rc::new(RefCell::new(s)));
-    Ok(Peer::new(ss.clone(), ss))
+    Ok(Peer::new(ss.clone(), ss, None))
 }
 
 pub fn get_file_peer(p: &Path) -> BoxedNewPeerFuture {
@@ -254,7 +254,7 @@ fn get_fd_peer_impl(fd: i32) -> Result<Peer> {
 
     let s = f.into_io(&tokio_reactor::Handle::default())?;
     let ss = FileWrapper(Rc::new(RefCell::new(s)));
-    Ok(Peer::new(ss.clone(), ss))
+    Ok(Peer::new(ss.clone(), ss, None))
 }
 
 pub fn get_fd_peer(fd: i32) -> BoxedNewPeerFuture {

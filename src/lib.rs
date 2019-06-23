@@ -129,7 +129,10 @@ pub enum L2rUser {
     ReadFrom(L2rReader),
 }
 
-pub struct Peer(Box<dyn AsyncRead>, Box<dyn AsyncWrite>);
+/// Resolves if/when TCP socket gets reset
+pub type HupToken = Box<dyn Future<Item=(), Error=Box<dyn std::error::Error>>>;
+
+pub struct Peer(Box<dyn AsyncRead>, Box<dyn AsyncWrite>, Option<HupToken>);
 
 pub type BoxedNewPeerFuture = Box<dyn Future<Item = Peer, Error = Box<dyn std::error::Error>>>;
 pub type BoxedNewPeerStream = Box<dyn Stream<Item = Peer, Error = Box<dyn std::error::Error>>>;

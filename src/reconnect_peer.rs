@@ -212,6 +212,6 @@ pub fn autoreconnector(s: Rc<dyn Specifier>, cp: ConstructParams) -> BoxedNewPee
     }));
     let ph1 = PeerHandle(s.clone());
     let ph2 = PeerHandle(s);
-    let peer = Peer::new(ph1, ph2);
+    let peer = Peer::new(ph1, ph2, None /* we handle hups ourselves */);
     Box::new(ok(peer)) as BoxedNewPeerFuture
 }

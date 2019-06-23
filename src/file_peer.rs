@@ -19,7 +19,7 @@ impl Specifier for ReadFile {
     fn construct(&self, _: ConstructParams) -> PeerConstructor {
         fn gp(p: &Path) -> Result<Peer> {
             let f = File::open(p)?;
-            Ok(Peer::new(ReadFileWrapper(f), super::trivial_peer::DevNull))
+            Ok(Peer::new(ReadFileWrapper(f), super::trivial_peer::DevNull, None))
         }
         once(Box::new(futures::future::result(gp(&self.0))) as BoxedNewPeerFuture)
     }
@@ -51,7 +51,7 @@ impl Specifier for WriteFile {
     fn construct(&self, _: ConstructParams) -> PeerConstructor {
         fn gp(p: &Path) -> Result<Peer> {
             let f = File::create(p)?;
-            Ok(Peer::new(super::trivial_peer::DevNull, WriteFileWrapper(f)))
+            Ok(Peer::new(super::trivial_peer::DevNull, WriteFileWrapper(f), None))
         }
         once(Box::new(futures::future::result(gp(&self.0))) as BoxedNewPeerFuture)
     }
@@ -84,7 +84,7 @@ impl Specifier for AppendFile {
     fn construct(&self, _: ConstructParams) -> PeerConstructor {
         fn gp(p: &Path) -> Result<Peer> {
             let f = OpenOptions::new().create(true).append(true).open(p)?;
-            Ok(Peer::new(super::trivial_peer::DevNull, WriteFileWrapper(f)))
+            Ok(Peer::new(super::trivial_peer::DevNull, WriteFileWrapper(f), None))
         }
         once(Box::new(futures::future::result(gp(&self.0))) as BoxedNewPeerFuture)
     }

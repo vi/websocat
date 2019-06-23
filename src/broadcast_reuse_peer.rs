@@ -213,7 +213,7 @@ fn makeclient(ps: HBroadCaster, queue_len: usize) -> Peer {
         .insert(send);
     let ph1 = PeerHandleR(ps.clone(), recv, k);
     let ph2 = PeerHandleW(ps);
-    Peer::new(ph1, ph2)
+    Peer::new(ph1, ph2, None /* TODO */)
 }
 
 pub fn connection_reuser<F: FnOnce() -> BoxedNewPeerFuture>(
