@@ -518,6 +518,16 @@ impl WebsocatConfiguration2 {
         Ok(())
     }
 
+    fn l_eeof_unidir(&mut self, _on_warning: &OnWarning) -> Result<()> {
+        if self.opts.exit_on_eof {
+           if self.opts.unidirectional || self.opts.unidirectional_reverse {
+               _on_warning("--exit-on-eof and --unidirectional[-reverse] options are now useless together");
+               _on_warning("You may want to remove --exit-on-eof. If you are happy with what happens, consider `-uU` instead of `-uE`.");
+           }
+        }
+        Ok(())
+    }
+
     pub fn lint_and_fixup(&mut self, on_warning: OnWarning) -> Result<()> {
         let multiconnect = !self.opts.oneshot && self.s1.is_multiconnect();
         let mut reuser_has_been_inserted = false;
@@ -536,6 +546,7 @@ impl WebsocatConfiguration2 {
         self.l_ssl(&on_warning)?;
         self.l_ping(&on_warning)?;
         self.l_proto(&on_warning)?;
+        self.l_eeof_unidir(&on_warning)?;
 
         // TODO: UDP connect oneshot mode
         // TODO: tests for the linter

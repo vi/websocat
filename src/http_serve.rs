@@ -86,6 +86,7 @@ pub fn http_serve(
         buffer_size: 1024,
         once: false,
         stop_on_reader_zero_read: true,
+        skip: false,
     };
 
     if let Some(f) = serve_file {
@@ -97,6 +98,7 @@ pub fn http_serve(
                         buffer_size: 65536,
                         once: false,
                         stop_on_reader_zero_read: true,
+                        skip: false,
                     };
                     let wr = ::file_peer::ReadFileWrapper(f);
                     copy(wr, conn, co2).map(|_| ()).map_err(drop)

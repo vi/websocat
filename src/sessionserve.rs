@@ -12,19 +12,27 @@ use tokio_io;
 impl Session {
     pub fn run(self) -> Box<dyn Future<Item = (), Error = Box<dyn std::error::Error>>> {
         let once = self.2.one_message;
-        let co = my_copy::CopyOptions {
+        let mut co1 = my_copy::CopyOptions {
             stop_on_reader_zero_read: true,
             once,
             buffer_size: self.2.buffer_size,
+            skip: false,
         };
-        let f1 = my_copy::copy(self.0.from, self.0.to, co);
-        let f2 = my_copy::copy(self.1.from, self.1.to, co);
-        // TODO: properly shutdown in unidirectional mode
+        let mut co2 = co1.clone();
+        if self.2.unidirectional {
+            co2.skip=true;
+        }
+        if self.2.unidirectional_reverse {
+            co1.skip=true;
+        }
+        let f1 = my_copy::copy(self.0.from, self.0.to, co1);
+        let f2 = my_copy::copy(self.1.from, self.1.to, co2);
+
         let f1 = f1.and_then(|(_, r, w)| {
             info!("Forward finished");
             std::mem::drop(r);
             tokio_io::io::shutdown(w).map(|w| {
-                info!("Forward shutdown finished");
+                debug!("Forward shutdown finished");
                 std::mem::drop(w);
             })
         });
@@ -32,46 +40,28 @@ impl Session {
             info!("Reverse finished");
             std::mem::drop(r);
             tokio_io::io::shutdown(w).map(|w| {
-                info!("Reverse shutdown finished");
+                debug!("Reverse shutdown finished");
                 std::mem::drop(w);
             })
         });
 
-        let (unif, unir, eeof) = (
-            self.2.unidirectional,
-            self.2.unidirectional_reverse,
-            self.2.exit_on_eof,
-        );
         type Ret = Box<dyn Future<Item = (), Error = Box<dyn std::error::Error>>>;
-        match (unif, unir, eeof) {
-            (false, false, false) => Box::new(
+        if !self.2.exit_on_eof {
+            Box::new(
                 f1.join(f2)
                     .map(|(_, _)| {
-                        info!("Finished");
+                        info!("Both directions finished");
                     })
                     .map_err(|x| Box::new(x) as Box<dyn std::error::Error>),
-            ) as Ret,
-            (false, false, true) => Box::new(
+            ) as Ret
+        } else {
+            Box::new(
                 f1.select(f2)
                     .map(|(_, _)| {
                         info!("One of directions finished");
                     })
                     .map_err(|(x, _)| Box::new(x) as Box<dyn std::error::Error>),
-            ) as Ret,
-            (true, false, _) => Box::new({
-                ::std::mem::drop(f2);
-                f1.map_err(|x| Box::new(x) as Box<dyn std::error::Error>)
-            }) as Ret,
-            (false, true, _) => Box::new({
-                ::std::mem::drop(f1);
-                f2.map_err(|x| Box::new(x) as Box<dyn std::error::Error>)
-            }) as Ret,
-            (true, true, _) => Box::new({
-                // Just open connection and close it.
-                ::std::mem::drop(f1);
-                ::std::mem::drop(f2);
-                futures::future::ok(())
-            }) as Ret,
+            ) as Ret
         }
     }
     pub fn new(peer1: Peer, peer2: Peer, opts: Rc<Options>) -> Self {

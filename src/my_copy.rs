@@ -9,6 +9,8 @@ pub struct CopyOptions {
     pub stop_on_reader_zero_read: bool,
     pub once: bool,
     pub buffer_size: usize,
+    /// Because of -u or -U
+    pub skip: bool,
 }
 
 /// A future which will copy all data from a reader into a writer.
@@ -73,6 +75,12 @@ where
     type Error = io::Error;
 
     fn poll(&mut self) -> Poll<(u64, R, W), io::Error> {
+        if self.opts.skip {
+            debug!("copy skipped");
+            let reader = self.reader.take().unwrap();
+            let writer = self.writer.take().unwrap();
+            return Ok((0, reader, writer).into());
+        }
         loop {
             // If our buffer is empty, then we need to read some data to
             // continue.
