@@ -55,7 +55,7 @@ specifier_class!(
     MulticonnectnessDependsOnInnerType,
     help = r#"
 [A] Issue HTTP request, receive a 1xx or 2xx reply, then pass
-the torch to outer peer, if any.
+the torch to outer peer, if any - lowlevel version.
 
 Content you write becomes body, content you read is body that server has sent.
 
@@ -66,6 +66,72 @@ Example:
     websocat -Ub - http-request:tcp:example.com:80 --request-uri=http://example.com/ --request-header 'Connection: close'
 "#
 );
+
+/// Inner peer is a TCP peer configured to this host
+#[derive(Debug)]
+pub struct Http<T: Specifier>(pub T, pub Uri);
+impl<T: Specifier> Specifier for Http<T> {
+    fn construct(&self, cp: ConstructParams) -> PeerConstructor {
+        let inner = self.0.construct(cp.clone());
+        let uri = self.1.clone();
+        inner.map(move |p, l2r| {
+            let mut b = ::http::request::Builder::default();
+            b.uri(uri.clone());
+            if let Some(method) = cp.program_options.request_method.as_ref() {
+                b.method(method);
+            }
+            for (hn, hv) in &cp.program_options.request_headers {
+                b.header(hn, hv);
+            }
+            let request = b.body(()).unwrap();
+            http_request_peer(&request, p, l2r)
+        })
+    }
+    specifier_boilerplate!(noglobalstate has_subspec);
+    self_0_is_subspecifier!(proxy_is_multiconnect);
+}
+specifier_class!(
+    name = HttpClass,
+    target = Http,
+    prefixes = ["http:"],
+    arg_handling = {
+        fn construct(self: &HttpClass, arg: &str) -> super::Result<Rc<dyn Specifier>> {
+            let uri : Uri = format!("http:{}", arg).parse()?;
+            let auth = uri.authority_part().unwrap();
+            let host = auth.host();
+            let port = auth.port_part();
+            let addr = if let Some(p) = port {
+                format!("tcp:{}:{}", host, p)
+            } else {
+                format!("tcp:{}:80", host)
+            };
+            let tcp_peer = ::spec(addr.as_ref())?;
+            Ok(Rc::new(Http(tcp_peer, uri)))
+        }
+        fn construct_overlay(
+            self: &HttpClass,
+            _inner: Rc<dyn Specifier>,
+        ) -> super::Result<Rc<dyn Specifier>> {
+            panic!("Error: construct_overlay called on non-overlay specifier class")
+        }
+    },
+    overlay = false,
+    StreamOriented,
+    SingleConnect,
+    help = r#"
+[A] Issue HTTP request, receive a 1xx or 2xx reply, then pass
+the torch to outer peer, if any - highlevel version.
+
+Content you write becomes body, content you read is body that server has sent.
+
+URI is specified inline.
+
+Example:
+
+    websocat  -b - http://example.com < /dev/null
+"#
+);
+
 
 
 #[derive(Copy,Clone,PartialEq,Debug)]
