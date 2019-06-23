@@ -141,13 +141,13 @@ fn get_stdio_peer_impl(s: &mut GlobalState) -> Result<Peer> {
     let so;
     {
         if !UnixFile::raw_new(std::io::stdin()).get_nonblocking()? {
-            info!("Setting stdin to nonblocking mode");
+            debug!("Setting stdin to nonblocking mode");
             s.need_to_restore_stdin_blocking_status = true;
         }
         let stdin = self::UnixFile::new_nb(std::io::stdin())?;
 
         if !UnixFile::raw_new(std::io::stdout()).get_nonblocking()? {
-            info!("Setting stdout to nonblocking mode");
+            debug!("Setting stdout to nonblocking mode");
             s.need_to_restore_stdout_blocking_status = true;
         }
         let stdout = self::UnixFile::new_nb(std::io::stdout())?;
@@ -159,7 +159,7 @@ fn get_stdio_peer_impl(s: &mut GlobalState) -> Result<Peer> {
 
         #[cfg(all(unix, feature = "signal_handler"))]
         {
-            info!("Installing signal handler");
+            debug!("Installing signal handler");
             let ctrl_c = tokio_signal::ctrl_c().flatten_stream();
             let prog = ctrl_c.for_each(move |()| {
                 restore_blocking_status(&s_clone);
@@ -174,7 +174,7 @@ fn get_stdio_peer_impl(s: &mut GlobalState) -> Result<Peer> {
 }
 
 pub fn get_stdio_peer(s: &mut GlobalState) -> BoxedNewPeerFuture {
-    info!("get_stdio_peer (async)");
+    debug!("get_stdio_peer (async)");
     Box::new(futures::future::result(get_stdio_peer_impl(s))) as BoxedNewPeerFuture
 }
 
@@ -194,11 +194,11 @@ fn restore_blocking_status(s: &GlobalState) {
     {
         debug!("restore_blocking_status");
         if s.need_to_restore_stdin_blocking_status {
-            info!("Restoring blocking status for stdin");
+            debug!("Restoring blocking status for stdin");
             let _ = UnixFile::raw_new(std::io::stdin()).set_nonblocking(false);
         }
         if s.need_to_restore_stdout_blocking_status {
-            info!("Restoring blocking status for stdout");
+            debug!("Restoring blocking status for stdout");
             let _ = UnixFile::raw_new(std::io::stdout()).set_nonblocking(false);
         }
     }
@@ -244,7 +244,7 @@ fn get_file_peer_impl(p: &Path) -> Result<Peer> {
 }
 
 pub fn get_file_peer(p: &Path) -> BoxedNewPeerFuture {
-    info!("get_file_peer");
+    debug!("get_file_peer");
     Box::new(futures::future::result(get_file_peer_impl(p))) as BoxedNewPeerFuture
 }
 
@@ -258,6 +258,6 @@ fn get_fd_peer_impl(fd: i32) -> Result<Peer> {
 }
 
 pub fn get_fd_peer(fd: i32) -> BoxedNewPeerFuture {
-    info!("get_fd_peer");
+    debug!("get_fd_peer");
     Box::new(futures::future::result(get_fd_peer_impl(fd))) as BoxedNewPeerFuture
 }

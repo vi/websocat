@@ -141,7 +141,7 @@ macro_rules! specifier_class {
                 Err("Failed to resolve this hostname to IP")?;
             }
             for addr in &addrs {
-                debug!("Got IP: {}", addr);
+                info!("Got IP: {}", addr);
             }
             Ok(Rc::new($t(addrs)))
         }

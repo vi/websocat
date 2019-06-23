@@ -115,7 +115,7 @@ fn serve_impl<OE>(
 where
     OE: Fn(Box<dyn std::error::Error>) -> () + 'static,
 {
-    info!("Serving {:?} to {:?} with {:?}", s1, s2, opts);
+    debug!("Serving {:?} to {:?} with {:?}", s1, s2, opts);
     let ps = Rc::new(RefCell::new(ProgramState::default()));
 
     use PeerConstructor::{Overlay1, OverlayM, ServeMultipleTimes, ServeOnce};
