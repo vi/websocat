@@ -155,7 +155,9 @@ impl<W> Write for RcWriteProxy<W> where for<'a> &'a W : AsyncWrite {
 
 // based on https://github.com/tokio-rs/tokio-core/blob/master/examples/proxy.rs
 #[derive(Clone)]
-struct MyTcpStream(Rc<TcpStream>, bool);
+struct MyTcpStream(Rc<TcpStream>, bool /*read or write?*/);
+
+struct TcpStreamHupToken(Rc<TcpStream>);
 
 impl Read for MyTcpStream {
     fn read(&mut self, buf: &mut [u8]) -> IoResult<usize> {
@@ -191,6 +193,33 @@ impl Drop for MyTcpStream {
     }
 }
 
+impl Future for TcpStreamHupToken {
+    type Item = ();
+    type Error = Box<dyn std::error::Error>;
+    fn poll(&mut self) -> futures::Poll<Self::Item, Self::Error> {
+        use futures::Async::*;
+        #[allow(unused_mut,unused_assignments)]
+        let mut m = ::mio::Ready::empty();
+        #[cfg(unix)] {
+            m = ::mio::unix::UnixReady::hup().into();
+        }
+        match self.0.poll_read_ready(m) {
+            Ok(NotReady) => {
+                debug!("TcpStreamHupToken is not ready");
+                Ok(NotReady)
+            },
+            Err(_) => {
+                info!("TCP hangup because of err");
+                Ok(Ready(()))
+            },
+            Ok(Ready(_)) => {
+                info!("TCP hangup because of hup");
+                Ok(Ready(()))
+            },
+        }
+    }
+}
+
 pub fn tcp_connect_peer(addrs: &[SocketAddr]) -> BoxedNewPeerFuture {
     // Apply Happy Eyeballs in case of multiple proposed addresses.
     if addrs.len() > 1 {
@@ -205,10 +234,10 @@ pub fn tcp_connect_peer(addrs: &[SocketAddr]) -> BoxedNewPeerFuture {
             .map(move |x| {
                 info!("Connected to TCP {}", addr);
                 let x = Rc::new(x);
-                Peer::new(
+                Peer::new_with_hup(
                     MyTcpStream(x.clone(), true),
                     MyTcpStream(x.clone(), false),
-                    None /* TODO */
+                    TcpStreamHupToken(x.clone()),
                 )
             })
             .map_err(box_up_err)
@@ -245,10 +274,10 @@ pub fn tcp_listen_peer(addr: &SocketAddr, l2r: L2rUser) -> BoxedNewPeerStream {
                 }
 
                 let x = Rc::new(x);
-                Peer::new(
+                Peer::new_with_hup(
                     MyTcpStream(x.clone(), true),
                     MyTcpStream(x.clone(), false),
-                    None, /* TODO */
+                    TcpStreamHupToken(x.clone()),
                 )
             })
             .map_err(|()| ::simple_err2("unreachable error?")),

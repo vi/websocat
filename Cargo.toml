@@ -48,6 +48,7 @@ tokio = "0.1.11"
 tokio-current-thread = "0.1.4"
 tk-listen = "0.2.1"
 tokio-timer = "0.2.0"
+mio = "=0.6.16"
 
 
 [target.'cfg(unix)'.dependencies]
