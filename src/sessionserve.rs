@@ -11,22 +11,22 @@ use tokio_io;
 
 impl Session {
     pub fn run(self) -> Box<dyn Future<Item = (), Error = Box<dyn std::error::Error>>> {
-        let once = self.2.one_message;
+        let once = self.opts.one_message;
         let mut co1 = my_copy::CopyOptions {
             stop_on_reader_zero_read: true,
             once,
-            buffer_size: self.2.buffer_size,
+            buffer_size: self.opts.buffer_size,
             skip: false,
         };
         let mut co2 = co1.clone();
-        if self.2.unidirectional {
+        if self.opts.unidirectional {
             co2.skip=true;
         }
-        if self.2.unidirectional_reverse {
+        if self.opts.unidirectional_reverse {
             co1.skip=true;
         }
-        let f1 = my_copy::copy(self.0.from, self.0.to, co1);
-        let f2 = my_copy::copy(self.1.from, self.1.to, co2);
+        let f1 = my_copy::copy(self.t1.from, self.t1.to, co1);
+        let f2 = my_copy::copy(self.t2.from, self.t2.to, co2);
 
         let f1 = f1.and_then(|(_, r, w)| {
             info!("Forward finished");
@@ -46,7 +46,7 @@ impl Session {
         });
 
         type Ret = Box<dyn Future<Item = (), Error = Box<dyn std::error::Error>>>;
-        if !self.2.exit_on_eof {
+        let tmp = if !self.opts.exit_on_eof {
             Box::new(
                 f1.join(f2)
                     .map(|(_, _)| {
@@ -62,20 +62,40 @@ impl Session {
                     })
                     .map_err(|(x, _)| Box::new(x) as Box<dyn std::error::Error>),
             ) as Ret
+        };
+        // tmp is now everything except of HUP handling
+        if self.hup1.is_none() && self.hup2.is_none() {
+            tmp // no need for complications
+        } else {
+            let mut s = futures::stream::futures_unordered::FuturesUnordered::new();
+            s.push(tmp);
+            if let Some(hup) = self.hup1 {
+                s.push(hup);
+            }
+            if let Some(hup) = self.hup2 {
+                s.push(hup);
+            }
+            Box::new(
+                s.into_future()
+                .map(|(x, _)|x.unwrap())
+                .map_err(|(e,_)|e)
+            ) as Ret
         }
     }
     pub fn new(peer1: Peer, peer2: Peer, opts: Rc<Options>) -> Self {
-        Session(
-            Transfer {
+        Session{
+            t1: Transfer {
                 from: peer1.0,
                 to: peer2.1,
             },
-            Transfer {
+            t2: Transfer {
                 from: peer2.0,
                 to: peer1.1,
             },
             opts,
-        )
+            hup1: peer1.2,
+            hup2: peer2.2,
+        }
     }
 }
 

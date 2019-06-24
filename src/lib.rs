@@ -215,7 +215,13 @@ pub struct Transfer {
     from: Box<dyn AsyncRead>,
     to: Box<dyn AsyncWrite>,
 }
-pub struct Session(Transfer, Transfer, Rc<Options>);
+pub struct Session {
+    t1: Transfer,
+    t2: Transfer,
+    opts: Rc<Options>,
+    hup1: Option<HupToken>,
+    hup2: Option<HupToken>,
+}
 
 pub mod sessionserve;
 pub use sessionserve::serve;
