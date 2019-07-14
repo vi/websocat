@@ -114,6 +114,8 @@ pub struct LeftSpecToRightSpec {
     uri: Option<String>,
     /// Address:port of connecting client, if it is TCP
     client_addr: Option<String>,
+    /// All incoming HTTP headers
+    headers: Vec<(String, String)>,
 }
 
 pub type L2rWriter = Rc<RefCell<LeftSpecToRightSpec>>;

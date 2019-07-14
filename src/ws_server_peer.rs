@@ -216,6 +216,14 @@ pub fn ws_upgrade_peer(
                         let uri = &x.request.subject.1;
                         let mut z = y.borrow_mut();
                         z.uri = Some(format!("{}", uri));
+
+                        let h : &websocket::header::Headers = &x.request.headers;
+                        for q in h.iter() {
+                            z.headers.push((
+                                q.name().to_string(),
+                                q.value_string(),
+                            ));
+                        }
                     },
                     L2rUser::ReadFrom(_) => {},
                 }
