@@ -20,7 +20,7 @@ depends = "libssl1.1, libc6 (>= 2.19), libgcc1 (>= 1:4.9.0)"
 
 
 [dependencies]
-websocket = { version = "0.22.0", default-features = false, features=["async"] }
+websocket = { version = "0.23.0", default-features = false, features=["async"] }
 env_logger = { version = "0.6.0", default-features = false }
 log = {version="0.4.1", default-features = false, features=["release_max_level_debug"]}
 futures = {version = "0.1.17" }
