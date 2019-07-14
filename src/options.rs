@@ -58,6 +58,8 @@ pub struct Options {
     pub pkcs12_passwd: Option<String>,
     pub tls_insecure: bool,
 
+    pub headers_to_env: Vec<String>,
+
     pub max_parallel_conns: Option<usize>,
     pub ws_ping_interval: Option<u64>,
     pub ws_ping_timeout: Option<u64>,

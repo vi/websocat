@@ -178,6 +178,13 @@ struct Opt {
     )]
     custom_reply_headers: Vec<(String, Vec<u8>)>,
 
+    /// Forward specified incoming request header to
+    /// H_* environment variable for `exec:`-like specifiers.
+    #[structopt(
+        long = "header-to-env",
+    )]
+    headers_to_env: Vec<String>,
+
     #[structopt(
         long = "websocket-version",
         help = "Override the Sec-WebSocket-Version value"
@@ -536,6 +543,7 @@ fn run() -> Result<()> {
             origin
             custom_headers
             custom_reply_headers
+            headers_to_env
             websocket_version
             websocket_dont_close
             one_message

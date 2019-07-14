@@ -313,6 +313,10 @@ impl WebsocatConfiguration2 {
             }
         }
 
+        if !self.opts.headers_to_env.is_empty() && !self.opts.exec_set_env {
+            on_warning("--header-to-env is meaningless without -e (--set-environment)");
+        }
+
         Ok(())
     }
     fn l_closebug(&mut self, on_warning: &OnWarning) -> Result<()> {

@@ -34,6 +34,7 @@ impl<T: Specifier> Specifier for WsServer<T> {
         //let l2r = cp.left_to_right;
         let rdh = cp.program_options.read_debt_handling;
         inner.map(move |p, l2r| {
+            // FIXME: attack of `Vec::clone`s.
             ws_upgrade_peer(
                 p,
                 mode1,
@@ -44,6 +45,7 @@ impl<T: Specifier> Specifier for WsServer<T> {
                 cp.program_options.ws_ping_timeout,
                 cp.program_options.websocket_reply_protocol.clone(),
                 cp.program_options.custom_reply_headers.clone(),
+                cp.program_options.headers_to_env.clone(),
                 l2r,
             )
         })
@@ -129,6 +131,7 @@ pub fn ws_upgrade_peer(
     ping_timeout: Option<u64>,
     websocket_protocol: Option<String>,
     custom_reply_headers: Vec<(String, Vec<u8>)>,
+    forward_these_headers: Vec<String>,
     l2r: L2rUser,
 ) -> BoxedNewPeerFuture {
     let step1 = PeerForWs(inner_peer);
@@ -218,11 +221,23 @@ pub fn ws_upgrade_peer(
                         z.uri = Some(format!("{}", uri));
 
                         let h : &websocket::header::Headers = &x.request.headers;
-                        for q in h.iter() {
-                            z.headers.push((
-                                q.name().to_string(),
-                                q.value_string(),
-                            ));
+                        for q in forward_these_headers.iter() {
+                            if let Some(v) = h.get_raw(q) {
+                                if v.is_empty() { continue }
+                                if v.len() > 1 {
+                                    warn!("Extra request header for {} ignored", q);
+                                }
+                                if let Ok(val) = String::from_utf8(v[0].clone()) {
+                                    z.headers.push((
+                                        q.clone(),
+                                        val,
+                                    ));
+                                } else {
+                                    warn!("Header {} value contains invalid UTF-8", q);
+                                }
+                            } else {
+                                warn!("No request header {}, so no envvar H_{}", q, q);
+                            }
                         }
                     },
                     L2rUser::ReadFrom(_) => {},
