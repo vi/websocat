@@ -180,12 +180,13 @@ fi
 
 F=$D/websocat_${V}_ssl1.0_amd64.deb
 if [ ! -e "$F" ]; then
-    trap 'mv Cargo.toml.bak Cargo.toml; rm -Rf target/ && mv target_ target' EXIT
-    mv target target_
-    ln -s /tmp/qqq target
+    #trap 'mv Cargo.toml.bak Cargo.toml; rm -Rf target/ && mv target_ target' EXIT
+    trap 'mv Cargo.toml.bak Cargo.toml' EXIT
+    #mv target target_
+    #ln -s /tmp/qqq target
     cp Cargo.toml Cargo.toml.bak
     cat Cargo.toml.bak | sed 's!libssl1.1!libssl1.0.0!' > Cargo.toml
-    docker run --rm -it -v $PWD:/wd --entrypoint /bin/bash ubu1604rust -c 'source /root/.profile && mkdir /tmp/qqq && cd /wd && cargo deb --target=x86_64-unknown-linux-gnu && PKG_CONFIG_ALLOW_CROSS=1 cargo deb --target=i686-unknown-linux-gnu && cp target/*/debian/*.deb /wd/'
+    docker run --rm -it -v $PWD:/wd --entrypoint /bin/bash ubu1604rust -c 'source /root/.profile && mkdir /tmp/qqq && cd /wd && CARGO_TARGET_DIR=/tmp/qqq cargo deb --target=x86_64-unknown-linux-gnu && PKG_CONFIG_ALLOW_CROSS=1 CARGO_TARGET_DIR=/tmp/qqq cargo deb --target=i686-unknown-linux-gnu && cp /tmp/qqq/*/debian/*.deb /wd/'
     cp -v websocat_${V}_amd64.deb "$F"
     cp -v websocat_${V}_i386.deb "${F/amd64/i386}"
 else
