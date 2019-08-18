@@ -3,6 +3,7 @@
 use super::{Options, Result, SpecifierClass, SpecifierStack, WebsocatConfiguration2};
 use std::rc::Rc;
 use std::str::FromStr;
+use std::ops::Not;
 
 extern crate hyper;
 extern crate url;
@@ -522,6 +523,24 @@ impl WebsocatConfiguration2 {
         Ok(())
     }
 
+    fn l_udp(&mut self, _on_warning: &OnWarning) -> Result<()> {
+        if self.opts.udp_join_multicast_addr.is_empty().not() {
+            if self.opts.udp_broadcast {
+                _on_warning("Both --udp-broadcast and a multicast address is set. This is strange.");
+            }
+            let mc = self.opts.udp_join_multicast_addr.len();
+            let ifs = self.opts.udp_join_multicast_iface_v4.len() + self.opts.udp_join_multicast_iface_v6.len();
+            if ifs != 0 && mc != ifs {
+                return Err("--udp-multicast-iface-* options mush be specified the same number of times as --udp-multicast (or not specified at all)")?;
+            }
+        } else {
+            if self.opts.udp_multicast_loop {
+                return Err("--udp-multicast-loop is not applicable without --udp-multicast")?;
+            }
+        }
+        Ok(())
+    }
+
     pub fn lint_and_fixup(&mut self, on_warning: OnWarning) -> Result<()> {
         let multiconnect = !self.opts.oneshot && self.s1.is_multiconnect();
         let mut reuser_has_been_inserted = false;
@@ -540,6 +559,7 @@ impl WebsocatConfiguration2 {
         self.l_ssl(&on_warning)?;
         self.l_ping(&on_warning)?;
         self.l_proto(&on_warning)?;
+        self.l_udp(&on_warning)?;
 
         // TODO: UDP connect oneshot mode
         // TODO: tests for the linter

@@ -125,6 +125,33 @@ struct Opt {
     )]
     udp_oneshot_mode: bool,
 
+    /// [A] Set SO_BROADCAST
+    #[structopt(long="udp-broadcast")]
+    udp_broadcast: bool,
+
+    /// [A] Set IP[V6]_MULTICAST_LOOP
+    #[structopt(long="udp-multicast-loop")]
+    udp_multicast_loop: bool,
+
+    /// [A] Set IP_TTL, also IP_MULTICAST_TTL if applicable
+    #[structopt(long="udp-ttl")]
+    udp_ttl: Option<u32>,
+
+    /// [A] Issue IP[V6]_ADD_MEMBERSHIP for specified multicast address.
+    /// Can be specified multiple times.
+    #[structopt(long="udp-multicast")]
+    udp_join_multicast_addr: Vec<std::net::IpAddr>,
+
+    /// [A] IPv4 address of multicast network interface
+    /// Has to be either not specified or specified the same number of times as multicast addresses
+    #[structopt(long="udp-multicast-iface-v4")]
+    udp_join_multicast_iface_v4: Vec<std::net::Ipv4Addr>,
+
+    /// [A] Index of network interface for IPv6 multicast
+    /// Has to be either not specified or specified the same number of times as multicast addresses
+    #[structopt(long="udp-multicast-iface-v6")]
+    udp_join_multicast_iface_v6: Vec<u32>,
+
     #[structopt(
         long = "unlink",
         help = "[A] Unlink listening UNIX socket before binding to it"
@@ -532,6 +559,12 @@ fn run() -> Result<()> {
             websocket_protocol
             websocket_reply_protocol
             udp_oneshot_mode
+            udp_broadcast
+            udp_multicast_loop
+            udp_ttl
+            udp_join_multicast_addr
+            udp_join_multicast_iface_v4
+            udp_join_multicast_iface_v6
             unidirectional
             unidirectional_reverse
             exit_on_eof
