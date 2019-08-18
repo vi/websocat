@@ -142,13 +142,13 @@ struct Opt {
     #[structopt(long="udp-multicast")]
     udp_join_multicast_addr: Vec<std::net::IpAddr>,
 
-    /// [A] IPv4 address of multicast network interface
-    /// Has to be either not specified or specified the same number of times as multicast addresses
+    /// [A] IPv4 address of multicast network interface.
+    /// Has to be either not specified or specified the same number of times as multicast IPv4 addresses. Order matters.
     #[structopt(long="udp-multicast-iface-v4")]
     udp_join_multicast_iface_v4: Vec<std::net::Ipv4Addr>,
 
-    /// [A] Index of network interface for IPv6 multicast
-    /// Has to be either not specified or specified the same number of times as multicast addresses
+    /// [A] Index of network interface for IPv6 multicast.
+    /// Has to be either not specified or specified the same number of times as multicast IPv6 addresses. Order matters.
     #[structopt(long="udp-multicast-iface-v6")]
     udp_join_multicast_iface_v6: Vec<u32>,
 

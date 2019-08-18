@@ -528,10 +528,22 @@ impl WebsocatConfiguration2 {
             if self.opts.udp_broadcast {
                 _on_warning("Both --udp-broadcast and a multicast address is set. This is strange.");
             }
-            let mc = self.opts.udp_join_multicast_addr.len();
             let ifs = self.opts.udp_join_multicast_iface_v4.len() + self.opts.udp_join_multicast_iface_v6.len();
-            if ifs != 0 && mc != ifs {
-                return Err("--udp-multicast-iface-* options mush be specified the same number of times as --udp-multicast (or not specified at all)")?;
+            if ifs != 0 {
+                let mut v4_multicasts = 0;
+                let mut v6_multicasts = 0;
+                for i in &self.opts.udp_join_multicast_addr {
+                    match i {
+                        std::net::IpAddr::V4(_) => v4_multicasts += 1,
+                        std::net::IpAddr::V6(_) => v6_multicasts += 1,
+                    }
+                }
+                if v4_multicasts != self.opts.udp_join_multicast_iface_v4.len() {
+                    return Err("--udp-multicast-iface-v4 option mush be specified the same number of times as IPv4 addresses for --udp-multicast (alternatively --udp-multicast-iface-* options should be not specified at all)")?;
+                }
+                if v6_multicasts != self.opts.udp_join_multicast_iface_v6.len() {
+                    return Err("--udp-multicast-iface-v6 option mush be specified the same number of times as IPv6 addresses for --udp-multicast (alternatively --udp-multicast-iface-* options should be not specified at all)")?;
+                }
             }
         } else {
             if self.opts.udp_multicast_loop {
