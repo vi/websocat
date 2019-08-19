@@ -23,6 +23,7 @@ extern crate tokio_udp;
 extern crate websocket;
 
 extern crate tk_listen;
+extern crate net2;
 
 #[macro_use]
 extern crate log;

@@ -1,3 +1,5 @@
+extern crate net2;
+
 use futures;
 use futures::future::Future;
 use futures::stream::Stream;
@@ -308,12 +310,24 @@ fn apply_udp_options(s: &UdpSocket, opts:&Rc<Options>) -> IoResult<()> {
     Ok(())
 }
 
+pub fn get_udp(addr: &SocketAddr, opts: &Rc<Options>) -> IoResult<UdpSocket> {
+    let u = match addr {
+        SocketAddr::V4(_) => net2::UdpBuilder::new_v4()?,
+        SocketAddr::V6(_) => net2::UdpBuilder::new_v6()?,
+    };
+    if opts.udp_reuseaddr {
+        u.reuse_address(true)?;
+    }
+    //u.only_v6(true);
+    let u = u.bind(addr)?;
+    UdpSocket::from_std(u, &tokio_reactor::Handle::default())
+}
 
 pub fn udp_connect_peer(addr: &SocketAddr, opts: &Rc<Options>) -> BoxedNewPeerFuture {
     let za = get_zero_address(addr);
 
     Box::new(futures::future::result(
-        UdpSocket::bind(&za)
+        get_udp(&za, opts)
             .and_then(|x| {
                 x.connect(addr)?;
                 apply_udp_options(&x, opts)?;
@@ -332,7 +346,7 @@ pub fn udp_connect_peer(addr: &SocketAddr, opts: &Rc<Options>) -> BoxedNewPeerFu
 
 pub fn udp_listen_peer(addr: &SocketAddr, opts: &Rc<Options>) -> BoxedNewPeerFuture {
     Box::new(futures::future::result(
-        UdpSocket::bind(addr)
+        get_udp(addr, opts)
             .and_then(|x| {
                 apply_udp_options(&x, opts)?;
                 let h1 = UdpPeerHandle(Rc::new(RefCell::new(UdpPeer {

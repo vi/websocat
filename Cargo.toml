@@ -47,6 +47,7 @@ tokio-current-thread = "0.1.4"
 tk-listen = "0.2.1"
 tokio-timer = "0.2.0"
 tempfile = "=3.0.8" # workaround to support old rustc versions
+net2 = "0.2.33"
 
 
 [target.'cfg(unix)'.dependencies]

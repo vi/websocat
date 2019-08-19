@@ -1133,6 +1133,7 @@ dependencies = [
  "libc 0.2.59 (registry+https://github.com/rust-lang/crates.io-index)",
  "log 0.4.7 (registry+https://github.com/rust-lang/crates.io-index)",
  "native-tls 0.2.3 (registry+https://github.com/rust-lang/crates.io-index)",
+ "net2 0.2.33 (registry+https://github.com/rust-lang/crates.io-index)",
  "openssl-probe 0.1.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "readwrite 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "slab_typesafe 0.1.3 (registry+https://github.com/rust-lang/crates.io-index)",

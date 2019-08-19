@@ -25,6 +25,7 @@ pub struct Options {
     pub udp_join_multicast_addr: Vec<std::net::IpAddr>,
     pub udp_join_multicast_iface_v4: Vec<std::net::Ipv4Addr>,
     pub udp_join_multicast_iface_v6: Vec<u32>,
+    pub udp_reuseaddr: bool,
     pub unidirectional: bool,
     pub unidirectional_reverse: bool,
     pub exit_on_eof: bool,
