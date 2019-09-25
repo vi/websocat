@@ -1,13 +1,13 @@
 extern crate net2;
 
 use futures;
-use futures::future::Future;
+use futures::future::{Future, IntoFuture};
 use futures::stream::Stream;
 use futures::unsync::oneshot::{channel, Receiver, Sender};
 use std;
 use std::io::Result as IoResult;
 use std::io::{Read, Write};
-use std::net::SocketAddr;
+use std::net::{SocketAddr, ToSocketAddrs};
 use tokio_io::{AsyncRead, AsyncWrite};
 
 use std::cell::RefCell;
@@ -17,11 +17,11 @@ use tokio_tcp::{TcpListener, TcpStream};
 use tokio_udp::UdpSocket;
 
 use super::L2rUser;
-use super::{box_up_err, peer_err_s, wouldblock, BoxedNewPeerFuture, BoxedNewPeerStream, Peer};
+use super::{box_up_err, wouldblock, BoxedNewPeerFuture, BoxedNewPeerStream, Peer};
 use super::{multi, once, ConstructParams, Options, PeerConstructor, Specifier};
 
 #[derive(Debug, Clone)]
-pub struct TcpConnect(pub SocketAddr);
+pub struct TcpConnect(pub String);
 impl Specifier for TcpConnect {
     fn construct(&self, _: ConstructParams) -> PeerConstructor {
         once(tcp_connect_peer(&self.0))
@@ -50,7 +50,7 @@ Example: redirect websocket connections to local SSH server over IPv6
 );
 
 #[derive(Debug, Clone)]
-pub struct TcpListen(pub SocketAddr);
+pub struct TcpListen(pub String);
 impl Specifier for TcpListen {
     fn construct(&self, p: ConstructParams) -> PeerConstructor {
         multi(tcp_listen_peer(&self.0, p.left_to_right))
@@ -79,10 +79,10 @@ Example: redirect TCP to a websocket
 );
 
 #[derive(Debug, Clone)]
-pub struct UdpConnect(pub SocketAddr);
+pub struct UdpConnect(pub String);
 impl Specifier for UdpConnect {
     fn construct(&self, p: ConstructParams) -> PeerConstructor {
-        once(udp_connect_peer(&self.0, &p.program_options))
+        once(udp_connect_peer(&self.0, p.program_options))
     }
     specifier_boilerplate!(noglobalstate singleconnect no_subspec );
 }
@@ -100,10 +100,10 @@ Send and receive packets to specified UDP socket, from random UDP port
 );
 
 #[derive(Debug, Clone)]
-pub struct UdpListen(pub SocketAddr);
+pub struct UdpListen(pub String);
 impl Specifier for UdpListen {
     fn construct(&self, p: ConstructParams) -> PeerConstructor {
-        once(udp_listen_peer(&self.0, &p.program_options))
+        once(udp_listen_peer(&self.0, p.program_options))
     }
     specifier_boilerplate!(noglobalstate singleconnect no_subspec );
 }
@@ -192,25 +192,39 @@ impl Drop for MyTcpStream {
     }
 }
 
-pub fn tcp_connect_peer(addr: &SocketAddr) -> BoxedNewPeerFuture {
-    Box::new(
+pub fn resolve_addr(
+    addr_str: &str,
+) -> impl Future<Item = SocketAddr, Error = Box<dyn std::error::Error + 'static>> {
+    // TODO: resolve asynchronously
+    addr_str
+        .to_socket_addrs()
+        .and_then(|mut addrs| {
+            addrs
+                .next()
+                .ok_or_else(|| ::simple_err(format!("No address for {}", addr_str)))
+        })
+        .map_err(box_up_err)
+        .into_future()
+}
+
+pub fn tcp_connect_peer(addr_str: &str) -> BoxedNewPeerFuture {
+    Box::new(resolve_addr(addr_str).and_then(|addr| {
         TcpStream::connect(&addr)
             .map(|x| {
                 info!("Connected to TCP");
                 let x = Rc::new(x);
                 Peer::new(MyTcpStream(x.clone(), true), MyTcpStream(x.clone(), false))
             })
-            .map_err(box_up_err),
-    ) as BoxedNewPeerFuture
+            .map_err(box_up_err)
+    })) as BoxedNewPeerFuture
 }
 
-pub fn tcp_listen_peer(addr: &SocketAddr, l2r: L2rUser) -> BoxedNewPeerStream {
-    let bound = match TcpListener::bind(&addr) {
-        Ok(x) => x,
-        Err(e) => return peer_err_s(e),
-    };
+pub fn tcp_listen_peer(addr_str: &str, l2r: L2rUser) -> BoxedNewPeerStream {
     use tk_listen::ListenExt;
-    Box::new(
+    Box::new(resolve_addr(addr_str).and_then(|addr| {
+        TcpListener::bind(&addr).map_err(box_up_err)
+    }).into_stream().map(move |bound| {
+        let l2r = l2r.clone();
         bound
             .incoming()
             .sleep_on_error(::std::time::Duration::from_millis(500))
@@ -229,8 +243,8 @@ pub fn tcp_listen_peer(addr: &SocketAddr, l2r: L2rUser) -> BoxedNewPeerStream {
                 let x = Rc::new(x);
                 Peer::new(MyTcpStream(x.clone(), true), MyTcpStream(x.clone(), false))
             })
-            .map_err(|()| ::simple_err2("unreachable error?")),
-    ) as BoxedNewPeerStream
+            .map_err(|()| ::simple_err2("unreachable error?"))
+    }).flatten()) as BoxedNewPeerStream
 }
 
 #[derive(Debug)]
@@ -323,14 +337,14 @@ pub fn get_udp(addr: &SocketAddr, opts: &Rc<Options>) -> IoResult<UdpSocket> {
     UdpSocket::from_std(u, &tokio_reactor::Handle::default())
 }
 
-pub fn udp_connect_peer(addr: &SocketAddr, opts: &Rc<Options>) -> BoxedNewPeerFuture {
-    let za = get_zero_address(addr);
+pub fn udp_connect_peer(addr_str: &str, opts: Rc<Options>) -> BoxedNewPeerFuture {
+    Box::new(resolve_addr(addr_str).and_then(move |addr| {
+        let za = get_zero_address(&addr);
 
-    Box::new(futures::future::result(
-        get_udp(&za, opts)
+        get_udp(&za, &opts)
             .and_then(|x| {
-                x.connect(addr)?;
-                apply_udp_options(&x, opts)?;
+                x.connect(&addr)?;
+                apply_udp_options(&x, &opts)?;
 
                 let h1 = UdpPeerHandle(Rc::new(RefCell::new(UdpPeer {
                     s: x,
@@ -340,15 +354,15 @@ pub fn udp_connect_peer(addr: &SocketAddr, opts: &Rc<Options>) -> BoxedNewPeerFu
                 let h2 = h1.clone();
                 Ok(Peer::new(h1, h2))
             })
-            .map_err(box_up_err),
-    )) as BoxedNewPeerFuture
+            .map_err(box_up_err)
+    })) as BoxedNewPeerFuture
 }
 
-pub fn udp_listen_peer(addr: &SocketAddr, opts: &Rc<Options>) -> BoxedNewPeerFuture {
-    Box::new(futures::future::result(
-        get_udp(addr, opts)
+pub fn udp_listen_peer(addr_str: &str, opts: Rc<Options>) -> BoxedNewPeerFuture {
+    Box::new(resolve_addr(addr_str).and_then(move |addr| {
+        get_udp(&addr, &opts)
             .and_then(|x| {
-                apply_udp_options(&x, opts)?;
+                apply_udp_options(&x, &opts)?;
                 let h1 = UdpPeerHandle(Rc::new(RefCell::new(UdpPeer {
                     s: x,
                     state: Some(UdpPeerState::WaitingForAddress(channel())),
@@ -357,8 +371,8 @@ pub fn udp_listen_peer(addr: &SocketAddr, opts: &Rc<Options>) -> BoxedNewPeerFut
                 let h2 = h1.clone();
                 Ok(Peer::new(h1, h2))
             })
-            .map_err(box_up_err),
-    )) as BoxedNewPeerFuture
+            .map_err(box_up_err)
+    })) as BoxedNewPeerFuture
 }
 
 impl Read for UdpPeerHandle {
