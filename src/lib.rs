@@ -39,8 +39,6 @@ extern crate smart_default;
 #[macro_use]
 extern crate derivative;
 
-extern crate mio; // for mio::Ready
-
 extern crate tokio_timer;
 
 use futures::future::Future;

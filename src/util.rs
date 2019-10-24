@@ -113,16 +113,7 @@ impl Peer {
         Peer(
             Box::new(r) as Box<dyn AsyncRead>,
             Box::new(w) as Box<dyn AsyncWrite>,
-            hup, // here to remind me to put huptokens where needed
-        )
-    }
-    pub fn new_with_hup<R: AsyncRead + 'static, W: AsyncWrite + 'static, H>(r: R, w: W, hup: H) -> Self 
-        where H : Future<Item=(), Error=Box<dyn std::error::Error>> + 'static,
-    {
-        Peer(
-            Box::new(r) as Box<dyn AsyncRead>,
-            Box::new(w) as Box<dyn AsyncWrite>,
-            Some(Box::new(hup) as HupToken),
+            hup,
         )
     }
 }
