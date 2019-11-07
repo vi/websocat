@@ -1,6 +1,6 @@
 #![allow(unused)]
 
-extern crate websocket_lowlevel;
+extern crate websocket_base;
 
 use futures::future::Future;
 use futures::stream::Stream;
@@ -13,7 +13,7 @@ use super::{box_up_err, peer_err, peer_strerr, BoxedNewPeerFuture, Peer, Result}
 use super::ws_peer::{Mode1, PeerForWs, WsReadWrapper, WsWriteWrapper};
 use super::{once, ConstructParams, Options, PeerConstructor, Specifier};
 
-use self::websocket_lowlevel::codec::ws::Context as WsLlContext;
+use self::websocket_base::codec::ws::Context as WsLlContext;
 
 #[derive(Debug, Clone)]
 pub struct WsLlClient<T: Specifier>(pub T);
@@ -78,7 +78,7 @@ pub fn get_ws_lowlevel_peer(mode: WsLlContext, mut inner: Peer, opts: Rc<Options
     
     use ::tokio_codec::Decoder;
 
-    let c = websocket_lowlevel::codec::ws::MessageCodec::new(mode);
+    let c = websocket_base::codec::ws::MessageCodec::new(mode);
     let hup = inner.2;
     inner.2 = None;
     let duplex = c.framed(PeerForWs(inner));

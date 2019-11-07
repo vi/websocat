@@ -22,7 +22,7 @@ extern crate tokio_tcp;
 extern crate tokio_udp;
 extern crate tokio_codec;
 extern crate websocket;
-extern crate websocket_lowlevel;
+extern crate websocket_base;
 extern crate http_bytes;
 pub use http_bytes::http;
 

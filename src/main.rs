@@ -9,7 +9,7 @@ extern crate futures;
 extern crate tokio;
 extern crate tokio_stdin_stdout;
 
-extern crate websocket_lowlevel;
+extern crate websocket_base;
 
 extern crate env_logger;
 #[macro_use]
@@ -537,14 +537,14 @@ fn run() -> Result<()> {
     }
 
     if cmd.just_generate_key {
-        println!("{}", websocket_lowlevel::header::WebSocketKey::new().serialize());
+        println!("{}", websocket_base::header::WebSocketKey::new().serialize());
         return Ok(());
     }
 
     if let Some(key) = cmd.just_generate_accept {
         use std::str::FromStr;
-        let k = websocket_lowlevel::header::WebSocketKey::from_str(&key)?;
-        println!("{}", websocket_lowlevel::header::WebSocketAccept::new(&k).serialize());
+        let k = websocket_base::header::WebSocketKey::from_str(&key)?;
+        println!("{}", websocket_base::header::WebSocketAccept::new(&k).serialize());
         return Ok(());
     }
 

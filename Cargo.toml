@@ -20,9 +20,9 @@ depends = "libssl1.1, libc6 (>= 2.19), libgcc1 (>= 1:4.9.0)"
 
 
 [dependencies]
-websocket = { path="/mnt/src/git/rust-websocket", default-features = false, features=["async"] }
-websocket-lowlevel = { path = "/mnt/src/git/rust-websocket/websocket-lowlevel", default-features = false, features=["async"] }
-http-bytes = {version = "0.1.0", path="/home/vi/code/http-bytes"}
+websocket = { version="0.24.0", default-features = false, features=["async"] }
+websocket-base = { version="0.24.0", default-features = false, features=["async"] }
+http-bytes = {version = "0.1.0"}
 env_logger = { version = "0.6.0", default-features = false }
 log = {version="0.4.1", default-features = false, features=["release_max_level_debug"]}
 futures = {version = "0.1.17" }
