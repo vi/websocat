@@ -49,6 +49,12 @@ tokio-current-thread = "0.1.4"
 tk-listen = "0.2.1"
 tokio-timer = "0.2.0"
 
+# Rust 1.30.1 compat:
+#cfg-if="=0.1.9"
+#unicode-width="=0.1.5"
+#tokio-reactor = "=0.1.9"
+#cc="=1.0.41"
+
 
 [target.'cfg(unix)'.dependencies]
 tokio-file-unix = "0.5.1"

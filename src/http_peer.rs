@@ -97,15 +97,18 @@ specifier_class!(
     arg_handling = {
         fn construct(self: &HttpClass, arg: &str) -> super::Result<Rc<dyn Specifier>> {
             let uri : Uri = format!("http:{}", arg).parse()?;
-            let auth = uri.authority_part().unwrap();
-            let host = auth.host();
-            let port = auth.port_part();
-            let addr = if let Some(p) = port {
-                format!("tcp:{}:{}", host, p)
-            } else {
-                format!("tcp:{}:80", host)
-            };
-            let tcp_peer = ::spec(addr.as_ref())?;
+            let tcp_peer;
+            {
+                let auth = uri.authority_part().unwrap();
+                let host = auth.host();
+                let port = auth.port_part();
+                let addr = if let Some(p) = port {
+                    format!("tcp:{}:{}", host, p)
+                } else {
+                    format!("tcp:{}:80", host)
+                };
+                tcp_peer = ::spec(addr.as_ref())?;
+            }
             Ok(Rc::new(Http(tcp_peer, uri)))
         }
         fn construct_overlay(
@@ -177,20 +180,23 @@ impl<R:AsyncRead> Future for WaitForHttpHead<R> {
             if self.buf.is_none() || self.io.is_none() {
                 Err("WaitForHttpHeader future polled after completion")?;
             }
-            let buf = self.buf.as_mut().unwrap();
-            let io = self.io.as_mut().unwrap();
-            if buf.len() < self.offset + 1024 {
-                buf.resize(self.offset + 1024, 0u8);
-            }
-            let ret = try_nb!(io.read(&mut buf[self.offset..]));
+            let ret;
+            {
+                let buf = self.buf.as_mut().unwrap();
+                let io = self.io.as_mut().unwrap();
+                if buf.len() < self.offset + 1024 {
+                    buf.resize(self.offset + 1024, 0u8);
+                }
+                ret = try_nb!(io.read(&mut buf[self.offset..]));
 
-            if ret == 0 {
-                Err("Trimmed HTTP head")?;
+                if ret == 0 {
+                    Err("Trimmed HTTP head")?;
+                }
             }
 
             // parse
             for i in self.offset..(self.offset+ret) {
-                let x = buf[i];
+                let x = self.buf.as_ref().unwrap()[i];
                 use self::HttpHeaderEndDetectionState::*;
                 //eprint!("{:?} -> ", self.state);
                 self.state = match (self.state, x) {
@@ -202,7 +208,6 @@ impl<R:AsyncRead> Future for WaitForHttpHead<R> {
                 };
                 //eprintln!("{:?}", self.state);
                 if self.state == FoundHeaderEnd {
-                    drop((buf,io));
                     let io = self.io.take().unwrap();
                     let mut buf = self.buf.take().unwrap();
                     buf.resize(self.offset + ret, 0u8);
@@ -238,24 +243,26 @@ pub fn http_request_peer(
             WaitForHttpHead::new(r).and_then(|(res, r)|{
                 debug!("Got HTTP response head");
                 let ret = (move||{
-                    let headbuf = &res.buf[0..res.offset];
-                    trace!("{:?}",headbuf);
-                    let p = http_bytes::parse_response_header_easy(headbuf)?;
-                    if p.is_none() {
-                        Err("Something wrong with response HTTP head")?;
-                    }
-                    let p = p.unwrap();
-                    if p.1.len() > 0 {
-                        Err("Something wrong with parsing HTTP")?;
-                    }
-                    let response = p.0;
-                    let status = response.status();
-                    info!("HTTP response status: {}", status);
-                    debug!("{:#?}", response);
-                    if status.is_success() || status.is_informational() {
-                        // OK
-                    } else {
-                        Err("HTTP response indicates failure")?;
+                    {
+                        let headbuf = &res.buf[0..res.offset];
+                        trace!("{:?}",headbuf);
+                        let p = http_bytes::parse_response_header_easy(headbuf)?;
+                        if p.is_none() {
+                            Err("Something wrong with response HTTP head")?;
+                        }
+                        let p = p.unwrap();
+                        if p.1.len() > 0 {
+                            Err("Something wrong with parsing HTTP")?;
+                        }
+                        let response = p.0;
+                        let status = response.status();
+                        info!("HTTP response status: {}", status);
+                        debug!("{:#?}", response);
+                        if status.is_success() || status.is_informational() {
+                            // OK
+                        } else {
+                            Err("HTTP response indicates failure")?;
+                        }
                     }
                     let remaining = res.buf.len() - res.offset;
                     if remaining == 0 {
