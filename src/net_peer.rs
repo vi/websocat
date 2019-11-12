@@ -177,7 +177,7 @@ impl AsyncRead for MyTcpStream {}
 
 impl AsyncWrite for MyTcpStream {
     fn shutdown(&mut self) -> futures::Poll<(), std::io::Error> {
-        try!(self.0.shutdown(std::net::Shutdown::Write));
+        self.0.shutdown(std::net::Shutdown::Write)?;
         Ok(().into())
     }
 }

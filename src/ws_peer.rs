@@ -23,7 +23,7 @@ use super::readdebt::{ProcessMessageResult, ReadDebt};
 type MultiProducerWsSink<T> = Rc<
     RefCell<
         futures::stream::SplitSink<
-            (tokio_codec::Framed<T, websocket::async::MessageCodec<websocket::OwnedMessage>>),
+            tokio_codec::Framed<T, websocket::async::MessageCodec<websocket::OwnedMessage>>,
         >,
     >,
 >;
