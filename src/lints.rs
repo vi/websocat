@@ -1,6 +1,7 @@
 #![cfg_attr(feature="cargo-clippy", allow(collapsible_if,needless_pass_by_value))]
 
 use super::{Options, Result, SpecifierClass, SpecifierStack, WebsocatConfiguration2};
+use super::specifier::{SpecifierNode};
 use std::rc::Rc;
 use std::str::FromStr;
 
@@ -59,14 +60,14 @@ impl SpecifierStackExt for SpecifierStack {
     fn stdio_usage_status(&self) -> StdioUsageStatus {
         use self::StdioUsageStatus::*;
 
-        if !self.addrtype.is_stdio() {
+        if !self.addrtype.cls.is_stdio() {
             return None;
         }
 
         let mut sus: StdioUsageStatus = IsItself;
 
         for overlay in self.overlays.iter().rev() {
-            if overlay.is_reuser() {
+            if overlay.cls.is_reuser() {
                 sus = WithReuser;
             } else if sus == IsItself {
                 sus = Indirectly;
@@ -77,7 +78,7 @@ impl SpecifierStackExt for SpecifierStack {
     fn reuser_count(&self) -> usize {
         let mut c = 0;
         for overlay in &self.overlays {
-            if overlay.is_reuser() {
+            if overlay.cls.is_reuser() {
                 c += 1;
             }
         }
@@ -85,21 +86,21 @@ impl SpecifierStackExt for SpecifierStack {
     }
     fn contains(&self, t: &'static str) -> bool {
         for overlay in &self.overlays {
-            if overlay.get_name() == t {
+            if overlay.cls.get_name() == t {
                 return true;
             }
         }
-        self.addrtype.get_name() == t
+        self.addrtype.cls.get_name() == t
     }
     fn is_multiconnect(&self) -> bool {
         use super::ClassMulticonnectStatus::*;
-        match self.addrtype.multiconnect_status() {
+        match self.addrtype.cls.multiconnect_status() {
             MultiConnect => (),
             SingleConnect => return false,
             MulticonnectnessDependsOnInnerType => unreachable!(),
         }
         for overlay in self.overlays.iter().rev() {
-            match overlay.multiconnect_status() {
+            match overlay.cls.multiconnect_status() {
                 MultiConnect => (),
                 SingleConnect => return false,
                 MulticonnectnessDependsOnInnerType => (),
@@ -109,13 +110,13 @@ impl SpecifierStackExt for SpecifierStack {
     }
     fn is_stream_oriented(&self) -> bool {
         use super::ClassMessageBoundaryStatus::*;
-        let mut q = match self.addrtype.message_boundary_status() {
+        let mut q = match self.addrtype.cls.message_boundary_status() {
             StreamOriented => true,
             MessageOriented => false,
             MessageBoundaryStatusDependsOnInnerType => unreachable!(),
         };
         for overlay in self.overlays.iter().rev() {
-            match overlay.message_boundary_status() {
+            match overlay.cls.message_boundary_status() {
                 StreamOriented => q = true,
                 MessageOriented => q = false,
                 MessageBoundaryStatusDependsOnInnerType => (),
@@ -127,13 +128,13 @@ impl SpecifierStackExt for SpecifierStack {
         use super::ClassMessageBoundaryStatus::*;
         let mut insert_idx = 0;
         for overlay in &self.overlays {
-            match overlay.message_boundary_status() {
+            match overlay.cls.message_boundary_status() {
                 StreamOriented => break,
                 MessageOriented => break,
                 MessageBoundaryStatusDependsOnInnerType => insert_idx += 1,
             }
         }
-        self.overlays.insert(insert_idx, x);
+        self.overlays.insert(insert_idx, SpecifierNode{cls: x});
     }
 }
 
@@ -166,10 +167,10 @@ impl WebsocatConfiguration2 {
     }
 
     pub fn get_exec_parameter(&self) -> Option<&str> {
-        if self.s1.addrtype.get_name() == "ExecClass" {
+        if self.s1.addrtype.cls.get_name() == "ExecClass" {
             return Some(self.s1.addr.as_str());
         }
-        if self.s2.addrtype.get_name() == "ExecClass" {
+        if self.s2.addrtype.cls.get_name() == "ExecClass" {
             return Some(self.s2.addr.as_str());
         }
         None
@@ -184,7 +185,7 @@ impl WebsocatConfiguration2 {
                 if multiconnect {
                     self.s2.overlays.insert(
                         0,
-                        Rc::new(super::broadcast_reuse_peer::BroadcastReuserClass),
+                        SpecifierNode{cls:Rc::new(super::broadcast_reuse_peer::BroadcastReuserClass)},
                     );
                     *reuser_has_been_inserted = true;
                 }
@@ -251,19 +252,19 @@ impl WebsocatConfiguration2 {
     }
     fn l_reuser_for_append(&mut self, multiconnect: bool) -> Result<()> {
         if multiconnect
-            && (self.s2.addrtype.get_name() == "WriteFileClass"
-                || self.s2.addrtype.get_name() == "AppendFileClass")
+            && (self.s2.addrtype.cls.get_name() == "WriteFileClass"
+                || self.s2.addrtype.cls.get_name() == "AppendFileClass")
             && self.s2.reuser_count() == 0
         {
             info!("Auto-inserting the reuser");
             self.s2
                 .overlays
-                .push(Rc::new(super::primitive_reuse_peer::ReuserClass));
+                .push(SpecifierNode{cls:Rc::new(super::primitive_reuse_peer::ReuserClass)});
         };
         Ok(())
     }
     fn l_exec(&mut self, on_warning: &OnWarning) -> Result<()> {
-        if self.s1.addrtype.get_name() == "ExecClass" && self.s2.addrtype.get_name() == "ExecClass"
+        if self.s1.addrtype.cls.get_name() == "ExecClass" && self.s2.addrtype.cls.get_name() == "ExecClass"
         {
             Err("Can't use exec: more than one time. Replace one of them with sh-c: or cmd:.")?;
         }
@@ -348,7 +349,7 @@ impl WebsocatConfiguration2 {
         };
 
         // Overwrite WsClientClass
-        s.addrtype = Rc::new(super::net_peer::TcpConnectClass);
+        s.addrtype = SpecifierNode{cls: Rc::new(super::net_peer::TcpConnectClass) };
 
         match opts.auto_socks5.unwrap() {
             SocketAddr::V4(sa4) => {
@@ -391,12 +392,12 @@ impl WebsocatConfiguration2 {
         opts.ws_c_uri = url;
 
         s.overlays
-            .push(Rc::new(super::ws_client_peer::WsConnectClass));
+            .push(SpecifierNode{cls: Rc::new(super::ws_client_peer::WsConnectClass)});
         if secure {
             #[cfg(feature = "ssl")]
             s.overlays.push(Rc::new(super::ssl_peer::TlsConnectClass));
         }
-        s.overlays.push(Rc::new(super::socks5_peer::SocksProxyClass));
+        s.overlays.push(SpecifierNode{cls: Rc::new(super::socks5_peer::SocksProxyClass)});
 
         Ok(())
     }
@@ -415,15 +416,15 @@ impl WebsocatConfiguration2 {
         }
 
         if self.opts.auto_socks5.is_some() {
-            if !((self.s1.addrtype.get_name() == "WsClientClass"
-                || self.s1.addrtype.get_name() == "WsClientSecureClass")
-                ^ (self.s2.addrtype.get_name() == "WsClientClass"
-                    || self.s2.addrtype.get_name() == "WsClientSecureClass"))
+            if !((self.s1.addrtype.cls.get_name() == "WsClientClass"
+                || self.s1.addrtype.cls.get_name() == "WsClientSecureClass")
+                ^ (self.s2.addrtype.cls.get_name() == "WsClientClass"
+                    || self.s2.addrtype.cls.get_name() == "WsClientSecureClass"))
             {
                 Err("User-friendly --socks5 option supports socksifying exactly one non-raw websocket client connection. You are using two or none.")?;
             }
 
-            if self.s1.addrtype.get_name() == "WsClientClass" {
+            if self.s1.addrtype.cls.get_name() == "WsClientClass" {
                 WebsocatConfiguration2::l_socks5_c(
                     &mut self.s1,
                     &mut self.opts,
@@ -431,10 +432,10 @@ impl WebsocatConfiguration2 {
                     false,
                 )?;
             }
-            if self.s1.addrtype.get_name() == "WsClientSecureClass" {
+            if self.s1.addrtype.cls.get_name() == "WsClientSecureClass" {
                 WebsocatConfiguration2::l_socks5_c(&mut self.s1, &mut self.opts, on_warning, true)?;
             }
-            if self.s2.addrtype.get_name() == "WsClientClass" {
+            if self.s2.addrtype.cls.get_name() == "WsClientClass" {
                 WebsocatConfiguration2::l_socks5_c(
                     &mut self.s2,
                     &mut self.opts,
@@ -442,7 +443,7 @@ impl WebsocatConfiguration2 {
                     false,
                 )?;
             }
-            if self.s2.addrtype.get_name() == "WsClientSecureClass" {
+            if self.s2.addrtype.cls.get_name() == "WsClientSecureClass" {
                 WebsocatConfiguration2::l_socks5_c(&mut self.s2, &mut self.opts, on_warning, true)?;
             }
         }

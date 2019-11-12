@@ -1,4 +1,5 @@
-use super::{Result, Specifier, SpecifierClass, SpecifierStack};
+use super::{Result};
+use super::specifier::{Specifier, SpecifierClass, SpecifierStack, SpecifierNode};
 use std::rc::Rc;
 use std::str::FromStr;
 
@@ -66,12 +67,14 @@ impl FromStr for SpecifierStack {
                                 s = format!("{}{}", a, rest);
                                 continue 'a;
                             } else if $x.is_overlay() {
-                                overlays.push(Rc::new($x) as Rc<dyn SpecifierClass>);
+                                let cls = Rc::new($x) as Rc<dyn SpecifierClass>;
+                                overlays.push(SpecifierNode{cls});
                                 s = rest.to_string();
                                 continue 'a;
                             } else {
                                 addr = rest.to_string();
-                                addrtype = Rc::new($x) as Rc<dyn SpecifierClass>;
+                                let cls = Rc::new($x) as Rc<dyn SpecifierClass>;
+                                addrtype = SpecifierNode{cls};
                                 #[allow(unused_assignments)]
                                 {
                                     found = true;
@@ -105,9 +108,9 @@ impl FromStr for SpecifierStack {
 
 impl dyn Specifier {
     pub fn from_stack(st: &SpecifierStack) -> Result<Rc<dyn Specifier>> {
-        let mut x = st.addrtype.construct(st.addr.as_str())?;
+        let mut x = st.addrtype.cls.construct(st.addr.as_str())?;
         for overlay in st.overlays.iter().rev() {
-            x = overlay.construct_overlay(x)?;
+            x = overlay.cls.construct_overlay(x)?;
         }
         Ok(x)
     }

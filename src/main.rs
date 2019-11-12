@@ -733,7 +733,7 @@ fn run() -> Result<()> {
         websocat2
             .s1
             .overlays
-            .insert(0, ::std::rc::Rc::new(websocat::jsonrpc_peer::JsonRpcClass));
+            .insert(0, websocat::specifier::SpecifierNode{cls: ::std::rc::Rc::new(websocat::jsonrpc_peer::JsonRpcClass)});
     }
     debug!("Done third phase of interpreting options.");
     let websocat = websocat2.parse2()?;

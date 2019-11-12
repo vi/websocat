@@ -165,11 +165,18 @@ macro_rules! specifier_class {
     };
 }
 
+
+#[derive(Debug)]
+pub struct SpecifierNode {
+    pub cls: Rc<dyn SpecifierClass>,
+    //opt: anymap::AnyMap,
+}
+
 #[derive(Debug)]
 pub struct SpecifierStack {
     pub addr: String,
-    pub addrtype: Rc<dyn SpecifierClass>,
-    pub overlays: Vec<Rc<dyn SpecifierClass>>,
+    pub addrtype: SpecifierNode,
+    pub overlays: Vec<SpecifierNode>,
 }
 
 #[derive(Clone)]
