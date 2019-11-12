@@ -24,6 +24,7 @@ extern crate tokio_codec;
 extern crate websocket;
 extern crate websocket_base;
 extern crate http_bytes;
+extern crate anymap;
 pub use http_bytes::http;
 
 extern crate tk_listen;
@@ -103,13 +104,7 @@ pub mod options;
 pub use options::Options;
 
 #[derive(Default)]
-pub struct ProgramState {
-    #[cfg(all(unix, feature = "unix_stdio"))]
-    stdio: stdio_peer::GlobalState,
-
-    reuser: primitive_reuse_peer::GlobalState,
-    reuser2: broadcast_reuse_peer::GlobalState,
-}
+pub struct ProgramState(anymap::AnyMap);
 
 /// Some information passed from the left specifier Peer to the right
 #[derive(Default, Clone)]

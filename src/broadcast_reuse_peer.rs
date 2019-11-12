@@ -28,7 +28,7 @@ use slab_typesafe::Slab;
 pub struct BroadcastReuser(pub Rc<dyn Specifier>);
 impl Specifier for BroadcastReuser {
     fn construct(&self, p: ConstructParams) -> PeerConstructor {
-        let mut reuser = p.global_state.borrow_mut().reuser2.clone();
+        let mut reuser = p.global(GlobalState::default).clone();
         let bs = p.program_options.buffer_size;
         let ql = p.program_options.broadcast_queue_len;
         let l2r = p.left_to_right.clone();

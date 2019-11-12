@@ -29,7 +29,7 @@ pub struct Stdio;
 impl Specifier for Stdio {
     fn construct(&self, p: ConstructParams) -> PeerConstructor {
         let ret;
-        ret = get_stdio_peer(&mut p.global_state.borrow_mut().stdio);
+        ret = get_stdio_peer(&mut p.global(GlobalState::default));
         once(ret)
     }
     specifier_boilerplate!(globalstate singleconnect no_subspec);

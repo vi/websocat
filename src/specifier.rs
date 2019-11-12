@@ -222,6 +222,18 @@ impl ConstructParams {
             left_to_right: l2r,
         }
     }
+
+    /// Access specified-specific global (singleton) data
+    pub fn global<T:std::any::Any, F>(&self, def:F) -> std::cell::RefMut<T> 
+        where F : FnOnce()->T
+    {
+        std::cell::RefMut::map(
+            self.global_state.borrow_mut(),
+            |x|{
+                x.0.entry().or_insert(def())
+            }
+        )
+    }
 }
 
 /// A parsed command line argument.
