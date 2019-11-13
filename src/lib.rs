@@ -53,6 +53,7 @@ use std::str::FromStr;
 
 type Result<T> = std::result::Result<T, Box<dyn std::error::Error>>;
 
+/// First representation of websocat command-line, partially parsed.
 pub struct WebsocatConfiguration1 {
     pub opts: Options,
     pub addr1: String,
@@ -60,6 +61,8 @@ pub struct WebsocatConfiguration1 {
 }
 
 impl WebsocatConfiguration1 {
+    /// Is allowed to call blocking calls
+    /// happens only at start of websocat
     pub fn parse1(self) -> Result<WebsocatConfiguration2> {
         Ok(WebsocatConfiguration2 {
             opts: self.opts,
@@ -69,6 +72,13 @@ impl WebsocatConfiguration1 {
     }
 }
 
+/// Second representation of websocat configuration: everything
+/// (e.g. socket addresses) should already be parsed and verified
+/// A structural form: two chains of specifier nodes.
+/// Futures/async is not yet involved at this stage, but everything
+/// should be checked and ready to do to start it (apart from OS errors)
+/// 
+/// This form is designed to be editable by lints and command-line options.
 pub struct WebsocatConfiguration2 {
     pub opts: Options,
     pub s1: SpecifierStack,
@@ -85,6 +95,8 @@ impl WebsocatConfiguration2 {
     }
 }
 
+/// An immutable chain of fucntions that results in a `Future`s or `Streams` that rely on each other.
+/// This is somewhat like a frozen form of `WebsocatConfiguration2`.
 pub struct WebsocatConfiguration3 {
     pub opts: Options,
     pub s1: Rc<dyn Specifier>,

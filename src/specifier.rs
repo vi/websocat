@@ -46,7 +46,7 @@ macro_rules! specifier_alias {
             prefixes=[$($p:expr),*],
             alias=$x:expr,
             help=$h:expr) => {
-        #[derive(Debug)]
+        #[derive(Debug,Default)]
         pub struct $n;
         impl $crate::SpecifierClass for $n {
             fn get_name(&self) -> &'static str { stringify!($n) }
@@ -81,7 +81,7 @@ macro_rules! specifier_class {
             $so:expr,
             $ms:expr,
             help=$h:expr) => {
-        #[derive(Debug)]
+        #[derive(Debug,Default)]
         pub struct $n;
         impl $crate::SpecifierClass for $n {
             fn get_name(&self) -> &'static str { stringify!($n) }
@@ -169,7 +169,7 @@ macro_rules! specifier_class {
 #[derive(Debug)]
 pub struct SpecifierNode {
     pub cls: Rc<dyn SpecifierClass>,
-    //opt: anymap::AnyMap,
+    //pub opt: Rc<std::any::Any>,
 }
 
 #[derive(Debug)]
