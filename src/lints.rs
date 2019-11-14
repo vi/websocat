@@ -395,7 +395,7 @@ impl WebsocatConfiguration2 {
             .push(SpecifierNode{cls: Rc::new(super::ws_client_peer::WsConnectClass)});
         if secure {
             #[cfg(feature = "ssl")]
-            s.overlays.push(Rc::new(super::ssl_peer::TlsConnectClass));
+            s.overlays.push(SpecifierNode{cls: Rc::new(super::ssl_peer::TlsConnectClass)});
         }
         s.overlays.push(SpecifierNode{cls: Rc::new(super::socks5_peer::SocksProxyClass)});
 
