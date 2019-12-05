@@ -1,3 +1,5 @@
+extern crate net2;
+
 use futures;
 use futures::future::Future;
 use futures::stream::Stream;
@@ -280,13 +282,79 @@ fn get_zero_address(addr: &SocketAddr) -> SocketAddr {
     SocketAddr::new(ip, 0)
 }
 
+fn apply_udp_options(s: &UdpSocket, opts:&Rc<Options>) -> IoResult<()> {
+    if opts.udp_broadcast {
+        s.set_broadcast(true)?;
+    }
+    let mut multicast_v4 = false;
+    let mut multicast_v6 = false;
+
+    let mut v4ai = opts.udp_join_multicast_iface_v4.iter();
+    let mut v6ai = opts.udp_join_multicast_iface_v6.iter();
+
+    let use_ai = opts.udp_join_multicast_iface_v4.len() + opts.udp_join_multicast_iface_v6.len() > 0;
+
+    for multicast_address in opts.udp_join_multicast_addr.iter() {
+        match multicast_address {
+            std::net::IpAddr::V4(a) => {
+                multicast_v4 = true;
+                let interface_address = if use_ai {
+                    *v4ai.next().unwrap()
+                } else {
+                    std::net::Ipv4Addr::UNSPECIFIED
+                };
+                s.join_multicast_v4(a, &interface_address)?;
+            },
+            std::net::IpAddr::V6(a) => {
+                multicast_v6 = true;
+                let interface_index = if use_ai {
+                    *v6ai.next().unwrap()
+                } else {
+                    0
+                };
+                s.join_multicast_v6(a, interface_index)?;
+            }
+        }
+    }
+
+    if opts.udp_multicast_loop {
+        if multicast_v4 {
+            s.set_multicast_loop_v4(true)?;
+        }
+        if multicast_v6 {
+            s.set_multicast_loop_v6(true)?;
+        }
+    }
+    if let Some(ttl) = opts.udp_ttl {
+        s.set_ttl(ttl)?;
+        if multicast_v4 {
+            s.set_multicast_ttl_v4(ttl)?;
+        }
+    }
+    Ok(())
+}
+
+pub fn get_udp(addr: &SocketAddr, opts: &Rc<Options>) -> IoResult<UdpSocket> {
+    let u = match addr {
+        SocketAddr::V4(_) => net2::UdpBuilder::new_v4()?,
+        SocketAddr::V6(_) => net2::UdpBuilder::new_v6()?,
+    };
+    if opts.udp_reuseaddr {
+        u.reuse_address(true)?;
+    }
+    //u.only_v6(true);
+    let u = u.bind(addr)?;
+    UdpSocket::from_std(u, &tokio_reactor::Handle::default())
+}
+
 pub fn udp_connect_peer(addr: &SocketAddr, opts: &Rc<Options>) -> BoxedNewPeerFuture {
     let za = get_zero_address(addr);
 
     Box::new(futures::future::result(
-        UdpSocket::bind(&za)
+        get_udp(&za, opts)
             .and_then(|x| {
                 x.connect(addr)?;
+                apply_udp_options(&x, opts)?;
 
                 let h1 = UdpPeerHandle(Rc::new(RefCell::new(UdpPeer {
                     s: x,
@@ -302,8 +370,9 @@ pub fn udp_connect_peer(addr: &SocketAddr, opts: &Rc<Options>) -> BoxedNewPeerFu
 
 pub fn udp_listen_peer(addr: &SocketAddr, opts: &Rc<Options>) -> BoxedNewPeerFuture {
     Box::new(futures::future::result(
-        UdpSocket::bind(addr)
+        get_udp(addr, opts)
             .and_then(|x| {
+                apply_udp_options(&x, opts)?;
                 let h1 = UdpPeerHandle(Rc::new(RefCell::new(UdpPeer {
                     s: x,
                     state: Some(UdpPeerState::WaitingForAddress(channel())),

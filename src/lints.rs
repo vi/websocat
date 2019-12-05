@@ -4,6 +4,7 @@ use super::{Options, Result, SpecifierClass, SpecifierStack, WebsocatConfigurati
 use super::specifier::{SpecifierNode};
 use std::rc::Rc;
 use std::str::FromStr;
+use std::ops::Not;
 
 extern crate hyper;
 extern crate url;
@@ -314,6 +315,10 @@ impl WebsocatConfiguration2 {
             }
         }
 
+        if !self.opts.headers_to_env.is_empty() && !self.opts.exec_set_env {
+            on_warning("--header-to-env is meaningless without -e (--set-environment)");
+        }
+
         Ok(())
     }
     fn l_closebug(&mut self, on_warning: &OnWarning) -> Result<()> {
@@ -529,6 +534,36 @@ impl WebsocatConfiguration2 {
         Ok(())
     }
 
+    fn l_udp(&mut self, _on_warning: &OnWarning) -> Result<()> {
+        if self.opts.udp_join_multicast_addr.is_empty().not() {
+            if self.opts.udp_broadcast {
+                _on_warning("Both --udp-broadcast and a multicast address is set. This is strange.");
+            }
+            let ifs = self.opts.udp_join_multicast_iface_v4.len() + self.opts.udp_join_multicast_iface_v6.len();
+            if ifs != 0 {
+                let mut v4_multicasts = 0;
+                let mut v6_multicasts = 0;
+                for i in &self.opts.udp_join_multicast_addr {
+                    match i {
+                        std::net::IpAddr::V4(_) => v4_multicasts += 1,
+                        std::net::IpAddr::V6(_) => v6_multicasts += 1,
+                    }
+                }
+                if v4_multicasts != self.opts.udp_join_multicast_iface_v4.len() {
+                    return Err("--udp-multicast-iface-v4 option mush be specified the same number of times as IPv4 addresses for --udp-multicast (alternatively --udp-multicast-iface-* options should be not specified at all)")?;
+                }
+                if v6_multicasts != self.opts.udp_join_multicast_iface_v6.len() {
+                    return Err("--udp-multicast-iface-v6 option mush be specified the same number of times as IPv6 addresses for --udp-multicast (alternatively --udp-multicast-iface-* options should be not specified at all)")?;
+                }
+            }
+        } else {
+            if self.opts.udp_multicast_loop {
+                return Err("--udp-multicast-loop is not applicable without --udp-multicast")?;
+            }
+        }
+        Ok(())
+    }
+
     pub fn lint_and_fixup(&mut self, on_warning: OnWarning) -> Result<()> {
         let multiconnect = !self.opts.oneshot && self.s1.is_multiconnect();
         let mut reuser_has_been_inserted = false;
@@ -548,6 +583,7 @@ impl WebsocatConfiguration2 {
         self.l_ping(&on_warning)?;
         self.l_proto(&on_warning)?;
         self.l_eeof_unidir(&on_warning)?;
+        self.l_udp(&on_warning)?;
 
         // TODO: UDP connect oneshot mode
         // TODO: tests for the linter

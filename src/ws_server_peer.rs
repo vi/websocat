@@ -25,6 +25,7 @@ impl<T: Specifier> Specifier for WsServer<T> {
         let inner = self.0.construct(cp.clone());
         //let l2r = cp.left_to_right;
         inner.map(move |p, l2r| {
+            // FIXME: attack of `Vec::clone`s.
             ws_upgrade_peer(
                 p,
                 restrict_uri.clone(),
@@ -201,6 +202,26 @@ pub fn ws_upgrade_peer(
                         let uri = &x.request.subject.1;
                         let mut z = y.borrow_mut();
                         z.uri = Some(format!("{}", uri));
+
+                        let h : &websocket::header::Headers = &x.request.headers;
+                        for q in opts.headers_to_env.iter() {
+                            if let Some(v) = h.get_raw(q) {
+                                if v.is_empty() { continue }
+                                if v.len() > 1 {
+                                    warn!("Extra request header for {} ignored", q);
+                                }
+                                if let Ok(val) = String::from_utf8(v[0].clone()) {
+                                    z.headers.push((
+                                        q.clone(),
+                                        val,
+                                    ));
+                                } else {
+                                    warn!("Header {} value contains invalid UTF-8", q);
+                                }
+                            } else {
+                                warn!("No request header {}, so no envvar H_{}", q, q);
+                            }
+                        }
                     },
                     L2rUser::ReadFrom(_) => {},
                 }

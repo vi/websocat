@@ -22,6 +22,13 @@ pub struct Options {
     pub websocket_protocol: Option<String>,
     pub websocket_reply_protocol: Option<String>,
     pub udp_oneshot_mode: bool,
+    pub udp_broadcast: bool,
+    pub udp_multicast_loop: bool,
+    pub udp_ttl: Option<u32>,
+    pub udp_join_multicast_addr: Vec<std::net::IpAddr>,
+    pub udp_join_multicast_iface_v4: Vec<std::net::Ipv4Addr>,
+    pub udp_join_multicast_iface_v6: Vec<u32>,
+    pub udp_reuseaddr: bool,
     pub unidirectional: bool,
     pub unidirectional_reverse: bool,
     pub exit_on_eof: bool,
@@ -60,6 +67,8 @@ pub struct Options {
     #[derivative(Debug = "ignore")]
     pub pkcs12_passwd: Option<String>,
     pub tls_insecure: bool,
+
+    pub headers_to_env: Vec<String>,
 
     pub max_parallel_conns: Option<usize>,
     pub ws_ping_interval: Option<u64>,

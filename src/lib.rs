@@ -28,6 +28,7 @@ extern crate anymap;
 pub use http_bytes::http;
 
 extern crate tk_listen;
+extern crate net2;
 
 #[macro_use]
 extern crate log;
@@ -125,6 +126,8 @@ pub struct LeftSpecToRightSpec {
     uri: Option<String>,
     /// Address:port of connecting client, if it is TCP
     client_addr: Option<String>,
+    /// All incoming HTTP headers
+    headers: Vec<(String, String)>,
 }
 
 pub type L2rWriter = Rc<RefCell<LeftSpecToRightSpec>>;

@@ -160,6 +160,9 @@ fn process_connect_peer(
         if let Some(ref z) = x.uri {
             cmd.env("WEBSOCAT_URI", z);
         };
+        for (hn, hv) in &x.headers {
+            cmd.env(format!("H_{}", hn), hv);
+        }
     }
     cmd.stdin(Stdio::piped()).stdout(Stdio::piped());
     let child = cmd.spawn_async()?;

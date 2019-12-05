@@ -29,7 +29,7 @@ Some address types may be "aliases" to other address types or combinations of ov
 
 ```
 
-websocat 1.4.0
+websocat 1.5.0
 Vitaly "_Vi" Shukela <vi0oss@gmail.com>
 Command-line client for web sockets, like netcat/curl/socat for ws://.
 
@@ -99,6 +99,9 @@ OPTIONS:
         --exec-args <exec_args>...
             [A] Arguments for the `exec:` specifier. Must be the last option, everything after it gets into the exec
             args list.
+        --header-to-env <headers_to_env>...
+            Forward specified incoming request header to H_* environment variable for `exec:`-like specifiers.
+
     -h, --help <help>
             See the help.
             --help=short is the list of easy options and address types

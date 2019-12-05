@@ -91,7 +91,7 @@ There are multiple options for installing WebSocat. From easy to hard:
 ## Usage
 
 ```
-websocat 1.4.0
+websocat 1.5.0
 Vitaly "_Vi" Shukela <vi0oss@gmail.com>
 Command-line client for web sockets, like netcat/curl/socat for ws://.
 
@@ -141,6 +141,8 @@ OPTIONS:
             Add custom HTTP header to websocket upgrade reply. Separate header name and value with a colon and
             optionally a single space. Can be used multiple times. Note that single -H may eat multiple further
             arguments, leading to confusing errors.
+        --header-to-env <headers_to_env>...
+            Forward specified incoming request header to H_* environment variable for `exec:`-like specifiers.
     -h, --help <help>
             See the help.
             --help=short is the list of easy options and address types
