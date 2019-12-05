@@ -241,7 +241,6 @@ impl Read for CloggedPeer {
     }
 }
 
-
 // TODO: make Prepend{Read,Write} available from command line
 
 /// First read content of `header`, then start relaying from `inner`.
@@ -262,7 +261,7 @@ impl Read for PrependRead {
         let l = buf.len().min(self.remaining);
         debug!("PrependRead read debt {}", l);
         let offset = self.header.len() - self.remaining;
-        buf[..l].copy_from_slice(&self.header[offset..(offset+l)]);
+        buf[..l].copy_from_slice(&self.header[offset..(offset + l)]);
         let ret = l;
         self.remaining -= ret;
         if self.remaining == 0 {

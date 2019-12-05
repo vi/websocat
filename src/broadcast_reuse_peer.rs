@@ -11,12 +11,12 @@ use std::io::{Error as IoError, Read, Write};
 use tokio_io::{AsyncRead, AsyncWrite};
 
 use super::{once, ConstructParams, PeerConstructor, Specifier};
+use crate::spawn_hack;
 use futures::Async;
 use futures::AsyncSink;
 use futures::Future;
 use futures::Sink;
 use futures::Stream;
-use crate::spawn_hack;
 use std::ops::DerefMut;
 
 use futures::unsync::mpsc;
@@ -243,7 +243,7 @@ pub fn connection_reuser<F: FnOnce() -> BoxedNewPeerFuture>(
         })) as BoxedNewPeerFuture
     } else {
         info!("Reusing");
-        let ps: HBroadCaster = rc.clone();
+        let ps: HBroadCaster = rc;
         Box::new(ok(makeclient(ps, queue_len))) as BoxedNewPeerFuture
     }
 }

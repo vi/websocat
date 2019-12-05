@@ -104,8 +104,8 @@ macro_rules! specifier_class {
     (construct target=$t:ident noarg) => {
         fn construct(&self, just_arg:&str) -> $crate::Result<Rc<dyn Specifier>> {
             if just_arg != "" {
-                Err(format!("{}-specifer requires no parameters. `{}` is not needed",
-                    self.get_name(), just_arg))?;
+                return Err(format!("{}-specifer requires no parameters. `{}` is not needed",
+                    self.get_name(), just_arg).into());
             }
             Ok(Rc::new($t))
         }
@@ -138,7 +138,7 @@ macro_rules! specifier_class {
             info!("Resolving hostname to IP addresses");
             let addrs : Vec<std::net::SocketAddr> = just_arg.to_socket_addrs()?.collect();
             if addrs.is_empty() {
-                Err("Failed to resolve this hostname to IP")?;
+                return Err("Failed to resolve this hostname to IP".into());
             }
             for addr in &addrs {
                 info!("Got IP: {}", addr);
@@ -164,7 +164,6 @@ macro_rules! specifier_class {
         fn alias_info(&self) -> Option<&'static str> { None }
     };
 }
-
 
 #[derive(Debug)]
 pub struct SpecifierNode {
@@ -231,15 +230,13 @@ impl ConstructParams {
     }
 
     /// Access specified-specific global (singleton) data
-    pub fn global<T:std::any::Any, F>(&self, def:F) -> std::cell::RefMut<T> 
-        where F : FnOnce()->T
+    pub fn global<T: std::any::Any, F>(&self, def: F) -> std::cell::RefMut<T>
+    where
+        F: FnOnce() -> T,
     {
-        std::cell::RefMut::map(
-            self.global_state.borrow_mut(),
-            |x|{
-                x.0.entry().or_insert(def())
-            }
-        )
+        std::cell::RefMut::map(self.global_state.borrow_mut(), |x| {
+            x.0.entry().or_insert(def())
+        })
     }
 }
 

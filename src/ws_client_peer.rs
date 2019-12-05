@@ -12,7 +12,7 @@ use self::websocket::client::Url;
 
 use super::{box_up_err, peer_err, peer_strerr, BoxedNewPeerFuture, Peer, Result};
 
-use super::ws_peer::{PeerForWs};
+use super::ws_peer::PeerForWs;
 use super::{once, ConstructParams, Options, PeerConstructor, Specifier};
 
 use self::hyper::header::Headers;
@@ -171,7 +171,7 @@ where
         after_connect
             .map(move |(duplex, _)| {
                 info!("Connected to ws",);
-                let close_on_shutdown =  !opts.websocket_dont_close;
+                let close_on_shutdown = !opts.websocket_dont_close;
                 super::ws_peer::finish_building_ws_peer(&*opts, duplex, close_on_shutdown, None)
             })
             .map_err(box_up_err),

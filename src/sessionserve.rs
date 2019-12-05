@@ -18,12 +18,12 @@ impl Session {
             buffer_size: self.opts.buffer_size,
             skip: false,
         };
-        let mut co2 = co1.clone();
+        let mut co2 = co1;
         if self.opts.unidirectional {
-            co2.skip=true;
+            co2.skip = true;
         }
         if self.opts.unidirectional_reverse {
-            co1.skip=true;
+            co1.skip = true;
         }
         let f1 = my_copy::copy(self.t1.from, self.t1.to, co1);
         let f2 = my_copy::copy(self.t2.from, self.t2.to, co2);
@@ -75,15 +75,11 @@ impl Session {
             if let Some(hup) = self.hup2 {
                 s.push(hup);
             }
-            Box::new(
-                s.into_future()
-                .map(|(x, _)|x.unwrap())
-                .map_err(|(e,_)|e)
-            ) as Ret
+            Box::new(s.into_future().map(|(x, _)| x.unwrap()).map_err(|(e, _)| e)) as Ret
         }
     }
     pub fn new(peer1: Peer, peer2: Peer, opts: Rc<Options>) -> Self {
-        Session{
+        Session {
             t1: Transfer {
                 from: peer1.0,
                 to: peer2.1,
@@ -132,7 +128,7 @@ where
 
     let e1 = onerror.clone();
     let e2 = onerror.clone();
-    let e3 = onerror.clone();
+    let e3 = onerror;
 
     let opts1 = Rc::new(opts);
     let opts2 = opts1.clone();
@@ -142,7 +138,7 @@ where
     let cp = Rc::new(RefCell::new(ConstructParams {
         program_options: opts1.clone(),
         global_state: ps.clone(),
-        left_to_right: L2rUser::FillIn(l2r.clone()),
+        left_to_right: L2rUser::FillIn(l2r),
     }));
 
     let mut left = s1.construct(cp.borrow().clone());
@@ -159,7 +155,7 @@ where
         PeerConstructor::Error(e) => {
             e1(e);
             Box::new(futures::future::ok(())) as Box<dyn Future<Item = (), Error = ()>>
-        },
+        }
         ServeMultipleTimes(stream) => {
             let runner = stream
                 .map(move |peer1| {

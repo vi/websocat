@@ -1,5 +1,5 @@
-use super::{Result};
-use super::specifier::{Specifier, SpecifierClass, SpecifierStack, SpecifierNode};
+use super::specifier::{Specifier, SpecifierClass, SpecifierNode, SpecifierStack};
+use super::Result;
 use std::rc::Rc;
 use std::str::FromStr;
 
@@ -11,7 +11,7 @@ fn some_checks(s: &str) -> Result<()> {
     #[cfg(not(feature = "ssl"))]
     {
         if s.starts_with("wss://") {
-            Err("SSL is not compiled in. Use ws:// or get/make another Websocat build.\nYou can also try to workaround missing SSL by using ws-c:cmd:socat trick (see some ws-c: example)")?
+            return Err("SSL is not compiled in. Use ws:// or get/make another Websocat build.\nYou can also try to workaround missing SSL by using ws-c:cmd:socat trick (see some ws-c: example)".into());
         }
     }
 
@@ -23,22 +23,22 @@ fn some_checks(s: &str) -> Result<()> {
     }
 
     if s.starts_with("open:") {
-        return Err("There is no `open:` address type. Consider `open-async:` or `readfile:` or `writefile:` or `appendfile:`")?;
+        return Err("There is no `open:` address type. Consider `open-async:` or `readfile:` or `writefile:` or `appendfile:`".into());
     }
 
     #[cfg(not(unix))]
     {
         if s.starts_with("unix") || s.starts_with("abstract") {
-            Err("`unix*:` or `abstract*:` are not supported in this Websocat build")?
+            return Err("`unix*:` or `abstract*:` are not supported in this Websocat build".into());
         }
     }
 
     #[cfg(not(feature = "tokio-process"))]
     {
         if s.starts_with("sh-c:") {
-            Err("`sh-c:` is not supported in this Websocat build")?
+            return Err("`sh-c:` is not supported in this Websocat build".into());
         } else if s.starts_with("exec:") {
-            Err("`exec:` is not supported in this Websocat build")?
+            return Err("`exec:` is not supported in this Websocat build".into());
         }
     }
 
@@ -68,13 +68,13 @@ impl FromStr for SpecifierStack {
                                 continue 'a;
                             } else if $x.is_overlay() {
                                 let cls = Rc::new($x) as Rc<dyn SpecifierClass>;
-                                overlays.push(SpecifierNode{cls});
+                                overlays.push(SpecifierNode { cls });
                                 s = rest.to_string();
                                 continue 'a;
                             } else {
                                 addr = rest.to_string();
                                 let cls = Rc::new($x) as Rc<dyn SpecifierClass>;
-                                addrtype = SpecifierNode{cls};
+                                addrtype = SpecifierNode { cls };
                                 #[allow(unused_assignments)]
                                 {
                                     found = true;
@@ -88,12 +88,13 @@ impl FromStr for SpecifierStack {
             list_of_all_specifier_classes!(my);
             if !found {
                 if let Some(colon) = s.find(':') {
-                    Err(format!(
-                        "Unknown address or overlay type of `{}:`",
-                        &s[..colon]
-                    ))?;
+                    return Err(
+                        format!("Unknown address or overlay type of `{}:`", &s[..colon]).into(),
+                    );
                 } else {
-                    Err(format!("Unknown address or overlay type of `{}`\nMaybe you forgot the `:` character?", s))?;
+                    return Err(
+                        format!("Unknown address or overlay type of `{}`\nMaybe you forgot the `:` character?", s).into(),
+                    );
                 }
             }
         }

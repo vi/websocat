@@ -154,7 +154,6 @@ fn ws_ll() {
     run!(core, prog);
 }
 
-
 #[test]
 fn ws_persist() {
     prepare!(core);

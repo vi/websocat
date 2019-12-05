@@ -1,6 +1,8 @@
-
 #![allow(unused)]
-#![cfg_attr(feature="cargo-clippy",allow(needless_pass_by_value,cast_lossless,identity_op))]
+#![cfg_attr(
+    feature = "cargo-clippy",
+    allow(needless_pass_by_value, cast_lossless, identity_op)
+)]
 use futures::future::{err, ok, Future};
 
 use std::rc::Rc;
@@ -18,9 +20,9 @@ use std::ffi::OsString;
 extern crate http_bytes;
 use http_bytes::http;
 
-use http_bytes::{Request,Response};
-use crate::http::Uri;
 use crate::http::Method;
+use crate::http::Uri;
+use http_bytes::{Request, Response};
 
 #[derive(Debug)]
 pub struct HttpRequest<T: Specifier>(pub T);
@@ -135,9 +137,7 @@ Example:
 "#
 );
 
-
-
-#[derive(Copy,Clone,PartialEq,Debug)]
+#[derive(Copy, Clone, PartialEq, Debug)]
 enum HttpHeaderEndDetectionState {
     Neutral,
     FirstCr,
@@ -146,12 +146,11 @@ enum HttpHeaderEndDetectionState {
     FoundHeaderEnd,
 }
 
-struct WaitForHttpHead<R : AsyncRead>
-{
+struct WaitForHttpHead<R: AsyncRead> {
     buf: Option<Vec<u8>>,
-    offset : usize,
+    offset: usize,
     state: HttpHeaderEndDetectionState,
-    io : Option<R>,
+    io: Option<R>,
 }
 
 struct WaitForHttpHeadResult {
@@ -160,8 +159,8 @@ struct WaitForHttpHeadResult {
     offset: usize,
 }
 
-impl<R:AsyncRead> WaitForHttpHead<R> {
-    pub fn new(r:R) -> WaitForHttpHead<R> {
+impl<R: AsyncRead> WaitForHttpHead<R> {
+    pub fn new(r: R) -> WaitForHttpHead<R> {
         WaitForHttpHead {
             buf: Some(Vec::with_capacity(512)),
             offset: 0,
@@ -171,14 +170,14 @@ impl<R:AsyncRead> WaitForHttpHead<R> {
     }
 }
 
-impl<R:AsyncRead> Future for WaitForHttpHead<R> {
+impl<R: AsyncRead> Future for WaitForHttpHead<R> {
     type Item = (WaitForHttpHeadResult, R);
     type Error = Box<dyn std::error::Error>;
 
     fn poll(&mut self) -> ::futures::Poll<Self::Item, Self::Error> {
         loop {
             if self.buf.is_none() || self.io.is_none() {
-                Err("WaitForHttpHeader future polled after completion")?;
+                return Err("WaitForHttpHeader future polled after completion".into());
             }
             let ret;
             {
@@ -190,12 +189,12 @@ impl<R:AsyncRead> Future for WaitForHttpHead<R> {
                 ret = try_nb!(io.read(&mut buf[self.offset..]));
 
                 if ret == 0 {
-                    Err("Trimmed HTTP head")?;
+                    return Err("Trimmed HTTP head".into());
                 }
             }
 
             // parse
-            for i in self.offset..(self.offset+ret) {
+            for i in self.offset..(self.offset + ret) {
                 let x = self.buf.as_ref().unwrap()[i];
                 use self::HttpHeaderEndDetectionState::*;
                 //eprint!("{:?} -> ", self.state);
@@ -212,7 +211,7 @@ impl<R:AsyncRead> Future for WaitForHttpHead<R> {
                     let mut buf = self.buf.take().unwrap();
                     buf.resize(self.offset + ret, 0u8);
                     return Ok(::futures::Async::Ready((
-                        WaitForHttpHeadResult { buf, offset: i+1},
+                        WaitForHttpHeadResult { buf, offset: i + 1 },
                         io,
                     )));
                 }
@@ -221,17 +220,13 @@ impl<R:AsyncRead> Future for WaitForHttpHead<R> {
             self.offset += ret;
 
             if self.offset > 60_000 {
-                Err("HTTP head too long")?;
+                return Err("HTTP head too long".into());
             }
         }
     }
 }
 
-pub fn http_request_peer(
-    request: &Request,
-    inner_peer: Peer,
-    _l2r: L2rUser,
-) -> BoxedNewPeerFuture {
+pub fn http_request_peer(request: &Request, inner_peer: Peer, _l2r: L2rUser) -> BoxedNewPeerFuture {
     let request = ::http_bytes::request_header_to_vec(&request);
 
     let (r, w, hup) = (inner_peer.0, inner_peer.1, inner_peer.2);
@@ -240,19 +235,19 @@ pub fn http_request_peer(
     let f = ::tokio_io::io::write_all(w, request)
         .map_err(box_up_err)
         .and_then(move |(w, request)| {
-            WaitForHttpHead::new(r).and_then(|(res, r)|{
+            WaitForHttpHead::new(r).and_then(|(res, r)| {
                 debug!("Got HTTP response head");
-                let ret = (move||{
+                let ret = (move || {
                     {
                         let headbuf = &res.buf[0..res.offset];
-                        trace!("{:?}",headbuf);
+                        trace!("{:?}", headbuf);
                         let p = http_bytes::parse_response_header_easy(headbuf)?;
                         if p.is_none() {
-                            Err("Something wrong with response HTTP head")?;
+                            return Err("Something wrong with response HTTP head".into());
                         }
                         let p = p.unwrap();
-                        if p.1.len() > 0 {
-                            Err("Something wrong with parsing HTTP")?;
+                        if !p.1.is_empty() {
+                            return Err("Something wrong with parsing HTTP".into());
                         }
                         let response = p.0;
                         let status = response.status();
@@ -261,12 +256,12 @@ pub fn http_request_peer(
                         if status.is_success() || status.is_informational() {
                             // OK
                         } else {
-                            Err("HTTP response indicates failure")?;
+                            return Err("HTTP response indicates failure".into());
                         }
                     }
                     let remaining = res.buf.len() - res.offset;
                     if remaining == 0 {
-                        Ok(Peer::new(r,w,hup))
+                        Ok(Peer::new(r, w, hup))
                     } else {
                         debug!("{} bytes of debt to be read", remaining);
                         let r = super::trivial_peer::PrependRead {
@@ -274,13 +269,12 @@ pub fn http_request_peer(
                             header: res.buf,
                             remaining,
                         };
-                        Ok(Peer::new(r,w,hup))
+                        Ok(Peer::new(r, w, hup))
                     }
                 })();
                 ::futures::future::result(ret)
             })
-        })
-    ;
+        });
 
     Box::new(f) as BoxedNewPeerFuture
 }

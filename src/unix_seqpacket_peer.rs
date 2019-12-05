@@ -123,10 +123,10 @@ pub fn seqpacket_connect_peer(addr: &Path) -> BoxedNewPeerFuture {
             Ok(Peer::new(
                 MyUnixStream(x.clone(), true),
                 MyUnixStream(x.clone(), false),
-                None /* TODO*/ ,
+                None, /* TODO*/
             ))
         } else {
-            Err("Failed to get or connect socket")?
+            return Err("Failed to get or connect socket".into());
         }
     }
     Box::new(futures::future::result({ getpeer(addr) })) as BoxedNewPeerFuture
@@ -200,7 +200,7 @@ pub fn seqpacket_listen_peer(addr: &Path, opts: &Rc<Options>) -> BoxedNewPeerStr
                 Peer::new(
                     MyUnixStream(x.clone(), true),
                     MyUnixStream(x.clone(), false),
-                    None /* TODO*/ ,
+                    None, /* TODO*/
                 )
             })
             .map_err(|()| crate::simple_err2("unreachable error?")),

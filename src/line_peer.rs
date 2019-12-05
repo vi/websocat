@@ -54,14 +54,14 @@ impl<T: Specifier> Specifier for Line2Message<T> {
         let retain_newlines = !cp.program_options.linemode_strip_newlines;
         let strict = cp.program_options.linemode_strict;
         let nullt = cp.program_options.linemode_zero_terminated;
-        let inner = self.0.construct(cp.clone());
+        let inner = self.0.construct(cp);
         inner.map(move |p, _| line2packet_peer(p, retain_newlines, strict, nullt))
     }
     specifier_boilerplate!(noglobalstate has_subspec);
     self_0_is_subspecifier!(proxy_is_multiconnect);
 }
 specifier_class!(
-    name=Line2MessageClass, 
+    name=Line2MessageClass,
     target=Line2Message,
     prefixes=["line2msg:"], 
     arg_handling=subspec,
