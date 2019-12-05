@@ -131,34 +131,34 @@ struct Opt {
     udp_oneshot_mode: bool,
 
     /// [A] Set SO_BROADCAST
-    #[structopt(long="udp-broadcast")]
+    #[structopt(long = "udp-broadcast")]
     udp_broadcast: bool,
 
     /// [A] Set IP[V6]_MULTICAST_LOOP
-    #[structopt(long="udp-multicast-loop")]
+    #[structopt(long = "udp-multicast-loop")]
     udp_multicast_loop: bool,
 
     /// [A] Set IP_TTL, also IP_MULTICAST_TTL if applicable
-    #[structopt(long="udp-ttl")]
+    #[structopt(long = "udp-ttl")]
     udp_ttl: Option<u32>,
 
     /// [A] Issue IP[V6]_ADD_MEMBERSHIP for specified multicast address.
     /// Can be specified multiple times.
-    #[structopt(long="udp-multicast")]
+    #[structopt(long = "udp-multicast")]
     udp_join_multicast_addr: Vec<std::net::IpAddr>,
 
     /// [A] IPv4 address of multicast network interface.
     /// Has to be either not specified or specified the same number of times as multicast IPv4 addresses. Order matters.
-    #[structopt(long="udp-multicast-iface-v4")]
+    #[structopt(long = "udp-multicast-iface-v4")]
     udp_join_multicast_iface_v4: Vec<std::net::Ipv4Addr>,
 
     /// [A] Index of network interface for IPv6 multicast.
     /// Has to be either not specified or specified the same number of times as multicast IPv6 addresses. Order matters.
-    #[structopt(long="udp-multicast-iface-v6")]
+    #[structopt(long = "udp-multicast-iface-v6")]
     udp_join_multicast_iface_v6: Vec<u32>,
 
     /// [A] Set SO_REUSEADDR for UDP socket. Listening TCP sockets are always reuseaddr.
-    #[structopt(long="udp-reuseaddr")]
+    #[structopt(long = "udp-reuseaddr")]
     udp_reuseaddr: bool,
 
     #[structopt(
@@ -216,9 +216,7 @@ struct Opt {
 
     /// Forward specified incoming request header to
     /// H_* environment variable for `exec:`-like specifiers.
-    #[structopt(
-        long = "header-to-env",
-    )]
+    #[structopt(long = "header-to-env")]
     headers_to_env: Vec<String>,
 
     #[structopt(
@@ -402,7 +400,7 @@ struct Opt {
     /// Drop WebSocket connection if Pong message not received for this number of seconds
     #[structopt(long = "ping-timeout")]
     ws_ping_timeout: Option<u64>,
-    
+
     /// [A] Just a Sec-WebSocket-Key value without running main Websocat
     #[structopt(long = "just-generate-key")]
     just_generate_key: bool,
@@ -417,14 +415,14 @@ struct Opt {
     request_uri: Option<http::Uri>,
 
     /// [A] Method to use for `http-request:` specifier
-    #[structopt(long = "request-method", short="X")]
+    #[structopt(long = "request-method", short = "X")]
     request_method: Option<http::Method>,
 
     /// Specify HTTP request headers
     /// TODO: add short option, remove existing -H
     #[structopt(
-        long = "request-header", 
-        parse(try_from_str = "interpret_custom_header2"),
+        long = "request-header",
+        parse(try_from_str = "interpret_custom_header2")
     )]
     request_headers: Vec<(http::header::HeaderName, http::header::HeaderValue)>,
 }
@@ -435,7 +433,7 @@ fn interpret_custom_header(x: &str) -> Result<(String, Vec<u8>)> {
     let colon = if let Some(colon) = colon {
         colon
     } else {
-        Err("Argument to --header must contain `:` character")?
+        return Err("Argument to --header must contain `:` character".into());
     };
     let hn = &x[0..colon];
     let mut hv = &x[colon + 1..];
@@ -445,12 +443,14 @@ fn interpret_custom_header(x: &str) -> Result<(String, Vec<u8>)> {
     Ok((hn.to_owned(), hv.as_bytes().to_vec()))
 }
 
-fn interpret_custom_header2(x: &str) -> Result<(http::header::HeaderName, http::header::HeaderValue)> {
+fn interpret_custom_header2(
+    x: &str,
+) -> Result<(http::header::HeaderName, http::header::HeaderValue)> {
     let colon = x.find(':');
     let colon = if let Some(colon) = colon {
         colon
     } else {
-        Err("Specified header must contain `:` character")?
+        return Err("Specified header must contain `:` character".into());
     };
     let hn = &x[0..colon];
     let mut hv = &x[colon + 1..];
@@ -460,24 +460,24 @@ fn interpret_custom_header2(x: &str) -> Result<(http::header::HeaderName, http::
     use std::str::FromStr;
     let hn = http::header::HeaderName::from_str(hn)?;
     let hv = http::header::HeaderValue::from_str(hv)?;
-    Ok((hn,hv))
+    Ok((hn, hv))
 }
 
 fn interpret_static_file(x: &str) -> Result<StaticFile> {
     let colon1 = match x.find(':') {
         Some(x) => x,
-        None => Err("Argument to --static-file must contain two colons (`:`)")?,
+        None => return Err("Argument to --static-file must contain two colons (`:`)".into()),
     };
     let uri = &x[0..colon1];
     let rest = &x[colon1 + 1..];
     let colon2 = match rest.find(':') {
         Some(x) => x,
-        None => Err("Argument to --static-file must contain two colons (`:`)")?,
+        None => return Err("Argument to --static-file must contain two colons (`:`)".into()),
     };
     let ct = &rest[0..colon2];
     let fp = &rest[colon2 + 1..];
     if uri.is_empty() || ct.is_empty() || fp.is_empty() {
-        Err("Empty URI, content-type or path in --static-file parameter")?
+        return Err("Empty URI, content-type or path in --static-file parameter".into());
     }
     Ok(StaticFile {
         uri: uri.to_string(),
@@ -491,7 +491,7 @@ fn interpret_socks_destination(x: &str) -> Result<SocksSocketAddr> {
     let colon = if let Some(colon) = colon {
         colon
     } else {
-        Err("Argument to --socks5-destination must contain a `:` character")?
+        return Err("Argument to --socks5-destination must contain a `:` character".into());
     };
     let h = &x[0..colon];
     let p = &x[colon + 1..];
@@ -544,7 +544,6 @@ mod logging {
             .try_init()?;
         Ok(())
     }
-
 }
 
 fn run() -> Result<()> {
@@ -575,21 +574,27 @@ fn run() -> Result<()> {
     }
 
     if cmd.just_generate_key {
-        println!("{}", websocket_base::header::WebSocketKey::new().serialize());
+        println!(
+            "{}",
+            websocket_base::header::WebSocketKey::new().serialize()
+        );
         return Ok(());
     }
 
     if let Some(key) = cmd.just_generate_accept {
         use std::str::FromStr;
         let k = websocket_base::header::WebSocketKey::from_str(&key)?;
-        println!("{}", websocket_base::header::WebSocketAccept::new(&k).serialize());
+        println!(
+            "{}",
+            websocket_base::header::WebSocketAccept::new(&k).serialize()
+        );
         return Ok(());
     }
 
     let mut recommend_explicit_text_or_bin = false;
 
     if cmd.websocket_binary_mode && cmd.websocket_text_mode {
-        Err("--binary and --text are mutually exclusive")?;
+        return Err("--binary and --text are mutually exclusive".into());
     }
     if !cmd.websocket_binary_mode && !cmd.websocket_text_mode {
         cmd.websocket_text_mode = true;
@@ -597,13 +602,13 @@ fn run() -> Result<()> {
     }
 
     //if !cmd.serve_static_files.is_empty() && cmd.restrict_uri.is_none() {
-    //    Err("Specify --static-file is not supported without --restrict-uri")?
+    //    return Err("Specify --static-file is not supported without --restrict-uri".into());
     //}
 
     if false
     //    || cmd.oneshot
     {
-        Err("This mode is not implemented")?
+        return Err("This mode is not implemented".into());
     }
 
     #[cfg(feature = "openssl-probe")]
@@ -678,15 +683,15 @@ fn run() -> Result<()> {
     let (s1, s2): (String, String) = match (cmd.addr1, cmd.addr2) {
         (None, None) => {
             help::shorthelp();
-            return Err("No URL specified")?;
+            return Err("No URL specified".into());
         }
         (Some(cmds1), Some(cmds2)) => {
             // Advanced mode
             if cmd.jsonrpc {
-                Err("--jsonrpc option is only for simple (single-argument) mode.\nUse `jsonrpc:` specifier manually if you want it in advanced mode.")?
+                return Err("--jsonrpc option is only for simple (single-argument) mode.\nUse `jsonrpc:` specifier manually if you want it in advanced mode.".into());
             }
             if cmd.server_mode {
-                Err("--server and two positional arguments are incompatible.\nBuild server command line without -s option, but with `listen` address types")?
+                return Err("--server and two positional arguments are incompatible.\nBuild server command line without -s option, but with `listen` address types".into());
             }
             (cmds1, cmds2)
         }
@@ -732,7 +737,7 @@ fn run() -> Result<()> {
                     if !quiet {
                         eprintln!("Specify ws:// or wss:// URI to connect to a websocket");
                     }
-                    Err("Invalid command-line parameters")?;
+                    return Err("Invalid command-line parameters".into());
                 }
                 ("-".to_string(), cmds1)
             }
@@ -776,10 +781,12 @@ fn run() -> Result<()> {
         }))?;
     }
     if cmd.jsonrpc {
-        websocat2
-            .s1
-            .overlays
-            .insert(0, websocat::specifier::SpecifierNode{cls: ::std::rc::Rc::new(websocat::jsonrpc_peer::JsonRpcClass)});
+        websocat2.s1.overlays.insert(
+            0,
+            websocat::specifier::SpecifierNode {
+                cls: ::std::rc::Rc::new(websocat::jsonrpc_peer::JsonRpcClass),
+            },
+        );
     }
     debug!("Done third phase of interpreting options.");
     let websocat = websocat2.parse2()?;

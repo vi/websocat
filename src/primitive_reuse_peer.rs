@@ -20,7 +20,7 @@ impl Specifier for Reuser {
     fn construct(&self, p: ConstructParams) -> PeerConstructor {
         let send_zero_msg_on_disconnect = p.program_options.reuser_send_zero_msg_on_disconnect;
         let reuser = p.global(GlobalState::default).clone();
-        let mut reuser = reuser.clone();
+        let mut reuser = reuser;
         let l2r = p.left_to_right.clone();
         let inner = || self.0.construct(p).get_only_first_conn(l2r);
         once(connection_reuser(
@@ -134,7 +134,7 @@ pub fn connection_reuser<F: FnOnce() -> BoxedNewPeerFuture>(
         })) as BoxedNewPeerFuture
     } else {
         info!("Reusing");
-        let ps: PeerSlot = rc.clone();
+        let ps: PeerSlot = rc;
 
         let ph1 = PeerHandle(ps, send_zero_msg_on_disconnect);
         let ph2 = ph1.clone();

@@ -1,6 +1,6 @@
 use super::{
-    futures, AsyncRead, AsyncWrite, BoxedNewPeerFuture, BoxedNewPeerStream, L2rUser, Peer,
-    PeerConstructor, Rc, HupToken,
+    futures, AsyncRead, AsyncWrite, BoxedNewPeerFuture, BoxedNewPeerStream, HupToken, L2rUser,
+    Peer, PeerConstructor, Rc,
 };
 use super::{Future, Stream};
 
@@ -109,7 +109,11 @@ pub fn box_up_err<E: std::error::Error + 'static>(e: E) -> Box<dyn std::error::E
 }
 
 impl Peer {
-    pub fn new<R: AsyncRead + 'static, W: AsyncWrite + 'static>(r: R, w: W, hup: Option<HupToken>) -> Self {
+    pub fn new<R: AsyncRead + 'static, W: AsyncWrite + 'static>(
+        r: R,
+        w: W,
+        hup: Option<HupToken>,
+    ) -> Self {
         Peer(
             Box::new(r) as Box<dyn AsyncRead>,
             Box::new(w) as Box<dyn AsyncWrite>,

@@ -12,7 +12,7 @@ use crate::options::StaticFile;
 
 use self::websocket::server::upgrade::r#async::IntoWs;
 
-use super::ws_peer::{PeerForWs};
+use super::ws_peer::PeerForWs;
 use super::{box_up_err, io_other_error, BoxedNewPeerFuture, Peer};
 use super::{ConstructParams, L2rUser, PeerConstructor, Specifier};
 
@@ -195,8 +195,8 @@ pub fn ws_upgrade_peer(
                         )
                             as Box<dyn Future<Item = Peer, Error = websocket::WebSocketError>>;
                 }
-                
-                
+
+
                 match l2r {
                     L2rUser::FillIn(ref y) => {
                         let uri = &x.request.subject.1;
@@ -225,8 +225,8 @@ pub fn ws_upgrade_peer(
                     },
                     L2rUser::ReadFrom(_) => {},
                 }
-                
-                
+
+
                 if let Some(ref restrict_uri) = *restrict_uri {
                     let check_passed = match x.request.subject.1 {
                         AbsolutePath(ref x) if x == restrict_uri => true,

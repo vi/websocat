@@ -144,7 +144,7 @@ fn specdoc(sc: &dyn SpecifierClass, overlays: bool) {
     println!("Internal name for --dump-spec: {}", spec_name);
     println!();
 
-    let help = 
+    let help =
         sc
         .help()
         //.lines()
@@ -230,7 +230,7 @@ Some address types may be "aliases" to other address types or combinations of ov
 
     println!(
         r#"
-  
+
 ### Address types to be done:
 
 `sctp:` and `ssl:`
@@ -240,7 +240,7 @@ Some address types may be "aliases" to other address types or combinations of ov
 Final example just for fun: wacky mode
 
     websocat ws-c:ws-l:ws-c:- tcp:127.0.0.1:5678
-    
+
 Connect to a websocket using stdin/stdout as a transport,
 then accept a websocket connection over the previous websocket used as a transport,
 then connect to a websocket using previous step as a transport,

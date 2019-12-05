@@ -141,7 +141,7 @@ impl Read for PeerHandle {
     fn read(&mut self, b: &mut [u8]) -> Result<usize, IoError> {
         let mut state = self.0.borrow_mut();
         loop {
-            let p : &mut Peer = match state.poll() {
+            let p: &mut Peer = match state.poll() {
                 Ok(Async::Ready(p)) => p,
                 Ok(Async::NotReady) => return wouldblock(),
                 Err(e) => {
@@ -149,7 +149,7 @@ impl Read for PeerHandle {
                 }
             };
             match p.0.read(b) {
-                Ok(0) => { 
+                Ok(0) => {
                     return Ok(0);
                 }
                 Err(e) => {
@@ -171,7 +171,7 @@ impl AsyncRead for PeerHandle {}
 impl Write for PeerHandle {
     fn write(&mut self, b: &[u8]) -> Result<usize, IoError> {
         let mut state = self.0.borrow_mut();
-        
+
         let mut do_reconnect = false;
         let mut finished = false;
         loop {
@@ -190,7 +190,7 @@ impl Write for PeerHandle {
                     match ph {
                         Phase::Idle => {
                             match p.1.write(b) {
-                                Ok(0) => { 
+                                Ok(0) => {
                                     info!("End-of-file write?");
                                     return Ok(0);
                                 }
@@ -205,7 +205,7 @@ impl Write for PeerHandle {
                                     debug!("Full write");
                                     // A successful write. Flushing and closing the peer.
                                     ph = Phase::Flushing;
-                                },
+                                }
                                 Ok(x) => {
                                     debug!("Partial write of {} bytes", x);
                                     // A partial write. Creating write debt.
@@ -213,10 +213,10 @@ impl Write for PeerHandle {
                                     ph = Phase::WriteDebt(debt);
                                 }
                             }
-                        },
+                        }
                         Phase::WriteDebt(d) => {
                             match p.1.write(&d[..]) {
-                                Ok(0) => { 
+                                Ok(0) => {
                                     info!("End-of-file write v2?");
                                     return Ok(0);
                                 }
@@ -231,7 +231,7 @@ impl Write for PeerHandle {
                                     debug!("Closing the debt");
                                     // A successful write. Flushing and closing the peer.
                                     ph = Phase::Flushing;
-                                },
+                                }
                                 Ok(x) => {
                                     debug!("Partial write of {} debt bytes", x);
                                     // A partial write. Retaining the write debt.
@@ -239,38 +239,34 @@ impl Write for PeerHandle {
                                     ph = Phase::WriteDebt(debt);
                                 }
                             }
-                        },
-                        Phase::Flushing => {
-                            match p.1.flush() {
-                                Err(e) => {
-                                    if e.kind() == ::std::io::ErrorKind::WouldBlock {
-                                        return Err(e);
-                                    }
-                                    warn!("{}", e);
+                        }
+                        Phase::Flushing => match p.1.flush() {
+                            Err(e) => {
+                                if e.kind() == ::std::io::ErrorKind::WouldBlock {
                                     return Err(e);
                                 }
-                                Ok(()) => {
-                                    debug!("Flushed");
-                                    ph = Phase::Closing;
-                                }
+                                warn!("{}", e);
+                                return Err(e);
+                            }
+                            Ok(()) => {
+                                debug!("Flushed");
+                                ph = Phase::Closing;
                             }
                         },
-                        Phase::Closing => {
-                            match p.1.shutdown() {
-                                Err(e) => {
-                                    if e.kind() == ::std::io::ErrorKind::WouldBlock {
-                                        return Err(e);
-                                    }
-                                    warn!("{}", e);
+                        Phase::Closing => match p.1.shutdown() {
+                            Err(e) => {
+                                if e.kind() == ::std::io::ErrorKind::WouldBlock {
                                     return Err(e);
-                                },
-                                Ok(Async::NotReady) => {
-                                    return wouldblock();
-                                },
-                                Ok(Async::Ready(())) => {
-                                    debug!("Closed");
-                                    finished=true;
                                 }
+                                warn!("{}", e);
+                                return Err(e);
+                            }
+                            Ok(Async::NotReady) => {
+                                return wouldblock();
+                            }
+                            Ok(Async::Ready(())) => {
+                                debug!("Closed");
+                                finished = true;
                             }
                         },
                     }

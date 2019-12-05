@@ -16,7 +16,7 @@ use std::rc::Rc;
 
 use futures::Async::{NotReady, Ready};
 
-use super::{brokenpipe, io_other_error, wouldblock, Peer, HupToken};
+use super::{brokenpipe, io_other_error, wouldblock, HupToken, Peer};
 
 use super::readdebt::{ProcessMessageResult, ReadDebt};
 
@@ -314,11 +314,17 @@ impl<T: WsStream + 'static> ::futures::Future for WsPinger<T> {
     }
 }
 
+pub type Duplex<S> =
+    ::tokio_codec::Framed<S, websocket::r#async::MessageCodec<websocket::OwnedMessage>>;
 
-pub type Duplex<S> = ::tokio_codec::Framed<S, websocket::r#async::MessageCodec<websocket::OwnedMessage>>;
-
-pub fn finish_building_ws_peer<S>(opts: &super::Options, duplex: Duplex<S>, close_on_shutdown: bool, hup: Option<HupToken>) -> Peer
-    where S : tokio_io::AsyncRead + tokio_io::AsyncWrite + 'static + Send
+pub fn finish_building_ws_peer<S>(
+    opts: &super::Options,
+    duplex: Duplex<S>,
+    close_on_shutdown: bool,
+    hup: Option<HupToken>,
+) -> Peer
+where
+    S: tokio_io::AsyncRead + tokio_io::AsyncWrite + 'static + Send,
 {
     let (sink, stream) = duplex.split();
     let mpsink = Rc::new(RefCell::new(sink));

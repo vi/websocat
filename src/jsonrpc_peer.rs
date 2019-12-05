@@ -14,7 +14,7 @@ use std::io::Error as IoError;
 pub struct JsonRpc<T: Specifier>(pub T);
 impl<T: Specifier> Specifier for JsonRpc<T> {
     fn construct(&self, cp: ConstructParams) -> PeerConstructor {
-        let inner = self.0.construct(cp.clone());
+        let inner = self.0.construct(cp);
         inner.map(move |p, _| jsonrpc_peer(p))
     }
     specifier_boilerplate!(noglobalstate has_subspec);

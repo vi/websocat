@@ -122,7 +122,7 @@ specifier_class!(
         fn construct(self: &UnixDgramClass, just_arg: &str) -> super::Result<Rc<dyn Specifier>> {
             let splits: Vec<&str> = just_arg.split(':').collect();
             if splits.len() != 2 {
-                Err("Expected two colon-separted paths")?;
+                return Err("Expected two colon-separted paths".into());
             }
             Ok(Rc::new(UnixDgram(splits[0].into(), splits[1].into())))
         }
@@ -256,7 +256,7 @@ specifier_class!(
         fn construct(self: &AbstractDgramClass, just_arg: &str) -> super::Result<Rc<dyn Specifier>> {
             let splits: Vec<&str> = just_arg.split(':').collect();
             if splits.len() != 2 {
-                Err("Expected two colon-separted addresses")?;
+                return Err("Expected two colon-separted addresses".into());
             }
             Ok(Rc::new(UnixDgram(splits[0].into(), splits[1].into())))
         }
@@ -337,8 +337,8 @@ pub fn unix_connect_peer(addr: &Path) -> BoxedNewPeerFuture {
                 let x = Rc::new(x);
                 Peer::new(
                     MyUnixStream(x.clone(), true),
-                    MyUnixStream(x.clone(), false),
-                    None /* TODO */,
+                    MyUnixStream(x, false),
+                    None, /* TODO */
                 )
             })
             .map_err(box_up_err),
@@ -364,8 +364,8 @@ pub fn unix_listen_peer(addr: &Path, opts: &Rc<Options>) -> BoxedNewPeerStream {
                 let x = Rc::new(x);
                 Peer::new(
                     MyUnixStream(x.clone(), true),
-                    MyUnixStream(x.clone(), false),
-                    None /* TODO */,
+                    MyUnixStream(x, false),
+                    None, /* TODO */
                 )
             })
             .map_err(|()| crate::simple_err2("unreachable error?")),
@@ -470,7 +470,7 @@ pub fn dgram_peer_workaround(
             let h2 = h1.clone();
             Ok(Peer::new(h1, h2, None))
         } else {
-            Err("Failed to get, bind or connect socket")?
+            return Err("Failed to get, bind or connect socket".into());
         }
     }
     Box::new(futures::future::result({

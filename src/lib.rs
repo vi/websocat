@@ -16,19 +16,19 @@
 extern crate futures;
 #[macro_use]
 extern crate tokio_io;
+extern crate anymap;
+extern crate http_bytes;
+extern crate tokio_codec;
 extern crate tokio_current_thread;
 extern crate tokio_reactor;
 extern crate tokio_tcp;
 extern crate tokio_udp;
-extern crate tokio_codec;
 extern crate websocket;
 extern crate websocket_base;
-extern crate http_bytes;
-extern crate anymap;
 pub use http_bytes::http;
 
-extern crate tk_listen;
 extern crate net2;
+extern crate tk_listen;
 
 #[macro_use]
 extern crate log;
@@ -78,7 +78,7 @@ impl WebsocatConfiguration1 {
 /// A structural form: two chains of specifier nodes.
 /// Futures/async is not yet involved at this stage, but everything
 /// should be checked and ready to do to start it (apart from OS errors)
-/// 
+///
 /// This form is designed to be editable by lints and command-line options.
 pub struct WebsocatConfiguration2 {
     pub opts: Options,
@@ -117,10 +117,7 @@ pub mod options;
 pub use crate::options::Options;
 
 #[derive(SmartDefault)]
-pub struct ProgramState(
-    #[default(anymap::AnyMap::with_capacity(2))]
-    anymap::AnyMap
-);
+pub struct ProgramState(#[default(anymap::AnyMap::with_capacity(2))] anymap::AnyMap);
 
 /// Some information passed from the left specifier Peer to the right
 #[derive(Default, Clone)]
@@ -143,7 +140,7 @@ pub enum L2rUser {
 }
 
 /// Resolves if/when TCP socket gets reset
-pub type HupToken = Box<dyn Future<Item=(), Error=Box<dyn std::error::Error>>>;
+pub type HupToken = Box<dyn Future<Item = (), Error = Box<dyn std::error::Error>>>;
 
 pub struct Peer(Box<dyn AsyncRead>, Box<dyn AsyncWrite>, Option<HupToken>);
 
@@ -169,15 +166,15 @@ pub use crate::util::{brokenpipe, io_other_error, simple_err2, wouldblock};
 pub mod stdio_peer;
 
 pub mod file_peer;
+pub mod http_peer;
 pub mod mirror_peer;
 pub mod net_peer;
 pub mod stdio_threaded_peer;
 pub mod trivial_peer;
 pub mod ws_client_peer;
+pub mod ws_lowlevel_peer;
 pub mod ws_peer;
 pub mod ws_server_peer;
-pub mod ws_lowlevel_peer;
-pub mod http_peer;
 
 #[cfg(feature = "tokio-process")]
 pub mod process_peer;
@@ -186,9 +183,9 @@ pub mod process_peer;
 pub mod unix_peer;
 
 pub mod broadcast_reuse_peer;
+pub mod foreachmsg_peer;
 pub mod jsonrpc_peer;
 pub mod line_peer;
-pub mod foreachmsg_peer;
 pub mod primitive_reuse_peer;
 pub mod reconnect_peer;
 

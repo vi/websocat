@@ -201,27 +201,27 @@ pub fn tcp_connect_peer(addrs: &[SocketAddr]) -> BoxedNewPeerFuture {
     use futures::stream::futures_unordered::FuturesUnordered;
     let mut fu = FuturesUnordered::new();
     for addr in addrs {
-        let addr = addr.clone();
+        let addr = *addr;
         fu.push(
             TcpStream::connect(&addr)
-            .map(move |x| {
-                info!("Connected to TCP {}", addr);
-                let x = Rc::new(x);
-                Peer::new(
-                    MyTcpStream(x.clone(), true),
-                    MyTcpStream(x.clone(), false),
-                    None /* TODO */
-                )
-            })
-            .map_err(box_up_err)
+                .map(move |x| {
+                    info!("Connected to TCP {}", addr);
+                    let x = Rc::new(x);
+                    Peer::new(
+                        MyTcpStream(x.clone(), true),
+                        MyTcpStream(x, false),
+                        None, /* TODO */
+                    )
+                })
+                .map_err(box_up_err),
         );
     }
     let p = fu.into_future().and_then(|(x, _losers)| {
         let peer = x.unwrap();
         debug!("We have a winner. Disconnecting losers.");
-        futures::future::ok(peer)       
+        futures::future::ok(peer)
     });
-    Box::new(p.map_err(|(e,_)|e)) as BoxedNewPeerFuture
+    Box::new(p.map_err(|(e, _)| e)) as BoxedNewPeerFuture
 }
 
 pub fn tcp_listen_peer(addr: &SocketAddr, l2r: L2rUser) -> BoxedNewPeerStream {
@@ -249,7 +249,7 @@ pub fn tcp_listen_peer(addr: &SocketAddr, l2r: L2rUser) -> BoxedNewPeerStream {
                 let x = Rc::new(x);
                 Peer::new(
                     MyTcpStream(x.clone(), true),
-                    MyTcpStream(x.clone(), false),
+                    MyTcpStream(x, false),
                     None, /* TODO */
                 )
             })
@@ -282,7 +282,7 @@ fn get_zero_address(addr: &SocketAddr) -> SocketAddr {
     SocketAddr::new(ip, 0)
 }
 
-fn apply_udp_options(s: &UdpSocket, opts:&Rc<Options>) -> IoResult<()> {
+fn apply_udp_options(s: &UdpSocket, opts: &Rc<Options>) -> IoResult<()> {
     if opts.udp_broadcast {
         s.set_broadcast(true)?;
     }
@@ -292,7 +292,8 @@ fn apply_udp_options(s: &UdpSocket, opts:&Rc<Options>) -> IoResult<()> {
     let mut v4ai = opts.udp_join_multicast_iface_v4.iter();
     let mut v6ai = opts.udp_join_multicast_iface_v6.iter();
 
-    let use_ai = opts.udp_join_multicast_iface_v4.len() + opts.udp_join_multicast_iface_v6.len() > 0;
+    let use_ai =
+        opts.udp_join_multicast_iface_v4.len() + opts.udp_join_multicast_iface_v6.len() > 0;
 
     for multicast_address in opts.udp_join_multicast_addr.iter() {
         match multicast_address {
@@ -304,14 +305,10 @@ fn apply_udp_options(s: &UdpSocket, opts:&Rc<Options>) -> IoResult<()> {
                     std::net::Ipv4Addr::UNSPECIFIED
                 };
                 s.join_multicast_v4(a, &interface_address)?;
-            },
+            }
             std::net::IpAddr::V6(a) => {
                 multicast_v6 = true;
-                let interface_index = if use_ai {
-                    *v6ai.next().unwrap()
-                } else {
-                    0
-                };
+                let interface_index = if use_ai { *v6ai.next().unwrap() } else { 0 };
                 s.join_multicast_v6(a, interface_index)?;
             }
         }
