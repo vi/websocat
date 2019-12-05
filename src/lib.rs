@@ -116,8 +116,11 @@ impl WebsocatConfiguration3 {
 pub mod options;
 pub use options::Options;
 
-#[derive(Default)]
-pub struct ProgramState(anymap::AnyMap);
+#[derive(SmartDefault)]
+pub struct ProgramState(
+    #[default(anymap::AnyMap::with_capacity(2))]
+    anymap::AnyMap
+);
 
 /// Some information passed from the left specifier Peer to the right
 #[derive(Default, Clone)]
