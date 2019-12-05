@@ -114,7 +114,7 @@ impl WebsocatConfiguration3 {
 }
 
 pub mod options;
-pub use options::Options;
+pub use crate::options::Options;
 
 #[derive(SmartDefault)]
 pub struct ProgramState(
@@ -152,7 +152,7 @@ pub type BoxedNewPeerStream = Box<dyn Stream<Item = Peer, Error = Box<dyn std::e
 
 #[macro_use]
 pub mod specifier;
-pub use specifier::{
+pub use crate::specifier::{
     ClassMessageBoundaryStatus, ClassMulticonnectStatus, ConstructParams, Specifier,
     SpecifierClass, SpecifierStack,
 };
@@ -163,7 +163,7 @@ pub mod all_peers;
 pub mod lints;
 mod my_copy;
 
-pub use util::{brokenpipe, io_other_error, simple_err2, wouldblock};
+pub use crate::util::{brokenpipe, io_other_error, simple_err2, wouldblock};
 
 #[cfg(all(unix, feature = "unix_stdio"))]
 pub mod stdio_peer;
@@ -219,11 +219,11 @@ where
 }
 
 pub mod util;
-pub use util::{box_up_err, multi, once, peer_err, peer_err_s, peer_strerr, simple_err};
+pub use crate::util::{box_up_err, multi, once, peer_err, peer_err_s, peer_strerr, simple_err};
 
 pub mod readdebt;
 
-pub use specparse::spec;
+pub use crate::specparse::spec;
 
 pub struct Transfer {
     from: Box<dyn AsyncRead>,
@@ -238,4 +238,4 @@ pub struct Session {
 }
 
 pub mod sessionserve;
-pub use sessionserve::serve;
+pub use crate::sessionserve::serve;

@@ -253,7 +253,7 @@ pub fn tcp_listen_peer(addr: &SocketAddr, l2r: L2rUser) -> BoxedNewPeerStream {
                     None, /* TODO */
                 )
             })
-            .map_err(|()| ::simple_err2("unreachable error?")),
+            .map_err(|()| crate::simple_err2("unreachable error?")),
     ) as BoxedNewPeerStream
 }
 

@@ -1,8 +1,8 @@
 extern crate hyper;
 extern crate websocket;
 
-use self::websocket::client::async::ClientNew;
-use self::websocket::stream::async::Stream as WsStream;
+use self::websocket::client::r#async::ClientNew;
+use self::websocket::stream::r#async::Stream as WsStream;
 use self::websocket::ClientBuilder;
 use futures::future::Future;
 

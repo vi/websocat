@@ -8,9 +8,9 @@ use futures::future::{err, Future};
 
 use std::rc::Rc;
 
-use options::StaticFile;
+use crate::options::StaticFile;
 
-use self::websocket::server::upgrade::async::IntoWs;
+use self::websocket::server::upgrade::r#async::IntoWs;
 
 use super::ws_peer::{PeerForWs};
 use super::{box_up_err, io_other_error, BoxedNewPeerFuture, Peer};
@@ -119,7 +119,7 @@ pub fn ws_upgrade_peer(
 ) -> BoxedNewPeerFuture {
     let step1 = PeerForWs(inner_peer);
     let step2: Box<
-        dyn Future<Item = self::websocket::server::upgrade::async::Upgrade<_>, Error = _>,
+        dyn Future<Item = self::websocket::server::upgrade::r#async::Upgrade<_>, Error = _>,
     > = step1.into_ws();
     let step3 = step2
         .or_else(|(innerpeer, hyper_incoming, _bytesmut, e)| {
@@ -186,7 +186,7 @@ pub fn ws_upgrade_peer(
                             x.reject()
                                 .and_then(|_| {
                                     warn!("Requested Sec-WebSocket-Protocol does not match --server-protocol option");
-                                    ::futures::future::err(::util::simple_err(
+                                    ::futures::future::err(crate::util::simple_err(
                                         "Requested Sec-WebSocket-Protocol does not match --server-protocol option"
                                             .to_string(),
                                     ))
@@ -237,7 +237,7 @@ pub fn ws_upgrade_peer(
                             x.reject()
                                 .and_then(|_| {
                                     warn!("Incoming request URI doesn't match the --restrict-uri value");
-                                    ::futures::future::err(::util::simple_err(
+                                    ::futures::future::err(crate::util::simple_err(
                                         "Request URI doesn't match --restrict-uri parameter"
                                             .to_string(),
                                     ))

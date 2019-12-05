@@ -1,7 +1,7 @@
 extern crate tokio_codec;
 extern crate websocket;
 
-use self::websocket::stream::async::Stream as WsStream;
+use self::websocket::stream::r#async::Stream as WsStream;
 use self::websocket::OwnedMessage;
 use futures;
 use futures::sink::Sink;
@@ -23,12 +23,12 @@ use super::readdebt::{ProcessMessageResult, ReadDebt};
 type MultiProducerWsSink<T> = Rc<
     RefCell<
         futures::stream::SplitSink<
-            tokio_codec::Framed<T, websocket::async::MessageCodec<websocket::OwnedMessage>>,
+            tokio_codec::Framed<T, websocket::r#async::MessageCodec<websocket::OwnedMessage>>,
         >,
     >,
 >;
 type WsSource<T> = futures::stream::SplitStream<
-    tokio_codec::Framed<T, websocket::async::MessageCodec<websocket::OwnedMessage>>,
+    tokio_codec::Framed<T, websocket::r#async::MessageCodec<websocket::OwnedMessage>>,
 >;
 
 pub struct WsReadWrapper<T: WsStream + 'static> {
@@ -315,7 +315,7 @@ impl<T: WsStream + 'static> ::futures::Future for WsPinger<T> {
 }
 
 
-pub type Duplex<S> = ::tokio_codec::Framed<S, websocket::async::MessageCodec<websocket::OwnedMessage>>;
+pub type Duplex<S> = ::tokio_codec::Framed<S, websocket::r#async::MessageCodec<websocket::OwnedMessage>>;
 
 pub fn finish_building_ws_peer<S>(opts: &super::Options, duplex: Duplex<S>, close_on_shutdown: bool, hup: Option<HupToken>) -> Peer
     where S : tokio_io::AsyncRead + tokio_io::AsyncWrite + 'static + Send

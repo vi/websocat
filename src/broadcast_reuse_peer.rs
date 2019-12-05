@@ -16,7 +16,7 @@ use futures::AsyncSink;
 use futures::Future;
 use futures::Sink;
 use futures::Stream;
-use spawn_hack;
+use crate::spawn_hack;
 use std::ops::DerefMut;
 
 use futures::unsync::mpsc;

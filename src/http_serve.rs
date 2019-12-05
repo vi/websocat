@@ -8,11 +8,11 @@ use futures::future::Future;
 use std::fs::File;
 use std::rc::Rc;
 
-use options::StaticFile;
-use trivial_peer::get_literal_peer_now;
-use Peer;
+use crate::options::StaticFile;
+use crate::trivial_peer::get_literal_peer_now;
+use crate::Peer;
 
-use my_copy::{copy, CopyOptions};
+use crate::my_copy::{copy, CopyOptions};
 
 const BAD_REQUEST :&[u8] = b"HTTP/1.1 400 Bad Request\r\nServer: websocat\r\nContent-Type: text/plain\r\nConnection: close\r\n\r\nOnly WebSocket connections are welcome here\n";
 
@@ -100,7 +100,7 @@ pub fn http_serve(
                         stop_on_reader_zero_read: true,
                         skip: false,
                     };
-                    let wr = ::file_peer::ReadFileWrapper(f);
+                    let wr = crate::file_peer::ReadFileWrapper(f);
                     copy(wr, conn, co2).map(|_| ()).map_err(drop)
                 }),
         )

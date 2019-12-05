@@ -3,7 +3,7 @@ use super::{
     futures, my_copy, ConstructParams, L2rUser, L2rWriter, Options, Peer, PeerConstructor,
     ProgramState, Session, Specifier, Transfer,
 };
-use spawn_hack;
+use crate::spawn_hack;
 use std;
 use std::cell::RefCell;
 use std::rc::Rc;
@@ -128,7 +128,7 @@ where
     debug!("Serving {:?} to {:?} with {:?}", s1, s2, opts);
     let ps = Rc::new(RefCell::new(ProgramState::default()));
 
-    use PeerConstructor::{Overlay1, OverlayM, ServeMultipleTimes, ServeOnce};
+    use crate::PeerConstructor::{Overlay1, OverlayM, ServeMultipleTimes, ServeOnce};
 
     let e1 = onerror.clone();
     let e2 = onerror.clone();

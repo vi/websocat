@@ -1,5 +1,5 @@
 use super::{
-    futures, std, AsyncRead, AsyncWrite, BoxedNewPeerFuture, BoxedNewPeerStream, L2rUser, Peer,
+    futures, AsyncRead, AsyncWrite, BoxedNewPeerFuture, BoxedNewPeerStream, L2rUser, Peer,
     PeerConstructor, Rc, HupToken,
 };
 use super::{Future, Stream};
@@ -21,7 +21,7 @@ impl PeerConstructor {
         F: Fn(Peer, L2rUser) -> BoxedNewPeerFuture,
     {
         let f = Rc::new(func);
-        use PeerConstructor::*;
+        use crate::PeerConstructor::*;
         match self {
             Error(e) => Error(e),
             ServeOnce(x) => Overlay1(x, f),
@@ -53,7 +53,7 @@ impl PeerConstructor {
     }
 
     pub fn get_only_first_conn(self, l2r: L2rUser) -> BoxedNewPeerFuture {
-        use PeerConstructor::*;
+        use crate::PeerConstructor::*;
         match self {
             Error(e) => Box::new(futures::future::err(e)) as BoxedNewPeerFuture,
             ServeMultipleTimes(stre) => Box::new(

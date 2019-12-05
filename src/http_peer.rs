@@ -19,8 +19,8 @@ extern crate http_bytes;
 use http_bytes::http;
 
 use http_bytes::{Request,Response};
-use http::Uri;
-use http::Method;
+use crate::http::Uri;
+use crate::http::Method;
 
 #[derive(Debug)]
 pub struct HttpRequest<T: Specifier>(pub T);
@@ -28,7 +28,7 @@ impl<T: Specifier> Specifier for HttpRequest<T> {
     fn construct(&self, cp: ConstructParams) -> PeerConstructor {
         let inner = self.0.construct(cp.clone());
         inner.map(move |p, l2r| {
-            let mut b = ::http::request::Builder::default();
+            let mut b = crate::http::request::Builder::default();
             if let Some(uri) = cp.program_options.request_uri.as_ref() {
                 b.uri(uri);
             }
@@ -75,7 +75,7 @@ impl<T: Specifier> Specifier for Http<T> {
         let inner = self.0.construct(cp.clone());
         let uri = self.1.clone();
         inner.map(move |p, l2r| {
-            let mut b = ::http::request::Builder::default();
+            let mut b = crate::http::request::Builder::default();
             b.uri(uri.clone());
             if let Some(method) = cp.program_options.request_method.as_ref() {
                 b.method(method);
@@ -107,7 +107,7 @@ specifier_class!(
                 } else {
                     format!("tcp:{}:80", host)
                 };
-                tcp_peer = ::spec(addr.as_ref())?;
+                tcp_peer = crate::spec(addr.as_ref())?;
             }
             Ok(Rc::new(Http(tcp_peer, uri)))
         }

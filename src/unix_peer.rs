@@ -368,7 +368,7 @@ pub fn unix_listen_peer(addr: &Path, opts: &Rc<Options>) -> BoxedNewPeerStream {
                     None /* TODO */,
                 )
             })
-            .map_err(|()| ::simple_err2("unreachable error?")),
+            .map_err(|()| crate::simple_err2("unreachable error?")),
     ) as BoxedNewPeerStream
 }
 

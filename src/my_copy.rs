@@ -2,7 +2,7 @@ use std::io;
 
 use futures::{Future, Poll};
 
-use {AsyncRead, AsyncWrite};
+use crate::{AsyncRead, AsyncWrite};
 
 #[derive(Debug, Copy, Clone)]
 pub struct CopyOptions {

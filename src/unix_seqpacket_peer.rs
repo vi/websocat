@@ -203,6 +203,6 @@ pub fn seqpacket_listen_peer(addr: &Path, opts: &Rc<Options>) -> BoxedNewPeerStr
                     None /* TODO*/ ,
                 )
             })
-            .map_err(|()| ::simple_err2("unreachable error?")),
+            .map_err(|()| crate::simple_err2("unreachable error?")),
     ) as BoxedNewPeerStream
 }
