@@ -148,6 +148,16 @@ all() {
     ST=strip
     CA='cargo +stable'
     r
+    
+    export PKG_CONFIG_ALLOW_CROSS=1
+    S=""
+    FE=--features=workaround1,seqpacket,ssl,openssl-probe
+    T=mipsel-unknown-linux-musl
+    TT=mipsel-linux-static
+    ST=strip
+    CA='cargo +stable'
+    r
+
 
     S="_nossl"
     FE=--features=workaround1,seqpacket
