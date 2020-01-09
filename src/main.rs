@@ -431,7 +431,7 @@ struct Opt {
     /// [A] Don't exit when encountered a zero message.
     /// Zero messages are used internally in Websocat,
     /// so it may fail to close connection at all.
-    #[structopt(long = "no-exist-on-zeromsg")]
+    #[structopt(long = "no-exit-on-zeromsg")]
     no_exit_on_zeromsg: bool,
 
     /// [A] Silently drop incoming zero-length WebSocket messages.

@@ -53,7 +53,7 @@ FLAGS:
                                                 messages
     -0, --null-terminated                       Use \0 instead of \n for linemode
         --no-line                               [A] Don't automatically insert line-to-message transformation
-        --no-exist-on-zeromsg                   [A] Don't exit when encountered a zero message. Zero messages are used
+        --no-exit-on-zeromsg                   [A] Don't exit when encountered a zero message. Zero messages are used
                                                 internally in Websocat, so it may fail to close connection at all.
         --no-fixups                             [A] Don't perform automatic command-line fixups. May destabilize
                                                 websocat operation. Use --dump-spec without --no-fixups to discover what
