@@ -111,7 +111,7 @@ E=.exe
 r
 
 T=x86_64-pc-windows-gnu
-CA="cross"
+CA="cargo +stable"
 TT=win64
 ST=amd64-mingw32msvc-strip
 E=.exe
