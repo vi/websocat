@@ -9,6 +9,8 @@ if [ -z "$1" ]; then
 fi
 D="$1"
 
+export RUSTFLAGS=
+
 
 S=""
 E=""
