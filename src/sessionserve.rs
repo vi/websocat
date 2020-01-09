@@ -17,8 +17,10 @@ impl Session {
             once,
             buffer_size: self.opts.buffer_size,
             skip: false,
+            max_ops: self.opts.max_messages,
         };
         let mut co2 = co1.clone();
+        co2.max_ops = self.opts.max_messages_rev;
         if self.opts.unidirectional {
             co2.skip=true;
         }

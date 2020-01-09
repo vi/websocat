@@ -31,6 +31,8 @@ pub struct Options {
     pub udp_reuseaddr: bool,
     pub unidirectional: bool,
     pub unidirectional_reverse: bool,
+    pub max_messages: Option<usize>,
+    pub max_messages_rev: Option<usize>,
     pub exit_on_eof: bool,
     pub oneshot: bool,
     pub unlink_unix_socket: bool,

@@ -87,6 +87,7 @@ pub fn http_serve(
         once: false,
         stop_on_reader_zero_read: true,
         skip: false,
+        max_ops: None,
     };
 
     if let Some(f) = serve_file {
@@ -99,6 +100,7 @@ pub fn http_serve(
                         once: false,
                         stop_on_reader_zero_read: true,
                         skip: false,
+                        max_ops: None,
                     };
                     let wr = crate::file_peer::ReadFileWrapper(f);
                     copy(wr, conn, co2).map(|_| ()).map_err(drop)

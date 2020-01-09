@@ -440,6 +440,13 @@ struct Opt {
     #[structopt(long = "websocket-ignore-zeromsg")]
     websocket_ignore_zeromsg: bool,
     
+    /// Maximum number of messages to copy in one direction.
+    #[structopt(long = "max-messages")]
+    max_messages: Option<usize>,
+
+    /// Maximum number of messages to copy in the other direction.
+    #[structopt(long = "max-messages-rev")]
+    max_messages_rev: Option<usize>,
 }
 
 // TODO: make it byte-oriented/OsStr?
@@ -679,6 +686,8 @@ fn run() -> Result<()> {
             request_headers
             websocket_ignore_zeromsg
             no_exit_on_zeromsg
+            max_messages
+            max_messages_rev
         );
         #[cfg(feature = "ssl")]
         {

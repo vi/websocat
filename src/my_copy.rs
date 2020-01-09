@@ -11,6 +11,7 @@ pub struct CopyOptions {
     pub buffer_size: usize,
     /// Because of -u or -U
     pub skip: bool,
+    pub max_ops: Option<usize>,
 }
 
 /// A future which will copy all data from a reader into a writer.
@@ -31,6 +32,7 @@ pub struct Copy<R, W> {
     buf: Box<[u8]>,
     opts: CopyOptions,
     read_occurred: bool,
+    remaining_ops: Option<usize>,
 }
 
 /// Creates a future which represents copying all the bytes from one object to
@@ -63,6 +65,7 @@ where
         buf: vec![0; opts.buffer_size].into_boxed_slice(),
         opts,
         read_occurred: false,
+        remaining_ops: opts.max_ops,
     }
 }
 
@@ -87,6 +90,12 @@ where
             trace!("poll");
             if self.pos == self.cap && !self.read_done {
                 if self.read_occurred && self.opts.once {
+                    debug!("Once mode requested, so aborting copy");
+                    self.read_done = true;
+                    continue;
+                }
+                if self.remaining_ops == Some(0) {
+                    debug!("Maximum number of messages to copy exceed, so aborting copy");
                     self.read_done = true;
                     continue;
                 }
@@ -101,6 +110,9 @@ where
                 }
                 let n = try_nb!(rr);
                 trace!("read {}", n);
+                if let Some(ref mut maxops) = self.remaining_ops {
+                    *maxops -= 1;
+                }
                 if n == 0 {
                     debug!("zero len");
                     if self.opts.stop_on_reader_zero_read {
