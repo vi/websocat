@@ -15,7 +15,7 @@ use futures::sync::mpsc;
 
 use tokio_io::{AsyncRead, AsyncWrite};
 
-use super::readdebt::{DebtHandling, ProcessMessageResult, ReadDebt};
+use super::readdebt::{DebtHandling, ProcessMessageResult, ReadDebt, ZeroMessagesHandling};
 use super::{once, ConstructParams, PeerConstructor, Specifier};
 
 #[derive(Debug, Clone)]
@@ -83,7 +83,7 @@ struct MirrorRead {
 pub fn get_mirror_peer(debt_handling: DebtHandling) -> BoxedNewPeerFuture {
     let (sender, receiver) = mpsc::channel::<Vec<u8>>(0);
     let r = MirrorRead {
-        debt: ReadDebt(Default::default(), debt_handling),
+        debt: ReadDebt(Default::default(), debt_handling, ZeroMessagesHandling::Deliver),
         ch: receiver,
     };
     let w = MirrorWrite(sender);
@@ -93,7 +93,7 @@ pub fn get_mirror_peer(debt_handling: DebtHandling) -> BoxedNewPeerFuture {
 pub fn get_literal_reply_peer(content: Vec<u8>) -> BoxedNewPeerFuture {
     let (sender, receiver) = mpsc::channel::<()>(0);
     let r = LiteralReplyRead {
-        debt: ReadDebt(Default::default(), DebtHandling::Silent),
+        debt: ReadDebt(Default::default(), DebtHandling::Silent, ZeroMessagesHandling::Deliver),
         ch: receiver,
         content,
     };

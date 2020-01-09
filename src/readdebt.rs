@@ -7,13 +7,18 @@ pub enum DebtHandling {
     DropMessage,
 }
 
+pub enum ZeroMessagesHandling {
+    Drop,
+    Deliver,
+}
+
 pub enum ProcessMessageResult {
     Return(std::result::Result<usize, std::io::Error>),
     Recurse,
 }
 
 /// A `Read` utility to deal with partial reads
-pub struct ReadDebt(pub Option<Vec<u8>>, pub DebtHandling);
+pub struct ReadDebt(pub Option<Vec<u8>>, pub DebtHandling, pub ZeroMessagesHandling);
 impl ReadDebt {
     pub fn process_message(&mut self, buf: &mut [u8], buf_in: &[u8]) -> ProcessMessageResult {
         assert_eq!(self.0, None);
@@ -38,6 +43,15 @@ impl ReadDebt {
         }
 
         debug!("Fullfulling the debt of {} bytes", l);
+        if l == 0 {
+            match self.2 {
+                ZeroMessagesHandling::Deliver => (),
+                ZeroMessagesHandling::Drop => {
+                    info!("Dropping incoming zero-length message");
+                    return ProcessMessageResult::Recurse;
+                }
+            }
+        }
         ProcessMessageResult::Return(Ok(l))
     }
     pub fn check_debt(

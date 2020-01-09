@@ -43,6 +43,7 @@ pub struct Options {
     pub custom_reply_headers: Vec<(String, Vec<u8>)>,
     pub websocket_version: Option<String>,
     pub websocket_dont_close: bool,
+    pub websocket_ignore_zeromsg: bool,
     pub one_message: bool,
     pub no_auto_linemode: bool,
     #[default = 65536]
@@ -55,6 +56,7 @@ pub struct Options {
     pub restrict_uri: Option<String>,
     pub serve_static_files: Vec<StaticFile>,
     pub exec_set_env: bool,
+    pub no_exit_on_zeromsg: bool,
     pub reuser_send_zero_msg_on_disconnect: bool,
     pub process_zero_sighup: bool,
     pub process_exit_sighup: bool,

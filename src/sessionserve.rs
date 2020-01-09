@@ -13,7 +13,7 @@ impl Session {
     pub fn run(self) -> Box<dyn Future<Item = (), Error = Box<dyn std::error::Error>>> {
         let once = self.opts.one_message;
         let mut co1 = my_copy::CopyOptions {
-            stop_on_reader_zero_read: true,
+            stop_on_reader_zero_read: !self.opts.no_exit_on_zeromsg,
             once,
             buffer_size: self.opts.buffer_size,
             skip: false,

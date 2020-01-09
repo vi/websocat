@@ -350,10 +350,16 @@ pub fn finish_building_ws_peer<S>(opts: &super::Options, duplex: Duplex<S>, clos
         None
     };
 
+    let zmsgh = if opts.no_exit_on_zeromsg {
+        super::readdebt::ZeroMessagesHandling::Drop
+    } else {
+        super::readdebt::ZeroMessagesHandling::Deliver
+    };
+    
     let ws_str = WsReadWrapper {
         s: stream,
         pingreply: mpsink.clone(),
-        debt: super::readdebt::ReadDebt(Default::default(), opts.read_debt_handling),
+        debt: super::readdebt::ReadDebt(Default::default(), opts.read_debt_handling, zmsgh),
         pong_timeout,
         ping_aborter,
     };

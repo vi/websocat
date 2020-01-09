@@ -427,6 +427,19 @@ struct Opt {
         parse(try_from_str = "interpret_custom_header2"),
     )]
     request_headers: Vec<(http::header::HeaderName, http::header::HeaderValue)>,
+
+    /// [A] Don't exit when encountered a zero message.
+    /// Zero messages are used internally in Websocat,
+    /// so it may fail to close connection at all.
+    #[structopt(long = "no-exist-on-zeromsg")]
+    no_exit_on_zeromsg: bool,
+
+    /// [A] Silently drop incoming zero-length WebSocket messages.
+    /// They may cause connection close due to
+    /// usage of zero-len message as EOF flag inside Websocat.
+    #[structopt(long = "websocket-ignore-zeromsg")]
+    websocket_ignore_zeromsg: bool,
+    
 }
 
 // TODO: make it byte-oriented/OsStr?
@@ -664,6 +677,8 @@ fn run() -> Result<()> {
             request_uri
             request_method
             request_headers
+            websocket_ignore_zeromsg
+            no_exit_on_zeromsg
         );
         #[cfg(feature = "ssl")]
         {

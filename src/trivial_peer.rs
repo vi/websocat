@@ -10,7 +10,7 @@ use futures::Async::Ready;
 use std::rc::Rc;
 use tokio_io::{AsyncRead, AsyncWrite};
 
-use super::readdebt::{DebtHandling, ReadDebt};
+use super::readdebt::{DebtHandling, ReadDebt, ZeroMessagesHandling};
 use super::wouldblock;
 
 use super::{once, simple_err, ConstructParams, PeerConstructor, Specifier};
@@ -131,7 +131,7 @@ pub struct LiteralPeer {
 
 pub fn get_literal_peer_now(b: Vec<u8>) -> LiteralPeer {
     LiteralPeer {
-        debt: ReadDebt(Some(b), DebtHandling::Silent),
+        debt: ReadDebt(Some(b), DebtHandling::Silent, ZeroMessagesHandling::Deliver),
     }
 }
 
