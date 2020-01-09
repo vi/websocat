@@ -18,22 +18,22 @@ ST=strip
 FE=""
 CA="cargo +stable"
 
-V=$(cat Cargo.toml | grep '^version' | grep -o '\".*\"' | tr -d '"' | cut -d. -f 1-3)
+V="$(cat Cargo.toml | grep '^version' | grep -o '\".*\"' | tr -d '"' | cut -d. -f 1-3)"
 
-echo Version: $V
+echo Version: "$V"
 
 mkdir -p "$D"
 
 r() {
-    TF="$D"/websocat${S}_${TT}${E}
+    TF="$D"/websocat"${S}_$TT$E"
     if [ -e "$TF" ]; then
-        echo $TF already exists
+        echo "$TF" already exists
         return
     fi
     echo "$T -> $TF"
-    $CA rustc --bin websocat $FE --release -j2 --target $T -- -C lto
-    cp ./target/$T/release/websocat${E} "$TF"
-    ${ST} "${TF}"
+    "$CA" rustc --bin websocat "$FE" --release -j2 --target "$T" -- -C lto
+    cp ./target/"$T/release/websocat$E" "$TF"
+    "$ST" "$TF"
 }
 
 
@@ -117,7 +117,7 @@ ST=amd64-mingw32msvc-strip
 E=.exe
 r
 
-PATH=$PATH:/mnt/src/git/osxcross/target/bin
+PATH="$PATH":/mnt/src/git/osxcross/target/bin
 T=x86_64-apple-darwin
 CA="cargo +stable"
 TT=mac
@@ -162,25 +162,25 @@ FE=
 b
 
 
-F=$D/websocat_${V}_ssl1.1_amd64.deb
+F="$D/websocat_${V}"_ssl1.1_amd64.deb
 if [ ! -e "$F" ]; then
     cargo +stable deb --target=x86_64-unknown-linux-gnu
-    cp -v target/x86_64-unknown-linux-gnu/debian/websocat_${V}_amd64.deb "$F"
+    cp -v target/x86_64-unknown-linux-gnu/debian/websocat_"${V}"_amd64.deb "$F"
     echo debian.vi-server.org-add "$F"
 else
     echo "$F already exists"
 fi
 
-F=$D/websocat_${V}_ssl1.1_i386.deb
+F="$D/websocat_${V}"_ssl1.1_i386.deb
 if [ ! -e "$F" ]; then
     cargo +stable deb --target=i686-unknown-linux-gnu
-    cp -v target/i686-unknown-linux-gnu/debian/websocat_${V}_i386.deb "$F"
+    cp -v target/i686-unknown-linux-gnu/debian/websocat_"${V}"_i386.deb "$F"
     echo debian.vi-server.org-add "$F"
 else
     echo "$F already exists"
 fi
 
-F=$D/websocat_${V}_ssl1.0_amd64.deb
+F="$D/websocat_${V}"_ssl1.0_amd64.deb
 if [ ! -e "$F" ]; then
     #trap 'mv Cargo.toml.bak Cargo.toml; rm -Rf target/ && mv target_ target' EXIT
     trap 'mv Cargo.toml.bak Cargo.toml' EXIT
@@ -188,9 +188,9 @@ if [ ! -e "$F" ]; then
     #ln -s /tmp/qqq target
     cp Cargo.toml Cargo.toml.bak
     cat Cargo.toml.bak | sed 's!libssl1.1!libssl1.0.0!' > Cargo.toml
-    docker run --rm -it -v $PWD:/wd --entrypoint /bin/bash ubu1604rust -c 'source /root/.profile && mkdir /tmp/qqq && cd /wd && CARGO_TARGET_DIR=/tmp/qqq cargo deb --target=x86_64-unknown-linux-gnu && PKG_CONFIG_ALLOW_CROSS=1 CARGO_TARGET_DIR=/tmp/qqq cargo deb --target=i686-unknown-linux-gnu && cp /tmp/qqq/*/debian/*.deb /wd/'
-    cp -v websocat_${V}_amd64.deb "$F"
-    cp -v websocat_${V}_i386.deb "${F/amd64/i386}"
+    docker run --rm -it -v "$PWD":/wd --entrypoint /bin/bash ubu1604rust -c 'source /root/.profile && mkdir /tmp/qqq && cd /wd && CARGO_TARGET_DIR=/tmp/qqq cargo deb --target=x86_64-unknown-linux-gnu && PKG_CONFIG_ALLOW_CROSS=1 CARGO_TARGET_DIR=/tmp/qqq cargo deb --target=i686-unknown-linux-gnu && cp /tmp/qqq/*/debian/*.deb /wd/'
+    cp -v websocat_"${V}"_amd64.deb "$F"
+    cp -v websocat_"${V}"_i386.deb "${F/amd64/i386}"
 else
     echo "ssl1.0 files already exist"
 fi
