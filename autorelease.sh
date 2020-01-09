@@ -9,7 +9,7 @@ if [ -z "$1" ]; then
 fi
 D="$1"
 
-export RUSTFLAGS=
+unset RUSTFLAGS
 
 
 S=""
@@ -141,6 +141,13 @@ all() {
     FE=--features=ssl
     b
 
+    S="_nossl"
+    FE=--features=workaround1,seqpacket
+    T=mipsel-unknown-linux-musl
+    TT=mipsel-linux-static
+    ST=strip
+    CA='cargo +stable'
+    r
 
     S="_nossl"
     FE=--features=workaround1,seqpacket
