@@ -29,7 +29,7 @@ Some address types may be "aliases" to other address types or combinations of ov
 
 ```
 
-websocat 1.5.0
+websocat 2.0.0-alpha0
 Vitaly "_Vi" Shukela <vi0oss@gmail.com>
 Command-line client for web sockets, like netcat/curl/socat for ws://.
 
@@ -48,10 +48,13 @@ FLAGS:
         --jsonrpc                               Format messages you type as JSON RPC 2.0 method calls. First word
                                                 becomes method name, the rest becomes parameters, possibly automatically
                                                 wrapped in [].
+        --just-generate-key                     [A] Just a Sec-WebSocket-Key value without running main Websocat
         --linemode-strip-newlines               [A] Don't include trailing \n or \r\n coming from streams in WebSocket
                                                 messages
     -0, --null-terminated                       Use \0 instead of \n for linemode
         --no-line                               [A] Don't automatically insert line-to-message transformation
+        --no-exist-on-zeromsg                   [A] Don't exit when encountered a zero message. Zero messages are used
+                                                internally in Websocat, so it may fail to close connection at all.
         --no-fixups                             [A] Don't perform automatic command-line fixups. May destabilize
                                                 websocat operation. Use --dump-spec without --no-fixups to discover what
                                                 is being inserted automatically and read the full manual about Websocat
@@ -69,7 +72,11 @@ FLAGS:
     -S, --strict                                strict line/message mode: drop too long messages instead of splitting
                                                 them, drop incomplete lines.
     -k, --insecure                              Accept invalid certificates and hostnames while connecting to TLS
+        --udp-broadcast                         [A] Set SO_BROADCAST
+        --udp-multicast-loop                    [A] Set IP[V6]_MULTICAST_LOOP
         --udp-oneshot                           [A] udp-listen: replies only one packet per client
+        --udp-reuseaddr                         [A] Set SO_REUSEADDR for UDP socket. Listening TCP sockets are always
+                                                reuseaddr.
     -u, --unidirectional                        Inhibit copying data in one direction
     -U, --unidirectional-reverse                Inhibit copying data in the other direction (or maybe in both directions
                                                 if combined with -u)
@@ -78,6 +85,9 @@ FLAGS:
     -v                                          Increase verbosity level to info or further
     -b, --binary                                Send message to WebSockets as binary messages
     -n, --no-close                              Don't send Close message to websocket on EOF
+        --websocket-ignore-zeromsg              [A] Silently drop incoming zero-length WebSocket messages. They may
+                                                cause connection close due to usage of zero-len message as EOF flag
+                                                inside Websocat.
     -t, --text                                  Send message to WebSockets as text messages
 
 OPTIONS:
@@ -87,7 +97,7 @@ OPTIONS:
         --queue-len <broadcast_queue_len>
             [A] Number of pending queued messages for broadcast reuser [default: 16]
 
-    -B, --buffer-size <buffer_size>                     Maximum message size, in bytes [default: 65536]
+    -B, --buffer-size <buffer_size>                                  Maximum message size, in bytes [default: 65536]
     -H, --header <custom_headers>...
             Add custom HTTP header to websocket client request. Separate header name and value with a colon and
             optionally a single space. Can be used multiple times. Note that single -H may eat multiple further
@@ -107,14 +117,35 @@ OPTIONS:
             --help=short is the list of easy options and address types
             --help=long lists all options and types (see [A] markers)
             --help=doc also shows longer description and examples.
-        --conncap <max_parallel_conns>                  Maximum number of simultaneous connections for listening mode
-        --origin <origin>                               Add Origin HTTP header to websocket client request
+        --just-generate-accept <just_generate_accept>
+            [A] Just a Sec-WebSocket-Accept value based on supplied Sec-WebSocket-Key value without running main
+            Websocat
+        --max-messages <max_messages>
+            Maximum number of messages to copy in one direction.
+
+        --max-messages-rev <max_messages_rev>
+            Maximum number of messages to copy in the other direction.
+
+        --conncap <max_parallel_conns>
+            Maximum number of simultaneous connections for listening mode
+
+        --origin <origin>                                            Add Origin HTTP header to websocket client request
         --pkcs12-der <pkcs12_der>
             Pkcs12 archive needed to accept SSL connections, certificate and key.
             A command to output it: openssl pkcs12 -export -out output.pkcs12 -inkey key.pem -in cert.pem
             Use with -s (--server-mode) option or with manually specified TLS overlays.
             See moreexamples.md for more info.
-        --pkcs12-passwd <pkcs12_passwd>                 Password for --pkcs12-der pkcs12 archive. Required on Mac.
+        --pkcs12-passwd <pkcs12_passwd>
+            Password for --pkcs12-der pkcs12 archive. Required on Mac.
+
+        --request-header <request_headers>...
+            Specify HTTP request headers TODO: add short option, remove existing -H
+            Note: this is option for not-yet-finished websocat 2.0. Beware of confusion.
+
+    -X, --request-method <request_method>                            [A] Method to use for `http-request:` specifier
+            Note: this is option for not-yet-finished websocat 2.0. Beware of confusion.
+        --request-uri <request_uri>                                  [A] URI to use for `http-request:` specifier
+            Note: this is option for not-yet-finished websocat 2.0. Beware of confusion.
         --restrict-uri <restrict_uri>
             When serving a websocket, only accept the given URI, like `/ws`
             This liberates other URIs for things like serving static files or proxying.
@@ -128,17 +159,33 @@ OPTIONS:
         --socks5-bind-script <socks5_bind_script>
             [A] Execute specified script in `socks5-bind:` mode when remote port number becomes known.
 
-        --socks5-destination <socks_destination>        [A] Examples: 1.2.3.4:5678  2600:::80  hostname:5678
+        --socks5-destination <socks_destination>
+            [A] Examples: 1.2.3.4:5678  2600:::80  hostname:5678
+
         --tls-domain <tls_domain>
             [A] Specify domain for SNI or certificate verification when using tls-connect: overlay
 
-        --protocol <websocket_protocol>                 Specify this Sec-WebSocket-Protocol: header when connecting
+        --udp-multicast <udp_join_multicast_addr>...
+            [A] Issue IP[V6]_ADD_MEMBERSHIP for specified multicast address. Can be specified multiple times.
+
+        --udp-multicast-iface-v4 <udp_join_multicast_iface_v4>...
+            [A] IPv4 address of multicast network interface. Has to be either not specified or specified the same number
+            of times as multicast IPv4 addresses. Order matters.
+        --udp-multicast-iface-v6 <udp_join_multicast_iface_v6>...
+            [A] Index of network interface for IPv6 multicast. Has to be either not specified or specified the same
+            number of times as multicast IPv6 addresses. Order matters.
+        --udp-ttl <udp_ttl>                                          [A] Set IP_TTL, also IP_MULTICAST_TTL if applicable
+        --protocol <websocket_protocol>
+            Specify this Sec-WebSocket-Protocol: header when connecting
+
         --server-protocol <websocket_reply_protocol>
             Force this Sec-WebSocket-Protocol: header when accepting a connection
 
-        --websocket-version <websocket_version>         Override the Sec-WebSocket-Version value
-        --ws-c-uri <ws_c_uri>                           [A] URI to use for ws-c: overlay [default: ws://0.0.0.0/]
-        --ping-interval <ws_ping_interval>              Send WebSocket pings each this number of seconds
+        --websocket-version <websocket_version>                      Override the Sec-WebSocket-Version value
+        --ws-c-uri <ws_c_uri>
+            [A] URI to use for ws-c: overlay [default: ws://0.0.0.0/]
+
+        --ping-interval <ws_ping_interval>                           Send WebSocket pings each this number of seconds
         --ping-timeout <ws_ping_timeout>
             Drop WebSocket connection if Pong message not received for this number of seconds
 
@@ -236,6 +283,30 @@ Internal name for --dump-spec: WsAbstractUnixServer
 WebSocket abstract-namespaced UNIX socket server. [A]
 
 
+### `ws-lowlevel-client:`
+
+Aliases: `ws-ll-client:`, `ws-ll-c:`  
+Internal name for --dump-spec: WsLlClient
+
+
+[A] Low-level HTTP-independent WebSocket client connection without associated HTTP upgrade.
+Note: this is option for not-yet-finished websocat 2.0. Beware of confusion.
+
+Example: TODO
+
+
+### `ws-lowlevel-server:`
+
+Aliases: `ws-ll-server:`, `ws-ll-s:`  
+Internal name for --dump-spec: WsLlServer
+
+
+[A] Low-level HTTP-independent WebSocket server connection without associated HTTP upgrade.
+Note: this is option for not-yet-finished websocat 2.0. Beware of confusion.
+
+Example: TODO
+
+
 ### `wss-listen:`
 
 Aliases: `wss-l:`, `l-wss:`, `wss-listen:`  
@@ -250,6 +321,25 @@ Example: wss:// echo server + client for testing
     websocat --ws-c-uri=wss://localhost/ -t - ws-c:cmd:'socat - ssl:127.0.0.1:1234,verify=0'
 
 See [moreexamples.md](./moreexamples.md) for info about generation of `q.pkcs12`.
+
+
+### `http:`
+
+Internal name for --dump-spec: Http
+
+
+[A] Issue HTTP request, receive a 1xx or 2xx reply, then pass
+the torch to outer peer, if any - highlevel version.
+
+Content you write becomes body, content you read is body that server has sent.
+
+URI is specified inline.
+
+Note: this is option for not-yet-finished websocat 2.0. Beware of confusion.
+
+Example:
+
+    websocat  -b - http://example.com < /dev/null
 
 
 ### `stdio:`
@@ -731,6 +821,25 @@ Example: serve incoming connection from socat
     socat tcp-l:1234,fork,reuseaddr exec:'websocat -t ws-u\:stdio\: mirror\:'
 
 
+### `http-request:`
+
+Internal name for --dump-spec: HttpRequest
+
+
+[A] Issue HTTP request, receive a 1xx or 2xx reply, then pass
+the torch to outer peer, if any - lowlevel version.
+
+Content you write becomes body, content you read is body that server has sent.
+
+URI is specified using a separate command-line parameter
+
+Note: this is option for not-yet-finished websocat 2.0. Beware of confusion.
+
+Example:
+
+    websocat -Ub - http-request:tcp:example.com:80 --request-uri=http://example.com/ --request-header 'Connection: close'
+
+
 ### `ssl-connect:`
 
 Aliases: `ssl-c`, `ssl:`, `tls:`, `tls-connect:`, `c-ssl:`, `connect-ssl:`, `c-tls:`, `connect-tls:`  
@@ -875,6 +984,22 @@ Does not affect writing at all. Use this specifier on both ends to get bi-direct
 Automatically inserted by --line option at the top of the stack opposite to websocket-containing stack.
 
 Example: TODO
+
+
+### `foreachmsg:`
+
+Internal name for --dump-spec: Foreachmsg
+
+
+Execute something for each incoming message.
+
+Somewhat the reverse of the `autoreconnect:`.
+
+Example:
+
+    websocat -t -u ws://server/listen_for_updates foreachmsg:writefile:status.txt
+
+This keeps only recent incoming message in file and discards earlier messages.
 
 
 ### `jsonrpc:`
