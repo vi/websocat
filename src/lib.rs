@@ -21,6 +21,7 @@ extern crate tokio_reactor;
 extern crate tokio_tcp;
 extern crate tokio_udp;
 extern crate tokio_codec;
+extern crate tokio_timer;
 extern crate websocket;
 extern crate websocket_base;
 extern crate http_bytes;
@@ -40,8 +41,6 @@ extern crate slab_typesafe;
 extern crate smart_default;
 #[macro_use]
 extern crate derivative;
-
-extern crate tokio_timer;
 
 use futures::future::Future;
 use tokio_io::{AsyncRead, AsyncWrite};

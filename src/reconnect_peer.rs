@@ -59,6 +59,8 @@ struct State {
     n: Option<BoxedNewPeerFuture>,
     cp: ConstructParams,
     aux: State2,
+    reconnect_delay: std::time::Duration,
+    ratelimiter: Option<tokio_timer::Delay>,
 }
 
 /// This implementation's poll is to be reused many times, both after returning item and error
@@ -73,6 +75,16 @@ impl State {
         let aux = &mut self.aux;
 
         loop {
+            if let Some(delay) = self.ratelimiter.as_mut() {
+                match delay.poll() {
+                    Ok(Async::Ready(_)) => {
+                        debug!("Waited for reconnect");
+                        self.ratelimiter = None;
+                    }
+                    Err(e) => error!("tokio-timer's Delay: {}", e),
+                    Ok(Async::NotReady) => return Ok(Async::NotReady),
+                }
+            }
             let cp = self.cp.clone();
             if let Some(ref mut p) = *pp {
                 return Ok(Async::Ready(p));
@@ -98,8 +110,13 @@ impl State {
 
                         if !aux.already_warned {
                             aux.already_warned = true;
-                            error!("Reconnecting failed. Trying again in tight endless loop.");
+                            warn!("Reconnecting failed. Further failed reconnects announncements will have lower severity.");
+                        } else {
+                            info!("Reconnecting failed.");
                         }
+
+                        self.ratelimiter = Some(tokio_timer::Delay::new(std::time::Instant::now() + self.reconnect_delay));
+                        continue;
                     }
                 }
             }
@@ -203,12 +220,15 @@ impl AsyncWrite for PeerHandle {
 }
 
 pub fn autoreconnector(s: Rc<dyn Specifier>, cp: ConstructParams) -> BoxedNewPeerFuture {
+    let reconnect_delay = std::time::Duration::from_millis(cp.program_options.autoreconnect_delay_millis);
     let s = Rc::new(RefCell::new(State {
         cp,
         s,
         p: None,
         n: None,
         aux: Default::default(),
+        reconnect_delay,
+        ratelimiter: None,
     }));
     let ph1 = PeerHandle(s.clone());
     let ph2 = PeerHandle(s);

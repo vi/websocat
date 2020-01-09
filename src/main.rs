@@ -447,6 +447,10 @@ struct Opt {
     /// Maximum number of messages to copy in the other direction.
     #[structopt(long = "max-messages-rev")]
     max_messages_rev: Option<usize>,
+
+    /// [A] Delay before reconnect attempt for `autoreconnect:` overlay.
+    #[structopt(long = "--autoreconnect-delay-millis", default_value="20")]
+    autoreconnect_delay_millis: u64,
 }
 
 // TODO: make it byte-oriented/OsStr?
@@ -688,6 +692,7 @@ fn run() -> Result<()> {
             no_exit_on_zeromsg
             max_messages
             max_messages_rev
+            autoreconnect_delay_millis
         );
         #[cfg(feature = "ssl")]
         {

@@ -81,4 +81,6 @@ pub struct Options {
     pub request_uri: Option<http::Uri>,
     pub request_method: Option<http::Method>,
     pub request_headers: Vec<(http::header::HeaderName, http::header::HeaderValue)>,
+
+    pub autoreconnect_delay_millis: u64,
 }
