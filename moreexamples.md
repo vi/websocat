@@ -139,3 +139,28 @@ Roundtrip using SOCKS server
  INFO 2018-08-29T22:04:47Z: websocat::stdio_peer: Restoring blocking status for stdin
 ```
 
+# Persistent client connection
+
+Suppose there is WebSocket server which replies exactly one WebSocket text message for each received WebSocket request.
+
+You want to have a persistent WebSocket client connection to that server and issue multiple requests from a script.
+
+You can do something like this:
+
+```
+$ websocat -t -E tcp-l:127.0.0.1:1234  reuse-raw:ws://echo.websocket.org --max-messages-rev 1&
+[1] 864
+
+$ WS_PID=$!
+
+$ echo 'Hello 1' | nc 127.0.0.1 1234
+Hello 1
+
+$ echo 'World 2' | nc 127.0.0.1 1234
+World 2
+
+$ kill $WS_PID
+```
+
+This scheme is unfortunately unreliable: if client is disconnected before it can receive a message,
+the message can get delivered to next connected client.
