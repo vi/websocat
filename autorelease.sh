@@ -158,6 +158,17 @@ all() {
     CA='cargo +stable'
     r
 
+    (
+        export OPENSSL_DIR=/opt/armssl
+        export RUSTFLAGS='-C lto=no'
+        S=""
+        FE=--features=workaround1,seqpacket,ssl,openssl-probe
+        T=arm-unknown-linux-musleabi
+        TT=arm-linux-static
+        ST=strip
+        CA='cargo +stable'
+        r
+    )
 
     S="_nossl"
     FE=--features=workaround1,seqpacket
