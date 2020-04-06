@@ -1,5 +1,6 @@
 extern crate tokio_codec;
 extern crate websocket;
+extern crate base64;
 
 use self::websocket::stream::r#async::Stream as WsStream;
 use self::websocket::OwnedMessage;
@@ -37,6 +38,11 @@ pub struct WsReadWrapper<T: WsStream + 'static> {
     pub debt: ReadDebt,
     pub pong_timeout: Option<(::tokio_timer::Delay, ::std::time::Duration)>,
     pub ping_aborter: Option<::futures::unsync::oneshot::Sender<()>>,
+
+    pub text_prefix: Option<String>,
+    pub binary_prefix: Option<String>,
+    pub binary_base64: bool,
+    pub text_base64: bool,
 }
 
 impl<T: WsStream + 'static> AsyncRead for WsReadWrapper<T> {}
@@ -53,6 +59,35 @@ impl<T: WsStream + 'static> Read for WsReadWrapper<T> {
                 }
                 brokenpipe()
             }};
+        }
+        fn process_prefixes_and_base64<'a>(qbuf :&'a mut Vec<u8>, q: &mut &'a [u8], prefix: &Option<String>, base64: bool) {
+            match (prefix, base64) {
+                (None, false) => (),
+                (Some(pr), false) => {
+                    debug!("prepending prefix");
+                    qbuf.reserve_exact(pr.len() + q.len());
+                    qbuf.extend_from_slice(pr.as_bytes());
+                    qbuf.extend_from_slice(q);
+                    *q = &mut qbuf[..];
+                }
+                (None, true) => {
+                    debug!("encoding to base64");
+                    qbuf.resize(q.len() * 3 / 2 + 3, 0);
+                    let r = base64::encode_config_slice(q, base64::STANDARD, &mut qbuf[..]);
+                    qbuf.resize(r, 0);
+                    qbuf.push(b'\n');
+                    *q = &mut qbuf[..];
+                },
+                (Some(pr), true) => {
+                    debug!("prepending prefix and encoding to base64");
+                    qbuf.extend_from_slice(pr.as_bytes());
+                    qbuf.resize(pr.len() + q.len() * 3 / 2 + 3, 0);
+                    let r = base64::encode_config_slice(q, base64::STANDARD, &mut qbuf[pr.len()..]);
+                    qbuf.resize(pr.len()+r, 0);
+                    qbuf.push(b'\n');
+                    *q = &mut qbuf[..];
+                },
+            }
         }
         loop {
             return match self.s.poll().map_err(io_other_error)? {
@@ -97,14 +132,20 @@ impl<T: WsStream + 'static> Read for WsReadWrapper<T> {
                 }
                 Ready(Some(OwnedMessage::Text(x))) => {
                     debug!("incoming text");
-                    match self.debt.process_message(buf, x.as_str().as_bytes()) {
+                    let mut qbuf : Vec<u8> = vec![];
+                    let mut q : &[u8] = x.as_str().as_bytes();
+                    process_prefixes_and_base64(&mut qbuf, &mut q, &self.text_prefix, self.text_base64);
+                    match self.debt.process_message(buf, q) {
                         ProcessMessageResult::Return(x) => x,
                         ProcessMessageResult::Recurse => continue,
                     }
                 }
                 Ready(Some(OwnedMessage::Binary(x))) => {
                     debug!("incoming binary");
-                    match self.debt.process_message(buf, x.as_slice()) {
+                    let mut qbuf : Vec<u8> = vec![];
+                    let mut q : &[u8] = x.as_slice();
+                    process_prefixes_and_base64(&mut qbuf, &mut q, &self.binary_prefix, self.binary_base64);
+                    match self.debt.process_message(buf, q) {
                         ProcessMessageResult::Return(x) => x,
                         ProcessMessageResult::Recurse => continue,
                     }
@@ -135,14 +176,23 @@ pub enum Mode1 {
     Binary,
 }
 
-pub struct WsWriteWrapper<T: WsStream + 'static>(pub MultiProducerWsSink<T>, pub Mode1, pub bool);
+pub struct WsWriteWrapper<T: WsStream + 'static> {
+    pub sink: MultiProducerWsSink<T>,
+    pub mode: Mode1,
+    pub close_on_shutdown: bool,
+
+    pub text_prefix: Option<String>,
+    pub binary_prefix: Option<String>,
+    pub binary_base64: bool,
+    pub text_base64: bool,
+}
 
 impl<T: WsStream + 'static> AsyncWrite for WsWriteWrapper<T> {
     fn shutdown(&mut self) -> futures::Poll<(), std::io::Error> {
-        if !self.2 {
+        if !self.close_on_shutdown {
             return Ok(Ready(()));
         }
-        let mut sink = self.0.borrow_mut();
+        let mut sink = self.sink.borrow_mut();
         match sink
             .start_send(OwnedMessage::Close(None))
             .map_err(io_other_error)?
@@ -160,8 +210,48 @@ impl<T: WsStream + 'static> AsyncWrite for WsWriteWrapper<T> {
 }
 
 impl<T: WsStream + 'static> Write for WsWriteWrapper<T> {
-    fn write(&mut self, buf: &[u8]) -> IoResult<usize> {
-        let om = match self.1 {
+    fn write(&mut self, buf_: &[u8]) -> IoResult<usize> {
+        let bufv;
+        let mut effective_mode = self.mode;
+
+        let mut buf : &[u8] = buf_;
+
+        let origlen = buf.len();
+
+        if let Some(pr) = &self.text_prefix {
+            if buf.starts_with(pr.as_bytes()) {
+                effective_mode = Mode1::Text;
+                buf = &buf[pr.len()..];
+            }
+        }
+        if let Some(pr) = &self.binary_prefix {
+            if buf.starts_with(pr.as_bytes()) {
+                effective_mode = Mode1::Binary;
+                buf = &buf[pr.len()..];
+            }
+        }
+
+        let decode_base64 = match effective_mode {
+            Mode1::Binary => self.binary_base64,
+            Mode1::Text => self.text_base64,
+        };
+
+        if decode_base64 {
+            if buf.last() == Some(&b'\n') {
+                buf = &buf[..(buf.len()-1)];
+            }
+            if buf.last() == Some(&b'\r') {
+                buf = &buf[..(buf.len()-1)];
+            }
+            if let Ok(v) = base64::decode(buf) {
+                bufv = v;
+                buf = &bufv[..];
+            } else {
+                error!("Failed to decode user-supplised base64 buffer. Sending message as is.");
+            }
+        }
+
+        let om = match effective_mode {
             Mode1::Binary => OwnedMessage::Binary(buf.to_vec()),
             Mode1::Text => {
                 let text_tmp;
@@ -169,7 +259,7 @@ impl<T: WsStream + 'static> Write for WsWriteWrapper<T> {
                     Ok(x) => x,
                     Err(_) => {
                         error!(
-                            "Invalid UTF-8 in --text mode. Sending lossy data. May be \
+                            "Invalid UTF-8 in a text WebSocket message. Sending lossy data. May be \
                              caused by unlucky buffer splits."
                         );
                         text_tmp = String::from_utf8_lossy(buf);
@@ -179,14 +269,14 @@ impl<T: WsStream + 'static> Write for WsWriteWrapper<T> {
                 OwnedMessage::Text(text.to_string())
             }
         };
-        match self.0.borrow_mut().start_send(om).map_err(io_other_error)? {
+        match self.sink.borrow_mut().start_send(om).map_err(io_other_error)? {
             futures::AsyncSink::NotReady(_) => wouldblock(),
-            futures::AsyncSink::Ready => Ok(buf.len()),
+            futures::AsyncSink::Ready => Ok(origlen),
         }
     }
     fn flush(&mut self) -> IoResult<()> {
         match self
-            .0
+            .sink
             .borrow_mut()
             .poll_complete()
             .map_err(io_other_error)?
@@ -362,8 +452,21 @@ pub fn finish_building_ws_peer<S>(opts: &super::Options, duplex: Duplex<S>, clos
         debt: super::readdebt::ReadDebt(Default::default(), opts.read_debt_handling, zmsgh),
         pong_timeout,
         ping_aborter,
+        text_prefix: opts.ws_text_prefix.clone(),
+        binary_prefix: opts.ws_binary_prefix.clone(),
+        binary_base64: opts.ws_binary_base64,
+        text_base64: opts.ws_text_base64,
     };
-    let ws_sin = WsWriteWrapper(mpsink, mode1, close_on_shutdown);
+    let ws_sin = WsWriteWrapper{
+        sink: mpsink,
+        mode: mode1,
+        close_on_shutdown,
+
+        text_prefix: opts.ws_text_prefix.clone(),
+        binary_prefix: opts.ws_binary_prefix.clone(),
+        binary_base64: opts.ws_binary_base64,
+        text_base64: opts.ws_text_base64,
+    };
 
     Peer::new(ws_str, ws_sin, hup)
 }

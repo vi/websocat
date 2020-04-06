@@ -451,6 +451,30 @@ struct Opt {
     /// [A] Delay before reconnect attempt for `autoreconnect:` overlay.
     #[structopt(long = "--autoreconnect-delay-millis", default_value="20")]
     autoreconnect_delay_millis: u64,
+
+
+    /// [A] Prepend specified text to each received WebSocket text message.
+    /// Also strip this prefix from outgoing messages, explicitly marking
+    /// them as text even if `--binary` is specified
+    #[structopt(long = "--text-prefix")]
+    pub ws_text_prefix: Option<String>,
+    
+    /// [A] Prepend specified text to each received WebSocket binary message.
+    /// Also strip this prefix from outgoing messages, explicitly marking
+    /// them as binary even if `--text` is specified
+    #[structopt(long = "--binary-prefix")]
+    pub ws_binary_prefix: Option<String>,
+
+    /// Encode incoming binary WebSocket messages in one-line Base64
+    /// If `--binary-prefix` (see `--help=full`) is set, outgoing WebSocket messages
+    /// that start with the prefix are decoded from base64 prior to sending.
+    #[structopt(long = "--base64")]
+    pub ws_binary_base64: bool,
+
+    /// [A] Encode incoming text WebSocket messages in one-line Base64.
+    /// I don't know whether it can be ever useful, but it's for symmetry with `--base64`.
+    #[structopt(long = "--base64-text")]
+    pub ws_text_base64: bool,
 }
 
 // TODO: make it byte-oriented/OsStr?
@@ -693,6 +717,10 @@ fn run() -> Result<()> {
             max_messages
             max_messages_rev
             autoreconnect_delay_millis
+            ws_text_prefix
+            ws_binary_prefix
+            ws_binary_base64
+            ws_text_base64
         );
         #[cfg(feature = "ssl")]
         {

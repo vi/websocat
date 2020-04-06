@@ -227,7 +227,7 @@ Pre-built binaries for Linux (usual and musl), Windows, OS X and Android are ava
 Limitations
 ---
 
-* Websocat can't mix sending text and binary WebSocket messages. This also affects `mirror:` specifier, making it a bit different from ws://echo.websocket.org.
+* It is not convenient when text and binary WebSocket messages are mixed. This affects `mirror:` specifier, making it a bit different from ws://echo.websocket.org. There are `--binary-prefix`, `--text-prefix` and `--base64` options to handle mixture of binary and text.
 * Current version of Websocat don't receive notification about closed sockets. This makes serving without `-E` or `-u` options or in backpressure scenarios prone to socket leak.
 
 Building from source code

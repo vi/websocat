@@ -83,4 +83,9 @@ pub struct Options {
     pub request_headers: Vec<(http::header::HeaderName, http::header::HeaderValue)>,
 
     pub autoreconnect_delay_millis: u64,
+
+    pub ws_text_prefix: Option<String>,
+    pub ws_binary_prefix: Option<String>,
+    pub ws_binary_base64: bool,
+    pub ws_text_base64: bool,
 }
