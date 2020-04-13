@@ -18,6 +18,8 @@ macro_rules! list_of_all_specifier_classes {
 
         $your_macro!($crate::http_peer::HttpRequestClass);
         $your_macro!($crate::http_peer::HttpClass);
+        $your_macro!($crate::http_peer::HttpPostSseClass);
+        
 
         #[cfg(all(unix, feature = "unix_stdio"))]
         $your_macro!($crate::stdio_peer::StdioClass);

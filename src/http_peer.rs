@@ -8,7 +8,7 @@ use std::rc::Rc;
 use super::{box_up_err, peer_strerr, BoxedNewPeerFuture, Peer};
 use super::{ConstructParams, L2rUser, PeerConstructor, Specifier};
 use tokio_io::io::{read_exact, write_all};
-use tokio_io::AsyncRead;
+use tokio_io::{AsyncRead,AsyncWrite};
 
 use std::io::Write;
 use std::net::{IpAddr, Ipv4Addr};
@@ -21,6 +21,7 @@ use http_bytes::http;
 use http_bytes::{Request,Response};
 use crate::http::Uri;
 use crate::http::Method;
+use crate::util::peer_err2;
 
 #[derive(Debug)]
 pub struct HttpRequest<T: Specifier>(pub T);
@@ -283,4 +284,257 @@ pub fn http_request_peer(
     ;
 
     Box::new(f) as BoxedNewPeerFuture
+}
+
+
+#[derive(Debug)]
+pub struct HttpPostSse<T: Specifier>(pub T);
+impl<T: Specifier> Specifier for HttpPostSse<T> {
+    fn construct(&self, cp: ConstructParams) -> PeerConstructor {
+        let inner = self.0.construct(cp.clone());
+        inner.map(move |p, l2r| {
+            http_response_post_sse_peer(p, l2r)
+        })
+    }
+    specifier_boilerplate!(noglobalstate has_subspec);
+    self_0_is_subspecifier!(proxy_is_multiconnect);
+}
+specifier_class!(
+    name = HttpPostSseClass,
+    target = HttpPostSse,
+    prefixes = ["http-post-sse:"],
+    arg_handling = subspec,
+    overlay = true,
+    MessageOriented,
+    MulticonnectnessDependsOnInnerType,
+    help = r#"
+[A] Accept HTTP/1 request. Then, if it is GET,
+unidirectionally return incoming messages as server-sent events (SSE).
+
+If it is POST then, also unidirectionally, write body upstream.
+
+Example - turn SSE+POST pair into a client WebSocket connection:
+
+    websocat -E -t http-post-sse:tcp-l:127.0.0.1:8080 reuse:ws://127.0.0.1:80/websock
+
+`curl -dQQQ http://127.0.0.1:8080/` would send into it and 
+`curl -N http://127.0.0.1:8080/` would recv from it.
+"#
+);
+
+#[derive(Debug)]
+enum ModeOfOperation {
+    PostBody,
+    GetSse,
+}
+
+pub fn http_response_post_sse_peer(
+    inner_peer: Peer,
+    _l2r: L2rUser,
+) -> BoxedNewPeerFuture {
+    let (r, w, hup) = (inner_peer.0, inner_peer.1, inner_peer.2);
+
+    info!("Incoming prospective HTTP request");
+    let f = WaitForHttpHead::new(r).and_then(|(res, r)|{
+        debug!("Got HTTP request head");
+        let ret : Result<_,Box<dyn std::error::Error+'static>> = (move||{
+            let mode;
+            let request;
+            {
+                let headbuf = &res.buf[0..res.offset];
+                trace!("{:?}",headbuf);
+                let p = http_bytes::parse_request_header_easy(headbuf)?;
+                if p.is_none() {
+                    Err("Something wrong with request HTTP head")?;
+                }
+                let p = p.unwrap();
+                if p.1.len() > 0 {
+                    Err("Something wrong with parsing HTTP request")?;
+                }
+                request = p.0;
+                let method = request.method();
+                mode = match *method {
+                    http::method::Method::GET => {
+                        info!("GET request. Serving a SSE stream");
+                        ModeOfOperation::GetSse
+                    },
+                    http::method::Method::POST => {
+                        info!("POST request. Writing body once");
+                        ModeOfOperation::PostBody
+                    },
+                    _ => { 
+                        error!("HTTP request method is {}, but we expect only GET or POST in this mode", method);
+                        Err("Wrong HTTP request method")?
+                    }
+                };
+                debug!("{:#?}", request);
+            }
+
+            // Now it's time to generate a successful reply.
+            // (maybe actually we should read the full request first, but
+            // let's do some thing at first and correct thing after that).
+
+            use crate::http::header::{HOST,SERVER,CACHE_CONTROL, CONTENT_TYPE};
+
+            let mut reply = crate::http::response::Builder::default();
+            let status = match mode {
+                ModeOfOperation::GetSse => 200,
+                ModeOfOperation::PostBody => 204,
+            };
+            reply.status(status);
+            if let Some(x) = request.headers().get(HOST) {
+                reply.header(HOST, x);
+            }
+            reply.header("Server", "websocat");
+            match mode {
+                ModeOfOperation::GetSse => {
+                    reply.header(CACHE_CONTROL, "no-cache");
+                    reply.header(CONTENT_TYPE, "text/event-stream");
+                }
+                ModeOfOperation::PostBody => (),
+            }
+            let reply = reply.body(()).unwrap();
+            let reply = ::http_bytes::response_header_to_vec(&reply);
+
+            Ok(::tokio_io::io::write_all(w, reply)
+                .map_err(box_up_err)
+                .and_then(move |(w, request)| {
+
+                    debug!("Response writing finished");
+
+                    // Infinitely hang reading or writing
+                    // If use DevNull instead, connection may get closed prematurely
+                    let dummy = crate::trivial_peer::CloggedPeer;
+
+                    match mode {
+                        ModeOfOperation::GetSse => {
+                            // Will it call shutdown(2) on the socket?
+                            drop(r);
+                            
+                            let w = SseStream {
+                                io: w,
+                                state: SseState::BeforeLine(0),
+                                consumed_actual_buffer: 0,
+                            };
+                            
+                            Ok(Peer::new(dummy, w, hup))
+                        },
+                        ModeOfOperation::PostBody => {
+                            debug!("Start streaming POST body upstream, ignoring reverse data");
+                            
+                            // Will it call shutdown(2) on the socket?
+                            drop(w);
+
+                            let remaining = res.buf.len() - res.offset;
+                            if remaining == 0 {
+                                Ok(Peer::new(r,dummy,hup))
+                            } else {
+                                debug!("{} bytes of debt to be read", remaining);
+                                let r = super::trivial_peer::PrependRead {
+                                    inner: r,
+                                    header: res.buf,
+                                    remaining,
+                                };
+                                Ok(Peer::new(r,dummy,hup))
+                            }
+                        },
+                    }
+            }))
+        })();
+        match ret {
+            Err(x) => peer_err2(x),
+            Ok(x) => Box::new(x),
+        }
+    });
+    Box::new(f) as BoxedNewPeerFuture
+}
+
+#[derive(Clone,Copy,Debug)]
+enum SseState {
+    BeforeLine(usize),
+    InsideLine,
+    AfterLine,
+    Trailer,
+}
+
+struct SseStream<W : AsyncWrite>
+{
+    io : W,
+    state: SseState,
+    consumed_actual_buffer : usize,
+}
+
+impl<W:AsyncWrite> AsyncWrite for SseStream<W> {
+    fn shutdown(&mut self) -> futures::Poll<(), std::io::Error> {
+        self.io.shutdown()
+    }
+}
+
+impl<W:AsyncWrite> Write for SseStream<W> {
+    fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
+        // assumes buffer does not change on EAGAINs
+        loop {
+            let s = self.state;
+            let mut need_write = 0;
+            debug!("SSE state {:?}", s);
+            let ret = match s {
+                SseState::BeforeLine(x) => {
+                    self.io.write(&b"data: "[x..6])
+                }
+                SseState::InsideLine => {
+                    let buf = &buf[self.consumed_actual_buffer..];
+                    let max = buf.iter().position(|&x|x==b'\n').unwrap_or(buf.len());
+                    let buf = &buf[0..max];
+                    need_write = buf.len();
+                    self.io.write(buf)
+                }
+                SseState::AfterLine => {
+                    self.io.write(b"\n")
+                }
+                SseState::Trailer => {
+                    self.io.write(b"\n")
+                }
+            };
+            let ll = ret?;
+            self.state = match s {
+                SseState::BeforeLine(x) => {
+                    let nl = ll + x;
+                    if nl == 6 {
+                        SseState::InsideLine
+                    } else {
+                        SseState::BeforeLine(nl)
+                    }
+                }
+                SseState::InsideLine => {
+                    self.consumed_actual_buffer += ll;
+                    if ll < need_write {
+                        SseState::InsideLine
+                    } else {
+                        SseState::AfterLine
+                    }
+                }
+                SseState::AfterLine => {
+                    if self.consumed_actual_buffer < buf.len() {
+                        if buf[self.consumed_actual_buffer] == b'\n' {
+                            self.consumed_actual_buffer += 1;
+                        }
+                        SseState::BeforeLine(0)
+                    } else {
+                        SseState::Trailer
+                    }
+                }
+                SseState::Trailer => {
+                    let r = self.consumed_actual_buffer;
+                    self.consumed_actual_buffer = 0;
+                    self.state = SseState::BeforeLine(0);
+                    debug!("r={} buflen={}", r, buf.len());
+                    return Ok(r)
+                }
+            };
+            debug!(" new SSE state {:?}", self.state);
+        }
+    }
+    fn flush(&mut self) -> std::io::Result<()> {
+        self.io.flush()
+    }
 }

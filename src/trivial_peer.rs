@@ -220,7 +220,7 @@ impl Write for AssertPeer {
     }
 }
 
-struct CloggedPeer;
+pub struct CloggedPeer;
 impl AsyncWrite for CloggedPeer {
     fn shutdown(&mut self) -> futures::Poll<(), std::io::Error> {
         wouldblock()
