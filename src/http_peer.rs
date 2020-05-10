@@ -411,11 +411,7 @@ pub fn http_response_post_sse_peer(
                             // Will it call shutdown(2) on the socket?
                             drop(r);
                             
-                            let w = SseStream {
-                                io: w,
-                                state: SseState::BeforeLine(0),
-                                consumed_actual_buffer: 0,
-                            };
+                            let w = SseStream::new(w);
                             
                             Ok(Peer::new(dummy, w, hup))
                         },
@@ -457,11 +453,21 @@ enum SseState {
     Trailer,
 }
 
-struct SseStream<W : AsyncWrite>
+struct SseStream<W : Write>
 {
     io : W,
     state: SseState,
     consumed_actual_buffer : usize,
+}
+
+impl<W : Write> SseStream<W> {
+    pub fn new(w: W) -> Self {
+        SseStream {
+            io: w,
+            state: SseState::BeforeLine(0),
+            consumed_actual_buffer: 0,
+        }
+    }
 }
 
 impl<W:AsyncWrite> AsyncWrite for SseStream<W> {
@@ -536,5 +542,13 @@ impl<W:AsyncWrite> Write for SseStream<W> {
     }
     fn flush(&mut self) -> std::io::Result<()> {
         self.io.flush()
+    }
+}
+
+#[test]
+fn test_basic_sse_stream() {
+    let mut v = vec![];
+    {
+        let mut ss = SseStream::new(std::io::Cursor::new(&mut v));
     }
 }
