@@ -334,6 +334,7 @@ pub fn http_response_post_sse_peer(
 ) -> BoxedNewPeerFuture {
     let (r, w, hup) = (inner_peer.0, inner_peer.1, inner_peer.2);
 
+    warn!("Note: http-post-see mode is not tested and may intergrate poorly into current Websocat architecuture. Expect it to be of lower quality than other Websocat modes.");
     info!("Incoming prospective HTTP request");
     let f = WaitForHttpHead::new(r).and_then(|(res, r)|{
         debug!("Got HTTP request head");
