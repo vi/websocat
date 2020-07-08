@@ -70,12 +70,13 @@ tokio-uds = "0.2.3"
 libc = { version = "0.2", optional = true }
 
 [features]
-default = ["signal_handler", "tokio-process", "unix_stdio"]
+default = ["signal_handler", "tokio-process", "unix_stdio","plugins"]
 unix_stdio = []
 ssl = ["websocket/async-ssl", "tokio-tls", "native-tls", "readwrite"]
 signal_handler = ["tokio-signal"]
 workaround1=["libc"]
 seqpacket=["libc"]
+plugins=["libc"]
 
 
 #[patch."crates-io"]

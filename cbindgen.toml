@@ -1,0 +1,10 @@
+language="C"
+#include_guard = "WEBSOCAT_PLUGIN_H"
+#cpp_compat = true
+#style = "both"
+
+[export]
+prefix = "Websocat"
+
+[enum]
+rename_variants="QualifiedScreamingSnakeCase"

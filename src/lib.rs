@@ -195,6 +195,8 @@ pub mod socks5_peer;
 #[cfg(feature = "ssl")]
 pub mod ssl_peer;
 
+pub mod plugin_peer;
+
 pub mod specparse;
 
 pub type PeerOverlay = Rc<dyn Fn(Peer, L2rUser) -> BoxedNewPeerFuture>;
