@@ -31,7 +31,7 @@ r() {
         return
     fi
     echo "$T -> $TF"
-    $CA rustc --bin websocat "$FE" --release -j2 --target "$T" -- -C lto
+    $CA rustc --bin websocat $FE --release -j2 --target "$T" -- -C lto
     cp ./target/"$T/release/websocat$E" "$TF"
     "$ST" "$TF"
 }
