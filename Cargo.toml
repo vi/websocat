@@ -1,6 +1,6 @@
 [package]
 name = "websocat"
-version = "2.0.0-alpha0"
+version = "1.6.0"
 authors = ["Vitaly \"_Vi\" Shukela <vi0oss@gmail.com>"]
 license = "MIT"
 repository = "https://github.com/vi/websocat"
