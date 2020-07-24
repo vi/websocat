@@ -16,15 +16,13 @@ use tokio_named_pipes::NamedPipe;
 
 
 use super::{once, ConstructParams, PeerConstructor, Specifier};
-use super::{BoxedNewPeerFuture, Peer};
+use super::{BoxedNewPeerFuture, Peer, Result};
 
 #[derive(Debug, Clone)]
 pub struct NamedPipeConnect(pub PathBuf);
 impl Specifier for NamedPipeConnect {
     fn construct(&self, _p: ConstructParams) -> PeerConstructor {
-        once(Box::new(futures::future::result(named_pipe_connect_peer(
-            &self.0,
-        ))) as BoxedNewPeerFuture)
+        once(Box::new(futures::future::result(named_pipe_connect_peer(&self.0))) as BoxedNewPeerFuture)
     }
     specifier_boilerplate!(noglobalstate singleconnect no_subspec );
 }
@@ -48,17 +46,10 @@ Example:
 
 fn named_pipe_connect_peer(
     path: &Path,
-) -> Result<Peer, Box<dyn std::error::Error>> {
-    match NamedPipe::new(path, &tokio::reactor::Handle::default()) {
-        Ok(pipe) => {
-            let ph = NamedPipeConnectPeer(Rc::new(RefCell::new(pipe)));
-            Ok(Peer::new(ph.clone(), ph, None /* TODO */))
-        },
-        Err(_) => {
-            todo!()
-        }
-    }
-   
+) -> Result<Peer> {
+    let pipe = NamedPipe::new(path, &tokio::reactor::Handle::default())?;
+    let ph = NamedPipeConnectPeer(Rc::new(RefCell::new(pipe)));
+    Ok(Peer::new(ph.clone(), ph, None))   
 }
 
 #[derive(Clone)]
