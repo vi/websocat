@@ -181,6 +181,10 @@ pub mod http_peer;
 #[cfg(feature = "tokio-process")]
 pub mod process_peer;
 
+
+#[cfg(all(windows,feature = "windows_named_pipes"))]
+pub mod windows_np_peer;
+
 #[cfg(unix)]
 pub mod unix_peer;
 

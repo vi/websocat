@@ -80,6 +80,9 @@ macro_rules! list_of_all_specifier_classes {
         #[cfg(unix)]
         $your_macro!($crate::unix_peer::AbstractDgramClass);
 
+        #[cfg(all(windows,feature = "windows_named_pipes"))]
+        $your_macro!($crate::windows_np_peer::NamedPipeConnectClass);
+
         $your_macro!($crate::line_peer::Message2LineClass);
         $your_macro!($crate::line_peer::Line2MessageClass);
         $your_macro!($crate::foreachmsg_peer::ForeachmsgClass);
