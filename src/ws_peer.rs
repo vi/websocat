@@ -92,15 +92,15 @@ impl<T: WsStream + 'static> Read for WsReadWrapper<T> {
         loop {
             return match self.s.poll().map_err(io_other_error)? {
                 Ready(Some(OwnedMessage::Close(_))) => {
-                    debug!("incoming close");
+                    info!("Received WebSocket close message");
                     abort_and_broken_pipe!()
                 }
                 Ready(None) => {
-                    debug!("incoming None");
+                    info!("incoming None");
                     abort_and_broken_pipe!()
                 }
                 Ready(Some(OwnedMessage::Ping(x))) => {
-                    debug!("incoming ping");
+                    info!("Received WebSocket ping");
                     let om = OwnedMessage::Pong(x);
                     let mut sink = self.pingreply.borrow_mut();
                     let mut proceed = false;
