@@ -1,0 +1,15 @@
+[package]
+name = "websocat"
+version = "3.0.0"
+authors = ["Vitaly _Vi Shukela <vi0oss@gmail.com>"]
+edition = "2018"
+
+[dependencies]
+tokio = "0.3.3"
+async-trait = "0.1.41"
+petgraph = "0.5.1"
+smallvec = "1.4.2"
+id_tree = "1.7.0"
+anyhow = "1.0.34"
+futures = "0.3.8"
+downcast-rs = "1.2.0"
