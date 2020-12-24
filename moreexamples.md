@@ -164,3 +164,22 @@ $ kill $WS_PID
 
 This scheme is unfortunately unreliable: if client is disconnected before it can receive a message,
 the message can get delivered to next connected client.
+
+
+# Configuring Nginx to forward Websocket connections
+
+Usual `proxy_pass` is not enough.
+
+You need something like this:
+
+```
+location /mywebsocket {
+    proxy_read_timeout 1d;
+    proxy_send_timeout 1d;
+    proxy_pass http://localhost:8123;
+    #proxy_pass http://unix:/tmp/unixsocket_websocat;
+    proxy_http_version 1.1;
+    proxy_set_header Upgrade $http_upgrade;
+    proxy_set_header Connection \"upgrade\";
+}
+```
