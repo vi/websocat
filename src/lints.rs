@@ -177,7 +177,7 @@ impl WebsocatConfiguration2 {
         None
     }
 
-    fn l_stdio(&mut self, multiconnect: bool, reuser_has_been_inserted: &mut bool) -> Result<()> {
+    fn l_stdio(&mut self, multiconnect: bool, reuser_has_been_inserted: &mut bool, r#async: bool) -> Result<()> {
         use self::StdioUsageStatus::{Indirectly, IsItself, None, WithReuser};
         match (self.s1.stdio_usage_status(), self.s2.stdio_usage_status()) {
             (_, None) => (),
@@ -203,6 +203,17 @@ impl WebsocatConfiguration2 {
             (_, _) => {
                 Err("Too many usages of stdin/stdout. Specify it either on left or right address, not on both.")?;
             }
+        }
+
+        if r#async {
+            if self.s1.addrtype.cls.get_name() == "StdioClass" {
+                debug!("Substituding StdioClass with AsyncStdioClass at the left");
+                self.s1.addrtype = SpecifierNode{cls:Rc::new(crate::stdio_peer::AsyncStdioClass)};
+            } 
+            if self.s2.addrtype.cls.get_name() == "StdioClass" {
+                debug!("Substituding StdioClass with AsyncStdioClass at the right");
+                self.s2.addrtype = SpecifierNode{cls:Rc::new(crate::stdio_peer::AsyncStdioClass)};
+            } 
         }
 
         Ok(())
@@ -568,7 +579,7 @@ impl WebsocatConfiguration2 {
         let multiconnect = !self.opts.oneshot && self.s1.is_multiconnect();
         let mut reuser_has_been_inserted = false;
 
-        self.l_stdio(multiconnect, &mut reuser_has_been_inserted)?;
+        self.l_stdio(multiconnect, &mut reuser_has_been_inserted, self.opts.asyncstdio)?;
         self.l_reuser(reuser_has_been_inserted)?;
         self.l_linemode()?;
         self.l_listener_on_the_right(&on_warning)?;

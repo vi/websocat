@@ -88,4 +88,7 @@ pub struct Options {
     pub ws_binary_prefix: Option<String>,
     pub ws_binary_base64: bool,
     pub ws_text_base64: bool,
+
+    /// Only affects linter
+    pub asyncstdio: bool,
 }

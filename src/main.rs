@@ -475,6 +475,11 @@ struct Opt {
     /// I don't know whether it can be ever useful, but it's for symmetry with `--base64`.
     #[structopt(long = "--base64-text")]
     pub ws_text_base64: bool,
+
+    /// [A] On UNIX, set stdin and stdout to nonblocking mode instead of spawning a thread.
+    /// This should improve performance, but may break other programs running on the same console.
+    #[structopt(long = "--async-stdio")]
+    pub asyncstdio: bool,
 }
 
 // TODO: make it byte-oriented/OsStr?
@@ -721,6 +726,7 @@ fn run() -> Result<()> {
             ws_binary_prefix
             ws_binary_base64
             ws_text_base64
+            asyncstdio
         );
         #[cfg(feature = "ssl")]
         {

@@ -25,8 +25,8 @@ use futures::Stream;
 use super::{once, spawn_hack, ConstructParams, PeerConstructor, Specifier};
 
 #[derive(Clone, Debug)]
-pub struct Stdio;
-impl Specifier for Stdio {
+pub struct AsyncStdio;
+impl Specifier for AsyncStdio {
     fn construct(&self, p: ConstructParams) -> PeerConstructor {
         let ret;
         ret = get_stdio_peer(&mut p.global(GlobalState::default));
@@ -37,7 +37,7 @@ impl Specifier for Stdio {
 
 specifier_class!(
     name = AsyncStdioClass,
-    target = Stdio,
+    target = AsyncStdio,
     prefixes = ["asyncstdio:"],
     arg_handling = noarg,
     overlay = false,
@@ -62,7 +62,7 @@ Example: SSH transport
 
 specifier_class!(
     name = InetdClass,
-    target = Stdio,
+    target = AsyncStdio,
     prefixes = ["inetd:"],
     arg_handling = noarg,
     overlay = false,
