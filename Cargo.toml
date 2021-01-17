@@ -54,6 +54,7 @@ tempfile = "3.0.8"
 net2 = "0.2.33"
 anymap = "0.12.1"
 base64 = "0.10"
+atty = "0.2.14"
 #anymap = { path = "/mnt/src/git/anymap"}
 
 # Rust 1.30.1 compat:

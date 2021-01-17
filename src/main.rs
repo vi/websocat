@@ -22,6 +22,8 @@ extern crate openssl_probe;
 #[macro_use]
 extern crate structopt;
 
+extern crate atty;
+
 extern crate http_bytes;
 use http_bytes::http;
 
@@ -480,6 +482,10 @@ struct Opt {
     /// This should improve performance, but may break other programs running on the same console.
     #[structopt(long = "--async-stdio")]
     pub asyncstdio: bool,
+
+    /// [A] Inhibit using stdin/stdout in a nonblocking way if it is not a tty 
+    #[structopt(long = "--no-async-stdio")]
+    pub noasyncstdio: bool,
 }
 
 // TODO: make it byte-oriented/OsStr?
@@ -647,6 +653,16 @@ fn run() -> Result<()> {
     if !cmd.websocket_binary_mode && !cmd.websocket_text_mode {
         cmd.websocket_text_mode = true;
         recommend_explicit_text_or_bin = true;
+    }
+
+    if cmd.noasyncstdio && cmd.asyncstdio {
+        Err("--no-async-stdio and --async-stdio are not meaningful together")?;
+    }
+
+    if ! cmd.noasyncstdio {
+        if atty::isnt(atty::Stream::Stdin) && atty::isnt(atty::Stream::Stdout) {
+            cmd.asyncstdio = true;
+        }
     }
 
     //if !cmd.serve_static_files.is_empty() && cmd.restrict_uri.is_none() {
