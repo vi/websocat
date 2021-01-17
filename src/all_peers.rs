@@ -22,11 +22,9 @@ macro_rules! list_of_all_specifier_classes {
         
 
         #[cfg(all(unix, feature = "unix_stdio"))]
-        $your_macro!($crate::stdio_peer::StdioClass);
+        $your_macro!($crate::stdio_peer::AsyncStdioClass);
         #[cfg(all(unix, feature = "unix_stdio"))]
         $your_macro!($crate::stdio_peer::InetdClass);
-        #[cfg(not(all(unix, feature = "unix_stdio")))]
-        $your_macro!($crate::stdio_threaded_peer::ThreadedStdioSubstituteClass);
         #[cfg(not(all(unix, feature = "unix_stdio")))]
         $your_macro!($crate::stdio_threaded_peer::InetdClass);
 
@@ -66,6 +64,7 @@ macro_rules! list_of_all_specifier_classes {
         $your_macro!($crate::stdio_peer::OpenFdAsyncClass);
 
         $your_macro!($crate::stdio_threaded_peer::ThreadedStdioClass);
+        $your_macro!($crate::stdio_threaded_peer::StdioClass);
 
         #[cfg(unix)]
         $your_macro!($crate::unix_peer::UnixConnectClass);

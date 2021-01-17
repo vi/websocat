@@ -36,17 +36,18 @@ impl Specifier for Stdio {
 }
 
 specifier_class!(
-    name = StdioClass,
+    name = AsyncStdioClass,
     target = Stdio,
-    prefixes = ["stdio:", "-"],
+    prefixes = ["asyncstdio:"],
     arg_handling = noarg,
     overlay = false,
     StreamOriented,
     SingleConnect,
     help = r#"
-Same as `-`. Read input from console, print to console.
+[A] Set stdin and stdout to nonblocking mode, then use it as a communication counterpart. UNIX-only.
+May cause problems with programs running at the same terminal. This specifier backs the `--async-stdio` CLI option. 
 
-This specifier can be specified only one time.
+Typically this specifier can be specified only one time.
     
 Example: simulate `cat(1)`. This is an exception from "only one time" rule above:
 
@@ -54,9 +55,10 @@ Example: simulate `cat(1)`. This is an exception from "only one time" rule above
 
 Example: SSH transport
 
-    ssh -c ProxyCommand='websocat - ws://myserver/mywebsocket' user@myserver
+    ssh -c ProxyCommand='websocat asyncstdio: ws://myserver/mywebsocket' user@myserver
 "#
 );
+
 
 specifier_class!(
     name = InetdClass,
@@ -67,7 +69,7 @@ specifier_class!(
     StreamOriented,
     SingleConnect,
     help = r#"
-Like `stdio:`, but intented for inetd(8) usage. [A]
+Like `asyncstdio:`, but intented for inetd(8) usage. [A]
 
 Automatically enables `-q` (`--quiet`) mode.
 

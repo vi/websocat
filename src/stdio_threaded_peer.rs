@@ -24,16 +24,16 @@ specifier_class!(
     StreamOriented,
     SingleConnect,
     help = r#"
-Stdin/stdout, spawning a thread. [A]
+[A] Stdin/stdout, spawning a thread (threaded version).
 
 Like `-`, but forces threaded mode instead of async mode
 
 Use when standard input is not `epoll(7)`-able or you want to avoid setting it to nonblocking mode.
 "#
 );
-#[cfg(not(all(unix, feature = "unix_stdio")))]
+
 specifier_class!(
-    name = ThreadedStdioSubstituteClass,
+    name = StdioClass,
     target = ThreadedStdio,
     prefixes = ["-", "stdio:"],
     arg_handling = noarg,
@@ -41,11 +41,20 @@ specifier_class!(
     StreamOriented,
     SingleConnect,
     help = r#"
-Read input from console, print to console (threaded version).
+Read input from console, print to console. Uses threaded implementation even on UNIX unless requested by `--async-stdio` CLI option.
 
-This specifier can be specified only one time.
+Typically this specifier can be specified only one time.
+    
+Example: simulate `cat(1)`. This is an exception from "only one time" rule above:
+
+    websocat - -
+
+Example: SSH transport
+
+    ssh -c ProxyCommand='websocat - ws://myserver/mywebsocket' user@myserver
 "#
 );
+
 
 #[cfg(not(all(unix, feature = "unix_stdio")))]
 specifier_class!(
