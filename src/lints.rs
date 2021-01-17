@@ -204,7 +204,8 @@ impl WebsocatConfiguration2 {
                 Err("Too many usages of stdin/stdout. Specify it either on left or right address, not on both.")?;
             }
         }
-
+        
+        #[cfg(all(unix, feature = "unix_stdio"))]
         if r#async {
             if self.s1.addrtype.cls.get_name() == "StdioClass" {
                 debug!("Substituding StdioClass with AsyncStdioClass at the left");
