@@ -92,6 +92,8 @@ macro_rules! list_of_all_specifier_classes {
         $your_macro!($crate::trivial_peer::AssertClass);
         $your_macro!($crate::trivial_peer::Assert2Class);
 
+        $your_macro!($crate::trivial_peer::LogClass);
+
         #[cfg(all(target_os = "linux", feature = "seqpacket"))]
         $your_macro!($crate::unix_peer::unix_seqpacket_peer::SeqpacketConnectClass);
         #[cfg(all(target_os = "linux", feature = "seqpacket"))]

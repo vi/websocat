@@ -304,3 +304,90 @@ impl Write for PrependWrite {
         self.inner.flush()
     }
 }
+
+#[derive(Debug)]
+pub struct Log<T: Specifier>(pub T);
+impl<T: Specifier> Specifier for Log<T> {
+    fn construct(&self, cp: ConstructParams) -> PeerConstructor {
+        let inner = self.0.construct(cp.clone());
+        inner.map(move |p, _l2r| {
+            Box::new(futures::future::ok(Peer(Box::new(LogRead(p.0)), Box::new(LogWrite(p.1)), p.2)))
+        })
+    }
+    specifier_boilerplate!(noglobalstate has_subspec);
+    self_0_is_subspecifier!(proxy_is_multiconnect);
+}
+specifier_class!(
+    name = LogClass,
+    target = Log,
+    prefixes = ["log:"],
+    arg_handling = subspec,
+    overlay = true,
+    StreamOriented,
+    MulticonnectnessDependsOnInnerType,
+    help = r#"
+Log each buffer as it pass though the underlying connector.
+
+If you increase the logging level, you will also see hex buffers.
+
+Example: view WebSocket handshake and traffic on the way to echo.websocket.org
+
+    websocat -t - ws-c:log:tcp:127.0.0.1:1080 --ws-c-uri ws://echo.websocket.org
+
+"#
+);
+
+pub struct LogRead (pub Box<dyn AsyncRead>);
+
+fn log_buffer(tag: &'static str, buf: &[u8]) {
+    let mut s = String::with_capacity(buf.len()*2);
+    for x in buf.iter().cloned().map(std::ascii::escape_default) {
+        s.push_str(String::from_utf8_lossy(&x.collect::<Vec<u8>>()).as_ref() );
+    }
+    eprintln!("{} {} \"{}\"", tag, buf.len(), s );
+    debug!("{}", hex::encode(buf));
+}
+
+
+impl AsyncRead for LogRead {}
+
+impl Read for LogRead {
+    fn read(&mut self, buf: &mut [u8]) -> std::result::Result<usize, std::io::Error> {
+        let ret = self.0.read(buf);
+
+        if let Ok(ref sz) = ret {
+            let buf = &buf[..*sz];
+            log_buffer("READ", buf);
+        } else {
+            //eprintln!("FAILED_READ");
+        }
+
+        ret
+    }
+}
+
+pub struct LogWrite(pub Box<dyn AsyncWrite>);
+
+impl AsyncWrite for LogWrite {
+    fn shutdown(&mut self) -> futures::Poll<(), std::io::Error> {
+        self.0.shutdown()
+    }
+}
+impl Write for LogWrite {
+    fn write(&mut self, buf: &[u8]) -> IoResult<usize> {
+        
+        let ret = self.0.write(buf);
+
+        if let Ok(ref sz) = ret {
+            let buf = &buf[..*sz];
+            log_buffer("WRITE", buf);
+        } else {
+            //eprintln!("FAILED_WRITE");
+        }
+
+        ret
+    }
+    fn flush(&mut self) -> IoResult<()> {
+        self.0.flush()
+    }
+}
