@@ -89,10 +89,10 @@ There are multiple options for installing WebSocat. From easy to hard:
 * Install the [Rust toolchain](https://rustup.rs/) and do `cargo install --features=ssl websocat`. If something fails with a `-sys` crate, try without `--features=ssl`;
 * Build Websocat from source code (see below), then move `target/release/websocat` somewhere to the PATH.
 
-## Usage
+## `--help=long` output
 
 ```
-websocat 1.5.0
+websocat 1.7.0
 Vitaly "_Vi" Shukela <vi0oss@gmail.com>
 Command-line client for web sockets, like netcat/curl/socat for ws://.
 
@@ -102,7 +102,10 @@ USAGE:
     websocat [FLAGS] [OPTIONS] <addr1> <addr2>  (advanced mode)
 
 FLAGS:
-    (some flags are hidden, see --help=long)
+        --async-stdio                           [A] On UNIX, set stdin and stdout to nonblocking mode instead of
+                                                spawning a thread. This should improve performance, but may break other
+                                                programs running on the same console.
+        --dump-spec                             [A] Instead of running, dump the specifiers representation to stdout
     -e, --set-environment                       Set WEBSOCAT_* environment variables when doing exec:/cmd:/sh-c:
                                                 Currently it's WEBSOCAT_URI and WEBSOCAT_CLIENT for
                                                 request URI and client address (if TCP)
@@ -111,29 +114,67 @@ FLAGS:
         --jsonrpc                               Format messages you type as JSON RPC 2.0 method calls. First word
                                                 becomes method name, the rest becomes parameters, possibly automatically
                                                 wrapped in [].
+        --just-generate-key                     [A] Just a Sec-WebSocket-Key value without running main Websocat
+        --linemode-strip-newlines               [A] Don't include trailing \n or \r\n coming from streams in WebSocket
+                                                messages
     -0, --null-terminated                       Use \0 instead of \n for linemode
+        --no-line                               [A] Don't automatically insert line-to-message transformation
+        --no-exit-on-zeromsg                    [A] Don't exit when encountered a zero message. Zero messages are used
+                                                internally in Websocat, so it may fail to close connection at all.
+        --no-fixups                             [A] Don't perform automatic command-line fixups. May destabilize
+                                                websocat operation. Use --dump-spec without --no-fixups to discover what
+                                                is being inserted automatically and read the full manual about Websocat
+                                                internal workings.
+        --no-async-stdio                        [A] Inhibit using stdin/stdout in a nonblocking way if it is not a tty
     -1, --one-message                           Send and/or receive only one message. Use with --no-close and/or -u/-U.
         --oneshot                               Serve only once. Not to be confused with -1 (--one-message)
+        --exec-sighup-on-stdin-close            [A] Make exec: or sh-c: or cmd: send SIGHUP on UNIX when input is
+                                                closed.
+        --exec-sighup-on-zero-msg               [A] Make exec: or sh-c: or cmd: send SIGHUP on UNIX when facing incoming
+                                                zero-length message.
     -q                                          Suppress all diagnostic messages, except of startup errors
+        --reuser-send-zero-msg-on-disconnect    [A] Make reuse-raw: send a zero-length message to the peer when some
+                                                clients disconnects.
     -s, --server-mode                           Simple server mode: specify TCP port or addr:port as single argument
     -S, --strict                                strict line/message mode: drop too long messages instead of splitting
                                                 them, drop incomplete lines.
     -k, --insecure                              Accept invalid certificates and hostnames while connecting to TLS
+        --udp-broadcast                         [A] Set SO_BROADCAST
+        --udp-multicast-loop                    [A] Set IP[V6]_MULTICAST_LOOP
+        --udp-oneshot                           [A] udp-listen: replies only one packet per client
+        --udp-reuseaddr                         [A] Set SO_REUSEADDR for UDP socket. Listening TCP sockets are always
+                                                reuseaddr.
     -u, --unidirectional                        Inhibit copying data in one direction
     -U, --unidirectional-reverse                Inhibit copying data in the other direction (or maybe in both directions
                                                 if combined with -u)
+        --unlink                                [A] Unlink listening UNIX socket before binding to it
+    -V, --version                               Prints version information
     -v                                          Increase verbosity level to info or further
     -b, --binary                                Send message to WebSockets as binary messages
     -n, --no-close                              Don't send Close message to websocket on EOF
+        --websocket-ignore-zeromsg              [A] Silently drop incoming zero-length WebSocket messages. They may
+                                                cause connection close due to usage of zero-len message as EOF flag
+                                                inside Websocat.
     -t, --text                                  Send message to WebSockets as text messages
+        --base64                                Encode incoming binary WebSocket messages in one-line Base64 If
+                                                `--binary-prefix` (see `--help=full`) is set, outgoing WebSocket
+                                                messages that start with the prefix are decoded from base64 prior to
+                                                sending.
+        --base64-text                           [A] Encode incoming text WebSocket messages in one-line Base64. I don't
+                                                know whether it can be ever useful, but it's for symmetry with
+                                                `--base64`.
 
 OPTIONS:
-    (some options are hidden, see --help=long)
         --socks5 <auto_socks5>
             Use specified address:port as a SOCKS5 proxy. Note that proxy authentication is not supported yet. Example:
             --socks5 127.0.0.1:9050
+        --autoreconnect-delay-millis <autoreconnect_delay_millis>
+            [A] Delay before reconnect attempt for `autoreconnect:` overlay. [default: 20]
 
-    -B, --buffer-size <buffer_size>                     Maximum message size, in bytes [default: 65536]
+        --queue-len <broadcast_queue_len>
+            [A] Number of pending queued messages for broadcast reuser [default: 16]
+
+    -B, --buffer-size <buffer_size>                                  Maximum message size, in bytes [default: 65536]
     -H, --header <custom_headers>...
             Add custom HTTP header to websocket client request. Separate header name and value with a colon and
             optionally a single space. Can be used multiple times. Note that single -H may eat multiple further
@@ -142,21 +183,43 @@ OPTIONS:
             Add custom HTTP header to websocket upgrade reply. Separate header name and value with a colon and
             optionally a single space. Can be used multiple times. Note that single -H may eat multiple further
             arguments, leading to confusing errors.
+        --exec-args <exec_args>...
+            [A] Arguments for the `exec:` specifier. Must be the last option, everything after it gets into the exec
+            args list.
         --header-to-env <headers_to_env>...
             Forward specified incoming request header to H_* environment variable for `exec:`-like specifiers.
+
     -h, --help <help>
             See the help.
             --help=short is the list of easy options and address types
             --help=long lists all options and types (see [A] markers)
             --help=doc also shows longer description and examples.
-        --conncap <max_parallel_conns>                  Maximum number of simultaneous connections for listening mode
-        --origin <origin>                               Add Origin HTTP header to websocket client request
+        --just-generate-accept <just_generate_accept>
+            [A] Just a Sec-WebSocket-Accept value based on supplied Sec-WebSocket-Key value without running main
+            Websocat
+        --max-messages <max_messages>
+            Maximum number of messages to copy in one direction.
+
+        --max-messages-rev <max_messages_rev>
+            Maximum number of messages to copy in the other direction.
+
+        --conncap <max_parallel_conns>
+            Maximum number of simultaneous connections for listening mode
+
+        --origin <origin>                                            Add Origin HTTP header to websocket client request
         --pkcs12-der <pkcs12_der>
             Pkcs12 archive needed to accept SSL connections, certificate and key.
             A command to output it: openssl pkcs12 -export -out output.pkcs12 -inkey key.pem -in cert.pem
             Use with -s (--server-mode) option or with manually specified TLS overlays.
             See moreexamples.md for more info.
-        --pkcs12-passwd <pkcs12_passwd>                 Password for --pkcs12-der pkcs12 archive. Required on Mac.
+        --pkcs12-passwd <pkcs12_passwd>
+            Password for --pkcs12-der pkcs12 archive. Required on Mac.
+
+        --request-header <request_headers>...
+            [A] Specify HTTP request headers for `http-request:` specifier.
+
+    -X, --request-method <request_method>                            [A] Method to use for `http-request:` specifier
+        --request-uri <request_uri>                                  [A] URI to use for `http-request:` specifier
         --restrict-uri <restrict_uri>
             When serving a websocket, only accept the given URI, like `/ws`
             This liberates other URIs for things like serving static files or proxying.
@@ -167,17 +230,45 @@ OPTIONS:
             Directories are not and will not be supported for security reasons.
             Can be specified multiple times. Recommended to specify them at the end or with equal sign like `-F=...`,
             otherwise this option may eat positional arguments
+        --socks5-bind-script <socks5_bind_script>
+            [A] Execute specified script in `socks5-bind:` mode when remote port number becomes known.
 
+        --socks5-destination <socks_destination>
+            [A] Examples: 1.2.3.4:5678  2600:::80  hostname:5678
 
-        --protocol <websocket_protocol>                 Specify this Sec-WebSocket-Protocol: header when connecting
+        --tls-domain <tls_domain>
+            [A] Specify domain for SNI or certificate verification when using tls-connect: overlay
+
+        --udp-multicast <udp_join_multicast_addr>...
+            [A] Issue IP[V6]_ADD_MEMBERSHIP for specified multicast address. Can be specified multiple times.
+
+        --udp-multicast-iface-v4 <udp_join_multicast_iface_v4>...
+            [A] IPv4 address of multicast network interface. Has to be either not specified or specified the same number
+            of times as multicast IPv4 addresses. Order matters.
+        --udp-multicast-iface-v6 <udp_join_multicast_iface_v6>...
+            [A] Index of network interface for IPv6 multicast. Has to be either not specified or specified the same
+            number of times as multicast IPv6 addresses. Order matters.
+        --udp-ttl <udp_ttl>                                          [A] Set IP_TTL, also IP_MULTICAST_TTL if applicable
+        --protocol <websocket_protocol>
+            Specify this Sec-WebSocket-Protocol: header when connecting
+
         --server-protocol <websocket_reply_protocol>
             Force this Sec-WebSocket-Protocol: header when accepting a connection
 
-        --websocket-version <websocket_version>         Override the Sec-WebSocket-Version value
-        --ping-interval <ws_ping_interval>              Send WebSocket pings each this number of seconds
+        --websocket-version <websocket_version>                      Override the Sec-WebSocket-Version value
+        --binary-prefix <ws_binary_prefix>
+            [A] Prepend specified text to each received WebSocket binary message. Also strip this prefix from outgoing
+            messages, explicitly marking them as binary even if `--text` is specified
+        --ws-c-uri <ws_c_uri>
+            [A] URI to use for ws-c: overlay [default: ws://0.0.0.0/]
+
+        --ping-interval <ws_ping_interval>                           Send WebSocket pings each this number of seconds
         --ping-timeout <ws_ping_timeout>
             Drop WebSocket connection if Pong message not received for this number of seconds
 
+        --text-prefix <ws_text_prefix>
+            [A] Prepend specified text to each received WebSocket text message. Also strip this prefix from outgoing
+            messages, explicitly marking them as text even if `--binary` is specified
 
 ARGS:
     <addr1>    In simple mode, WebSocket URL to connect. In advanced mode first address (there are many kinds of
@@ -198,37 +289,69 @@ Basic examples:
     websocat --binary ws-l:127.0.0.1:8080 tcp:127.0.0.1:5678
     
 
-Partial list of address types:
+Full list of address types:
 	ws://           	Insecure (ws://) WebSocket client. Argument is host and URL.
 	wss://          	Secure (wss://) WebSocket client. Argument is host and URL.
 	ws-listen:      	WebSocket server. Argument is host and port to listen.
+	inetd-ws:       	WebSocket inetd server. [A]
+	l-ws-unix:      	WebSocket UNIX socket-based server. [A]
+	l-ws-abstract:  	WebSocket abstract-namespaced UNIX socket server. [A]
+	ws-lowlevel-client:	[A] Low-level HTTP-independent WebSocket client connection without associated HTTP upgrade.
+	ws-lowlevel-server:	[A] Low-level HTTP-independent WebSocket server connection without associated HTTP upgrade.
 	wss-listen:     	Listen for secure WebSocket connections on a TCP port
-	stdio:          	Same as `-`. Read input from console, print to console.
+	http:           	[A] Issue HTTP request, receive a 1xx or 2xx reply, then pass
+	asyncstdio:     	[A] Set stdin and stdout to nonblocking mode, then use it as a communication counterpart. UNIX-only.
+	inetd:          	Like `asyncstdio:`, but intented for inetd(8) usage. [A]
 	tcp:            	Connect to specified TCP host and port. Argument is a socket address.
 	tcp-listen:     	Listen TCP port on specified address.
 	ssl-listen:     	Listen for SSL connections on a TCP port
 	sh-c:           	Start specified command line using `sh -c` (even on Windows)
 	cmd:            	Start specified command line using `sh -c` or `cmd /C` (depending on platform)
+	exec:           	Execute a program directly (without a subshell), providing array of arguments on Unix [A]
 	readfile:       	Synchronously read a file. Argument is a file path.
 	writefile:      	Synchronously truncate and write a file.
 	appendfile:     	Synchronously append a file.
 	udp:            	Send and receive packets to specified UDP socket, from random UDP port  
 	udp-listen:     	Bind an UDP socket to specified host:port, receive packet
+	open-async:     	Open file for read and write and use it like a socket. [A]
+	open-fd:        	Use specified file descriptor like a socket. [A]
+	threadedstdio:  	[A] Stdin/stdout, spawning a thread (threaded version).
+	-               	Read input from console, print to console. Uses threaded implementation even on UNIX unless requested by `--async-stdio` CLI option.
+	unix:           	Connect to UNIX socket. Argument is filesystem path. [A]
+	unix-listen:    	Listen for connections on a specified UNIX socket [A]
+	unix-dgram:     	Send packets to one path, receive from the other. [A]
+	abstract:       	Connect to UNIX abstract-namespaced socket. Argument is some string used as address. [A]
+	abstract-listen:	Listen for connections on a specified abstract UNIX socket [A]
+	abstract-dgram: 	Send packets to one address, receive from the other. [A]
 	mirror:         	Simply copy output to input. No arguments needed.
 	literalreply:   	Reply with a specified string for each input packet.
+	clogged:        	Do nothing. Don't read or write any bytes. Keep connections in "hung" state. [A]
 	literal:        	Output a string, discard input.
-Partial list of overlays:
+	assert:         	Check the input.  [A]
+	assert2:        	Check the input. [A]
+	seqpacket:      	Connect to AF_UNIX SOCK_SEQPACKET socket. Argument is a filesystem path. [A]
+	seqpacket-listen:	Listen for connections on a specified AF_UNIX SOCK_SEQPACKET socket [A]
+Full list of overlays:
+	ws-upgrade:     	WebSocket upgrader / raw server. Specify your own protocol instead of usual TCP. [A]
+	http-request:   	[A] Issue HTTP request, receive a 1xx or 2xx reply, then pass
+	http-post-sse:  	[A] Accept HTTP/1 request. Then, if it is GET,
+	ssl-connect:    	Overlay to add TLS encryption atop of existing connection [A]
+	ssl-accept:     	Accept an TLS connection using arbitrary backing stream. [A]
+	reuse-raw:      	Reuse subspecifier for serving multiple clients: unpredictable mode. [A]
 	broadcast:      	Reuse this connection for serving multiple clients, sending replies to all clients.
 	autoreconnect:  	Re-establish underlying connection on any error or EOF
+	ws-c:           	Low-level WebSocket connector. Argument is a some another address. [A]
+	msg2line:       	Line filter: Turns messages from packet stream into lines of byte stream. [A]
+	line2msg:       	Line filter: turn lines from byte stream into messages as delimited by '\\n' or '\\0' [A]
+	foreachmsg:     	Execute something for each incoming message.
+	log:            	Log each buffer as it pass though the underlying connector.
+	jsonrpc:        	[A] Turns messages like `abc 1,2` into `{"jsonrpc":"2.0","id":412, "method":"abc", "params":[1,2]}`.
+	socks5-connect: 	SOCKS5 proxy client (raw) [A]
+	socks5-bind:    	SOCKS5 proxy client (raw, bind command) [A]
 ```
 
 Pre-built binaries for Linux (usual and musl), Windows, OS X and Android are available on the [releases page](https://github.com/vi/websocat/releases).
 
-Limitations
----
-
-* It is not convenient when text and binary WebSocket messages are mixed. This affects `mirror:` specifier, making it a bit different from ws://echo.websocket.org. There are `--binary-prefix`, `--text-prefix` and `--base64` options to handle mixture of binary and text.
-* Current version of Websocat don't receive notification about closed sockets. This makes serving without `-E` or `-u` options or in backpressure scenarios prone to socket leak.
 
 Building from source code
 ---
@@ -255,15 +378,17 @@ There is a work-in-progress [reference document](doc.md) that contains more opti
 Some notes
 ---
 
-* It runs singlethreaded, but can serve multiple connections simultaneously. There is old non-async threaded version in `legacy` branch of releases prior to 0.5.
 * IPv6 is supported, surround your IP in square brackets or use it as is, depending on context.
 * Web socket usage is not obligatory, you can use any specs on both sides.
 * Typically one line in binary stream correspond to one WebSocket text message. This is adjustable with options.
 
-Planned features
+Limitations
 ---
 
-There are also checkboxes on issues [#1](https://github.com/vi/websocat/issues/1) and [#5](https://github.com/vi/websocat/issues/5).
+* It is not convenient when text and binary WebSocket messages are mixed. This affects `mirror:` specifier, making it a bit different from ws://echo.websocket.org. There are `--binary-prefix`, `--text-prefix` and `--base64` options to handle mixture of binary and text.
+* Current version of Websocat don't receive notification about closed sockets. This makes serving without `-E` or `-u` options or in backpressure scenarios prone to socket leak.
+* Readline is not integrated. Users are advices to wrap websocat using [`rlwrap`](https://linux.die.net/man/1/rlwrap) tool for more convenient CLI.
+* Build process of current version of Websocat is not properly automated and is fragile.
 
 See also
 ---

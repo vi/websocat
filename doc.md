@@ -29,7 +29,7 @@ Some address types may be "aliases" to other address types or combinations of ov
 
 ```
 
-websocat 2.0.0-alpha0
+websocat 1.7.0
 Vitaly "_Vi" Shukela <vi0oss@gmail.com>
 Command-line client for web sockets, like netcat/curl/socat for ws://.
 
@@ -39,6 +39,9 @@ USAGE:
     websocat [FLAGS] [OPTIONS] <addr1> <addr2>  (advanced mode)
 
 FLAGS:
+        --async-stdio                           [A] On UNIX, set stdin and stdout to nonblocking mode instead of
+                                                spawning a thread. This should improve performance, but may break other
+                                                programs running on the same console.
         --dump-spec                             [A] Instead of running, dump the specifiers representation to stdout
     -e, --set-environment                       Set WEBSOCAT_* environment variables when doing exec:/cmd:/sh-c:
                                                 Currently it's WEBSOCAT_URI and WEBSOCAT_CLIENT for
@@ -53,12 +56,13 @@ FLAGS:
                                                 messages
     -0, --null-terminated                       Use \0 instead of \n for linemode
         --no-line                               [A] Don't automatically insert line-to-message transformation
-        --no-exit-on-zeromsg                   [A] Don't exit when encountered a zero message. Zero messages are used
+        --no-exit-on-zeromsg                    [A] Don't exit when encountered a zero message. Zero messages are used
                                                 internally in Websocat, so it may fail to close connection at all.
         --no-fixups                             [A] Don't perform automatic command-line fixups. May destabilize
                                                 websocat operation. Use --dump-spec without --no-fixups to discover what
                                                 is being inserted automatically and read the full manual about Websocat
                                                 internal workings.
+        --no-async-stdio                        [A] Inhibit using stdin/stdout in a nonblocking way if it is not a tty
     -1, --one-message                           Send and/or receive only one message. Use with --no-close and/or -u/-U.
         --oneshot                               Serve only once. Not to be confused with -1 (--one-message)
         --exec-sighup-on-stdin-close            [A] Make exec: or sh-c: or cmd: send SIGHUP on UNIX when input is
@@ -89,11 +93,21 @@ FLAGS:
                                                 cause connection close due to usage of zero-len message as EOF flag
                                                 inside Websocat.
     -t, --text                                  Send message to WebSockets as text messages
+        --base64                                Encode incoming binary WebSocket messages in one-line Base64 If
+                                                `--binary-prefix` (see `--help=full`) is set, outgoing WebSocket
+                                                messages that start with the prefix are decoded from base64 prior to
+                                                sending.
+        --base64-text                           [A] Encode incoming text WebSocket messages in one-line Base64. I don't
+                                                know whether it can be ever useful, but it's for symmetry with
+                                                `--base64`.
 
 OPTIONS:
         --socks5 <auto_socks5>
             Use specified address:port as a SOCKS5 proxy. Note that proxy authentication is not supported yet. Example:
             --socks5 127.0.0.1:9050
+        --autoreconnect-delay-millis <autoreconnect_delay_millis>
+            [A] Delay before reconnect attempt for `autoreconnect:` overlay. [default: 20]
+
         --queue-len <broadcast_queue_len>
             [A] Number of pending queued messages for broadcast reuser [default: 16]
 
@@ -139,13 +153,10 @@ OPTIONS:
             Password for --pkcs12-der pkcs12 archive. Required on Mac.
 
         --request-header <request_headers>...
-            Specify HTTP request headers TODO: add short option, remove existing -H
-            Note: this is option for not-yet-finished websocat 2.0. Beware of confusion.
+            [A] Specify HTTP request headers for `http-request:` specifier.
 
     -X, --request-method <request_method>                            [A] Method to use for `http-request:` specifier
-            Note: this is option for not-yet-finished websocat 2.0. Beware of confusion.
         --request-uri <request_uri>                                  [A] URI to use for `http-request:` specifier
-            Note: this is option for not-yet-finished websocat 2.0. Beware of confusion.
         --restrict-uri <restrict_uri>
             When serving a websocket, only accept the given URI, like `/ws`
             This liberates other URIs for things like serving static files or proxying.
@@ -182,6 +193,9 @@ OPTIONS:
             Force this Sec-WebSocket-Protocol: header when accepting a connection
 
         --websocket-version <websocket_version>                      Override the Sec-WebSocket-Version value
+        --binary-prefix <ws_binary_prefix>
+            [A] Prepend specified text to each received WebSocket binary message. Also strip this prefix from outgoing
+            messages, explicitly marking them as binary even if `--text` is specified
         --ws-c-uri <ws_c_uri>
             [A] URI to use for ws-c: overlay [default: ws://0.0.0.0/]
 
@@ -189,6 +203,9 @@ OPTIONS:
         --ping-timeout <ws_ping_timeout>
             Drop WebSocket connection if Pong message not received for this number of seconds
 
+        --text-prefix <ws_text_prefix>
+            [A] Prepend specified text to each received WebSocket text message. Also strip this prefix from outgoing
+            messages, explicitly marking them as text even if `--binary` is specified
 
 ARGS:
     <addr1>    In simple mode, WebSocket URL to connect. In advanced mode first address (there are many kinds of
@@ -290,7 +307,6 @@ Internal name for --dump-spec: WsLlClient
 
 
 [A] Low-level HTTP-independent WebSocket client connection without associated HTTP upgrade.
-Note: this is option for not-yet-finished websocat 2.0. Beware of confusion.
 
 Example: TODO
 
@@ -302,7 +318,6 @@ Internal name for --dump-spec: WsLlServer
 
 
 [A] Low-level HTTP-independent WebSocket server connection without associated HTTP upgrade.
-Note: this is option for not-yet-finished websocat 2.0. Beware of confusion.
 
 Example: TODO
 
@@ -335,22 +350,20 @@ Content you write becomes body, content you read is body that server has sent.
 
 URI is specified inline.
 
-Note: this is option for not-yet-finished websocat 2.0. Beware of confusion.
-
 Example:
 
     websocat  -b - http://example.com < /dev/null
 
 
-### `stdio:`
+### `asyncstdio:`
 
-Aliases: `-`  
-Internal name for --dump-spec: Stdio
+Internal name for --dump-spec: AsyncStdio
 
 
-Same as `-`. Read input from console, print to console.
+[A] Set stdin and stdout to nonblocking mode, then use it as a communication counterpart. UNIX-only.
+May cause problems with programs running at the same terminal. This specifier backs the `--async-stdio` CLI option. 
 
-This specifier can be specified only one time.
+Typically this specifier can be specified only one time.
     
 Example: simulate `cat(1)`. This is an exception from "only one time" rule above:
 
@@ -358,7 +371,7 @@ Example: simulate `cat(1)`. This is an exception from "only one time" rule above
 
 Example: SSH transport
 
-    ssh -c ProxyCommand='websocat - ws://myserver/mywebsocket' user@myserver
+    ssh -c ProxyCommand='websocat asyncstdio: ws://myserver/mywebsocket' user@myserver
 
 
 ### `inetd:`
@@ -366,7 +379,7 @@ Example: SSH transport
 Internal name for --dump-spec: Inetd
 
 
-Like `stdio:`, but intented for inetd(8) usage. [A]
+Like `asyncstdio:`, but intented for inetd(8) usage. [A]
 
 Automatically enables `-q` (`--quiet`) mode.
 
@@ -571,11 +584,30 @@ Example: Serve random data to clients v2
 Internal name for --dump-spec: ThreadedStdio
 
 
-Stdin/stdout, spawning a thread. [A]
+[A] Stdin/stdout, spawning a thread (threaded version).
 
 Like `-`, but forces threaded mode instead of async mode
 
 Use when standard input is not `epoll(7)`-able or you want to avoid setting it to nonblocking mode.
+
+
+### `-`
+
+Aliases: `stdio:`  
+Internal name for --dump-spec: Stdio
+
+
+Read input from console, print to console. Uses threaded implementation even on UNIX unless requested by `--async-stdio` CLI option.
+
+Typically this specifier can be specified only one time.
+    
+Example: simulate `cat(1)`. This is an exception from "only one time" rule above:
+
+    websocat - -
+
+Example: SSH transport
+
+    ssh -c ProxyCommand='websocat - ws://myserver/mywebsocket' user@myserver
 
 
 ### `unix:`
@@ -833,11 +865,27 @@ Content you write becomes body, content you read is body that server has sent.
 
 URI is specified using a separate command-line parameter
 
-Note: this is option for not-yet-finished websocat 2.0. Beware of confusion.
-
 Example:
 
     websocat -Ub - http-request:tcp:example.com:80 --request-uri=http://example.com/ --request-header 'Connection: close'
+
+
+### `http-post-sse:`
+
+Internal name for --dump-spec: HttpPostSse
+
+
+[A] Accept HTTP/1 request. Then, if it is GET,
+unidirectionally return incoming messages as server-sent events (SSE).
+
+If it is POST then, also unidirectionally, write body upstream.
+
+Example - turn SSE+POST pair into a client WebSocket connection:
+
+    websocat -E -t http-post-sse:tcp-l:127.0.0.1:8080 reuse:ws://127.0.0.1:80/websock
+
+`curl -dQQQ http://127.0.0.1:8080/` would send into it and 
+`curl -N http://127.0.0.1:8080/` would recv from it.
 
 
 ### `ssl-connect:`
@@ -1000,6 +1048,21 @@ Example:
     websocat -t -u ws://server/listen_for_updates foreachmsg:writefile:status.txt
 
 This keeps only recent incoming message in file and discards earlier messages.
+
+
+### `log:`
+
+Internal name for --dump-spec: Log
+
+
+Log each buffer as it pass though the underlying connector.
+
+If you increase the logging level, you will also see hex buffers.
+
+Example: view WebSocket handshake and traffic on the way to echo.websocket.org
+
+    websocat -t - ws-c:log:tcp:127.0.0.1:1080 --ws-c-uri ws://echo.websocket.org
+
 
 
 ### `jsonrpc:`

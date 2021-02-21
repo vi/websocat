@@ -422,8 +422,7 @@ struct Opt {
     #[structopt(long = "request-method", short="X")]
     request_method: Option<http::Method>,
 
-    /// Specify HTTP request headers
-    /// TODO: add short option, remove existing -H
+    /// [A] Specify HTTP request headers for `http-request:` specifier.
     #[structopt(
         long = "request-header", 
         parse(try_from_str = "interpret_custom_header2"),
