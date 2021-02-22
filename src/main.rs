@@ -5,6 +5,10 @@ mod api;
 use futures::FutureExt;
 use async_trait::async_trait;
 
+
+#[macro_use]
+extern crate slab_typesafe;
+
 fn main() {
     let q : Box<dyn Lol + Send + Sync + 'static> = Box::new(Www);
     q.qqq();

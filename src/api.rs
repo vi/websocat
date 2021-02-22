@@ -8,21 +8,24 @@ use tokio::prelude::{AsyncRead,AsyncWrite};
 use std::future::Future;
 use futures::stream::Stream;
 use std::net::{SocketAddr,IpAddr};
-use id_tree::{Tree,NodeId};
+use std::path::PathBuf;
 use downcast_rs::{impl_downcast,Downcast};
 use std::fmt::Debug;
 use std::sync::{Arc,Mutex};
 use async_trait::async_trait;
 use anyhow::Result;
 use std::pin::Pin;
+use std::time::Duration;
 
-/// A part of parsed command line before looking up the SpecifierClasses.
-pub struct StringyNode {
-    pub name: String,
-    pub properties: HashMap<String,String>,
-    // pub child_nodes: id_tree::NodeId -- implied,
-}
-pub type StringyNodes = id_tree::Tree<StringyNode>;
+pub mod stringy;
+pub use stringy::StringyNode;
+
+declare_slab_token!(pub NodeId);
+
+pub use slab_typesafe::Slab;
+
+/// On of the value of an enum-based property
+pub struct EnummyTag(pub usize);
 
 /// Should I maybe somehow better used Serde model for this?
 pub enum PropertyValue {
@@ -31,7 +34,7 @@ pub enum PropertyValue {
 
     /// One of specific set of strings.
     /// 0 means the first value from PropertyValueType::Enummy vector (may be up to upper/lowercase)
-    Enummy(usize),
+    Enummy(EnummyTag),
 
     /// Numberic
     Numbery(i64),
@@ -47,6 +50,21 @@ pub enum PropertyValue {
 
     /// Some IPv4 or IPv6 address
     IpAddr(IpAddr),
+
+    /// A port number
+    PortNumber(u16),
+
+    /// Some file or directory name
+    Path(PathBuf),
+
+    /// Some URI or it's part
+    Uri(http::Uri),
+
+    /// Some interval of time
+    Duration(Duration),
+
+    /// Some source and sink of byte blocks
+    ChildNode(NodeId),
 }
 
 pub enum PropertyValueType {
@@ -57,6 +75,13 @@ pub enum PropertyValueType {
     Booly,
     SockAddr,
     IpAddr,
+    PortNumber,
+    Path,
+    Uri,
+    Duration,
+    ChildNode,
+
+    // pub fn interpret(&self, x: &str) -> Result<PropertyValue>;
 }
 
 /// A user-facing information block about some property of some SpecifierClass
@@ -71,7 +96,7 @@ type Properties = HashMap<String, PropertyValue>;
 #[derive(Clone)]
 pub struct RunContext {
     /// for starting running child nodes before this one
-    tree: Arc<Tree<DParsedNode>>,
+    tree: Arc<Slab<NodeId, DParsedNode>>,
 
     /// Mutually exclusive with `left_to_right_things_to_read_from`
     /// Used "on the left (server) sise" of websocat call to fill in various
@@ -99,20 +124,30 @@ pub struct RunContext {
 /// task in place of the one that is taken away)
 type IWantToServeAnotherConnection = Option<Pin<Box<dyn Future<Output=()> + Send + 'static>>>;
 
+pub trait NodeInProgressOfParsing {
+    fn set_property(&mut self, name: &str, val: PropertyValue) -> Result<()>;
+    fn push_array_element(&mut self, val: PropertyValue) -> Result<()>;
+    fn finish(self) -> Result<DParsedNode>;
+}
+pub type DNodeInProgressOfParsing = Box<dyn NodeInProgressOfParsing + Send + 'static>;
+
 /// Interpreted part of a command line describing some one aspect of a connection.
 /// The tree of those is supposed to be checked and modified by linting engine.
 /// Primary way to get those is by `SpecifierClass::parse`ing respective `StringyNode`s.
 #[async_trait]
-pub trait ParsedNode : Debug + Downcast{
+pub trait ParsedNode : Debug + Downcast {
     fn class(&self) -> DNodeClass;
-    fn set_property(&mut self, name: String, val: PropertyValue) -> Result<()>;
     fn get_property(&self, name:String) -> Option<PropertyValue>;
+    fn iterate_the_array(&self) -> Vec<PropertyValue>;
+
     // not displayed here the fact that there are child nodes
 
-    async fn run(&self, ctx: &RunContext, your_child_node_ids: Vec<NodeId>, multiconn: &mut IWantToServeAnotherConnection) -> Result<Pipe>;
+    async fn run(&self, ctx: &RunContext, multiconn: &mut IWantToServeAnotherConnection) -> Result<Pipe>;
 }
 impl_downcast!(ParsedNode);
 pub type DParsedNode = Pin<Box<dyn ParsedNode + Send + 'static>>;
+
+pub struct NodeInATree<'a>(pub NodeId, pub &'a Slab<NodeId, DParsedNode>);
 
 
 pub trait GlobalInfo : Debug + Downcast {
@@ -134,8 +169,10 @@ pub struct WebsocatContext {
     /// Key should probably be `NodeClass::official_name`
     pub global_things: Arc<Mutex<Globals>>,
 
-    pub left : Arc<Mutex<Tree<DParsedNode>>>,
-    pub right : Arc<Mutex<Tree<DParsedNode>>>,
+    nodes: Arc<Slab<NodeId, DParsedNode>>,
+
+    pub left : NodeId,
+    pub right : NodeId,
 
     /// Command-line options that do not belong to specific nodes
     pub global_parameters : Arc<Mutex<Properties>>,
@@ -146,11 +183,14 @@ pub trait NodeClass {
     fn official_name(&self) -> String;
     /// List substrings that what can come before `:` to be considered belonging to this class.
     /// Should typically include `official_name()`. Like `["tcp-l:", "tcp-listen:", "listen-tcp:"]`.
+    /// Also used for matching the `StringyNode::name`s to the node classes.
     fn prefixes(&self) -> Vec<String>;
-    /// Look up and apply all those properties, check that structure (i.e. number of children) is well-formed.
-    /// Obviously, `class()` of the returned `DParsedNode` should lead back to this `SpecifierClass`. 
-    fn parse(&self, x:&StringyNode, num_children: usize) -> Result<DParsedNode>;
-    fn list_possible_properties(&self) -> Vec<PropertyInfo>;
+
+    fn properties(&self) -> Vec<PropertyInfo>;
+    fn array_type(&self) -> Option<PropertyValueType>;
+
+    fn new_node(&self) -> DNodeInProgressOfParsing;
+    
 
     /// Return Err if linter detected error.
     /// Return non-empty vector if linter detected a warning
@@ -161,7 +201,12 @@ pub trait NodeClass {
     fn run_lints(&self, nodeid: &NodeId, placement: NodePlacement, context: &WebsocatContext) -> Result<Vec<String>>;
 }
 
+/// Typical propery name for child nodes
+const INNER : &'static str = "inner";
+
 pub type DNodeClass = Box<dyn NodeClass + Send + 'static>;
+
+
 
 /*
 type PendingPipe  = Box<dyn FnOnce() -> Box<dyn Future<Output=anyhow::Result<Pipe>> + Send + Sync + 'static> + Send + Sync + 'static>;
