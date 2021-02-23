@@ -307,6 +307,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "tinyvec"
+version = "1.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "317cca572a0e89c3ce0ca1f1bdc9369547fe318a683418e42ac8f59d14701023"
+
+[[package]]
 name = "tokio"
 version = "0.3.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -335,5 +341,6 @@ dependencies = [
  "petgraph",
  "slab_typesafe",
  "smallvec",
+ "tinyvec",
  "tokio",
 ]

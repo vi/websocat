@@ -3,11 +3,17 @@ use std::collections::HashMap;
 
 use super::Result;
 
+#[derive(Eq, PartialEq)]
+pub enum StringOrSubnode {
+    Str(String),
+    Subnode(StringyNode),
+}
 /// A part of parsed command line before looking up the SpecifierClasses.
+#[derive(Eq, PartialEq)]
 pub struct StringyNode {
     pub name: String,
-    pub properties: HashMap<String, String>,
-    pub array: Vec<String>,
+    pub properties: Vec<(String, StringOrSubnode)>,
+    pub array: Vec<StringOrSubnode>,
     // pub child_nodes: id_tree::NodeId -- implied,
 }
 
@@ -18,22 +24,18 @@ impl<'a> std::fmt::Display for ValueForPrinting<'a> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let mut s = String::with_capacity(self.0.len());
         let mut tainted = false;
-        let mut balance : i32 = 0;
         for x in self.0.as_bytes().iter().map(|b|std::ascii::escape_default(*b)) {
-            let x : Vec<u8> = x.collect();
+            let mut x : Vec<u8> = x.collect();
             
-            if balance == 0 {
-                if x.len() > 1 { tainted = true; }
-                if x[0] == b':' || x[0] == b',' || x[0] == b' ' { tainted = true; }
-            }
+            if x.len() > 1 { tainted = true; }
+            if x[0] == b':' || x[0] == b',' || x[0] == b' ' { tainted = true; }
 
-            if x[0] == b'[' { balance += 1; }
-            if x[0] == b']' { balance -= 1; }
-            if balance < 0 { tainted = true; }
+            if x[0] == b'[' { tainted = true;  }
+            if x[0] == b']' { tainted = true;  }
+            if x[0] == b'=' { tainted = true;  }
 
             s.push_str(&String::from_utf8(x).unwrap());
         }
-        if balance != 0 { tainted = true; }
         if self.0.len() == 0 { tainted = true; }
         if tainted {
             write!(f, "\"{}\"", s);
@@ -48,107 +50,317 @@ impl std::fmt::Display for StringyNode {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "[{}", self.name)?;
         for (k, v) in &self.properties {
-            write!(f, " {}={}", k, ValueForPrinting(v));
+            match v {
+                StringOrSubnode::Str(x) => write!(f, " {}={}", k, ValueForPrinting(x)),
+                StringOrSubnode::Subnode(x) => write!(f, " {}={}", k, x),
+            };
         }
         for e in &self.array {
-            write!(f, " {}", ValueForPrinting(e));
+            match e {
+                StringOrSubnode::Str(x) => write!(f, " {}", ValueForPrinting(x)),
+                StringOrSubnode::Subnode(x) => write!(f, " {}", x),
+            };
         }
         write!(f, "]")?;
         Ok(())
     }
 }
 
-#[test]
-fn test_display1() {
-    assert_eq!(format!("{}", StringyNode {
-        name: "qqq".to_owned(),
-        properties: HashMap::new(),
-        array: Vec::new(),
-    }), "[qqq]");
+mod tests;
 
-    assert_eq!(format!("{}", StringyNode {
-        name: "www".to_owned(),
-        properties: vec![("a".to_owned(),"b".to_owned())].into_iter().collect(),
-        array: Vec::new(),
-    }), "[www a=b]");
+#[rustfmt::skip] // tends to collapse character ranges into one line and to remove trailing `|`s.
+impl StringyNode {
+    fn read(r: &mut std::iter::Peekable<impl Iterator<Item=u8>>) -> Result<StringyNode> {
+        let mut chunk : Vec<u8> = Vec::with_capacity(20);
 
-    assert_eq!(format!("{}", StringyNode {
-        name: "eee".to_owned(),
-        properties: HashMap::new(),
-        array: vec!["c".to_owned()],
-    }), "[eee c]");
+        if r.next() != Some(b'[') { anyhow::bail!("Tree node must begin with `[` character"); }
 
-    assert_eq!(format!("{}", StringyNode {
-        name: "rrr".to_owned(),
-        properties: vec![("a".to_owned(),"b".to_owned())].into_iter().collect(),
-        array: vec!["c".to_owned()],
-    }), "[rrr a=b c]");
+        #[derive(Clone,Copy, Eq, PartialEq, Debug)]
+        enum S {
+            BeforeName,
+            Name,
+            ForcedSpace,
+            Space,
+            Chunk,
+            ChunkEsc,
+            ChunkEscBs,
+            ChunkEscHex,
+            Finish,
+        }
 
-    assert_eq!(format!("{}", StringyNode {
-        name: "ttt".to_owned(),
-        properties: vec![("a".to_owned(),"b".to_owned()), ("a2".to_owned(),"b2".to_owned())].into_iter().collect(),
-        array: vec!["c".to_owned(), "c2".to_owned()],
-    }), "[ttt a=b a2=b2 c c2]");
-}
-#[test]
-fn test_display2() {
-    assert_eq!(format!("{}", StringyNode {
-        name: "eee".to_owned(),
-        properties: HashMap::new(),
-        array: vec!["\"".to_owned()],
-    }), "[eee \"\\\"\"]");
+        let mut state = S::BeforeName;
 
-    assert_eq!(format!("{}", StringyNode {
-        name: "eee".to_owned(),
-        properties: HashMap::new(),
-        array: vec!["[]".to_owned()],
-    }), "[eee []]");
+        let mut name : Option<String> = None;
+        let mut array: Vec<StringOrSubnode> = vec![];
+        let mut properties: Vec<(String, StringOrSubnode)> = vec![];
+    
+        let mut property_name : Option<String> = None;
 
-    assert_eq!(format!("{}", StringyNode {
-        name: "eee".to_owned(),
-        properties: HashMap::new(),
-        array: vec!["[".to_owned()],
-    }), "[eee \"[\"]");
+        let mut hex : tinyvec::ArrayVec<[u8; 2]> = Default::default();
 
-    assert_eq!(format!("{}", StringyNode {
-        name: "eee".to_owned(),
-        properties: HashMap::new(),
-        array: vec!["".to_owned()],
-    }), "[eee \"\"]");
+        while let Some(c) = r.peek() {
+            //eprintln!("{:?} {}", state, c);
+            match state {
+                S::Name | S::BeforeName => {
+                    match c {
+                        | b'0'..=b'9'
+                        | b'a'..=b'z'
+                        | b'A'..=b'Z'
+                        | b'_'
+                        | b'.'
+                        | b'\x80' ..= b'\xFF'
+                        => {
+                            chunk.push(*c);
+                            state = S::Name;
+                        }
+                        b' ' => {
+                            if state == S::Name {
+                                name = Some(String::from_utf8(chunk)?);
+                                chunk = Vec::with_capacity(20);
+                                state = S::Space;
+                            } else {
+                                // no-op
+                            }
+                        }
+                        b']' => {
+                            if state == S::Name {
+                                name = Some(String::from_utf8(chunk)?); 
+                            } 
+                            state = S::Finish;
+                            r.next();
+                            break;
+                        }
+                        _ => anyhow::bail!("Invalid character {} while reading tree node name", std::ascii::escape_default(*c)),
+                    }
+                }
+                S::ForcedSpace => {
+                    match c {
+                        b' ' => {
+                            state = S::Space;
+                        }
+                        b']' => {
+                            state = S::Finish;
+                            r.next();
+                            break;
+                        }
+                        _ => anyhow::bail!(
+                            "Expected a space character or `]` after `\"` or `]`, not {} when parsing node named {}",
+                            std::ascii::escape_default(*c),
+                            name.as_ref().map(|x|&**x).unwrap_or("???"),
+                        ),
+                    }
+                }
+                S::Space => {
+                    match c {
+                        | b'0'..=b'9'
+                        | b'a'..=b'z'
+                        | b'A'..=b'Z'
+                        | b'_'
+                        | b'.'
+                        | b'\x80' ..= b'\xFF'
+                        => {
+                            chunk.push(*c);
+                            state = S::Chunk;
+                        }
+                        b'"' => {
+                            state = S::ChunkEsc;
+                        }
+                        b']' => {
+                            r.next();
+                            state = S::Finish;
+                            break;
+                        }
+                        b'[' => {
+                            let subnode = StringyNode::read(r).with_context(||format!(
+                                "Failed to read subnode array element {} of node {}",
+                                array.len()+1,
+                                name.as_ref().map(|x|&**x).unwrap_or("???"),
+                            ))?;
+                            array.push(StringOrSubnode::Subnode(subnode));
+                            state = S::ForcedSpace;
+                            continue;
+                        }
+                        b' ' => {
+                            // no-op
+                        }
+                        _ => anyhow::bail!(
+                            "Invalid character {} in tree node named {}",
+                            std::ascii::escape_default(*c),
+                            name.as_ref().map(|x|&**x).unwrap_or("???")
+                        ),
+                    }
+                }
+                S::Chunk => {
+                    match c {
+                        | b'0'..=b'9'
+                        | b'a'..=b'z'
+                        | b'A'..=b'Z'
+                        | b'_'
+                        | b'.'
+                        | b'\x80' ..= b'\xFF'
+                        => {
+                            chunk.push(*c);
+                        }
+                        b' ' | b']' => {
+                            if chunk.is_empty() {
+                                anyhow::bail!(
+                                    "Unescaped empty propery {} value of tree node {}",
+                                    property_name.as_ref().map(|x|&**x).unwrap_or("???"),
+                                    name.as_ref().map(|x|&**x).unwrap_or("???")
+                                );
+                            }
+                            let ch = String::from_utf8(chunk)?;
+                            chunk = Vec::with_capacity(20);
+                            if let Some(pn) = property_name {
+                                properties.push((pn, StringOrSubnode::Str(ch)));
+                            } else {
+                                array.push(StringOrSubnode::Str(ch));
+                            }
+                            property_name = None;
+                            if *c == b']' {
+                                state = S::Finish;
+                                r.next();
+                                break;
+                            } else {
+                                state = S::Space;
+                            }
+                        }
+                        b'=' => {
+                            if property_name.is_some() {
+                                anyhow::bail!(
+                                    "Duplicate unescaped = character when paring property {} of a tree node {}",
+                                    property_name.unwrap(),
+                                    name.as_ref().map(|x|&**x).unwrap_or("???")
+                                );
+                            }
+                            let ch = String::from_utf8(chunk)?;
+                            property_name = Some(ch);
+                            chunk = Vec::with_capacity(20);
+                        }
+                        b'"' => {
+                            if property_name.is_none() || ! chunk.is_empty() {
+                                anyhow::bail!(
+                                    "Property value `\"` escape character in a tree node named {} must come immediately after `=`",
+                                    name.as_ref().map(|x|&**x).unwrap_or("???")
+                                );
+                            }
+                            state = S::ChunkEsc;
+                        }
+                        b'[' => {
+                            if let Some(pn) = property_name {
+                                if ! chunk.is_empty() {
+                                    anyhow::bail!(
+                                        "Wrong `[` character position when parsing a tree node named {}",
+                                        name.as_ref().map(|x|&**x).unwrap_or("???")
+                                    );
+                                }
+                                let subnode = StringyNode::read(r).with_context(||format!(
+                                    "Failed to read property {} value of node {}",
+                                    pn,
+                                    name.as_ref().map(|x|&**x).unwrap_or("???"),
+                                ))?;
+                                properties.push((pn, StringOrSubnode::Subnode(subnode)));
+                                state = S::ForcedSpace;
+                                property_name = None;
+                                continue;
+                            } else {
+                                anyhow::bail!(
+                                    "Wrong `[` character position when parsing a tree node named {}",
+                                    name.as_ref().map(|x|&**x).unwrap_or("???")
+                                );
+                            }
+                        }
+                        _ => anyhow::bail!(
+                            "Invalid character {} in tree node named {} when a parsing potential property or array element",
+                            std::ascii::escape_default(*c),
+                            name.as_ref().map(|x|&**x).unwrap_or("???")
+                        ),
+                    }
+                }
+                S::ChunkEsc => {
+                    match c {
+                        b'"' => {
+                            let ch = String::from_utf8(chunk)?;
+                            chunk = Vec::with_capacity(20);
+                            if let Some(pn) = property_name {
+                                properties.push((pn, StringOrSubnode::Str(ch)));
+                            } else {
+                                array.push(StringOrSubnode::Str(ch));
+                            }
+                            property_name = None;
+                            state = S::ForcedSpace;
+                        }
+                        b'\\' => {
+                            state = S::ChunkEscBs;
+                        }
+                        _ => {
+                            chunk.push(*c);
+                        }
+                    }
+                }
+                S::ChunkEscBs => {
+                    match c {
+                        b't' => chunk.push(b'\t'),
+                        b'n' => chunk.push(b'\n'),
+                        b'\'' => chunk.push(b'\''),
+                        b'"' => chunk.push(b'"'),
+                        b'\\' => chunk.push(b'\\'),
+                        b'x' => (),
+                        _ => anyhow::bail!(
+                            "Invalid escape sequence character {} when parsing tree node {}",
+                            std::ascii::escape_default(*c),
+                            name.as_ref().map(|x|&**x).unwrap_or("???"),
+                        ),
+                    }
+                    state = S::ChunkEsc;
+                    if *c == b'x' { state = S::ChunkEscHex; }
+                }
+                S::ChunkEscHex => {
+                    match c {
+                        b'0' ..= b'9' => hex.push(*c - b'0'),
+                        b'a' ..= b'f' => hex.push(*c + 10 - b'a'),
+                        b'A' ..= b'F' => hex.push(*c + 10 - b'A'),
+                        _ => anyhow::bail!(
+                            "Invalid hex escape sequence character {} when parsing tree node {}",
+                            std::ascii::escape_default(*c),
+                            name.as_ref().map(|x|&**x).unwrap_or("???"),
+                        ),
+                    }
+                    if hex.len() == 2 {
+                        chunk.push(hex[0] * 16 + hex[1]);
+                        state = S::ChunkEsc;
+                        hex.clear();
+                    }
+                }
+                S::Finish => break,
+            }
+            r.next();
+        }
+        if state != S::Finish {
+            anyhow::bail!(
+                "Trimmed input when parsing the tree node named {}",
+                name.as_ref().map(|x|&**x).unwrap_or("???"),
+            );
+        }
+        if name.is_none() {
+            anyhow::bail!(
+                "Empty tree nodes are not allowed",
+            );
+        }
 
-    assert_eq!(format!("{}", StringyNode {
-        name: "eee".to_owned(),
-        properties: HashMap::new(),
-        array: vec!["]".to_owned()],
-    }), "[eee \"]\"]");
-
-    assert_eq!(format!("{}", StringyNode {
-        name: "eee".to_owned(),
-        properties: HashMap::new(),
-        array: vec!["\\".to_owned()],
-    }), "[eee \"\\\\\"]");
-
-
-    assert_eq!(format!("{}", StringyNode {
-        name: "eee".to_owned(),
-        properties: HashMap::new(),
-        array: vec!["[qqq w=e r \"\"]".to_owned()],
-    }), "[eee [qqq w=e r \"\"]]");
+        Ok(StringyNode {
+            name: name.unwrap(),
+            properties,
+            array,
+        })
+    }
 }
 
 impl std::str::FromStr for StringyNode {
     type Err = anyhow::Error;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let mut n = StringyNode {
-            name: String::with_capacity(20),
-            properties: HashMap::new(),
-            array: Vec::new(),
-        };
-
-        todo!();
-
-        Ok(n)
+        StringyNode::read(&mut s.bytes().peekable())
     }
 }
 
@@ -188,18 +400,23 @@ impl StringyNode {
 
             let mut b = cls.new_node();
 
+            use super::{PropertyValueType as PVT, PropertyValue as PV};
+            use StringOrSubnode::{Str,Subnode};
+
             for (k, v) in &self.properties {
                 if let Some(typ) = p.get(k) {
-                    let vv = match typ {
-                        super::PropertyValueType::ChildNode => super::PropertyValue::ChildNode(
-                            self.build_impl(classes_by_prefix, tree)?,
+                    let vv = match (typ, v) {
+                        (PVT::ChildNode, Subnode(x)) => PV::ChildNode(
+                            x.build_impl(classes_by_prefix, tree)?,
                         ),
-                        ty => ty.interpret(v).with_context(|| {
+                        (ty, Str(x)) => ty.interpret(x).with_context(|| {
                             format!(
                                 "Failed to parse property {} in node {} that has value `{}`",
-                                k, self.name, v
+                                k, self.name, x
                             )
                         })?,
+                        (PVT::ChildNode, _) => anyhow::bail!("Subnode (`[...]`) expected as a property value {} of node {}", k, self.name),
+                        (_, Subnode(_)) => anyhow::bail!("A subnode is not expected as a property value {} of node {}", k, self.name),
                     };
                     b.set_property(k, vv).with_context(|| {
                         format!("Failed to set property {} in node {}", k, self.name)
@@ -211,16 +428,25 @@ impl StringyNode {
 
             let at = cls.array_type();
 
-            for e in &self.array {
+            for (n, e) in self.array.iter().enumerate() {
                 if let Some(at) = &at {
-                    b.push_array_element(at.interpret(e).with_context(|| {
-                        format!(
-                            "Failed to parse array element `{}` in node {}",
-                            e, self.name
-                        )
-                    })?)
+                    let vv = match (at, e) {
+                        (PVT::ChildNode, Subnode(x)) => PV::ChildNode(
+                            x.build_impl(classes_by_prefix, tree)?,
+                        ),
+                        (ty, Str(x)) => ty.interpret(x).with_context(|| {
+                            format!(
+                                "Failed to array element number {} in node {} that has value `{}`",
+                                n, self.name, x
+                            )
+                        })?,
+                        (PVT::ChildNode, _) => anyhow::bail!("Subnode (`[...]`) expected as an array element number {} of node {}", n, self.name),
+                        (_, Subnode(_)) => anyhow::bail!("A subnode is not expected as an array element number {} of node {}", n, self.name),
+                    };
+
+                    b.push_array_element(vv)
                     .with_context(|| {
-                        format!("Failed to push array element `{}` to node {}", e, self.name)
+                        format!("Failed to push array element number `{}` to node {}", n, self.name)
                     })?;
                 } else {
                     anyhow::bail!("Node type {} does not support array elements", self.name);
