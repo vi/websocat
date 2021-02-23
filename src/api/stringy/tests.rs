@@ -9,8 +9,8 @@ use StringOrSubnode::{Str, Subnode};
 fn ss(x: &'static str) -> StringOrSubnode {
     Str(x.to_owned())
 }
-fn s(x: &'static str) -> String {
-    x.to_owned()
+fn s(x: &'static str) -> Ident {
+    Ident(x.to_owned())
 }
 
 #[test]
@@ -57,7 +57,7 @@ fn test_display_simple() {
             StringyNode {
                 name: s("rrr"),
                 properties: vec![(s("a"), ss("b"))].into_iter().collect(),
-                array: vec![Str(s("c"))],
+                array: vec![Str("c".to_owned())],
             }
         ),
         "[rrr a=b c]"
@@ -294,4 +294,99 @@ fn test_parse1() {
     pass(r#"[qqq ""]"#, r#"[qqq ""]"#);
     pass(r#"[qqq "\\"]"#, r#"[qqq "\\"]"#);
     pass(r#"[qqq "\x20\n"]"#, r#"[qqq " \n"]"#);
+}
+
+#[derive(Debug)]
+pub struct SoSStrat;
+
+
+type SoST = < <super::StringyNode as proptest::arbitrary::Arbitrary>::Strategy as proptest::strategy::Strategy>::Tree;
+type SsST = < <String as proptest::arbitrary::Arbitrary>::Strategy as proptest::strategy::Strategy>::Tree;
+pub enum SoSTree {
+    Sub(SoST),
+    Str(SsST),
+}
+
+impl proptest::arbitrary::Arbitrary for super::StringOrSubnode {
+    type Parameters = ();
+    type Strategy = SoSStrat;
+    fn arbitrary_with(args: Self::Parameters) -> Self::Strategy {
+        SoSStrat
+    }
+}
+
+impl proptest::strategy::Strategy for SoSStrat {
+    type Value = super::StringOrSubnode;
+    type Tree = SoSTree;
+
+    fn new_tree(&self, runner: &mut proptest::test_runner::TestRunner) -> proptest::strategy::NewTree<Self> {
+        use proptest::prelude::RngCore;
+        use proptest::arbitrary::Arbitrary;
+        use proptest::strategy::Strategy;
+
+        let x = runner.rng().next_u32();
+        if x % 150 == 0 {
+            Ok(SoSTree::Sub(
+                super::StringyNode::arbitrary().new_tree(runner)?
+            ))
+        } else {
+            Ok(SoSTree::Str(
+                String::arbitrary().new_tree(runner)?
+            ))
+        }
+    }
+}
+
+impl proptest::strategy::ValueTree for SoSTree {
+    type Value = super::StringOrSubnode;
+    fn current(&self) -> Self::Value {
+        match self {
+            SoSTree::Str(x) => super::StringOrSubnode::Str(x.current()),
+            SoSTree::Sub(x) => super::StringOrSubnode::Subnode(x.current()),
+        }
+    }
+    fn simplify(&mut self) -> bool { 
+        match self {
+            SoSTree::Str(x) => x.simplify(),
+            SoSTree::Sub(x) => x.simplify(),
+        }
+    }
+    fn complicate(&mut self) -> bool { 
+        match self {
+            SoSTree::Str(x) => x.complicate(),
+            SoSTree::Sub(x) => x.complicate(),
+        }
+    }
+}
+
+#[test]
+#[ignore]
+fn print_some_trees() {
+    use proptest::arbitrary::Arbitrary;
+    use proptest::strategy::{Strategy,ValueTree};
+
+    let mut tr = proptest::test_runner::TestRunner::deterministic();
+
+    for _ in 0..25 {
+        let mut q = super::StringyNode::arbitrary().new_tree(&mut tr).unwrap();
+
+        println!("{}", q.current());
+
+        for _ in 0..10 {
+            if ! q.simplify() { break; }
+            println!("    {}", q.current());
+        }
+    }
+}
+
+
+use proptest::arbitrary::Arbitrary;
+
+proptest::proptest! {
+    #[test]
+    fn format_to_read(a in super::StringyNode::arbitrary()) {
+        let s = format!("{}", a);
+        let b = StringyNode::from_str(&s).unwrap();
+        proptest::prop_assert_eq!(a, b);
+    }
 }

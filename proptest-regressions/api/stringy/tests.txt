@@ -1,0 +1,7 @@
+# Seeds for failure cases proptest has generated in the past. It is
+# automatically read and these particular cases re-run before any
+# novel cases are generated.
+#
+# It is recommended to check this file in to source control so that
+# everyone who runs the test benefits from these saved cases.
+cc 8f0eb3a7f7eb39c632a1fc295635de77fe9af07d600d8015cbc0473165f6aa69 # shrinks to a = StringyNode { name: Ident("."), properties: [(Ident("0"), Str("#"))], array: [] }

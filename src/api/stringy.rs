@@ -3,16 +3,24 @@ use std::collections::HashMap;
 
 use super::Result;
 
-#[derive(Eq, PartialEq)]
+#[derive(Eq, PartialEq, Debug)]
+#[cfg_attr(test,derive(Clone))]
 pub enum StringOrSubnode {
     Str(String),
     Subnode(StringyNode),
 }
+#[derive(Eq, PartialEq, Debug)]
+#[cfg_attr(test,derive(Clone, proptest_derive::Arbitrary))]
+pub struct Ident(
+    #[cfg_attr(test, proptest(regex = "[a-z0-9._]+"))]
+    pub String
+);
 /// A part of parsed command line before looking up the SpecifierClasses.
-#[derive(Eq, PartialEq)]
+#[derive(Eq, PartialEq, Debug)]
+#[cfg_attr(test,derive(Clone, proptest_derive::Arbitrary))]
 pub struct StringyNode {
-    pub name: String,
-    pub properties: Vec<(String, StringOrSubnode)>,
+    pub name: Ident,
+    pub properties: Vec<(Ident, StringOrSubnode)>,
     pub array: Vec<StringOrSubnode>,
     // pub child_nodes: id_tree::NodeId -- implied,
 }
@@ -27,12 +35,14 @@ impl<'a> std::fmt::Display for ValueForPrinting<'a> {
         for x in self.0.as_bytes().iter().map(|b|std::ascii::escape_default(*b)) {
             let mut x : Vec<u8> = x.collect();
             
-            if x.len() > 1 { tainted = true; }
-            if x[0] == b':' || x[0] == b',' || x[0] == b' ' { tainted = true; }
-
-            if x[0] == b'[' { tainted = true;  }
-            if x[0] == b']' { tainted = true;  }
-            if x[0] == b'=' { tainted = true;  }
+            if x.len() > 1 { 
+                tainted = true;
+            } else {
+                match x[0] {
+                    x if identchar(x) => (),
+                    _ => tainted = true,
+                }
+            }
 
             s.push_str(&String::from_utf8(x).unwrap());
         }
@@ -48,11 +58,11 @@ impl<'a> std::fmt::Display for ValueForPrinting<'a> {
 
 impl std::fmt::Display for StringyNode {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "[{}", self.name)?;
+        write!(f, "[{}", self.name.0)?;
         for (k, v) in &self.properties {
             match v {
-                StringOrSubnode::Str(x) => write!(f, " {}={}", k, ValueForPrinting(x)),
-                StringOrSubnode::Subnode(x) => write!(f, " {}={}", k, x),
+                StringOrSubnode::Str(x) => write!(f, " {}={}", k.0, ValueForPrinting(x)),
+                StringOrSubnode::Subnode(x) => write!(f, " {}={}", k.0, x),
             };
         }
         for e in &self.array {
@@ -67,6 +77,19 @@ impl std::fmt::Display for StringyNode {
 }
 
 mod tests;
+
+fn identchar(b: u8) -> bool {
+    match b {
+        | b'0'..=b'9'
+        | b'a'..=b'z'
+        | b'A'..=b'Z'
+        | b'_' | b':' | b'?' | b'@'
+        | b'.' | b'/' | b'#' | b'&'
+        | b'\x80' ..= b'\xFF'
+        => true,
+        _ => false
+    }
+}
 
 #[rustfmt::skip] // tends to collapse character ranges into one line and to remove trailing `|`s.
 impl StringyNode {
@@ -92,7 +115,7 @@ impl StringyNode {
 
         let mut name : Option<String> = None;
         let mut array: Vec<StringOrSubnode> = vec![];
-        let mut properties: Vec<(String, StringOrSubnode)> = vec![];
+        let mut properties: Vec<(Ident, StringOrSubnode)> = vec![];
     
         let mut property_name : Option<String> = None;
 
@@ -103,12 +126,7 @@ impl StringyNode {
             match state {
                 S::Name | S::BeforeName => {
                     match c {
-                        | b'0'..=b'9'
-                        | b'a'..=b'z'
-                        | b'A'..=b'Z'
-                        | b'_'
-                        | b'.'
-                        | b'\x80' ..= b'\xFF'
+                        x if identchar(*x)
                         => {
                             chunk.push(*c);
                             state = S::Name;
@@ -152,12 +170,7 @@ impl StringyNode {
                 }
                 S::Space => {
                     match c {
-                        | b'0'..=b'9'
-                        | b'a'..=b'z'
-                        | b'A'..=b'Z'
-                        | b'_'
-                        | b'.'
-                        | b'\x80' ..= b'\xFF'
+                        x if identchar(*x)
                         => {
                             chunk.push(*c);
                             state = S::Chunk;
@@ -192,12 +205,7 @@ impl StringyNode {
                 }
                 S::Chunk => {
                     match c {
-                        | b'0'..=b'9'
-                        | b'a'..=b'z'
-                        | b'A'..=b'Z'
-                        | b'_'
-                        | b'.'
-                        | b'\x80' ..= b'\xFF'
+                        x if identchar(*x)
                         => {
                             chunk.push(*c);
                         }
@@ -212,7 +220,7 @@ impl StringyNode {
                             let ch = String::from_utf8(chunk)?;
                             chunk = Vec::with_capacity(20);
                             if let Some(pn) = property_name {
-                                properties.push((pn, StringOrSubnode::Str(ch)));
+                                properties.push((Ident(pn), StringOrSubnode::Str(ch)));
                             } else {
                                 array.push(StringOrSubnode::Str(ch));
                             }
@@ -259,7 +267,7 @@ impl StringyNode {
                                     pn,
                                     name.as_ref().map(|x|&**x).unwrap_or("???"),
                                 ))?;
-                                properties.push((pn, StringOrSubnode::Subnode(subnode)));
+                                properties.push((Ident(pn), StringOrSubnode::Subnode(subnode)));
                                 state = S::ForcedSpace;
                                 property_name = None;
                                 continue;
@@ -283,7 +291,7 @@ impl StringyNode {
                             let ch = String::from_utf8(chunk)?;
                             chunk = Vec::with_capacity(20);
                             if let Some(pn) = property_name {
-                                properties.push((pn, StringOrSubnode::Str(ch)));
+                                properties.push((Ident(pn), StringOrSubnode::Str(ch)));
                             } else {
                                 array.push(StringOrSubnode::Str(ch));
                             }
@@ -349,7 +357,7 @@ impl StringyNode {
         }
 
         Ok(StringyNode {
-            name: name.unwrap(),
+            name: Ident(name.unwrap()),
             properties,
             array,
         })
@@ -392,7 +400,7 @@ impl StringyNode {
         classes_by_prefix: &HashMap<String, super::DNodeClass>,
         tree: &mut super::Slab<super::NodeId, super::DParsedNode>,
     ) -> Result<super::NodeId> {
-        if let Some(cls) = classes_by_prefix.get(&self.name) {
+        if let Some(cls) = classes_by_prefix.get(&self.name.0) {
             let props = cls.properties();
             let mut p: HashMap<String, super::PropertyValueType> =
                 HashMap::with_capacity(props.len());
@@ -403,7 +411,7 @@ impl StringyNode {
             use super::{PropertyValueType as PVT, PropertyValue as PV};
             use StringOrSubnode::{Str,Subnode};
 
-            for (k, v) in &self.properties {
+            for (Ident(k), v) in &self.properties {
                 if let Some(typ) = p.get(k) {
                     let vv = match (typ, v) {
                         (PVT::ChildNode, Subnode(x)) => PV::ChildNode(
@@ -412,17 +420,17 @@ impl StringyNode {
                         (ty, Str(x)) => ty.interpret(x).with_context(|| {
                             format!(
                                 "Failed to parse property {} in node {} that has value `{}`",
-                                k, self.name, x
+                                k, self.name.0, x
                             )
                         })?,
-                        (PVT::ChildNode, _) => anyhow::bail!("Subnode (`[...]`) expected as a property value {} of node {}", k, self.name),
-                        (_, Subnode(_)) => anyhow::bail!("A subnode is not expected as a property value {} of node {}", k, self.name),
+                        (PVT::ChildNode, _) => anyhow::bail!("Subnode (`[...]`) expected as a property value {} of node {}", k, self.name.0),
+                        (_, Subnode(_)) => anyhow::bail!("A subnode is not expected as a property value {} of node {}", k, self.name.0),
                     };
                     b.set_property(k, vv).with_context(|| {
-                        format!("Failed to set property {} in node {}", k, self.name)
+                        format!("Failed to set property {} in node {}", k, self.name.0)
                     })?;
                 } else {
-                    anyhow::bail!("Property {} of node type {} not found", k, self.name);
+                    anyhow::bail!("Property {} of node type {} not found", k, self.name.0);
                 }
             }
 
@@ -437,19 +445,19 @@ impl StringyNode {
                         (ty, Str(x)) => ty.interpret(x).with_context(|| {
                             format!(
                                 "Failed to array element number {} in node {} that has value `{}`",
-                                n, self.name, x
+                                n, self.name.0, x
                             )
                         })?,
-                        (PVT::ChildNode, _) => anyhow::bail!("Subnode (`[...]`) expected as an array element number {} of node {}", n, self.name),
-                        (_, Subnode(_)) => anyhow::bail!("A subnode is not expected as an array element number {} of node {}", n, self.name),
+                        (PVT::ChildNode, _) => anyhow::bail!("Subnode (`[...]`) expected as an array element number {} of node {}", n, self.name.0),
+                        (_, Subnode(_)) => anyhow::bail!("A subnode is not expected as an array element number {} of node {}", n, self.name.0),
                     };
 
                     b.push_array_element(vv)
                     .with_context(|| {
-                        format!("Failed to push array element number `{}` to node {}", n, self.name)
+                        format!("Failed to push array element number `{}` to node {}", n, self.name.0)
                     })?;
                 } else {
-                    anyhow::bail!("Node type {} does not support array elements", self.name);
+                    anyhow::bail!("Node type {} does not support array elements", self.name.0);
                 }
             }
 
@@ -458,7 +466,7 @@ impl StringyNode {
             node.insert(todo!());
             Ok(key)
         } else {
-            anyhow::bail!("Node type {} not found", self.name)
+            anyhow::bail!("Node type {} not found", self.name.0)
         }
     }
 
