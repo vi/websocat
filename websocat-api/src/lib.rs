@@ -68,6 +68,7 @@ pub enum PropertyValue {
     ChildNode(NodeId),
 }
 
+#[derive(Debug)]
 pub enum PropertyValueType {
     Stringy,
     Enummy(Vec<String>),

@@ -11,7 +11,7 @@ struct Qqq {
 }
 */
 
-#[derive(Debug)]
+#[derive(Debug, websocat_derive::WebsocatNode)]
 struct Foo {
     o : i64,
     inner : websocat_api::NodeId,
@@ -97,26 +97,6 @@ impl websocat_api::NodeInProgressOfParsing for FooBuilder {
         ))
     }
 }
-
-impl websocat_api::ParsedNodeProperyAccess for Foo {
-    fn class(&self) -> websocat_api::DNodeClass {
-        Box::new(FooClass)
-    }
-
-    fn get_property(&self, name:&str) -> Option<websocat_api::PropertyValue> {
-        match name {
-            "o" => Some(websocat_api::PropertyValue::Numbery(self.o)),
-            "inner" => Some(websocat_api::PropertyValue::ChildNode(self.inner)),
-            "t" => self.t.clone().map(websocat_api::PropertyValue::Stringy),
-            _ => None,
-        }
-    }
-
-    fn get_array(&self) -> Vec<websocat_api::PropertyValue> {
-        vec![]
-    }
-}
-
 
 #[websocat_api::async_trait::async_trait]
 impl websocat_api::ParsedNode for Foo {
