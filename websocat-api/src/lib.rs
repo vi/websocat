@@ -1,24 +1,25 @@
-
-//type Port = id_tree::NodeId;
-//type Ports = Vec<Port>;//smallvec::SmallVec<[id_tree::NodeId; 1]>;
+#[macro_use]
+extern crate slab_typesafe;
 
 use std::collections::HashMap;
-use std::collections::HashSet;
-use tokio::prelude::{AsyncRead,AsyncWrite};
+use tokio::io::{AsyncRead,AsyncWrite};
 use std::future::Future;
-use futures::stream::Stream;
 use std::net::{SocketAddr,IpAddr};
 use std::path::PathBuf;
 use downcast_rs::{impl_downcast,Downcast};
 use std::fmt::Debug;
 use std::sync::{Arc,Mutex};
 use async_trait::async_trait;
-use anyhow::Result;
+pub use anyhow::Result;
 use std::pin::Pin;
 use std::time::Duration;
 
 pub mod stringy;
 pub use stringy::StringyNode;
+
+pub extern crate anyhow;
+pub extern crate tokio;
+pub extern crate async_trait;
 
 declare_slab_token!(pub NodeId);
 
@@ -96,7 +97,7 @@ type Properties = HashMap<String, PropertyValue>;
 #[derive(Clone)]
 pub struct RunContext {
     /// for starting running child nodes before this one
-    tree: Arc<Slab<NodeId, DParsedNode>>,
+    tree: Arc<Tree>,
 
     /// Mutually exclusive with `left_to_right_things_to_read_from`
     /// Used "on the left (server) sise" of websocat call to fill in various
@@ -113,6 +114,8 @@ pub struct RunContext {
     globals: Arc<Mutex<Globals>>,
 }
 
+static_assertions::assert_impl_all!(RunContext : Send);
+
 /// Returned task is either spawned to dropped depending on settings.
 /// Non-leaf (overlay) nodes should probably just pass this parameter down.
 /// Leaf nodes that don't support accepting multiple connections should 
@@ -122,32 +125,35 @@ pub struct RunContext {
 /// serving connections and pre-existing Some as a signal to resume and accept
 /// one more connection on existing socket (then leave another continuation
 /// task in place of the one that is taken away)
-type IWantToServeAnotherConnection = Option<Pin<Box<dyn Future<Output=()> + Send + 'static>>>;
+pub type IWantToServeAnotherConnection = Option<Pin<Box<dyn Future<Output=()> + Send + 'static>>>;
 
 pub trait NodeInProgressOfParsing {
     fn set_property(&mut self, name: &str, val: PropertyValue) -> Result<()>;
     fn push_array_element(&mut self, val: PropertyValue) -> Result<()>;
-    fn finish(self) -> Result<DParsedNode>;
+    
+    fn finish(self: Box<Self>) -> Result<DParsedNode>;
 }
 pub type DNodeInProgressOfParsing = Box<dyn NodeInProgressOfParsing + Send + 'static>;
+
+pub trait ParsedNodeProperyAccess : Debug {
+    fn class(&self) -> DNodeClass;
+    fn get_property(&self, name:&str) -> Option<PropertyValue>;
+    fn get_array(&self) -> Vec<PropertyValue>;
+
+    // not displayed here the fact that there are child nodes
+}
 
 /// Interpreted part of a command line describing some one aspect of a connection.
 /// The tree of those is supposed to be checked and modified by linting engine.
 /// Primary way to get those is by `SpecifierClass::parse`ing respective `StringyNode`s.
 #[async_trait]
-pub trait ParsedNode : Debug + Downcast {
-    fn class(&self) -> DNodeClass;
-    fn get_property(&self, name:String) -> Option<PropertyValue>;
-    fn iterate_the_array(&self) -> Vec<PropertyValue>;
-
-    // not displayed here the fact that there are child nodes
-
-    async fn run(&self, ctx: &RunContext, multiconn: &mut IWantToServeAnotherConnection) -> Result<Pipe>;
+pub trait ParsedNode : ParsedNodeProperyAccess + Downcast {
+    async fn run(&self, ctx: RunContext, multiconn: &mut IWantToServeAnotherConnection) -> Result<Pipe>;
 }
 impl_downcast!(ParsedNode);
-pub type DParsedNode = Pin<Box<dyn ParsedNode + Send + 'static>>;
+pub type DParsedNode = Pin<Box<dyn ParsedNode + Send + Sync + 'static>>;
 
-pub struct NodeInATree<'a>(pub NodeId, pub &'a Slab<NodeId, DParsedNode>);
+pub struct NodeInATree<'a>(pub NodeId, pub &'a Tree);
 
 
 pub trait GlobalInfo : Debug + Downcast {
@@ -164,12 +170,14 @@ pub enum NodePlacement {
     Right,
 }
 
+pub type Tree = Slab<NodeId, DParsedNode>;
+
 pub struct WebsocatContext {
     /// Place where specific nodes can store their process-global values
     /// Key should probably be `NodeClass::official_name`
     pub global_things: Arc<Mutex<Globals>>,
 
-    nodes: Arc<Slab<NodeId, DParsedNode>>,
+    pub nodes: Arc<Tree>,
 
     pub left : NodeId,
     pub right : NodeId,
@@ -202,10 +210,13 @@ pub trait NodeClass {
 }
 
 /// Typical propery name for child nodes
-const INNER : &'static str = "inner";
+pub const INNER_NAME : &'static str = "inner";
 
 pub type DNodeClass = Box<dyn NodeClass + Send + 'static>;
 
+pub trait NodeType {
+    type Class: NodeClass;
+}
 
 
 /*

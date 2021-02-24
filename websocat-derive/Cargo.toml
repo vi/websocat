@@ -1,0 +1,14 @@
+[package]
+name = "websocat-derive"
+version = "0.1.0"
+authors = ["Vitaly _Vi Shukela <vi0oss@gmail.com>"]
+edition = "2018"
+
+[lib]
+proc-macro = true
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+quote = "1.0.9"
+syn = {version="1.0.60", features=["extra-traits"]}

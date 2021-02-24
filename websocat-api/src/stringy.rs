@@ -33,7 +33,7 @@ impl<'a> std::fmt::Display for ValueForPrinting<'a> {
         let mut s = String::with_capacity(self.0.len());
         let mut tainted = false;
         for x in self.0.as_bytes().iter().map(|b|std::ascii::escape_default(*b)) {
-            let mut x : Vec<u8> = x.collect();
+            let x : Vec<u8> = x.collect();
             
             if x.len() > 1 { 
                 tainted = true;
@@ -48,7 +48,7 @@ impl<'a> std::fmt::Display for ValueForPrinting<'a> {
         }
         if self.0.len() == 0 { tainted = true; }
         if tainted {
-            write!(f, "\"{}\"", s);
+            write!(f, "\"{}\"", s)?;
         } else {
             write!(f, "{}", self.0)?;
         }
@@ -61,14 +61,14 @@ impl std::fmt::Display for StringyNode {
         write!(f, "[{}", self.name.0)?;
         for (k, v) in &self.properties {
             match v {
-                StringOrSubnode::Str(x) => write!(f, " {}={}", k.0, ValueForPrinting(x)),
-                StringOrSubnode::Subnode(x) => write!(f, " {}={}", k.0, x),
+                StringOrSubnode::Str(x) => write!(f, " {}={}", k.0, ValueForPrinting(x))?,
+                StringOrSubnode::Subnode(x) => write!(f, " {}={}", k.0, x)?,
             };
         }
         for e in &self.array {
             match e {
-                StringOrSubnode::Str(x) => write!(f, " {}", ValueForPrinting(x)),
-                StringOrSubnode::Subnode(x) => write!(f, " {}", x),
+                StringOrSubnode::Str(x) => write!(f, " {}", ValueForPrinting(x))?,
+                StringOrSubnode::Subnode(x) => write!(f, " {}", x)?,
             };
         }
         write!(f, "]")?;
@@ -378,8 +378,8 @@ impl super::PropertyValueType {
         match self {
             PVT::Stringy => Ok(PV::Stringy(x.to_owned())),
             PVT::Enummy(_) => todo!(),
-            PVT::Numbery => todo!(),
-            PVT::Floaty => todo!(),
+            PVT::Numbery => Ok(PV::Numbery(x.parse()?)),
+            PVT::Floaty => Ok(PV::Floaty(x.parse()?)),
             PVT::Booly => todo!(),
             PVT::SockAddr => todo!(),
             PVT::IpAddr => todo!(),
@@ -417,14 +417,14 @@ impl StringyNode {
                         (PVT::ChildNode, Subnode(x)) => PV::ChildNode(
                             x.build_impl(classes_by_prefix, tree)?,
                         ),
+                        (_, Subnode(_)) => anyhow::bail!("A subnode is not expected as a property value {} of node {}", k, self.name.0),
+                        (PVT::ChildNode, _) => anyhow::bail!("Subnode (`[...]`) expected as a property value {} of node {}", k, self.name.0),
                         (ty, Str(x)) => ty.interpret(x).with_context(|| {
                             format!(
                                 "Failed to parse property {} in node {} that has value `{}`",
                                 k, self.name.0, x
                             )
                         })?,
-                        (PVT::ChildNode, _) => anyhow::bail!("Subnode (`[...]`) expected as a property value {} of node {}", k, self.name.0),
-                        (_, Subnode(_)) => anyhow::bail!("A subnode is not expected as a property value {} of node {}", k, self.name.0),
                     };
                     b.set_property(k, vv).with_context(|| {
                         format!("Failed to set property {} in node {}", k, self.name.0)
@@ -442,13 +442,13 @@ impl StringyNode {
                         (PVT::ChildNode, Subnode(x)) => PV::ChildNode(
                             x.build_impl(classes_by_prefix, tree)?,
                         ),
+                        (PVT::ChildNode, _) => anyhow::bail!("Subnode (`[...]`) expected as an array element number {} of node {}", n, self.name.0),
                         (ty, Str(x)) => ty.interpret(x).with_context(|| {
                             format!(
                                 "Failed to array element number {} in node {} that has value `{}`",
                                 n, self.name.0, x
                             )
                         })?,
-                        (PVT::ChildNode, _) => anyhow::bail!("Subnode (`[...]`) expected as an array element number {} of node {}", n, self.name.0),
                         (_, Subnode(_)) => anyhow::bail!("A subnode is not expected as an array element number {} of node {}", n, self.name.0),
                     };
 
@@ -461,10 +461,7 @@ impl StringyNode {
                 }
             }
 
-            let mut node = tree.vacant_entry();
-            let key = node.key();
-            node.insert(todo!());
-            Ok(key)
+            Ok(tree.insert(b.finish()?))
         } else {
             anyhow::bail!("Node type {} not found", self.name.0)
         }
@@ -473,8 +470,86 @@ impl StringyNode {
     pub fn build(
         &self,
         classes_by_prefix: &HashMap<String, super::DNodeClass>,
-        tree: &mut super::Slab<super::NodeId, super::DParsedNode>,
+        tree: &mut super::Tree,
     ) -> Result<super::NodeId> {
         self.build_impl(classes_by_prefix, tree)
+    }
+
+    pub fn reverse(root: super::NodeId, tree:&super::Tree) -> Result<Self> {
+        let n = tree.get(root).with_context(||format!("Node not found"))?;
+        let c = n.class();
+
+        let name = Ident(c.official_name());
+        let mut properties : Vec<(Ident, StringOrSubnode)> = Vec::new();
+        let mut array : Vec<StringOrSubnode> = Vec::new();
+
+        for super::PropertyInfo { name: pn, help: _, r#type } in c.properties() {
+            if let Some(v) = n.get_property(&pn) {
+                let sn = match (v, r#type) {
+                    (super::PropertyValue::ChildNode(q), super::PropertyValueType::ChildNode) => {
+                        StringOrSubnode::Subnode(StringyNode::reverse(q, tree)?)
+                    },
+                    (_, super::PropertyValueType::ChildNode) => {
+                        anyhow::bail!("Inconsistent property value for {} in node type {}", pn, name.0)
+                    }
+                    (super::PropertyValue::ChildNode(_), _) => {
+                        anyhow::bail!("Inconsistent property value for {} in node type {}", pn, name.0)
+                    }
+                    (opv, _) => {
+                        StringOrSubnode::Str(format!("{}", opv))
+                    }
+                };
+                properties.push((Ident(pn), sn));
+            }
+        }
+
+        for el in n.get_array() {
+            let sn = match (el, c.array_type()) {
+                (_, None) => {
+                    anyhow::bail!("No array elements expected in node type {}", name.0)
+                }
+                (super::PropertyValue::ChildNode(q), Some(super::PropertyValueType::ChildNode)) => {
+                    StringOrSubnode::Subnode(StringyNode::reverse(q, tree)?)
+                },
+                (_, Some(super::PropertyValueType::ChildNode)) => {
+                    anyhow::bail!("Inconsistent array elment value in node type {}", name.0)
+                }
+                (super::PropertyValue::ChildNode(_), _) => {
+                    anyhow::bail!("Inconsistent array element value in node type {}", name.0)
+                }
+                (opv, Some(_)) => {
+                    StringOrSubnode::Str(format!("{}", opv))
+                }
+            };
+            array.push(sn);
+        }
+
+        Ok(StringyNode {
+            name,
+            properties,
+            array,
+        })
+    }
+}
+
+impl std::fmt::Display for super::PropertyValue {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            crate::PropertyValue::Stringy(x) => x.fmt(f),
+            crate::PropertyValue::Enummy(_) => todo!(),
+            crate::PropertyValue::Numbery(x) => x.fmt(f),
+            crate::PropertyValue::Floaty(x) => x.fmt(f),
+            crate::PropertyValue::Booly(x) => x.fmt(f),
+            crate::PropertyValue::SockAddr(x) => x.fmt(f),
+            crate::PropertyValue::IpAddr(x) => x.fmt(f),
+            crate::PropertyValue::PortNumber(x) => x.fmt(f),
+            crate::PropertyValue::Path(x) => match x.to_str() {
+                Some(y) => y.fmt(f),
+                None => "(?:/??)".fmt(f),
+            },
+            crate::PropertyValue::Uri(x) => x.fmt(f),
+            crate::PropertyValue::Duration(_) => todo!(),
+            crate::PropertyValue::ChildNode(_) => write!(f, "[???]"),
+        }
     }
 }
