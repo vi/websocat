@@ -2,27 +2,16 @@
 
 use std::str::FromStr;
 
-/*
-#[derive(websocat_derive::MyMacroHere)]
-#[qqq(3)]
-struct Qqq {
-    #[qqq(2)]
-    rr : i32,
-}
-*/
-
-#[derive(Debug, websocat_derive::WebsocatNode)]
+#[derive(Debug, Clone, websocat_derive::WebsocatNode)]
+#[websocat_node(official_name = "foo")]
 struct Foo {
     o : i64,
+    
+    // lol
     inner : websocat_api::NodeId,
-    t : Option<String>,
-}
 
-#[derive(Default)]
-struct FooBuilder {
-    o : Option<i64>,
-    inner: Option<websocat_api::NodeId>,
-    t: Option<String>,
+    /// Whatever
+    t : Option<String>,
 }
 
 struct FooClass;
@@ -65,39 +54,6 @@ impl websocat_api::NodeClass for FooClass {
     }
 }
 
-impl websocat_api::NodeInProgressOfParsing for FooBuilder {
-    fn set_property(&mut self, name: &str, val: websocat_api::PropertyValue) -> websocat_api::Result<()> {
-        use websocat_api::PropertyValue as PV;
-        match (name, val) {
-            ("o", PV::Numbery(n)) => self.o = Some(n),
-            ("inner", PV::ChildNode(n)) => self.inner = Some(n),
-            ("t", PV::Stringy(n)) => self.t = Some(n),
-            _ => websocat_api::anyhow::bail!("Unknown property {} or wrong type", name),
-        }
-        Ok(())
-    }
-
-    fn push_array_element(&mut self, val: websocat_api::PropertyValue) -> websocat_api::Result<()> {
-        websocat_api::anyhow::bail!("No array elements expected here");
-    }
-
-    fn finish(self: Box<Self>) -> websocat_api::Result<websocat_api::DParsedNode> {
-        if self.o.is_none() {
-            websocat_api::anyhow::bail!("Property `o` must be set");
-        }
-        if self.inner.is_none() {
-            websocat_api::anyhow::bail!("Property `inner` must be set");
-        }
-        Ok(Box::pin(
-            Foo {
-                o : self.o.unwrap(),
-                inner: self.inner.unwrap(),
-                t: self.t,
-            }
-        ))
-    }
-}
-
 #[websocat_api::async_trait::async_trait]
 impl websocat_api::ParsedNode for Foo {
     async fn run(&self, ctx: websocat_api::RunContext, multiconn: &mut websocat_api::IWantToServeAnotherConnection) -> websocat_api::Result<websocat_api::Pipe> {
@@ -106,7 +62,7 @@ impl websocat_api::ParsedNode for Foo {
 }
 
 
-#[derive(Debug)]
+#[derive(Debug,Clone)]
 struct Bar {
 }
 
@@ -172,6 +128,10 @@ impl websocat_api::ParsedNodeProperyAccess for Bar {
 
     fn get_array(&self) -> Vec<websocat_api::PropertyValue> {
         vec![]
+    }
+
+    fn clone(&self) -> websocat_api::DParsedNode {
+        ::std::boxed::Box::pin(::std::clone::Clone::clone(self))
     }
 }
 

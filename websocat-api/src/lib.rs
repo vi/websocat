@@ -68,7 +68,7 @@ pub enum PropertyValue {
     ChildNode(NodeId),
 }
 
-#[derive(Debug)]
+#[derive(Debug,Clone,Eq,PartialEq,Ord,PartialOrd)]
 pub enum PropertyValueType {
     Stringy,
     Enummy(Vec<String>),
@@ -136,8 +136,11 @@ pub trait NodeInProgressOfParsing {
 }
 pub type DNodeInProgressOfParsing = Box<dyn NodeInProgressOfParsing + Send + 'static>;
 
-pub trait ParsedNodeProperyAccess : Debug {
+/// Deriveable part of ParsedNode.
+pub trait ParsedNodeProperyAccess : Debug  {
     fn class(&self) -> DNodeClass;
+    fn clone(&self) -> DParsedNode;
+
     fn get_property(&self, name:&str) -> Option<PropertyValue>;
     fn get_array(&self) -> Vec<PropertyValue>;
 
