@@ -165,7 +165,9 @@ impl Clone for DNode {
 
 
 pub trait SyncNode: NodeProperyAccess {
-
+    /// Started from a Tokio runtime thread, so don't block it, spawn your own thread to handle things.
+    /// If this is a server that does multiple connections, start `closure` in a loop.
+    fn run(&self, ctx: RunContext, allow_multiconnect: bool, closure: impl FnMut(SyncPipe) -> Result<()> + Send ) -> Result<()>;
 }
 
 #[async_trait]

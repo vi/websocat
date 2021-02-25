@@ -12,3 +12,4 @@ websocat-api = {path = "../websocat-api"}
 websocat-basic = {path = "../websocat-basic"}
 
 tokio = {version = "1", features=["macros", "rt", "io-util"]}
+pipe = "0.4.0"

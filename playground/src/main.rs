@@ -38,7 +38,23 @@ struct Bar {
 }
 
 impl websocat_api::SyncNode for Bar {
-    
+    fn run(&self, ctx: websocat_api::RunContext, allow_multiconnect: bool, mut closure: impl FnMut(websocat_api::SyncPipe) -> websocat_api::Result<()> + Send ) -> websocat_api::Result<()> {
+        let (r,mut w2) = pipe::pipe();
+        let w = std::io::sink();
+        closure(websocat_api::SyncPipe {
+            r: Box::new(r),
+            w: Box::new(w),
+            closing_notification: None,
+        });
+        std::thread::spawn(move|| {
+            for _ in 0..10 {
+                use std::io::Write;
+                w2.write_all(b"Qqq\n").unwrap();
+                std::thread::sleep(std::time::Duration::from_secs(1));
+            }
+        });
+        Ok(())
+    }
 }
 
 
@@ -54,7 +70,7 @@ async fn main() {
 
     let mut t = websocat_api::Tree::new();
     
-    let q = websocat_api::StringyNode::from_str("[tcp addr=127.0.0.1:1234]").unwrap();
+    let q = websocat_api::StringyNode::from_str("[bar]").unwrap();
     let w = match q.build(&reg, &mut t) {
         Ok(x) => x,
         Err(e) => {eprintln!("Err: {:#}", e); return}
