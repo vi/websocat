@@ -190,7 +190,7 @@ impl ClassInfo {
 
 
     #[allow(non_snake_case)]
-    fn generate_ParsedNodeProperyAccess(&self) -> proc_macro2::TokenStream {
+    fn generate_NodeProperyAccess(&self) -> proc_macro2::TokenStream {
         let ci = self;
         let mut property_accessors = proc_macro2::TokenStream::new();
 
@@ -213,7 +213,7 @@ impl ClassInfo {
     
         let name = &ci.name;
         let ts = q! {
-            impl ::websocat_api::ParsedNodeProperyAccess for #name {
+            impl ::websocat_api::NodeProperyAccess for #name {
                 fn class(&self) -> ::websocat_api::DNodeClass {
                     Box::new(#classname)
                 }
@@ -229,7 +229,7 @@ impl ClassInfo {
                     vec![]
                 }
                 
-                fn clone(&self) -> ::websocat_api::DParsedNode {
+                fn clone(&self) -> ::websocat_api::DNode {
                     ::std::boxed::Box::pin(::std::clone::Clone::clone(self))
                 }
             }        
@@ -317,7 +317,7 @@ impl ClassInfo {
                     ::websocat_api::anyhow::bail!("No array elements expected here");
                 }
 
-                fn finish(self: Box<Self>) -> ::websocat_api::Result<websocat_api::DParsedNode> {
+                fn finish(self: Box<Self>) -> ::websocat_api::Result<websocat_api::DNode> {
                     #none_checks
                     ::std::result::Result::Ok(::std::boxed::Box::pin(
                         #name {
@@ -408,7 +408,7 @@ pub fn derive_websocat_node(input: TokenStream) -> TokenStream {
     
     let mut code = proc_macro2::TokenStream::new();
 
-    code.extend(ci.generate_ParsedNodeProperyAccess());
+    code.extend(ci.generate_NodeProperyAccess());
     code.extend(ci.generate_builder());
     code.extend(ci.generate_NodeInProgressOfParsing());
     code.extend(ci.generate_NodeClass());

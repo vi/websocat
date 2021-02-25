@@ -398,7 +398,7 @@ impl StringyNode {
     fn build_impl(
         &self,
         classes: &super::ClassRegistrar,
-        tree: &mut super::Slab<super::NodeId, super::DParsedNode>,
+        tree: &mut super::Slab<super::NodeId, super::DNode>,
     ) -> Result<super::NodeId> {
         if let Some(cls) = classes.officname_to_classes.get(&self.name.0) {
             let props = cls.properties();

@@ -132,14 +132,14 @@ pub trait NodeInProgressOfParsing {
     fn set_property(&mut self, name: &str, val: PropertyValue) -> Result<()>;
     fn push_array_element(&mut self, val: PropertyValue) -> Result<()>;
     
-    fn finish(self: Box<Self>) -> Result<DParsedNode>;
+    fn finish(self: Box<Self>) -> Result<DNode>;
 }
 pub type DNodeInProgressOfParsing = Box<dyn NodeInProgressOfParsing + Send + 'static>;
 
 /// Deriveable part of ParsedNode.
-pub trait ParsedNodeProperyAccess : Debug  {
+pub trait NodeProperyAccess : Debug  {
     fn class(&self) -> DNodeClass;
-    fn clone(&self) -> DParsedNode;
+    fn clone(&self) -> DNode;
 
     fn get_property(&self, name:&str) -> Option<PropertyValue>;
     fn get_array(&self) -> Vec<PropertyValue>;
@@ -151,15 +151,27 @@ pub trait ParsedNodeProperyAccess : Debug  {
 /// The tree of those is supposed to be checked and modified by linting engine.
 /// Primary way to get those is by `SpecifierClass::parse`ing respective `StringyNode`s.
 #[async_trait]
-pub trait ParsedNode : ParsedNodeProperyAccess + Downcast {
+pub trait Node : NodeProperyAccess + Downcast {
     async fn run(&self, ctx: RunContext, multiconn: &mut IWantToServeAnotherConnection) -> Result<Pipe>;
 }
-impl_downcast!(ParsedNode);
-pub type DParsedNode = Pin<Box<dyn ParsedNode + Send + Sync + 'static>>;
+impl_downcast!(Node);
+pub type DNode = Pin<Box<dyn Node + Send + Sync + 'static>>;
 
-impl Clone for DParsedNode {
+impl Clone for DNode {
     fn clone(&self) -> Self {
-        ParsedNodeProperyAccess::clone(&**self)
+        NodeProperyAccess::clone(&**self)
+    }
+}
+
+
+pub trait SyncNode: NodeProperyAccess {
+
+}
+
+#[async_trait]
+impl<T:SyncNode + Send + Sync + 'static> Node for T {
+    async fn run(&self, _ctx: RunContext, _multiconn: &mut IWantToServeAnotherConnection) -> Result<Pipe> {
+        Err(anyhow::anyhow!("nimpl"))
     }
 }
 
@@ -180,7 +192,7 @@ pub enum NodePlacement {
     Right,
 }
 
-pub type Tree = Slab<NodeId, DParsedNode>;
+pub type Tree = Slab<NodeId, DNode>;
 
 pub struct WebsocatContext {
     /// Place where specific nodes can store their process-global values
@@ -283,8 +295,9 @@ pub struct Pipe {
     pub w: Pin<Box<dyn AsyncWrite + Send  + 'static>>,
     pub closing_notification: Option<Pin<Box<dyn Future<Output=()> + Send + 'static>>>,
 }
-//type PendingPipe = Box<dyn Future<Output=Result<Pipe>> + Send + Sync + 'static>;
 
-
-// /// State where all intermediate representations are "frozen" into a thing that can actually be "launched" by Tokio
-// type ReadyToGo = Box<dyn Future<Output=()> + Send + Sync + 'static>;
+pub struct SyncPipe {
+    pub r: Box<dyn std::io::Read + Send + 'static>,
+    pub w: Box<dyn std::io::Write + Send + 'static>,
+    pub closing_notification: Option<tokio::sync::oneshot::Receiver<()>>,
+}

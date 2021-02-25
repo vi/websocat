@@ -10,7 +10,7 @@ pub struct Tcp {
 }
 
 #[websocat_api::async_trait::async_trait]
-impl websocat_api::ParsedNode for Tcp {
+impl websocat_api::Node for Tcp {
     async fn run(&self, _: websocat_api::RunContext, _: &mut websocat_api::IWantToServeAnotherConnection) -> websocat_api::Result<websocat_api::Pipe> {
         let c = tokio::net::TcpStream::connect(self.addr).await?;
         let (r,w) = c.into_split();

@@ -23,7 +23,7 @@ struct Foo {
 
 
 #[websocat_api::async_trait::async_trait]
-impl websocat_api::ParsedNode for Foo {
+impl websocat_api::Node for Foo {
     async fn run(&self, ctx: websocat_api::RunContext, multiconn: &mut websocat_api::IWantToServeAnotherConnection) -> websocat_api::Result<websocat_api::Pipe> {
         Err(websocat_api::anyhow::anyhow!("nimpl"))
     }
@@ -37,11 +37,8 @@ impl websocat_api::ParsedNode for Foo {
 struct Bar {
 }
 
-#[websocat_api::async_trait::async_trait]
-impl websocat_api::ParsedNode for Bar {
-    async fn run(&self, ctx: websocat_api::RunContext, multiconn: &mut websocat_api::IWantToServeAnotherConnection) -> websocat_api::Result<websocat_api::Pipe> {
-        Err(websocat_api::anyhow::anyhow!("nimpl"))
-    }
+impl websocat_api::SyncNode for Bar {
+    
 }
 
 
