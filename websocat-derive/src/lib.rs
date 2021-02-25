@@ -15,14 +15,17 @@ struct Field1 {
 }
 
 #[derive(Debug, darling::FromDeriveInput)]
-#[darling(attributes(websocat_node), forward_attrs(doc, official_name))]
+#[darling(attributes(websocat_node, debug_derive), forward_attrs(doc, official_name))]
 struct Class1 {
     ident: syn::Ident,
     data: darling::ast::Data<(),Field1>,
     official_name: String,
 
-    #[darling(multiple)]
-    prefixes: Vec<String>,  
+    #[darling(multiple, rename="prefix")]
+    prefixes: Vec<String>,
+
+    #[darling(default)]
+    debug_derive: bool,
 }
 
 
@@ -38,6 +41,8 @@ struct ClassInfo {
 
     official_name: String,
     prefixes: Vec<String>,  
+
+    debug_derive: bool,
 }
 
 fn proptype(x: &websocat_api::PropertyValueType) -> proc_macro2::TokenStream {
@@ -105,8 +110,8 @@ impl ClassInfo {
 
         let mut properties: Vec<PropertyInfo> = vec![];
         
-        {
-            let mut f = std::fs::OpenOptions::new().append(true).open("/tmp/derive.txt").unwrap();
+        if cc.debug_derive {
+            let mut f = std::fs::File::create("/tmp/derive.txt").unwrap();
             use std::io::Write;
             writeln!(f, "{:#?}", cc).unwrap();
         }
@@ -140,12 +145,33 @@ impl ClassInfo {
                         },
                         _ => panic!("Unknown type for field named {}", ident),
                     };
-                    let help = "".to_owned();
+                    let mut help = String::with_capacity(64);
+                    for attr in &field.attrs {
+                        if attr.path.segments.last().unwrap().ident == "doc" {
+                            match attr.tokens.clone().into_iter().last() {
+                                Some(proc_macro2::TokenTree::Literal(l)) => {
+                                    match syn::Lit::new(l) {
+                                        syn::Lit::Str(ll) => {
+                                            if ! help.is_empty() {
+                                                help += &"\n";
+                                            }
+                                            help += &ll.value();
+                                        }
+                                        _ => panic!("doc attribute is not a string literal"),
+                                    }
+                                }
+                                _ => panic!("doc attribute is not a string literal"),
+                            }
+                        }
+                    }
+                    if help.is_empty() {
+                        panic!("Undocumented field: {}", &ident);
+                    }
                     properties.push(PropertyInfo {
-                        ident,
+                        help,
                         typ,
                         optional,
-                        help,
+                        ident,
                     });
                 }
             }
@@ -156,6 +182,7 @@ impl ClassInfo {
             properties,
             prefixes: cc.prefixes,
             official_name: cc.official_name,
+            debug_derive: cc.debug_derive,
         };
         ci
     } 
@@ -300,18 +327,80 @@ impl ClassInfo {
         };
         ts
     }
+
+    #[allow(non_snake_case)]
+    fn generate_NodeClass(&self) -> proc_macro2::TokenStream {
+        let offiname = &self.official_name;
+
+        let mut property_infos =  proc_macro2::TokenStream::new();
+        
+        for p in &self.properties {
+            let pn = &p.ident;
+            let pn_s = pn.to_string();
+            let help = &p.help;
+            let pt = p.typ.ident();
+
+            property_infos.extend(q! {
+                ::websocat_api::PropertyInfo {
+                    name: #pn_s.to_owned(),
+                    r#type: websocat_api::PropertyValueType::#pt,
+                    help: #help.to_owned(),
+                },
+            })
+        }
+
+        let mut prefixes = proc_macro2::TokenStream::new();
+
+        for pr in &self.prefixes {
+            prefixes.extend(q!{
+                #pr.to_owned(),
+            });
+        }
+
+        let buildername = quote::format_ident!("{}Builder", self.name);
+        let classname = quote::format_ident!("{}Class", self.name);
+        let name = &self.name;
+
+        let ts = q! {          
+            struct #classname;
+
+            impl ::websocat_api::NodeClass for #classname {
+                fn official_name(&self) -> ::std::string::String { #offiname.to_owned() }
+            
+                fn prefixes(&self) -> ::std::vec::Vec<::std::string::String> { vec![
+                    #prefixes
+                ] }
+            
+                fn properties(&self) -> ::std::vec::Vec<::websocat_api::PropertyInfo> {
+                    vec![
+                        #property_infos
+                    ]
+                }
+            
+                fn array_type(&self) -> ::std::option::Option<::websocat_api::PropertyValueType> {
+                    None
+                }
+            
+                fn new_node(&self) -> ::websocat_api::DNodeInProgressOfParsing {
+                    ::std::boxed::Box::new(#buildername::default())
+                }
+            
+                fn run_lints(&self, nodeid: &::websocat_api::NodeId, placement: ::websocat_api::NodePlacement, context: &::websocat_api::WebsocatContext) -> ::websocat_api::Result<::std::vec::Vec<::std::string::String>> {
+                    Ok(vec![])
+                }
+            }
+
+            impl ::websocat_api::GetClassOfNode for #name {
+                type Class = #classname;
+            }
+        };
+        ts
+    }
 }
 
 #[proc_macro_derive(WebsocatNode, attributes(websocat_node))]
 pub fn derive_websocat_node(input: TokenStream) -> TokenStream {
-    
-    let mut f = std::fs::File::create("/tmp/derive.txt").unwrap();
-    use std::io::Write;
-    writeln!(f, "{:#}", input).unwrap();
     let x = parse_macro_input!(input as DeriveInput);
-    writeln!(f, "{:#?}", x).unwrap();
-    drop(f);
-
     let ci = ClassInfo::parse(&x);
     
     let mut code = proc_macro2::TokenStream::new();
@@ -319,11 +408,13 @@ pub fn derive_websocat_node(input: TokenStream) -> TokenStream {
     code.extend(ci.generate_ParsedNodeProperyAccess());
     code.extend(ci.generate_builder());
     code.extend(ci.generate_NodeInProgressOfParsing());
-
-
-    let mut f = std::fs::File::create("/tmp/derive.rs").unwrap();
-    writeln!(f, "{}", code).unwrap();
-    drop(f);
+    code.extend(ci.generate_NodeClass());
+    
+    if ci.debug_derive {
+        use std::io::Write;
+        let mut f = std::fs::File::create("/tmp/derive.rs").unwrap();
+        writeln!(f, "{}", code).unwrap();
+    }
 
     code.into()
 }

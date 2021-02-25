@@ -218,7 +218,7 @@ pub const INNER_NAME : &'static str = "inner";
 
 pub type DNodeClass = Box<dyn NodeClass + Send + 'static>;
 
-pub trait NodeType {
+pub trait GetClassOfNode {
     type Class: NodeClass;
 }
 
