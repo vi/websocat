@@ -361,7 +361,8 @@ impl ClassInfo {
         let classname = quote::format_ident!("{}Class", self.name);
         let name = &self.name;
 
-        let ts = q! {          
+        let ts = q! {    
+            #[derive(Default)]      
             struct #classname;
 
             impl ::websocat_api::NodeClass for #classname {

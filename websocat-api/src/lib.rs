@@ -219,7 +219,28 @@ pub const INNER_NAME : &'static str = "inner";
 pub type DNodeClass = Box<dyn NodeClass + Send + 'static>;
 
 pub trait GetClassOfNode {
-    type Class: NodeClass;
+    type Class: NodeClass + Default + Send + 'static;
+}
+
+#[derive(Default)]
+pub struct ClassRegistrar {
+    pub(crate) officname_to_classes: HashMap<String, DNodeClass>,
+}
+
+impl ClassRegistrar {
+    pub fn register<N: GetClassOfNode>(&mut self) {
+        self.register_impl(Box::new(N::Class::default()));
+    }
+
+    pub fn register_impl(&mut self, cls: DNodeClass) {
+        self.officname_to_classes.insert(cls.official_name(), cls);
+    }
+}
+
+impl std::fmt::Debug for ClassRegistrar {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        self.officname_to_classes.keys().fmt(f)
+    }
 }
 
 

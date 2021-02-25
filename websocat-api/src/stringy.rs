@@ -397,10 +397,10 @@ impl super::PropertyValueType {
 impl StringyNode {
     fn build_impl(
         &self,
-        classes_by_prefix: &HashMap<String, super::DNodeClass>,
+        classes: &super::ClassRegistrar,
         tree: &mut super::Slab<super::NodeId, super::DParsedNode>,
     ) -> Result<super::NodeId> {
-        if let Some(cls) = classes_by_prefix.get(&self.name.0) {
+        if let Some(cls) = classes.officname_to_classes.get(&self.name.0) {
             let props = cls.properties();
             let mut p: HashMap<String, super::PropertyValueType> =
                 HashMap::with_capacity(props.len());
@@ -415,7 +415,10 @@ impl StringyNode {
                 if let Some(typ) = p.get(k) {
                     let vv = match (typ, v) {
                         (PVT::ChildNode, Subnode(x)) => PV::ChildNode(
-                            x.build_impl(classes_by_prefix, tree)?,
+                            x.build_impl(classes, tree).with_context(||format!(
+                                "Building subbnode property {} value of node type {}",
+                                k, self.name.0,
+                            ))?,
                         ),
                         (_, Subnode(_)) => anyhow::bail!("A subnode is not expected as a property value {} of node {}", k, self.name.0),
                         (PVT::ChildNode, _) => anyhow::bail!("Subnode (`[...]`) expected as a property value {} of node {}", k, self.name.0),
@@ -440,7 +443,10 @@ impl StringyNode {
                 if let Some(at) = &at {
                     let vv = match (at, e) {
                         (PVT::ChildNode, Subnode(x)) => PV::ChildNode(
-                            x.build_impl(classes_by_prefix, tree)?,
+                            x.build_impl(classes, tree).with_context(||format!(
+                                "Building subnode array element number {} in node {}",
+                                n, self.name.0,
+                            ))?,
                         ),
                         (PVT::ChildNode, _) => anyhow::bail!("Subnode (`[...]`) expected as an array element number {} of node {}", n, self.name.0),
                         (ty, Str(x)) => ty.interpret(x).with_context(|| {
@@ -469,12 +475,13 @@ impl StringyNode {
 
     pub fn build(
         &self,
-        classes_by_prefix: &HashMap<String, super::DNodeClass>,
+        classes: &super::ClassRegistrar,
         tree: &mut super::Tree,
     ) -> Result<super::NodeId> {
-        self.build_impl(classes_by_prefix, tree)
+        self.build_impl(classes, tree)
     }
 
+    /// Turn parsed node back into it's stringy representation
     pub fn reverse(root: super::NodeId, tree:&super::Tree) -> Result<Self> {
         let n = tree.get(root).with_context(||format!("Node not found"))?;
         let c = n.class();

@@ -33,7 +33,7 @@ impl websocat_api::ParsedNode for Foo {
 
 #[derive(Debug, Clone, websocat_derive::WebsocatNode)]
 #[websocat_node(
-    official_name = "foo",
+    official_name = "bar",
 )]
 struct Bar {
 }
@@ -47,13 +47,19 @@ impl websocat_api::ParsedNode for Bar {
 
 
 fn main() {
-    let mut m = std::collections::HashMap::new();
-    m.insert("foo".to_owned(), Box::new(FooClass) as websocat_api::DNodeClass);
-    m.insert("bar".to_owned(), Box::new(BarClass) as websocat_api::DNodeClass);
-    let mut t = websocat_api::Tree::new();
+    let mut reg = websocat_api::ClassRegistrar::default();
+    reg.register::<Foo>();
+    reg.register::<Bar>();
 
-    let q = websocat_api::StringyNode::from_str("[foo o=3 inner=[bar] o=5]").unwrap();
-    let w = q.build(&m, &mut t).unwrap();
+    //println!("{:?}", reg);
+
+    let mut t = websocat_api::Tree::new();
+    
+    let q = websocat_api::StringyNode::from_str("[foo o=3 inner=[bar o=4] o=5]").unwrap();
+    let w = match q.build(&reg, &mut t) {
+        Ok(x) => x,
+        Err(e) => {eprintln!("Err: {:#}", e); return}
+    };
 
     println!("{}", websocat_api::StringyNode::reverse(w, &t).unwrap());
 }
