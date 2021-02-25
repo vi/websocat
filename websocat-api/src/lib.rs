@@ -98,21 +98,21 @@ type Properties = HashMap<String, PropertyValue>;
 #[derive(Clone)]
 pub struct RunContext {
     /// for starting running child nodes before this one
-    tree: Arc<Tree>,
+    pub nodes: Arc<Tree>,
 
     /// Mutually exclusive with `left_to_right_things_to_read_from`
     /// Used "on the left (server) sise" of websocat call to fill in various
     /// incoming connection parameters like IP address or requesting URL. 
     ///
     /// Hashmap keys are arbitrary identifiers - various nodes need to aggree in them
-    left_to_right_things_to_be_filled_in: Option<Arc<Mutex<Properties>>>,
+    pub left_to_right_things_to_be_filled_in: Option<Arc<Mutex<Properties>>>,
 
     /// Mutually exclusive with `left_to_right_things_to_be_filled_in`
     /// Use d "on the right side" of websocat call to act based on properties
     /// collected during acceping incoming connection
-    left_to_right_things_to_read_from: Option<Arc<Mutex<Properties>>>,
+    pub left_to_right_things_to_read_from: Option<Arc<Mutex<Properties>>>,
 
-    globals: Arc<Mutex<Globals>>,
+    pub globals: Arc<Mutex<Globals>>,
 }
 
 static_assertions::assert_impl_all!(RunContext : Send);
@@ -157,6 +157,12 @@ pub trait ParsedNode : ParsedNodeProperyAccess + Downcast {
 impl_downcast!(ParsedNode);
 pub type DParsedNode = Pin<Box<dyn ParsedNode + Send + Sync + 'static>>;
 
+impl Clone for DParsedNode {
+    fn clone(&self) -> Self {
+        ParsedNodeProperyAccess::clone(&**self)
+    }
+}
+
 pub struct NodeInATree<'a>(pub NodeId, pub &'a Tree);
 
 
@@ -189,6 +195,19 @@ pub struct WebsocatContext {
     /// Command-line options that do not belong to specific nodes
     pub global_parameters : Arc<Mutex<Properties>>,
 }
+
+impl WebsocatContext {
+    pub fn new(nodes: Tree, left : NodeId, right : NodeId) -> WebsocatContext {
+        WebsocatContext {
+            nodes: Arc::new(nodes),
+            left,
+            right,
+            global_parameters: Arc::new(Mutex::new(Properties::new())),
+            global_things: Arc::new(Mutex::new(Globals::new())),
+        }
+    }
+}
+
 /// Type of a connection type or filter or some other thing Websocat can use
 pub trait NodeClass {
     /// Name of the class, like `tcp` or `ws`

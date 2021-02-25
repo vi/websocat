@@ -9,4 +9,9 @@ websocat-api = {path="websocat-api"}
 
 
 [workspace]
-members = ["websocat-derive", "playground", "websocat-api"]
+members = [
+    "websocat-api",
+    "websocat-derive",
+    "websocat-basic",
+    "playground",
+]

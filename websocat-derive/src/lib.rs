@@ -52,7 +52,7 @@ fn proptype(x: &websocat_api::PropertyValueType) -> proc_macro2::TokenStream {
         websocat_api::PropertyValueType::Numbery => q!{i64},
         websocat_api::PropertyValueType::Floaty => q!{f64},
         websocat_api::PropertyValueType::Booly => q!{bool},
-        websocat_api::PropertyValueType::SockAddr => q!{::std::net::SockAddr},
+        websocat_api::PropertyValueType::SockAddr => q!{::std::net::SocketAddr},
         websocat_api::PropertyValueType::IpAddr => q!{::std::net::IpAddr},
         websocat_api::PropertyValueType::PortNumber => q!{u16},
         websocat_api::PropertyValueType::Path => q!{::std::path::PathBuf},
@@ -67,6 +67,7 @@ fn resolve_type(x: &syn::Ident) -> websocat_api::PropertyValueType {
         "i64" => websocat_api::PropertyValueType::Numbery,
         "NodeId" => websocat_api::PropertyValueType::ChildNode,
         "String" => websocat_api::PropertyValueType::Stringy,
+        "SocketAddr" => websocat_api::PropertyValueType::SockAddr,
         y => panic!("Unknown type {}", y),
     } 
 }
@@ -303,6 +304,7 @@ impl ClassInfo {
 
         let ts = q! {          
             impl ::websocat_api::NodeInProgressOfParsing for #buildername {
+                #[allow(unreachable_code)]
                 fn set_property(&mut self, name: &str, val: ::websocat_api::PropertyValue) -> ::websocat_api::Result<()> {
                     match (name, val) {
                         #matchers
@@ -363,7 +365,7 @@ impl ClassInfo {
 
         let ts = q! {    
             #[derive(Default)]      
-            struct #classname;
+            pub struct #classname;
 
             impl ::websocat_api::NodeClass for #classname {
                 fn official_name(&self) -> ::std::string::String { #offiname.to_owned() }

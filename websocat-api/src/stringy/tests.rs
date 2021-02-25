@@ -310,7 +310,7 @@ pub enum SoSTree {
 impl proptest::arbitrary::Arbitrary for super::StringOrSubnode {
     type Parameters = ();
     type Strategy = SoSStrat;
-    fn arbitrary_with(args: Self::Parameters) -> Self::Strategy {
+    fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
         SoSStrat
     }
 }
@@ -321,8 +321,6 @@ impl proptest::strategy::Strategy for SoSStrat {
 
     fn new_tree(&self, runner: &mut proptest::test_runner::TestRunner) -> proptest::strategy::NewTree<Self> {
         use proptest::prelude::RngCore;
-        use proptest::arbitrary::Arbitrary;
-        use proptest::strategy::Strategy;
 
         let x = runner.rng().next_u32();
         if x % 150 == 0 {

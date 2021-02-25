@@ -1,5 +1,5 @@
 [package]
-name = "playground"
+name = "websocat-basic"
 version = "0.1.0"
 authors = ["Vitaly _Vi Shukela <vi0oss@gmail.com>"]
 edition = "2018"
@@ -9,6 +9,12 @@ edition = "2018"
 [dependencies]
 websocat-derive = {path = "../websocat-derive"}
 websocat-api = {path = "../websocat-api"}
-websocat-basic = {path = "../websocat-basic"}
 
-tokio = {version = "1", features=["macros", "rt", "io-util"]}
+tokio = {version="1", features=[]}
+
+[features]
+default = ["net","io-std", "fs", "process"]
+net = ["tokio/net"]
+io-std = ["tokio/io-std"]
+fs = ["tokio/fs"]
+process = ["tokio/process"]
