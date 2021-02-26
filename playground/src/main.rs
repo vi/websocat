@@ -24,7 +24,7 @@ struct Foo {
 
 #[websocat_api::async_trait::async_trait]
 impl websocat_api::Node for Foo {
-    async fn run(&self, ctx: websocat_api::RunContext, multiconn: &mut websocat_api::IWantToServeAnotherConnection) -> websocat_api::Result<websocat_api::Pipe> {
+    async fn run(&self, ctx: websocat_api::RunContext, multiconn: &mut websocat_api::IWantToServeAnotherConnection) -> websocat_api::Result<websocat_api::Bipipe> {
         Err(websocat_api::anyhow::anyhow!("nimpl"))
     }
 }
@@ -37,13 +37,13 @@ impl websocat_api::Node for Foo {
 struct Bar {
 }
 
-impl websocat_api::SyncNode for Bar {
-    fn run(&self, ctx: websocat_api::RunContext, allow_multiconnect: bool, mut closure: impl FnMut(websocat_api::SyncPipe) -> websocat_api::Result<()> + Send ) -> websocat_api::Result<()> {
+impl websocat_api::sync::Node for Bar {
+    fn run(&self, ctx: websocat_api::RunContext, allow_multiconnect: bool, mut closure: impl FnMut(websocat_api::sync::Bipipe) -> websocat_api::Result<()> + Send ) -> websocat_api::Result<()> {
         let (r,mut w2) = pipe::pipe();
         let w = std::io::sink();
-        closure(websocat_api::SyncPipe {
-            r: Box::new(r),
-            w: Box::new(w),
+        closure(websocat_api::sync::Bipipe {
+            r: websocat_api::sync::Source::ByteStream(Box::new(r)),
+            w: websocat_api::sync::Sink::ByteStream(Box::new(w)),
             closing_notification: None,
         });
         std::thread::spawn(move|| {
@@ -95,7 +95,7 @@ async fn main() {
     };
 
     let mut _dummy = websocat_api::IWantToServeAnotherConnection::None;
-    let mut p1: websocat_api::Pipe = c.nodes[c.left].run(rc1, &mut _dummy).await.unwrap();
+    let mut p1: websocat_api::Bipipe = c.nodes[c.left].run(rc1, &mut _dummy).await.unwrap();
 
     let rc2 = websocat_api::RunContext {
         nodes: c.nodes.clone(),
@@ -105,8 +105,13 @@ async fn main() {
     };
     let mut _dummy = websocat_api::IWantToServeAnotherConnection::None;
 
-    let mut p2 : websocat_api::Pipe = c.nodes[c.right].run(rc2, &mut _dummy).await.unwrap();
+    let mut p2 : websocat_api::Bipipe = c.nodes[c.right].run(rc2, &mut _dummy).await.unwrap();
 
-    let bytes = tokio::io::copy(&mut p1.r, &mut p2.w).await.unwrap();
+    let (mut r,mut w) = match (p1.r, p2.w) {
+        (websocat_api::Source::ByteStream(r), websocat_api::Sink::ByteStream(w)) => (r,w),
+        _ => panic!(),
+    };
+
+    let bytes = tokio::io::copy(&mut r, &mut w).await.unwrap();
     println!("bytes={}", bytes);
 }

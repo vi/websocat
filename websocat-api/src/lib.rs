@@ -152,7 +152,7 @@ pub trait NodeProperyAccess : Debug  {
 /// Primary way to get those is by `SpecifierClass::parse`ing respective `StringyNode`s.
 #[async_trait]
 pub trait Node : NodeProperyAccess + Downcast {
-    async fn run(&self, ctx: RunContext, multiconn: &mut IWantToServeAnotherConnection) -> Result<Pipe>;
+    async fn run(&self, ctx: RunContext, multiconn: &mut IWantToServeAnotherConnection) -> Result<Bipipe>;
 }
 impl_downcast!(Node);
 pub type DNode = Pin<Box<dyn Node + Send + Sync + 'static>>;
@@ -160,20 +160,6 @@ pub type DNode = Pin<Box<dyn Node + Send + Sync + 'static>>;
 impl Clone for DNode {
     fn clone(&self) -> Self {
         NodeProperyAccess::clone(&**self)
-    }
-}
-
-
-pub trait SyncNode: NodeProperyAccess {
-    /// Started from a Tokio runtime thread, so don't block it, spawn your own thread to handle things.
-    /// If this is a server that does multiple connections, start `closure` in a loop.
-    fn run(&self, ctx: RunContext, allow_multiconnect: bool, closure: impl FnMut(SyncPipe) -> Result<()> + Send ) -> Result<()>;
-}
-
-#[async_trait]
-impl<T:SyncNode + Send + Sync + 'static> Node for T {
-    async fn run(&self, _ctx: RunContext, _multiconn: &mut IWantToServeAnotherConnection) -> Result<Pipe> {
-        Err(anyhow::anyhow!("nimpl"))
     }
 }
 
@@ -289,17 +275,23 @@ pub enum ArmedNode {
 }
 */
 
+pub enum Source {
+    ByteStream(Pin<Box<dyn AsyncRead + Send  + 'static>>),
+    Datagrams(Pin<Box<dyn futures::stream::Stream<Item=bytes::BytesMut> + Send  + 'static>>),
+}
+
+pub enum Sink {
+    ByteStream(Pin<Box<dyn AsyncWrite + Send  + 'static>>),
+    Datagrams(Pin<Box<dyn futures::sink::Sink<bytes::BytesMut, Error=anyhow::Error> + Send  + 'static>>),
+}
+
 
 /// A bi-directional channel + special closing notification
-/// Message boundaries in AsyncRead / AsyncWrite poll calls may (or may not) matter - it depends on contenxt 
-pub struct Pipe {
-    pub r: Pin<Box<dyn AsyncRead + Send  + 'static>>,
-    pub w: Pin<Box<dyn AsyncWrite + Send  + 'static>>,
+pub struct Bipipe {
+    pub r: Source,
+    pub w: Sink,
     pub closing_notification: Option<Pin<Box<dyn Future<Output=()> + Send + 'static>>>,
 }
 
-pub struct SyncPipe {
-    pub r: Box<dyn std::io::Read + Send + 'static>,
-    pub w: Box<dyn std::io::Write + Send + 'static>,
-    pub closing_notification: Option<tokio::sync::oneshot::Receiver<()>>,
-}
+
+pub mod sync;
