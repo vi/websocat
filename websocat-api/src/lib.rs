@@ -152,7 +152,7 @@ pub trait NodeProperyAccess : Debug  {
 /// Primary way to get those is by `SpecifierClass::parse`ing respective `StringyNode`s.
 #[async_trait]
 pub trait Node : NodeProperyAccess + Downcast {
-    async fn run(&self, ctx: RunContext, multiconn: &mut IWantToServeAnotherConnection) -> Result<Bipipe>;
+    async fn run(&self, ctx: RunContext, multiconn: Option<&mut IWantToServeAnotherConnection>) -> Result<Bipipe>;
 }
 impl_downcast!(Node);
 pub type DNode = Pin<Box<dyn Node + Send + Sync + 'static>>;
@@ -278,11 +278,13 @@ pub enum ArmedNode {
 pub enum Source {
     ByteStream(Pin<Box<dyn AsyncRead + Send  + 'static>>),
     Datagrams(Pin<Box<dyn futures::stream::Stream<Item=bytes::BytesMut> + Send  + 'static>>),
+    None,
 }
 
 pub enum Sink {
     ByteStream(Pin<Box<dyn AsyncWrite + Send  + 'static>>),
     Datagrams(Pin<Box<dyn futures::sink::Sink<bytes::BytesMut, Error=anyhow::Error> + Send  + 'static>>),
+    None,
 }
 
 
@@ -294,4 +296,5 @@ pub struct Bipipe {
 }
 
 
+#[cfg(feature="sync")]
 pub mod sync;

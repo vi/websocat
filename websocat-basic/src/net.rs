@@ -11,7 +11,7 @@ pub struct Tcp {
 
 #[websocat_api::async_trait::async_trait]
 impl websocat_api::Node for Tcp {
-    async fn run(&self, _: websocat_api::RunContext, _: &mut websocat_api::IWantToServeAnotherConnection) -> websocat_api::Result<websocat_api::Bipipe> {
+    async fn run(&self, _: websocat_api::RunContext, _: Option<&mut websocat_api::IWantToServeAnotherConnection>) -> websocat_api::Result<websocat_api::Bipipe> {
         let c = tokio::net::TcpStream::connect(self.addr).await?;
         let (r,w) = c.into_split();
         Ok(websocat_api::Bipipe {

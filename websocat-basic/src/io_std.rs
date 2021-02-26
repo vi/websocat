@@ -10,7 +10,7 @@ pub struct Stdio {
 
 #[websocat_api::async_trait::async_trait]
 impl websocat_api::Node for Stdio {
-    async fn run(&self, _: websocat_api::RunContext, _: &mut websocat_api::IWantToServeAnotherConnection) -> websocat_api::Result<websocat_api::Bipipe> {
+    async fn run(&self, _: websocat_api::RunContext, _: Option<&mut websocat_api::IWantToServeAnotherConnection>) -> websocat_api::Result<websocat_api::Bipipe> {
         let r = tokio::io::stdin();
         let w = tokio::io::stdout();
         Ok(websocat_api::Bipipe {
