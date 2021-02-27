@@ -1,3 +1,5 @@
+pub mod copy;
+
 pub async fn run(c: websocat_api::Session) -> websocat_api::Result<()> {
     let rc1 = websocat_api::RunContext {
         nodes: c.nodes.clone(),
@@ -22,7 +24,7 @@ pub async fn run(c: websocat_api::Session) -> websocat_api::Result<()> {
         _ => panic!(),
     };
 
-    let bytes = tokio::io::copy(&mut r, &mut w).await.unwrap();
+    let bytes = copy::copy(&mut r, &mut w).await.unwrap();
     println!("bytes={}", bytes);
     Ok(())
 }
