@@ -62,6 +62,8 @@ impl websocat_api::sync::Node for Bar {
 
 #[tokio::main(flavor = "current_thread")]
 async fn main() {
+    tracing_subscriber::fmt::init();
+
     let mut reg = websocat_api::ClassRegistrar::default();
     reg.register::<Foo>();
     reg.register::<Bar>();

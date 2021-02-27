@@ -110,19 +110,27 @@ impl<T: Node + Send + Sync + 'static> super::Node for T {
         };
         let wg = SyncWriteGateway {}; 
         Node::run(self, ctx, multiconn.is_some(), move |pipe| {
+            let span = tracing::trace_span!("SyncReadGatewayThread");
             match pipe.r {
                 Source::ByteStream(mut rr) => {
                     while let Some(b) = buffer_sizes_rx.blocking_recv() {
+                        tracing::trace!(parent: &span, "Received read request for buffer size {}", b);
                         let mut bb = bytes::BytesMut::with_capacity(b);
                         bb.resize(b, 0);
                         match rr.read(&mut *bb) {
                             Ok(sz) => {
+                                tracing::debug!(parent: &span, "Underlying std::io::Read::read returned {} bytes", sz);
                                 bb.truncate(sz);
                                 if buffers_tx.blocking_send(bb).is_err() {
+                                    tracing::debug!("Failed to sent to SyncReadGateway");
                                     break;
                                 }
+                                tracing::trace!(parent: &span, "Finished sending the reply buffer");
                             }
-                            Err(_) => break,
+                            Err(e) => {
+                                tracing::trace!(parent: &span, "Underlying std::io::Read::read failed: {}", e);
+                                break
+                            }
                         }
                     }
                 }
