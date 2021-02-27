@@ -1,7 +1,8 @@
 #[macro_use]
 extern crate slab_typesafe;
 
-use std::collections::HashMap;
+use std::{str::FromStr, collections::HashMap};
+use anyhow::Context;
 use tokio::io::{AsyncRead,AsyncWrite};
 use std::future::Future;
 use std::net::{SocketAddr,IpAddr};
@@ -182,7 +183,7 @@ pub enum NodePlacement {
 
 pub type Tree = Slab<NodeId, DNode>;
 
-pub struct WebsocatContext {
+pub struct Session {
     /// Place where specific nodes can store their process-global values
     /// Key should probably be `NodeClass::official_name`
     pub global_things: Arc<Mutex<Globals>>,
@@ -196,9 +197,25 @@ pub struct WebsocatContext {
     pub global_parameters : Arc<Mutex<Properties>>,
 }
 
-impl WebsocatContext {
-    pub fn new(nodes: Tree, left : NodeId, right : NodeId) -> WebsocatContext {
-        WebsocatContext {
+impl Session {
+    /// Helper function, can be implemented using other low-level functions exposed by this crate
+    pub fn build_from_two_tree_strings(reg: &ClassRegistrar, left: &str, right: &str) -> Result<Session> {
+        let mut t = Tree::new();
+    
+        let q = StringyNode::from_str(left).context("Parsing the left tree")?;
+        let w = q.build(&reg, &mut t).context("Building the left tree")?;
+    
+        let q2 = StringyNode::from_str(right).context("Parsing the right tree")?;
+        let w2 = q2.build(&reg, &mut t).context("Building the right tree")?;
+
+        let c = Session::new(t, w, w2);
+        Ok(c)
+    }
+}
+
+impl Session {
+    pub fn new(nodes: Tree, left : NodeId, right : NodeId) -> Session {
+        Session {
             nodes: Arc::new(nodes),
             left,
             right,
@@ -229,7 +246,7 @@ pub trait NodeClass {
     ///
     /// Linter is expected to access WebsocatContext::left or ...::right based on `placement`, then look up the parsed node by `nodeid`,
     /// then downcast to to native node type, then check all the necessary things.
-    fn run_lints(&self, nodeid: &NodeId, placement: NodePlacement, context: &WebsocatContext) -> Result<Vec<String>>;
+    fn run_lints(&self, nodeid: &NodeId, placement: NodePlacement, context: &Session) -> Result<Vec<String>>;
 }
 
 /// Typical propery name for child nodes

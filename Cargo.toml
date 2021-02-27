@@ -13,5 +13,6 @@ members = [
     "websocat-api",
     "websocat-derive",
     "websocat-basic",
+    "websocat-session",
     "playground",
 ]

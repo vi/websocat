@@ -70,48 +70,17 @@ async fn main() {
 
     //println!("{:?}", reg);
 
-    let mut t = websocat_api::Tree::new();
+    let c = websocat_api::Session::build_from_two_tree_strings(
+        &reg, 
+        "[bar]",
+        "[stdio]",
+    ).unwrap();
+
+    println!("{}", websocat_api::StringyNode::reverse(c.left, &c.nodes).unwrap());
+    println!("{}", websocat_api::StringyNode::reverse(c.right, &c.nodes).unwrap());
     
-    let q = websocat_api::StringyNode::from_str("[bar]").unwrap();
-    let w = match q.build(&reg, &mut t) {
-        Ok(x) => x,
-        Err(e) => {eprintln!("Err: {:#}", e); return}
-    };
 
-    let q2 = websocat_api::StringyNode::from_str("[stdio]").unwrap();
-    let w2 = match q2.build(&reg, &mut t) {
-        Ok(x) => x,
-        Err(e) => {eprintln!("Err: {:#}", e); return}
-    };
-
-    println!("{}", websocat_api::StringyNode::reverse(w, &t).unwrap());
-    println!("{}", websocat_api::StringyNode::reverse(w2, &t).unwrap());
-
-    let c = websocat_api::WebsocatContext::new(t, w, w2);
-
-    let rc1 = websocat_api::RunContext {
-        nodes: c.nodes.clone(),
-        left_to_right_things_to_be_filled_in: None,
-        left_to_right_things_to_read_from: None,
-        globals: c.global_things.clone(),
-    };
-
-    let mut p1: websocat_api::Bipipe = c.nodes[c.left].run(rc1, None).await.unwrap();
-
-    let rc2 = websocat_api::RunContext {
-        nodes: c.nodes.clone(),
-        left_to_right_things_to_be_filled_in: None,
-        left_to_right_things_to_read_from: None,
-        globals: c.global_things.clone(),
-    };
-
-    let mut p2 : websocat_api::Bipipe = c.nodes[c.right].run(rc2, None).await.unwrap();
-
-    let (mut r,mut w) = match (p1.r, p2.w) {
-        (websocat_api::Source::ByteStream(r), websocat_api::Sink::ByteStream(w)) => (r,w),
-        _ => panic!(),
-    };
-
-    let bytes = tokio::io::copy(&mut r, &mut w).await.unwrap();
-    println!("bytes={}", bytes);
+    if let Err(e) = websocat_session::run(c).await {
+        eprintln!("Error: {:#}", e);
+    }
 }
