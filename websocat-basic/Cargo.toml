@@ -11,6 +11,7 @@ websocat-derive = {path = "../websocat-derive"}
 websocat-api = {path = "../websocat-api"}
 
 tokio = {version="1", features=[]}
+tracing = "0.1.25"
 
 [features]
 default = ["net","io-std", "fs", "process"]

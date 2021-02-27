@@ -28,6 +28,7 @@ struct Copy<'a, R: ?Sized, W: ?Sized> {
     cap: usize,
     amt: u64,
     buf: Box<[u8]>,
+    logger: tracing::span::Span,
 }
 
 /// Asynchronously copies the entire contents of a reader into a writer.
@@ -68,6 +69,8 @@ where
     R: AsyncRead + Unpin + ?Sized,
     W: AsyncWrite + Unpin + ?Sized,
 {
+    let logger = tracing::trace_span!("copy");
+    tracing::debug!(parent: &logger, "Starting copy function");
     Copy {
         reader,
         read_done: false,
@@ -76,6 +79,7 @@ where
         pos: 0,
         cap: 0,
         buf: vec![0; 2048].into_boxed_slice(),
+        logger,
     }.await
 }
 
@@ -88,14 +92,17 @@ where
     type Output = io::Result<u64>;
 
     fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<io::Result<u64>> {
+        tracing::trace!(parent: &self.logger, "Entering poll function");
         loop {
             // If our buffer is empty, then we need to read some data to
             // continue.
             if self.pos == self.cap && !self.read_done {
+                tracing::trace!(parent: &self.logger, "Need to read some data");
                 let me = &mut *self;
                 let mut buf = ReadBuf::new(&mut me.buf);
                 ready!(Pin::new(&mut *me.reader).poll_read(cx, &mut buf))?;
                 let n = buf.filled().len();
+                tracing::trace!(parent: &self.logger, "Obtained {} bytes", n);
                 if n == 0 {
                     self.read_done = true;
                 } else {
@@ -106,8 +113,10 @@ where
 
             // If our buffer has some data, let's write it out!
             while self.pos < self.cap {
+                tracing::trace!(parent: &self.logger, "Need to write {} bytes", self.cap - self.pos);
                 let me = &mut *self;
                 let i = ready!(Pin::new(&mut *me.writer).poll_write(cx, &me.buf[me.pos..me.cap]))?;
+                tracing::trace!(parent: &self.logger, "Written {} bytes", i);
                 if i == 0 {
                     return Poll::Ready(Err(io::Error::new(
                         io::ErrorKind::WriteZero,
@@ -122,8 +131,10 @@ where
             // If we've written all the data and we've seen EOF, flush out the
             // data and finish the transfer.
             if self.pos == self.cap && self.read_done {
+                tracing::trace!(parent: &self.logger, "Need to flush");
                 let me = &mut *self;
                 ready!(Pin::new(&mut *me.writer).poll_flush(cx))?;
+                tracing::trace!(parent: &self.logger, "Finished");
                 return Poll::Ready(Ok(self.amt));
             }
         }

@@ -1,6 +1,8 @@
 pub mod copy;
 
+#[tracing::instrument(name="websocat_session::run", level="debug", skip(c), err)]
 pub async fn run(c: websocat_api::Session) -> websocat_api::Result<()> {
+    tracing::info!("Running a Websocat session");
     let rc1 = websocat_api::RunContext {
         nodes: c.nodes.clone(),
         left_to_right_things_to_be_filled_in: None,
@@ -25,6 +27,6 @@ pub async fn run(c: websocat_api::Session) -> websocat_api::Result<()> {
     };
 
     let bytes = copy::copy(&mut r, &mut w).await.unwrap();
-    println!("bytes={}", bytes);
+    tracing::info!("Finished Websocat session. Processed {} bytes", bytes);
     Ok(())
 }

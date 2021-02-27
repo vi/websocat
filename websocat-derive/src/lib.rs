@@ -364,7 +364,7 @@ impl ClassInfo {
         let name = &self.name;
 
         let ts = q! {    
-            #[derive(Default)]      
+            #[derive(Default,Debug)]      
             pub struct #classname;
 
             impl ::websocat_api::NodeClass for #classname {

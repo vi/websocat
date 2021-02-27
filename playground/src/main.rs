@@ -30,11 +30,16 @@ impl websocat_api::Node for Foo {
 }
 
 
+enum Qqq {
+
+}
+
 #[derive(Debug, Clone, websocat_derive::WebsocatNode)]
 #[websocat_node(
     official_name = "bar",
 )]
 struct Bar {
+    //content : Option<Qqq>,
 }
 
 impl websocat_api::sync::Node for Bar {
@@ -72,10 +77,12 @@ async fn main() {
 
     //println!("{:?}", reg);
 
+    let args = std::env::args().collect::<Vec<_>>();
+
     let c = websocat_api::Session::build_from_two_tree_strings(
         &reg, 
-        "[bar]",
-        "[stdio]",
+        &args[1],
+        &args[2],
     ).unwrap();
 
     println!("{}", websocat_api::StringyNode::reverse(c.left, &c.nodes).unwrap());

@@ -93,7 +93,9 @@ fn identchar(b: u8) -> bool {
 
 #[rustfmt::skip] // tends to collapse character ranges into one line and to remove trailing `|`s.
 impl StringyNode {
+    #[tracing::instrument(name="StringyNode::read", level="trace", skip(r), err)]
     fn read(r: &mut std::iter::Peekable<impl Iterator<Item=u8>>) -> Result<StringyNode> {
+        tracing::trace!("Reading from string to a stringy node");
         let mut chunk : Vec<u8> = Vec::with_capacity(20);
 
         if r.next() != Some(b'[') { anyhow::bail!("Tree node must begin with `[` character"); }
@@ -122,6 +124,7 @@ impl StringyNode {
         let mut hex : tinyvec::ArrayVec<[u8; 2]> = Default::default();
 
         while let Some(c) = r.peek() {
+            tracing::trace!("Peeked byte {} in state {:?}", std::ascii::escape_default(*c), state);
             //eprintln!("{:?} {}", state, c);
             match state {
                 S::Name | S::BeforeName => {
@@ -355,7 +358,7 @@ impl StringyNode {
                 "Empty tree nodes are not allowed",
             );
         }
-
+        tracing::debug!("Finished reading from string into stringy node {}", name.as_ref().unwrap());
         Ok(StringyNode {
             name: Ident(name.unwrap()),
             properties,
@@ -395,12 +398,15 @@ impl super::PropertyValueType {
 }
 
 impl StringyNode {
+    #[tracing::instrument(name="StringyNode::build_impl", level="trace", skip(tree, classes, self), fields(node=&*self.name.0), err)]
     fn build_impl(
         &self,
         classes: &super::ClassRegistrar,
         tree: &mut super::Slab<super::NodeId, super::DNode>,
     ) -> Result<super::NodeId> {
+        tracing::debug!("Building parsed node");
         if let Some(cls) = classes.officname_to_classes.get(&self.name.0) {
+            tracing::trace!("Obtained class: {:?}", cls);
             let props = cls.properties();
             let mut p: HashMap<String, super::PropertyValueType> =
                 HashMap::with_capacity(props.len());
@@ -412,6 +418,7 @@ impl StringyNode {
             use StringOrSubnode::{Str,Subnode};
 
             for (Ident(k), v) in &self.properties {
+                tracing::trace!("Handling property {}", k);
                 if let Some(typ) = p.get(k) {
                     let vv = match (typ, v) {
                         (PVT::ChildNode, Subnode(x)) => PV::ChildNode(
@@ -440,6 +447,7 @@ impl StringyNode {
             let at = cls.array_type();
 
             for (n, e) in self.array.iter().enumerate() {
+                tracing::trace!("Handling array element {}", n);
                 if let Some(at) = &at {
                     let vv = match (at, e) {
                         (PVT::ChildNode, Subnode(x)) => PV::ChildNode(
@@ -467,6 +475,8 @@ impl StringyNode {
                 }
             }
 
+            tracing::trace!("Finished building");
+
             Ok(tree.insert(b.finish()?))
         } else {
             anyhow::bail!("Node type {} not found", self.name.0)
@@ -482,7 +492,10 @@ impl StringyNode {
     }
 
     /// Turn parsed node back into it's stringy representation
+
+    #[tracing::instrument(name="StringyNode::reverse", level="trace", skip(tree), fields(), err)]
     pub fn reverse(root: super::NodeId, tree:&super::Tree) -> Result<Self> {
+        tracing::debug!("Reversing a parsed node back to stringy representation");
         let n = tree.get(root).with_context(||format!("Node not found"))?;
         let c = n.class();
 
@@ -491,9 +504,12 @@ impl StringyNode {
         let mut array : Vec<StringOrSubnode> = Vec::new();
 
         for super::PropertyInfo { name: pn, help: _, r#type } in c.properties() {
+            tracing::trace!("Processing property {}", pn);
             if let Some(v) = n.get_property(&pn) {
+                tracing::trace!("Property {} is found", pn);
                 let sn = match (v, r#type) {
                     (super::PropertyValue::ChildNode(q), super::PropertyValueType::ChildNode) => {
+                        tracing::trace!("Descending into subnode {}", q.0);
                         StringOrSubnode::Subnode(StringyNode::reverse(q, tree)?)
                     },
                     (_, super::PropertyValueType::ChildNode) => {
@@ -510,12 +526,14 @@ impl StringyNode {
             }
         }
 
-        for el in n.get_array() {
+        for (n, el) in n.get_array().into_iter().enumerate() {
+            tracing::trace!("Processing array element {}", n);
             let sn = match (el, c.array_type()) {
                 (_, None) => {
                     anyhow::bail!("No array elements expected in node type {}", name.0)
                 }
                 (super::PropertyValue::ChildNode(q), Some(super::PropertyValueType::ChildNode)) => {
+                    tracing::trace!("Descending into subnode {}", q.0);
                     StringOrSubnode::Subnode(StringyNode::reverse(q, tree)?)
                 },
                 (_, Some(super::PropertyValueType::ChildNode)) => {

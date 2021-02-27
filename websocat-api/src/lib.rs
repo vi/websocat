@@ -30,13 +30,14 @@ pub use slab_typesafe::Slab;
 pub struct EnummyTag(pub usize);
 
 /// Should I maybe somehow better used Serde model for this?
+#[derive(Debug,Clone)]
 pub enum PropertyValue {
     /// A catch-all variant for properties lacking some dedicated thing
     Stringy(String),
 
     /// One of specific set of strings.
     /// 0 means the first value from PropertyValueType::Enummy vector (may be up to upper/lowercase)
-    Enummy(EnummyTag),
+    Enummy(string_interner::DefaultSymbol),
 
     /// Numberic
     Numbery(i64),
@@ -69,10 +70,10 @@ pub enum PropertyValue {
     ChildNode(NodeId),
 }
 
-#[derive(Debug,Clone,Eq,PartialEq,Ord,PartialOrd)]
+#[derive(Debug,Clone,Eq,PartialEq)]
 pub enum PropertyValueType {
     Stringy,
-    Enummy(Vec<String>),
+    Enummy(string_interner::StringInterner),
     Numbery,
     Floaty,
     Booly,
@@ -226,7 +227,7 @@ impl Session {
 }
 
 /// Type of a connection type or filter or some other thing Websocat can use
-pub trait NodeClass {
+pub trait NodeClass : Debug {
     /// Name of the class, like `tcp` or `ws`
     fn official_name(&self) -> String;
     /// List substrings that what can come before `:` to be considered belonging to this class.
