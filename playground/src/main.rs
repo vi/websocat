@@ -34,7 +34,7 @@ impl websocat_api::Node for Foo {
 
 #[derive(Debug, Clone,Copy,websocat_derive::WebsocatEnum)]
 #[websocat_enum(
-    //rename_all_lowercase,
+    rename_all_lowercase,
     //debug_derive,
 )]
 enum Qqq {
@@ -55,7 +55,7 @@ enum Qqq {
 struct Bar {
     /// Content to print
     #[websocat_node(enum)]
-    content : Qqq,
+    content : Vec<Qqq>,
 }
 
 impl websocat_api::sync::Node for Bar {

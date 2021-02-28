@@ -120,7 +120,7 @@ pub trait Enum {
 /// A user-facing information block about some property of some SpecifierClass
 pub struct PropertyInfo {
     pub name: String,
-    pub help: String,
+    pub help: Box<dyn Fn()->String + Send + 'static>,
     pub r#type: PropertyValueType,
 }
 
@@ -167,7 +167,7 @@ pub trait NodeInProgressOfParsing {
 }
 pub type DNodeInProgressOfParsing = Box<dyn NodeInProgressOfParsing + Send + 'static>;
 
-/// Deriveable part of ParsedNode.
+/// Deriveable part of [`Node`].
 pub trait NodeProperyAccess : Debug  {
     fn class(&self) -> DNodeClass;
     fn clone(&self) -> DNode;
@@ -190,6 +190,7 @@ pub type DNode = Pin<Box<dyn Node + Send + Sync + 'static>>;
 
 impl Clone for DNode {
     fn clone(&self) -> Self {
+        tracing::trace!("Cloning node of type {}", self.class().official_name());
         NodeProperyAccess::clone(&**self)
     }
 }
@@ -264,9 +265,16 @@ pub trait NodeClass : Debug {
     /// Also used for matching the `StringyNode::name`s to the node classes.
     fn prefixes(&self) -> Vec<String>;
 
+    /// Obtain property names, their value types and documentation strings
     fn properties(&self) -> Vec<PropertyInfo>;
+
+    /// Obtain type of node's associated array element type, if any
     fn array_type(&self) -> Option<PropertyValueType>;
 
+    /// Obtain documentation string for the node's array, if any
+    fn array_help(&self) -> Option<String>;
+
+    /// Begin creating a new node
     fn new_node(&self) -> DNodeInProgressOfParsing;
     
 

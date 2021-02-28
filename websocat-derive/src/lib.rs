@@ -31,6 +31,7 @@ struct Class1 {
     debug_derive: bool,
 }
 
+#[derive(Debug)]
 struct PropertyInfo {
     ident: syn::Ident,
     typ : websocat_api::PropertyValueTypeTag,
@@ -38,9 +39,11 @@ struct PropertyInfo {
     optional: bool,
     help: String,
 }
+#[derive(Debug)]
 struct ClassInfo {
     name: syn::Ident,
     properties: Vec<PropertyInfo>,
+    array_type: Option<PropertyInfo>,
 
     official_name: String,
     prefixes: Vec<String>,  
@@ -117,6 +120,7 @@ impl ClassInfo {
         let cc = Class1::from_derive_input(x).unwrap();
 
         let mut properties: Vec<PropertyInfo> = vec![];
+        let mut array_type: Option<PropertyInfo> = None;
         
         if cc.debug_derive {
             let mut f = std::fs::File::create("/tmp/derive.txt").unwrap();
@@ -130,20 +134,21 @@ impl ClassInfo {
                 for field in x {
                     //eprintln!("{:?}", field);
                     let ident = field.ident.expect("Struct fields must have names");
-                    let (typ, optional, enumname) = match field.ty {
+                    let (typ, optional, enumname,vector) = match field.ty {
                         syn::Type::Path(t) => {
                             let lastpathsegment = t.path.segments.last().expect("Failed to extract leaf type from path in a field");
                             match &lastpathsegment.ident.to_string()[..] {
                                 "Result" => panic!("`Result`s are not supported"),
+                                "HashSet" => panic!("`HashSet`s are not supported"),
                                 "Option" => {
                                     match &lastpathsegment.arguments {
                                         syn::PathArguments::AngleBracketed(aa) => {
                                             match aa.args.last().expect("Failed to extract leaf type from within an Option") {
                                                 syn::GenericArgument::Type(syn::Type::Path(p)) => {
                                                     if field.r#enum {
-                                                        (websocat_api::PropertyValueTypeTag::Enummy, true, Some(p.clone()))
+                                                        (websocat_api::PropertyValueTypeTag::Enummy, true, Some(p.clone()), false)
                                                     } else {
-                                                        (resolve_type(&p.path.segments.last().unwrap().ident), true, None)
+                                                        (resolve_type(&p.path.segments.last().unwrap().ident), true, None, false)
                                                     }
                                                 }
                                                 _ => panic!("Option should have a normal type inside it, not something else"),
@@ -152,10 +157,37 @@ impl ClassInfo {
                                         _ => panic!(),
                                     }
                                 }
+                                "Vec" => {
+                                    match &lastpathsegment.arguments {
+                                        syn::PathArguments::AngleBracketed(aa) => {
+                                            match aa.args.last().expect("Failed to extract leaf type from within an Vec") {
+                                                syn::GenericArgument::Type(syn::Type::Path(p)) => {
+                                                    if field.r#enum {
+                                                        (
+                                                            websocat_api::PropertyValueTypeTag::Enummy,
+                                                            false,
+                                                            Some(p.clone()),
+                                                            true,
+                                                        )
+                                                    } else {
+                                                        (
+                                                            resolve_type(&p.path.segments.last().unwrap().ident),
+                                                            false,
+                                                            None,
+                                                            true,
+                                                        )
+                                                    }
+                                                }
+                                                _ => panic!("Vec should have a normal type inside it, not something else"),
+                                            }
+                                        }
+                                        _ => panic!(),
+                                    }
+                                }
                                 _ => if field.r#enum {
-                                    (websocat_api::PropertyValueTypeTag::Enummy, false, Some(t.clone()))
+                                    (websocat_api::PropertyValueTypeTag::Enummy, false, Some(t.clone()), false)
                                 } else {
-                                    (resolve_type(&lastpathsegment.ident), false, None)
+                                    (resolve_type(&lastpathsegment.ident), false, None, false)
                                 },
                             }
                         },
@@ -183,13 +215,28 @@ impl ClassInfo {
                     if help.is_empty() {
                         panic!("Undocumented field: {}", &ident);
                     }
-                    properties.push(PropertyInfo {
-                        help,
-                        typ,
-                        optional,
-                        ident,
-                        enumname,
-                    });
+                    if vector {
+                        if array_type.is_some() {
+                            panic!("There can only be one array per node");
+                        }
+                        assert!(!optional);
+                        array_type = Some(PropertyInfo {
+                            ident,
+                            typ,
+                            enumname,
+                            optional: false,
+                            help,
+
+                        });
+                    } else { 
+                        properties.push(PropertyInfo {
+                            help,
+                            typ,
+                            optional,
+                            ident,
+                            enumname,
+                        });
+                    }
                 }
             }
         }
@@ -197,10 +244,18 @@ impl ClassInfo {
         let ci = ClassInfo {
             name: x.ident.clone(),
             properties,
+            array_type,
             prefixes: cc.prefixes,
             official_name: cc.official_name,
             debug_derive: cc.debug_derive,
         };
+
+        if cc.debug_derive {
+            let mut f = std::fs::File::create("/tmp/derive2.txt").unwrap();
+            use std::io::Write;
+            writeln!(f, "{:#?}", ci).unwrap();
+        }
+
         ci
     } 
 
@@ -209,6 +264,7 @@ impl ClassInfo {
     fn generate_NodeProperyAccess(&self) -> proc_macro2::TokenStream {
         let ci = self;
         let mut property_accessors = proc_macro2::TokenStream::new();
+        let mut array_accessor = proc_macro2::TokenStream::new();
 
         let classname = quote::format_ident!("{}Class", ci.name);
 
@@ -239,6 +295,24 @@ impl ClassInfo {
                 }
             }
         }
+
+        if let Some(p) = &ci.array_type {
+            let nam = &p.ident;
+            if p.typ == websocat_api::PropertyValueTypeTag::Enummy {
+                array_accessor.extend(q!{
+                    self.#nam.iter().map(|x|::websocat_api::PropertyValue::Enummy(::websocat_api::Enum::variant_to_index(x))).collect()
+                });
+            } else {
+                let typ = p.typ.ident();
+                array_accessor.extend(q!{
+                    self.#nam.iter().map(|x| ::websocat_api::PropertyValue::#typ(x.clone())).collect()
+                });
+            }
+        } else {
+            array_accessor.extend(q!{
+                vec![]
+            });
+        }
     
         let name = &ci.name;
         let ts = q! {
@@ -255,7 +329,7 @@ impl ClassInfo {
                 }
             
                 fn get_array(&self) -> ::std::vec::Vec<::websocat_api::PropertyValue> {
-                    vec![]
+                    #array_accessor
                 }
                 
                 fn clone(&self) -> ::websocat_api::DNode {
@@ -279,6 +353,14 @@ impl ClassInfo {
                 #nam : ::std::option::Option<#typ>,
             });
         }
+
+        if let Some(a) = &ci.array_type {
+            let nam = &a.ident;
+            let typ = proptype(&a.typ, &a.enumname);
+            fields.extend(q! {
+                #nam : ::std::vec::Vec<#typ>,
+            });
+        }
     
         let ts = q! {
             #[derive(Default)]
@@ -298,6 +380,7 @@ impl ClassInfo {
         let mut none_checks =  proc_macro2::TokenStream::new();
         let mut fields=  proc_macro2::TokenStream::new();
         let mut matchers=  proc_macro2::TokenStream::new();
+        let mut push_array_element = proc_macro2::TokenStream::new();
         
         for p in &self.properties {
             let pn = &p.ident;
@@ -337,7 +420,37 @@ impl ClassInfo {
                     }),
                 })
             }
+        }
 
+        if let Some(p) = &self.array_type {
+            let pn = &p.ident;
+            fields.extend(q!{
+                #pn: self.#pn,
+            });
+            if p.typ != websocat_api::PropertyValueTypeTag::Enummy {
+                let pty = p.typ.ident();
+
+                push_array_element.extend(q! {
+                    match val {
+                        ::websocat_api::PropertyValue::#pty(x) => self.#pn.push(x),
+                        _ => ::websocat_api::anyhow::bail!("Attempt to push wrong valued element to node's array"),
+                    }
+                    Ok(())
+                });
+            } else {
+                let enn = p.enumname.as_ref().unwrap();
+                push_array_element.extend(q! {
+                    match val {
+                        ::websocat_api::PropertyValue::Enummy(sym) => self.#pn.push(<#enn as ::websocat_api::Enum>::index_to_variant(sym)),
+                        _ => ::websocat_api::anyhow::bail!("Attempt to push wrong valued element to node's array"),
+                    }
+                    Ok(())
+                });
+            }
+        } else {
+            push_array_element.extend(q! {
+                ::websocat_api::anyhow::bail!("No array elements are expected here");
+            });
         }
 
         let ts = q! {          
@@ -352,7 +465,7 @@ impl ClassInfo {
                 }
 
                 fn push_array_element(&mut self, val: ::websocat_api::PropertyValue) -> ::websocat_api::Result<()> {
-                    ::websocat_api::anyhow::bail!("No array elements expected here");
+                    #push_array_element
                 }
 
                 fn finish(self: Box<Self>) -> ::websocat_api::Result<websocat_api::DNode> {
@@ -373,6 +486,9 @@ impl ClassInfo {
         let offiname = &self.official_name;
 
         let mut property_infos =  proc_macro2::TokenStream::new();
+
+        let mut array_type =  proc_macro2::TokenStream::new();
+        let mut array_help =  proc_macro2::TokenStream::new();
         
         for p in &self.properties {
             let pn = &p.ident;
@@ -385,7 +501,7 @@ impl ClassInfo {
                     ::websocat_api::PropertyInfo {
                         name: #pn_s.to_owned(),
                         r#type: websocat_api::PropertyValueType::#pt,
-                        help: #help.to_owned(),
+                        help: Box::new(||#help.to_owned()),
                     },
                 })
             } else {
@@ -394,10 +510,31 @@ impl ClassInfo {
                     ::websocat_api::PropertyInfo {
                         name: #pn_s.to_owned(),
                         r#type: websocat_api::PropertyValueType::Enummy(<#enn as ::websocat_api::Enum>::interner()),
-                        help: #help.to_owned(),
+                        help: Box::new(||#help.to_owned()),
                     },
                 })
             }
+        }
+
+        if let Some(p) = &self.array_type {
+            let help = &p.help;
+            if p.typ != websocat_api::PropertyValueTypeTag::Enummy {
+                let pt = p.typ.ident();
+                array_type.extend(q! {
+                    Some(websocat_api::PropertyValueType::#pt)
+                })
+            } else {
+                let enn = p.enumname.as_ref().unwrap();
+                array_type.extend(q! {
+                    Some(websocat_api::PropertyValueType::Enummy(<#enn as ::websocat_api::Enum>::interner()))
+                })
+            }
+            array_help.extend(q!{
+                Some(#help.to_owned())
+            })
+        } else {
+            array_type.extend(q!{ None });
+            array_help.extend(q!{ None });
         }
 
         let mut prefixes = proc_macro2::TokenStream::new();
@@ -430,7 +567,10 @@ impl ClassInfo {
                 }
             
                 fn array_type(&self) -> ::std::option::Option<::websocat_api::PropertyValueType> {
-                    None
+                    #array_type
+                }
+                fn array_help(&self) -> ::std::option::Option<::std::string::String> {
+                    #array_help
                 }
             
                 fn new_node(&self) -> ::websocat_api::DNodeInProgressOfParsing {
