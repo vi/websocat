@@ -12,10 +12,12 @@ websocat-api = {path = "../websocat-api"}
 
 tokio = {version="1", features=[]}
 tracing = "0.1.25"
+futures = {version="0.3.13", optional=true}
 
 [features]
-default = ["net","io-std", "fs", "process"]
-net = ["tokio/net"]
+default = ["net","io-std", "fs", "process", "race"]
+net = ["tokio/net", "tokio/rt"]
+race = ["tokio/rt", "tokio/sync", "futures"]
 io-std = ["tokio/io-std"]
 fs = ["tokio/fs"]
 process = ["tokio/process"]

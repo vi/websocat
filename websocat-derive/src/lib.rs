@@ -18,7 +18,7 @@ struct Field1 {
 }
 
 #[derive(Debug, darling::FromDeriveInput)]
-#[darling(attributes(websocat_node, debug_derive), forward_attrs(doc, official_name))]
+#[darling(attributes(websocat_node, debug_derive), forward_attrs(doc, official_name, validate))]
 struct Class1 {
     ident: syn::Ident,
     data: darling::ast::Data<(),Field1>,
@@ -29,6 +29,9 @@ struct Class1 {
 
     #[darling(default)]
     debug_derive: bool,
+
+    #[darling(default)]
+    validate: bool,
 }
 
 #[derive(Debug)]
@@ -47,6 +50,7 @@ struct ClassInfo {
 
     official_name: String,
     prefixes: Vec<String>,  
+    validate: bool,
 
     debug_derive: bool,
 }
@@ -78,6 +82,8 @@ fn resolve_type(x: &syn::Ident) -> websocat_api::PropertyValueTypeTag {
         "NodeId" => websocat_api::PropertyValueTypeTag::ChildNode,
         "String" => websocat_api::PropertyValueTypeTag::Stringy,
         "SocketAddr" => websocat_api::PropertyValueTypeTag::SockAddr,
+        "u16" => websocat_api::PropertyValueTypeTag::PortNumber,
+        "bool" => websocat_api::PropertyValueTypeTag::Booly,
         y => panic!("Unknown type {}", y),
     } 
 }
@@ -229,6 +235,13 @@ impl ClassInfo {
 
                         });
                     } else { 
+                        if typ == websocat_api::PropertyValueTypeTag::PortNumber {
+                            if format!("{}", ident).to_lowercase().contains("port") {
+                                // OK
+                            } else {
+                                panic!("u16 types should only be used for port numbers. Mention the substring `port` in the field name.")
+                            }
+                        }
                         properties.push(PropertyInfo {
                             help,
                             typ,
@@ -248,6 +261,7 @@ impl ClassInfo {
             prefixes: cc.prefixes,
             official_name: cc.official_name,
             debug_derive: cc.debug_derive,
+            validate: cc.validate,
         };
 
         if cc.debug_derive {
@@ -453,6 +467,14 @@ impl ClassInfo {
             });
         }
 
+        let mut validate = proc_macro2::TokenStream::new();
+
+        if self.validate {
+            validate.extend(q!{
+                x.validate()?;
+            });
+        }
+
         let ts = q! {          
             impl ::websocat_api::NodeInProgressOfParsing for #buildername {
                 #[allow(unreachable_code)]
@@ -470,10 +492,12 @@ impl ClassInfo {
 
                 fn finish(self: Box<Self>) -> ::websocat_api::Result<websocat_api::DNode> {
                     #none_checks
+                    let mut x = #name {
+                        #fields
+                    };
+                    #validate
                     ::std::result::Result::Ok(::std::boxed::Box::pin(
-                        #name {
-                            #fields
-                        }
+                        x
                     ))
                 }
             }

@@ -175,7 +175,8 @@ pub trait NodeProperyAccess : Debug  {
     fn get_property(&self, name:&str) -> Option<PropertyValue>;
     fn get_array(&self) -> Vec<PropertyValue>;
 
-    // not displayed here the fact that there are child nodes
+    // Inherent method that is called after `NodeInProgressOfParsing::finish` if `validate` attribute is passed to the derive macro.
+    // fn validate(&self) -> Result<()>;
 }
 
 /// Interpreted part of a command line describing some one aspect of a connection.
