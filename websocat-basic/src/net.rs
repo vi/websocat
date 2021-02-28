@@ -47,23 +47,24 @@ impl Tcp {
         }
 
         if self.addrs.is_empty() && self.cache_resolved_ip==Some(true) {
-            self.addrs = self.resolve()?.into_owned();
+            self.addrs = self.resolve()?;
         }
         
         Ok(())
     }
 
-    fn resolve(&self) -> websocat_api::anyhow::Result<std::borrow::Cow<[std::net::SocketAddr]>> {
+    #[tracing::instrument(level="debug", name="resovle", skip(self), err)]
+    fn resolve(&self) -> websocat_api::anyhow::Result<std::vec::Vec<std::net::SocketAddr>> {
         use std::net::ToSocketAddrs;
-        if ! self.addrs.is_empty() {
-            return Ok(std::borrow::Cow::Borrowed(&self.addrs[..]));
-        }
+       
         let addrs : Vec<std::net::SocketAddr>;
         if let Some(hostport) = &self.hostport {
-            addrs = hostport.to_socket_addrs().with_context(||format!("Resolving {}", hostport))?.collect();
+            tracing::debug!("Resolving {}", hostport);
+            addrs = hostport.to_socket_addrs().with_context(||format!("Error resolving {}", hostport))?.collect();
         } else
         if let (Some(host),Some(port)) = (&self.host,&self.port) {
-            addrs = (&**host,*port).to_socket_addrs().with_context(||format!("Resolving {}", host))?.collect();
+            tracing::debug!("Resolving {}", host);
+            addrs = (&**host,*port).to_socket_addrs().with_context(||format!("Error resolving {}", host))?.collect();
         } else {
             unreachable!()
         }
@@ -73,10 +74,40 @@ impl Tcp {
                 tracing::warn!("Using only one of resolved IP addresses due to missing  `websocat-basic/race` Cargo feature when compilation");
             }
         }
+        tracing::debug!("Resolved to {:?}", addrs);
         if addrs.is_empty() {
             websocat_api::anyhow::bail!("Failed to resolve hostname ip IP address");
         }
-        Ok(std::borrow::Cow::Owned(addrs))
+        Ok(addrs)
+    } 
+
+    #[tracing::instrument(level="debug", name="resovle", skip(self), err)]
+    async fn resolve_async(&self) -> websocat_api::anyhow::Result<std::vec::Vec<std::net::SocketAddr>> {
+        let addrs : Vec<std::net::SocketAddr>;
+        if let Some(hostport) = &self.hostport {
+            tracing::debug!("Resolving {}", hostport);
+            addrs = tokio::net::lookup_host(hostport).await.with_context(||format!("Error resolving {}", hostport))?.collect();
+        } else
+        if let (Some(host),Some(port)) = (&self.host,&self.port) {
+            tracing::debug!("Resolving {}", host);
+            addrs = tokio::net::lookup_host(format!("{}:0", host))
+                .await.with_context(||format!("Error resolving {}", host))?
+                .map(|sa| std::net::SocketAddr::new(sa.ip(), *port))
+                .collect();
+        } else {
+            unreachable!()
+        }
+        #[cfg(not(feature = "race"))] {
+            if addrs.len() > 1 {
+                addrs.resize_with(1,||unreachable!());
+                tracing::warn!("Using only one of resolved IP addresses due to missing  `websocat-basic/race` Cargo feature when compilation");
+            }
+        }
+        tracing::debug!("Resolved to {:?}", addrs);
+        if addrs.is_empty() {
+            websocat_api::anyhow::bail!("Failed to resolve hostname ip IP address");
+        }
+        Ok(addrs)
     } 
 }
 
@@ -84,7 +115,12 @@ impl Tcp {
 impl websocat_api::Node for Tcp {
     #[tracing::instrument(level="debug", name="Tcp", skip(self), err)]
     async fn run(&self, _: websocat_api::RunContext, _: Option<&mut websocat_api::IWantToServeAnotherConnection>) -> websocat_api::Result<websocat_api::Bipipe> {
-        let addrs = self.resolve()?;
+        let mut addrs = &self.addrs;
+        let addrs_holder;
+        if self.addrs.is_empty() {
+            addrs_holder = self.resolve_async().await?;
+            addrs = &addrs_holder;
+        }
         if addrs.is_empty() {
             websocat_api::anyhow::bail!("No destination address for TCP connection specified");
         }

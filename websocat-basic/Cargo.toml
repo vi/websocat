@@ -16,8 +16,8 @@ futures = {version="0.3.13", optional=true}
 
 [features]
 default = ["net","io-std", "fs", "process", "race"]
-net = ["tokio/net", "tokio/rt"]
-race = ["tokio/rt", "tokio/sync", "futures"]
+net = ["tokio/net", "tokio/rt", "tokio/rt"]
+race = ["tokio/sync", "futures"]
 io-std = ["tokio/io-std"]
 fs = ["tokio/fs"]
 process = ["tokio/process"]
