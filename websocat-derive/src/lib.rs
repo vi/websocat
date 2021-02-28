@@ -1,17 +1,20 @@
 extern crate proc_macro;
 
 use proc_macro::TokenStream;
-use syn::{parse_macro_input, DeriveInput};
+use syn::{DeriveInput, parse_macro_input};
 
 use quote::quote as q;
 
 #[derive(Debug, darling::FromField)]
-#[darling(forward_attrs(doc))]
+#[darling(attributes(websocat_node, enum), forward_attrs(doc))]
 struct Field1 {
     ident:	Option<syn::Ident>,
     ty:	syn::Type,
 
     attrs: Vec<syn::Attribute>,
+
+    #[darling(default, rename="enum")]
+    r#enum: bool,
 }
 
 #[derive(Debug, darling::FromDeriveInput)]
@@ -28,10 +31,10 @@ struct Class1 {
     debug_derive: bool,
 }
 
-
 struct PropertyInfo {
     ident: syn::Ident,
-    typ : websocat_api::PropertyValueType,
+    typ : websocat_api::PropertyValueTypeTag,
+    enumname: Option<syn::TypePath>,
     optional: bool,
     help: String,
 }
@@ -45,29 +48,33 @@ struct ClassInfo {
     debug_derive: bool,
 }
 
-fn proptype(x: &websocat_api::PropertyValueType) -> proc_macro2::TokenStream {
+fn proptype(x: &websocat_api::PropertyValueTypeTag, enbt: &Option<syn::TypePath>) -> proc_macro2::TokenStream {
     match x {
-        websocat_api::PropertyValueType::Stringy => q!{::std::string::String},
-        websocat_api::PropertyValueType::Enummy(_) => panic!("enums not implemented"),
-        websocat_api::PropertyValueType::Numbery => q!{i64},
-        websocat_api::PropertyValueType::Floaty => q!{f64},
-        websocat_api::PropertyValueType::Booly => q!{bool},
-        websocat_api::PropertyValueType::SockAddr => q!{::std::net::SocketAddr},
-        websocat_api::PropertyValueType::IpAddr => q!{::std::net::IpAddr},
-        websocat_api::PropertyValueType::PortNumber => q!{u16},
-        websocat_api::PropertyValueType::Path => q!{::std::path::PathBuf},
-        websocat_api::PropertyValueType::Uri => q!{::websocat_api::http::Uri},
-        websocat_api::PropertyValueType::Duration => q!{::std::time::Duration},
-        websocat_api::PropertyValueType::ChildNode => q!{::websocat_api::NodeId},
+        websocat_api::PropertyValueTypeTag::Stringy => q!{::std::string::String},
+        websocat_api::PropertyValueTypeTag::Enummy => {
+            let enbt = enbt.as_ref().unwrap();
+            q! {  # enbt }
+        }
+        websocat_api::PropertyValueTypeTag::Numbery => q!{i64},
+        websocat_api::PropertyValueTypeTag::Floaty => q!{f64},
+        websocat_api::PropertyValueTypeTag::Booly => q!{bool},
+        websocat_api::PropertyValueTypeTag::SockAddr => q!{::std::net::SocketAddr},
+        websocat_api::PropertyValueTypeTag::IpAddr => q!{::std::net::IpAddr},
+        websocat_api::PropertyValueTypeTag::PortNumber => q!{u16},
+        websocat_api::PropertyValueTypeTag::Path => q!{::std::path::PathBuf},
+        websocat_api::PropertyValueTypeTag::Uri => q!{::websocat_api::http::Uri},
+        websocat_api::PropertyValueTypeTag::Duration => q!{::std::time::Duration},
+        websocat_api::PropertyValueTypeTag::ChildNode => q!{::websocat_api::NodeId},
     }
 }
 
-fn resolve_type(x: &syn::Ident) -> websocat_api::PropertyValueType {
+fn resolve_type(x: &syn::Ident) -> websocat_api::PropertyValueTypeTag {
     match &format!("{}", x)[..] {
-        "i64" => websocat_api::PropertyValueType::Numbery,
-        "NodeId" => websocat_api::PropertyValueType::ChildNode,
-        "String" => websocat_api::PropertyValueType::Stringy,
-        "SocketAddr" => websocat_api::PropertyValueType::SockAddr,
+        "i64" => websocat_api::PropertyValueTypeTag::Numbery,
+        "f64" => websocat_api::PropertyValueTypeTag::Floaty,
+        "NodeId" => websocat_api::PropertyValueTypeTag::ChildNode,
+        "String" => websocat_api::PropertyValueTypeTag::Stringy,
+        "SocketAddr" => websocat_api::PropertyValueTypeTag::SockAddr,
         y => panic!("Unknown type {}", y),
     } 
 }
@@ -75,14 +82,14 @@ fn resolve_type(x: &syn::Ident) -> websocat_api::PropertyValueType {
 trait PVTHelper {
     fn ident(&self) -> proc_macro2::TokenStream;
 }
-impl PVTHelper for websocat_api::PropertyValueType {
+impl PVTHelper for websocat_api::PropertyValueTypeTag {
     fn ident(&self) -> proc_macro2::TokenStream {
         macro_rules! w {
             ($($x:ident,)*) => {
                 match self {
-                    ::websocat_api::PropertyValueType::Enummy(_) => panic!("enums not implemented"),
+                    ::websocat_api::PropertyValueTypeTag::Enummy => panic!("PVTHelper::ident should not be called for enummys"),
                     $(
-                        ::websocat_api::PropertyValueType::$x => q!{$x},
+                        ::websocat_api::PropertyValueTypeTag::$x => q!{$x},
                     )*
                 }
             }
@@ -123,7 +130,7 @@ impl ClassInfo {
                 for field in x {
                     //eprintln!("{:?}", field);
                     let ident = field.ident.expect("Struct fields must have names");
-                    let (typ, optional) = match field.ty {
+                    let (typ, optional, enumname) = match field.ty {
                         syn::Type::Path(t) => {
                             let lastpathsegment = t.path.segments.last().expect("Failed to extract leaf type from path in a field");
                             match &lastpathsegment.ident.to_string()[..] {
@@ -133,7 +140,11 @@ impl ClassInfo {
                                         syn::PathArguments::AngleBracketed(aa) => {
                                             match aa.args.last().expect("Failed to extract leaf type from within an Option") {
                                                 syn::GenericArgument::Type(syn::Type::Path(p)) => {
-                                                    (resolve_type(&p.path.segments.last().unwrap().ident), true)
+                                                    if field.r#enum {
+                                                        (websocat_api::PropertyValueTypeTag::Enummy, true, Some(p.clone()))
+                                                    } else {
+                                                        (resolve_type(&p.path.segments.last().unwrap().ident), true, None)
+                                                    }
                                                 }
                                                 _ => panic!("Option should have a normal type inside it, not something else"),
                                             }
@@ -141,7 +152,11 @@ impl ClassInfo {
                                         _ => panic!(),
                                     }
                                 }
-                                _ => (resolve_type(&lastpathsegment.ident), false),
+                                _ => if field.r#enum {
+                                    (websocat_api::PropertyValueTypeTag::Enummy, false, Some(t.clone()))
+                                } else {
+                                    (resolve_type(&lastpathsegment.ident), false, None)
+                                },
                             }
                         },
                         _ => panic!("Unknown type for field named {}", ident),
@@ -173,6 +188,7 @@ impl ClassInfo {
                         typ,
                         optional,
                         ident,
+                        enumname,
                     });
                 }
             }
@@ -199,15 +215,28 @@ impl ClassInfo {
         for p in &ci.properties {
             let nam = &p.ident;
             let qn = format!("{}", p.ident);
-            let typ = p.typ.ident();
-            if ! p.optional {
-                property_accessors.extend(q! {
-                    #qn => Some(::websocat_api::PropertyValue::#typ(self.#nam)),
-                });
+            if p.typ != websocat_api::PropertyValueTypeTag::Enummy {
+                let typ = p.typ.ident();
+                if ! p.optional {
+                    property_accessors.extend(q! {
+                        #qn => Some(::websocat_api::PropertyValue::#typ(self.#nam)),
+                    });
+                } else {
+                    property_accessors.extend(q! {
+                        #qn => self.#nam.clone().map(::websocat_api::PropertyValue::#typ),
+                    });
+                }
             } else {
-                property_accessors.extend(q! {
-                    #qn => self.#nam.clone().map(::websocat_api::PropertyValue::#typ),
-                });
+                //let enn = p.enumname.as_ref().unwrap();
+                if ! p.optional {
+                    property_accessors.extend(q! {
+                        #qn => Some(::websocat_api::PropertyValue::Enummy(::websocat_api::Enum::variant_to_index(&self.#nam))),
+                    });
+                } else {
+                    property_accessors.extend(q! {
+                        #qn => self.#nam.as_ref().map(::websocat_api::Enum::variant_to_index).map(::websocat_api::PropertyValue::Enummy),
+                    });
+                }
             }
         }
     
@@ -245,7 +274,7 @@ impl ClassInfo {
 
         for p in &ci.properties {
             let nam = &p.ident;
-            let typ = proptype(&p.typ);
+            let typ = proptype(&p.typ, &p.enumname);
             fields.extend(q! {
                 #nam : ::std::option::Option<#typ>,
             });
@@ -294,11 +323,20 @@ impl ClassInfo {
                 });
             }
 
-            let pty = p.typ.ident();
+            if p.typ != websocat_api::PropertyValueTypeTag::Enummy {
+                let pty = p.typ.ident();
 
-            matchers.extend(q! {
-                (#pn_s, ::websocat_api::PropertyValue::#pty(n)) => self.#pn = ::std::option::Option::Some(n),
-            })
+                matchers.extend(q! {
+                    (#pn_s, ::websocat_api::PropertyValue::#pty(n)) => self.#pn = ::std::option::Option::Some(n),
+                })
+            } else {
+                let enn = p.enumname.as_ref().unwrap();
+                matchers.extend(q! {
+                    (#pn_s, ::websocat_api::PropertyValue::Enummy(sym)) => self.#pn = ::std::option::Option::Some({
+                        <#enn as ::websocat_api::Enum>::index_to_variant(sym)
+                    }),
+                })
+            }
 
         }
 
@@ -340,15 +378,26 @@ impl ClassInfo {
             let pn = &p.ident;
             let pn_s = pn.to_string();
             let help = &p.help;
-            let pt = p.typ.ident();
+            if p.typ != websocat_api::PropertyValueTypeTag::Enummy {
+                let pt = p.typ.ident();
 
-            property_infos.extend(q! {
-                ::websocat_api::PropertyInfo {
-                    name: #pn_s.to_owned(),
-                    r#type: websocat_api::PropertyValueType::#pt,
-                    help: #help.to_owned(),
-                },
-            })
+                property_infos.extend(q! {
+                    ::websocat_api::PropertyInfo {
+                        name: #pn_s.to_owned(),
+                        r#type: websocat_api::PropertyValueType::#pt,
+                        help: #help.to_owned(),
+                    },
+                })
+            } else {
+                let enn = p.enumname.as_ref().unwrap();
+                property_infos.extend(q! {
+                    ::websocat_api::PropertyInfo {
+                        name: #pn_s.to_owned(),
+                        r#type: websocat_api::PropertyValueType::Enummy(<#enn as ::websocat_api::Enum>::interner()),
+                        help: #help.to_owned(),
+                    },
+                })
+            }
         }
 
         let mut prefixes = proc_macro2::TokenStream::new();
@@ -414,6 +463,126 @@ pub fn derive_websocat_node(input: TokenStream) -> TokenStream {
     code.extend(ci.generate_NodeClass());
     
     if ci.debug_derive {
+        use std::io::Write;
+        let mut f = std::fs::File::create("/tmp/derive.rs").unwrap();
+        writeln!(f, "{}", code).unwrap();
+    }
+
+    code.into()
+}
+
+
+
+#[derive(Debug, darling::FromVariant)]
+#[darling(attributes(websocat_enum, rename))]
+struct EnummyVariant {
+    ident:	syn::Ident,
+
+    #[darling(default)]
+    rename: Option<String>,
+}
+
+impl EnummyVariant {
+    fn get_name(&self, lowercase: bool) -> String {
+        if let Some(ref x) = self.rename {
+            x.to_owned()
+        } else {
+            if lowercase {
+                self.ident.to_string().to_lowercase()
+            } else {
+                format!("{}", self.ident)
+            }
+        }
+    }
+}
+
+#[derive(Debug, darling::FromDeriveInput)]
+#[darling(attributes(websocat_enum, rename_all_lowercase, debug_derive))]
+struct EnummyEnum {
+    ident: syn::Ident,
+    data: darling::ast::Data<EnummyVariant,()>,
+
+    #[darling(default)]
+    rename_all_lowercase: bool,
+
+    #[darling(default)]
+    debug_derive: bool,
+}
+
+
+#[proc_macro_derive(WebsocatEnum, attributes(websocat_enum))]
+pub fn derive_websocat_enum(input: TokenStream) -> TokenStream {
+    let x = parse_macro_input!(input as DeriveInput);
+    use darling::FromDeriveInput;
+    let cc = EnummyEnum::from_derive_input(&x).unwrap();
+    
+    if cc.debug_derive {
+        let mut f = std::fs::File::create("/tmp/derive.txt").unwrap();
+        use std::io::Write;
+        writeln!(f, "{:#?}", cc).unwrap();
+    }
+    
+    let name = cc.ident;
+    let namestr = format!("{}", name);
+
+
+    let mut interner_filler = proc_macro2::TokenStream::new();
+    let mut variant_count : usize = 0;
+
+    let mut variant_to_index_match = proc_macro2::TokenStream::new();
+    let mut index_to_variant_match = proc_macro2::TokenStream::new();
+
+    match cc.data {
+        darling::ast::Data::Struct(_) => panic!("WebsocatEnum expects only enums, not structs"),
+        darling::ast::Data::Enum(x) => {
+            for (n, variant) in x.iter().enumerate() {
+                let varname = variant.get_name(cc.rename_all_lowercase);
+                variant_count += 1;
+
+                interner_filler.extend(q! {
+                    assert_eq!(s.get_or_intern(#varname), ::websocat_api::string_interner::DefaultSymbol::try_from_usize(#n).unwrap());
+                });
+
+                let identnam = &variant.ident;
+                index_to_variant_match.extend(q!{
+                    #n => Self::#identnam,
+                });
+
+                variant_to_index_match.extend(q!{
+                    Self::#identnam => ::websocat_api::string_interner::DefaultSymbol::try_from_usize(#n).unwrap(),
+                });
+            }
+        }
+    }
+
+
+    let mut code = proc_macro2::TokenStream::new();
+
+    code.extend(q!{
+        impl ::websocat_api::Enum for #name {
+            fn interner() -> ::websocat_api::string_interner::StringInterner {
+                use ::websocat_api::string_interner::Symbol;
+                let mut s = ::websocat_api::string_interner::StringInterner::with_capacity(#variant_count);
+                #interner_filler
+                s
+            }
+        
+            fn index_to_variant(sym: ::websocat_api::string_interner::DefaultSymbol) -> Self {
+                match sym.to_usize() {
+                    #index_to_variant_match
+                    x => panic!("Invalid numeric value {} for enummy {}", x, #namestr),
+                }
+            }
+
+            fn variant_to_index(&self) -> ::websocat_api::string_interner::DefaultSymbol {
+                match self {
+                    #variant_to_index_match
+                }
+            }
+        }
+    });
+    
+    if cc.debug_derive {
         use std::io::Write;
         let mut f = std::fs::File::create("/tmp/derive.rs").unwrap();
         writeln!(f, "{}", code).unwrap();

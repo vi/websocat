@@ -1,4 +1,5 @@
 use anyhow::Context;
+use string_interner::Symbol;
 use std::collections::HashMap;
 
 use super::Result;
@@ -380,7 +381,22 @@ impl super::PropertyValueType {
         use super::{PropertyValue as PV, PropertyValueType as PVT};
         match self {
             PVT::Stringy => Ok(PV::Stringy(x.to_owned())),
-            PVT::Enummy(_) => todo!(),
+            PVT::Enummy(si) => {
+                if let Some(sym) = si.get(x) {
+                    Ok(PV::Enummy(sym))
+                } else {
+                    let totallen : usize  = si.into_iter().map(|(_,v)|v.len()+1).sum();
+                    let mut valids = String::with_capacity(totallen);
+                    for (_, v) in si {
+                        if x.to_lowercase() == v.to_lowercase() {
+                            anyhow::bail!("Invalid enum property value `{}`. Maybe you meant `{}`?", x, v);
+                        }
+                        valids += v;
+                        valids += " ";
+                    }
+                    anyhow::bail!("Invalid enum property value `{}`. Valid values are: {}", x, valids);
+                }
+            },
             PVT::Numbery => Ok(PV::Numbery(x.parse()?)),
             PVT::Floaty => Ok(PV::Floaty(x.parse()?)),
             PVT::Booly => Ok(PV::Booly(x.parse()?)),
@@ -518,6 +534,21 @@ impl StringyNode {
                     (super::PropertyValue::ChildNode(_), _) => {
                         anyhow::bail!("Inconsistent property value for {} in node type {}", pn, name.0)
                     }
+                    (super::PropertyValue::Enummy(sym), super::PropertyValueType::Enummy(symtab)) => {
+                        if let Some(s) = symtab.resolve(sym) {
+                            StringOrSubnode::Str(s.to_owned())
+                        } else {
+                            anyhow::bail!(
+                                "Failed to resolve enum value {} for property {} in node type {}",
+                                sym.to_usize(),
+                                pn,
+                                name.0,
+                            )
+                        }
+                    }
+                    (super::PropertyValue::Enummy(_), _) => {
+                        anyhow::bail!("Inconsistent property value for {} in node type {}", pn, name.0)
+                    }
                     (opv, _) => {
                         StringOrSubnode::Str(format!("{}", opv))
                     }
@@ -561,7 +592,9 @@ impl std::fmt::Display for super::PropertyValue {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             crate::PropertyValue::Stringy(x) => x.fmt(f),
-            crate::PropertyValue::Enummy(_) => todo!(),
+            crate::PropertyValue::Enummy(sym) => {
+                write!(f, "#{}", sym.to_usize())
+            },
             crate::PropertyValue::Numbery(x) => x.fmt(f),
             crate::PropertyValue::Floaty(x) => x.fmt(f),
             crate::PropertyValue::Booly(x) => x.fmt(f),

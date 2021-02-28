@@ -21,6 +21,7 @@ pub use stringy::StringyNode;
 pub extern crate anyhow;
 pub extern crate tokio;
 pub extern crate async_trait;
+pub extern crate string_interner;
 
 declare_slab_token!(pub NodeId);
 
@@ -86,6 +87,34 @@ pub enum PropertyValueType {
     ChildNode,
 
     // pub fn interpret(&self, x: &str) -> Result<PropertyValue>;
+}
+
+#[derive(Debug,Clone,Eq,PartialEq,Ord,PartialOrd,Hash)]
+pub enum PropertyValueTypeTag {
+    Stringy,
+    Enummy,
+    Numbery,
+    Floaty,
+    Booly,
+    SockAddr,
+    IpAddr,
+    PortNumber,
+    Path,
+    Uri,
+    Duration,
+    ChildNode,
+}
+
+/// Deriveable information for making Enummy based on usual Rust enums
+pub trait Enum {
+    /// Construct interner that stores (maybe lowercase) enum variant names, with predictable symbol numeric values
+    fn interner() -> string_interner::StringInterner;
+
+    /// Construct variant by index
+    fn index_to_variant(sym: string_interner::DefaultSymbol) -> Self;
+
+    /// Get index of a variant
+    fn variant_to_index(&self) -> string_interner::DefaultSymbol;
 }
 
 /// A user-facing information block about some property of some SpecifierClass

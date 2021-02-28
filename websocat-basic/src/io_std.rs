@@ -3,7 +3,6 @@
 #[websocat_node(
     official_name = "stdio",
     prefix="stdio",
-    debug_derive
 )]
 pub struct Stdio {
 }

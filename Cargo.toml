@@ -15,4 +15,5 @@ members = [
     "websocat-basic",
     "websocat-session",
     "playground",
+    "playground2",
 ]

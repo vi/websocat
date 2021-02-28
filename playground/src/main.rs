@@ -2,6 +2,8 @@
 
 use std::str::FromStr;
 
+use websocat_api::string_interner::Symbol;
+
 #[derive(Debug, Clone, websocat_derive::WebsocatNode)]
 #[websocat_node(
     official_name = "foo",
@@ -30,16 +32,30 @@ impl websocat_api::Node for Foo {
 }
 
 
+#[derive(Debug, Clone,Copy,websocat_derive::WebsocatEnum)]
+#[websocat_enum(
+    //rename_all_lowercase,
+    //debug_derive,
+)]
 enum Qqq {
-
+    Hoo,
+    Loo,
+    Aoo,
+    #[websocat_enum(rename = "jjj2")]
+    Coo,
+    Phh,
 }
+
 
 #[derive(Debug, Clone, websocat_derive::WebsocatNode)]
 #[websocat_node(
     official_name = "bar",
+    //debug_derive,
 )]
 struct Bar {
-    //content : Option<Qqq>,
+    /// Content to print
+    #[websocat_node(enum)]
+    content : Qqq,
 }
 
 impl websocat_api::sync::Node for Bar {
@@ -53,10 +69,12 @@ impl websocat_api::sync::Node for Bar {
                 closing_notification: None,
             });
         });
+        let this = self.clone();
         std::thread::spawn(move|| {
             for _ in 0..10 {
                 use std::io::Write;
-                w2.write_all(b"Qqq\n").unwrap();
+                let s = format!("{:?}\n", this.content);
+                w2.write_all(s.as_bytes()).unwrap();
                 std::thread::sleep(std::time::Duration::from_secs(1));
             }
         });
