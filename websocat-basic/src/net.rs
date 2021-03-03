@@ -94,11 +94,9 @@ fn resolve_sync(this: &(dyn AddressesAndResolves + Send + Sync), only_one_addres
     } else {
         unreachable!()
     }
-    if only_one_address {
-        if addrs.len() > 1 {
-            addrs.resize_with(1, || unreachable!());
-            tracing::warn!("Using only one of resolved IP addresses");
-        }
+    if only_one_address && addrs.len() > 1 {
+        addrs.resize_with(1, || unreachable!());
+        tracing::warn!("Using only one of resolved IP addresses");
     }
     tracing::debug!("Resolved to {:?}", addrs);
     if addrs.is_empty() {
@@ -126,11 +124,9 @@ async fn resolve_async(this: &(dyn AddressesAndResolves + Send + Sync), only_one
     } else {
         unreachable!()
     }
-    if only_one_address {
-        if addrs.len() > 1 {
-            addrs.resize_with(1, || unreachable!());
-            tracing::warn!("Using only one of resolved IP addresses");
-        }
+    if only_one_address && addrs.len() > 1 {
+        addrs.resize_with(1, || unreachable!());
+        tracing::warn!("Using only one of resolved IP addresses");
     }
     tracing::debug!("Resolved to {:?}", addrs);
     if addrs.is_empty() {
@@ -188,7 +184,7 @@ impl websocat_api::Node for Tcp {
                     reply_rx = reply_rx_;
 
                     for a in addrs.iter() {
-                        let a = a.clone();
+                        let a = *a;
                         let mut aborter_rx = aborter_tx_.subscribe();
                         let aborter_tx = aborter_tx_.clone();
                         let reply_tx = reply_tx_.clone();

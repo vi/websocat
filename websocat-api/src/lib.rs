@@ -163,6 +163,8 @@ pub type AnyObject = Box<dyn std::any::Any + Send + 'static>;
 /// from the AnyObject instead of being created from stratch. 
 pub struct ServerModeContext {
     pub you_are_called_not_the_first_time: Option<AnyObject>,
+
+    #[allow(clippy::unused_unit)]
     pub call_me_again_with_this: Box<dyn FnOnce(AnyObject) -> () + Send + 'static>,
 }
 
@@ -300,7 +302,7 @@ pub trait NodeClass : Debug {
 }
 
 /// Typical propery name for child nodes
-pub const INNER_NAME : &'static str = "inner";
+pub const INNER_NAME : &str = "inner";
 
 pub type DNodeClass = Box<dyn NodeClass + Send + 'static>;
 

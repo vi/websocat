@@ -650,12 +650,10 @@ impl EnummyVariant {
     fn get_name(&self, lowercase: bool) -> String {
         if let Some(ref x) = self.rename {
             x.to_owned()
+        } else if lowercase {
+            self.ident.to_string().to_lowercase()
         } else {
-            if lowercase {
-                self.ident.to_string().to_lowercase()
-            } else {
-                format!("{}", self.ident)
-            }
+            format!("{}", self.ident)
         }
     }
 }

@@ -1,3 +1,4 @@
+#![allow(clippy::unit_arg)]
 use anyhow::Context;
 use string_interner::Symbol;
 use std::collections::HashMap;
@@ -17,6 +18,7 @@ pub struct Ident(
     pub String
 );
 /// A part of parsed command line before looking up the SpecifierClasses.
+
 #[derive(Eq, PartialEq, Debug)]
 #[cfg_attr(test,derive(Clone, proptest_derive::Arbitrary))]
 pub struct StringyNode {
@@ -47,7 +49,7 @@ impl<'a> std::fmt::Display for ValueForPrinting<'a> {
 
             s.push_str(&String::from_utf8(x).unwrap());
         }
-        if self.0.len() == 0 { tainted = true; }
+        if self.0.is_empty() { tainted = true; }
         if tainted {
             write!(f, "\"{}\"", s)?;
         } else {
@@ -80,17 +82,13 @@ impl std::fmt::Display for StringyNode {
 mod tests;
 
 fn identchar(b: u8) -> bool {
-    match b {
-        | b'0'..=b'9'
+    matches!(b, b'0'..=b'9'
         | b'a'..=b'z'
         | b'A'..=b'Z'
         | b'_' | b':' | b'?' | b'@'
         | b'.' | b'/' | b'#' | b'&'
         | b'-'
-        | b'\x80' ..= b'\xFF'
-        => true,
-        _ => false
-    }
+        | b'\x80' ..= b'\xFF')
 }
 
 #[rustfmt::skip] // tends to collapse character ranges into one line and to remove trailing `|`s.
@@ -169,7 +167,7 @@ impl StringyNode {
                         _ => anyhow::bail!(
                             "Expected a space character or `]` after `\"` or `]`, not {} when parsing node named {}",
                             std::ascii::escape_default(*c),
-                            name.as_ref().map(|x|&**x).unwrap_or("???"),
+                            name.as_deref().unwrap_or("???"),
                         ),
                     }
                 }
@@ -192,7 +190,7 @@ impl StringyNode {
                             let subnode = StringyNode::read(r).with_context(||format!(
                                 "Failed to read subnode array element {} of node {}",
                                 array.len()+1,
-                                name.as_ref().map(|x|&**x).unwrap_or("???"),
+                                name.as_deref().unwrap_or("???"),
                             ))?;
                             array.push(StringOrSubnode::Subnode(subnode));
                             state = S::ForcedSpace;
@@ -204,7 +202,7 @@ impl StringyNode {
                         _ => anyhow::bail!(
                             "Invalid character {} in tree node named {}",
                             std::ascii::escape_default(*c),
-                            name.as_ref().map(|x|&**x).unwrap_or("???")
+                            name.as_deref().unwrap_or("???"),
                         ),
                     }
                 }
@@ -218,8 +216,8 @@ impl StringyNode {
                             if chunk.is_empty() {
                                 anyhow::bail!(
                                     "Unescaped empty propery {} value of tree node {}",
-                                    property_name.as_ref().map(|x|&**x).unwrap_or("???"),
-                                    name.as_ref().map(|x|&**x).unwrap_or("???")
+                                    property_name.as_deref().unwrap_or("???"),
+                                    name.as_deref().unwrap_or("???"),
                                 );
                             }
                             let ch = String::from_utf8(chunk)?;
@@ -243,7 +241,7 @@ impl StringyNode {
                                 anyhow::bail!(
                                     "Duplicate unescaped = character when paring property {} of a tree node {}",
                                     property_name.unwrap(),
-                                    name.as_ref().map(|x|&**x).unwrap_or("???")
+                                    name.as_deref().unwrap_or("???"),
                                 );
                             }
                             let ch = String::from_utf8(chunk)?;
@@ -254,7 +252,7 @@ impl StringyNode {
                             if property_name.is_none() || ! chunk.is_empty() {
                                 anyhow::bail!(
                                     "Property value `\"` escape character in a tree node named {} must come immediately after `=`",
-                                    name.as_ref().map(|x|&**x).unwrap_or("???")
+                                    name.as_deref().unwrap_or("???"),
                                 );
                             }
                             state = S::ChunkEsc;
@@ -264,13 +262,13 @@ impl StringyNode {
                                 if ! chunk.is_empty() {
                                     anyhow::bail!(
                                         "Wrong `[` character position when parsing a tree node named {}",
-                                        name.as_ref().map(|x|&**x).unwrap_or("???")
+                                        name.as_deref().unwrap_or("???"),
                                     );
                                 }
                                 let subnode = StringyNode::read(r).with_context(||format!(
                                     "Failed to read property {} value of node {}",
                                     pn,
-                                    name.as_ref().map(|x|&**x).unwrap_or("???"),
+                                    name.as_deref().unwrap_or("???"),
                                 ))?;
                                 properties.push((Ident(pn), StringOrSubnode::Subnode(subnode)));
                                 state = S::ForcedSpace;
@@ -279,14 +277,14 @@ impl StringyNode {
                             } else {
                                 anyhow::bail!(
                                     "Wrong `[` character position when parsing a tree node named {}",
-                                    name.as_ref().map(|x|&**x).unwrap_or("???")
+                                    name.as_deref().unwrap_or("???"),
                                 );
                             }
                         }
                         _ => anyhow::bail!(
                             "Invalid character {} in tree node named {} when a parsing potential property or array element",
                             std::ascii::escape_default(*c),
-                            name.as_ref().map(|x|&**x).unwrap_or("???")
+                            name.as_deref().unwrap_or("???"),
                         ),
                     }
                 }
@@ -322,7 +320,7 @@ impl StringyNode {
                         _ => anyhow::bail!(
                             "Invalid escape sequence character {} when parsing tree node {}",
                             std::ascii::escape_default(*c),
-                            name.as_ref().map(|x|&**x).unwrap_or("???"),
+                            name.as_deref().unwrap_or("???"),
                         ),
                     }
                     state = S::ChunkEsc;
@@ -336,7 +334,7 @@ impl StringyNode {
                         _ => anyhow::bail!(
                             "Invalid hex escape sequence character {} when parsing tree node {}",
                             std::ascii::escape_default(*c),
-                            name.as_ref().map(|x|&**x).unwrap_or("???"),
+                            name.as_deref().unwrap_or("???"),
                         ),
                     }
                     if hex.len() == 2 {
@@ -352,7 +350,7 @@ impl StringyNode {
         if state != S::Finish {
             anyhow::bail!(
                 "Trimmed input when parsing the tree node named {}",
-                name.as_ref().map(|x|&**x).unwrap_or("???"),
+                name.as_deref().unwrap_or("???"),
             );
         }
         if name.is_none() {
@@ -513,7 +511,7 @@ impl StringyNode {
     #[tracing::instrument(name="StringyNode::reverse", level="trace", skip(tree), fields(), err)]
     pub fn reverse(root: super::NodeId, tree:&super::Tree) -> Result<Self> {
         tracing::debug!("Reversing a parsed node back to stringy representation");
-        let n = tree.get(root).with_context(||format!("Node not found"))?;
+        let n = tree.get(root).with_context(||"Node not found".to_string())?;
         let c = n.class();
 
         let name = Ident(c.official_name());
