@@ -86,6 +86,7 @@ fn identchar(b: u8) -> bool {
         | b'A'..=b'Z'
         | b'_' | b':' | b'?' | b'@'
         | b'.' | b'/' | b'#' | b'&'
+        | b'-'
         | b'\x80' ..= b'\xFF'
         => true,
         _ => false

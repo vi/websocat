@@ -91,6 +91,7 @@ async fn main() {
     reg.register::<Foo>();
     reg.register::<Bar>();
     reg.register::<websocat_basic::net::Tcp>();
+    reg.register::<websocat_basic::net::TcpListen>();
     reg.register::<websocat_basic::io_std::Stdio>();
 
     //println!("{:?}", reg);

@@ -242,3 +242,45 @@ impl websocat_api::Node for Tcp {
         }
     }
 }
+
+
+#[derive(Debug, Clone, websocat_derive::WebsocatNode)]
+#[websocat_node(official_name = "tcp-listen", prefix = "tcp-listen")]
+pub struct TcpListen {
+    /// Destination IP and port to where TCP connection should be established
+    /// If multiple is specified, they are tried in parallel and the first one who gets though wins.
+    addrs: Vec<std::net::SocketAddr>,
+
+    /// TCP port to connect to. Must be combined with `port`.
+    port: Option<u16>,
+
+    /// TCP host to resolve, then to connect to. Must be combined with `host`.
+    host: Option<String>,
+
+    /// TCP host and port pair to resolve and connect to.
+    hostport: Option<String>,
+
+    /// Resolve hostname to IP once, at start, not every time before the connection
+    cache_resolved_ip: Option<bool>,
+}
+
+
+#[websocat_api::async_trait::async_trait]
+impl websocat_api::Node for TcpListen {
+    #[tracing::instrument(level = "debug", name = "TcpListen", skip(self,multiconn), err)]
+    async fn run(
+        &self,
+        _: websocat_api::RunContext,
+        multiconn: Option<&mut websocat_api::IWantToServeAnotherConnection>,
+    ) -> websocat_api::Result<websocat_api::Bipipe> {
+        let mut addrs = &self.addrs;
+        let l = tokio::net::TcpListener::bind(self.addrs[0]).await?;
+        let (c, _inaddr) = l.accept().await?;
+        let (r, w) = c.into_split();
+        Ok(websocat_api::Bipipe {
+            r: websocat_api::Source::ByteStream(Box::pin(r)),
+            w: websocat_api::Sink::ByteStream(Box::pin(w)),
+            closing_notification: None,
+        })
+    }
+}
