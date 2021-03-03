@@ -10,4 +10,5 @@ edition = "2018"
 websocat-api = {path = "../websocat-api"}
 
 tokio = {version = "1", features=["rt", "io-util", "sync"]}
+futures={version="0.3", default_features=false}
 tracing = "0.1.25"

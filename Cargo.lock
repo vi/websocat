@@ -974,6 +974,7 @@ dependencies = [
 name = "websocat-session"
 version = "0.1.0"
 dependencies = [
+ "futures",
  "tokio",
  "tracing",
  "websocat-api",
