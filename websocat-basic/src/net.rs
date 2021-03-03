@@ -197,13 +197,12 @@ impl websocat_api::Node for Tcp {
                             tracing::debug_span!("racer", addr = tracing::field::display(a));
 
                         tokio::spawn(async move {
-                            use futures::FutureExt;
                             tracing::debug!(parent: &logger, "Initiating connection");
-                            futures::select! {
-                                _abt = aborter_rx.recv().fuse() => {
+                            tokio::select! {
+                                _abt = aborter_rx.recv() => {
                                     tracing::debug!(parent: &logger, "Too late, aborting attempt.");
                                 },
-                                conn = tokio::net::TcpStream::connect(a).fuse() => match conn {
+                                conn = tokio::net::TcpStream::connect(a) => match conn {
                                     Ok(c) => {
                                         let _ = aborter_tx.send(());
                                         tracing::debug!(parent: &logger, "Connection established");
