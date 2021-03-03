@@ -2,7 +2,7 @@
 
 use std::str::FromStr;
 
-use websocat_api::string_interner::Symbol;
+use websocat_api::{ServerModeContext, string_interner::Symbol};
 
 #[derive(Debug, Clone, websocat_derive::WebsocatNode)]
 #[websocat_node(
@@ -26,7 +26,7 @@ struct Foo {
 
 #[websocat_api::async_trait::async_trait]
 impl websocat_api::Node for Foo {
-    async fn run(&self, ctx: websocat_api::RunContext, _multiconn: Option<&mut websocat_api::IWantToServeAnotherConnection>) -> websocat_api::Result<websocat_api::Bipipe> {
+    async fn run(&self, ctx: websocat_api::RunContext, _multiconn: Option<ServerModeContext>) -> websocat_api::Result<websocat_api::Bipipe> {
         Err(websocat_api::anyhow::anyhow!("nimpl"))
     }
 }

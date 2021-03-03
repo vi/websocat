@@ -148,16 +148,23 @@ pub struct RunContext {
 
 static_assertions::assert_impl_all!(RunContext : Send);
 
-/// Returned task is either spawned to dropped depending on settings.
-/// Non-leaf (overlay) nodes should probably just pass this parameter down.
-/// Leaf nodes that don't support accepting multiple connections should 
-/// zero out (set to None) this parameter.
-/// Leaf nodes that do support accepting multiple connections should 
-/// interpret pre-exsting None as a signao to create and set up the socket for
-/// serving connections and pre-existing Some as a signal to resume and accept
-/// one more connection on existing socket (then leave another continuation
-/// task in place of the one that is taken away)
-pub type IWantToServeAnotherConnection = Option<Pin<Box<dyn Future<Output=()> + Send + 'static>>>;
+/// Opaque object that can be used as a storage space for individual nodes
+pub type AnyObject = Box<dyn std::any::Any + Send + 'static>;
+
+/// Used to support serving multiple clients, allowing to restart Websocat session from
+/// nodes like "tcp-listen", passing listening sockets though AnyObject.
+/// 
+/// First time `you_are_called_not_the_first_time` is None, meaning that e.g. TcpListener should be
+/// created from scratch.
+/// 
+/// Invoking `call_me_again_with_this` spawns a Tokio task that should ultimately return back
+/// to the node that issued `call_me_again_with_this`, but with `you_are_called_not_the_first_time`
+/// filled in, so `TcpListener` (with potential next pending connection) should be restored
+/// from the AnyObject instead of being created from stratch. 
+pub struct ServerModeContext {
+    pub you_are_called_not_the_first_time: Option<AnyObject>,
+    pub call_me_again_with_this: Box<dyn FnOnce(AnyObject) -> () + Send + 'static>,
+}
 
 pub trait NodeInProgressOfParsing {
     fn set_property(&mut self, name: &str, val: PropertyValue) -> Result<()>;
@@ -184,7 +191,10 @@ pub trait NodeProperyAccess : Debug  {
 /// Primary way to get those is by `SpecifierClass::parse`ing respective `StringyNode`s.
 #[async_trait]
 pub trait Node : NodeProperyAccess + Downcast {
-    async fn run(&self, ctx: RunContext, multiconn: Option<&mut IWantToServeAnotherConnection>) -> Result<Bipipe>;
+    /// Actually start the node (i.e. connect to TCP or recursively start another child node)
+    /// If you want to serve multiple connections and `multiconn` is not None, you can
+    /// trigger starting another Tokio task by using `multiconn`.
+    async fn run(&self, ctx: RunContext, multiconn: Option<ServerModeContext>) -> Result<Bipipe>;
 }
 impl_downcast!(Node);
 pub type DNode = Pin<Box<dyn Node + Send + Sync + 'static>>;
@@ -215,6 +225,7 @@ pub enum NodePlacement {
 
 pub type Tree = Slab<NodeId, DNode>;
 
+#[derive(Clone)]
 pub struct Session {
     /// Place where specific nodes can store their process-global values
     /// Key should probably be `NodeClass::official_name`

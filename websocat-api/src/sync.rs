@@ -1,6 +1,6 @@
 use std::pin::Pin;
 
-use super::{IWantToServeAnotherConnection, NodeProperyAccess, Result, RunContext};
+use super::{ServerModeContext, NodeProperyAccess, Result, RunContext};
 
 pub enum Source {
     ByteStream(Box<dyn std::io::Read + Send + 'static>),
@@ -98,7 +98,7 @@ impl<T: Node + Send + Sync + 'static> super::Node for T {
     async fn run(
         &self,
         ctx: RunContext,
-        multiconn: Option<&mut IWantToServeAnotherConnection>,
+        multiconn: Option<ServerModeContext>,
     ) -> Result<super::Bipipe> {
         let (buffer_sizes_tx, mut buffer_sizes_rx) = tokio::sync::mpsc::unbounded_channel();
         let (buffers_tx, buffers_rx) = tokio::sync::mpsc::channel(1);

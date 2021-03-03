@@ -152,7 +152,7 @@ impl websocat_api::Node for Tcp {
     async fn run(
         &self,
         _: websocat_api::RunContext,
-        _: Option<&mut websocat_api::IWantToServeAnotherConnection>,
+        _: Option<websocat_api::ServerModeContext>,
     ) -> websocat_api::Result<websocat_api::Bipipe> {
         let mut addrs = &self.addrs;
         let addrs_holder;
@@ -270,11 +270,40 @@ impl websocat_api::Node for TcpListen {
     async fn run(
         &self,
         _: websocat_api::RunContext,
-        multiconn: Option<&mut websocat_api::IWantToServeAnotherConnection>,
+        mut multiconn: Option<websocat_api::ServerModeContext>,
     ) -> websocat_api::Result<websocat_api::Bipipe> {
-        let mut addrs = &self.addrs;
-        let l = tokio::net::TcpListener::bind(self.addrs[0]).await?;
-        let (c, _inaddr) = l.accept().await?;
+        let mut l : Option<tokio::net::TcpListener> = None;
+        if let Some(multiconn) = &mut multiconn {
+            if let Some(mut socket) = multiconn.you_are_called_not_the_first_time.take() {
+                let so : &mut Option<tokio::net::TcpListener>;
+                so = socket.downcast_mut().expect("Unexpected object passed to restarted TcpListen::run");
+                l = Some(so.take().unwrap());
+                tracing::debug!("Restored the listening socket from multiconn context");
+            } else {
+                tracing::debug!("This is the first serving of possible series of incoming connections");
+            }
+        } else {
+            tracing::debug!("No multiconn requested");
+        }
+
+        let addrs = &self.addrs;
+        let l = match l { 
+            Some(x) => x, 
+            None => {
+                let ret = tokio::net::TcpListener::bind(addrs[0]).await?;
+                tracing::debug!("Bound listening socket to {}", addrs[0]);
+                ret
+            }
+        };
+        let (c, inaddr) = l.accept().await?;
+
+        tracing::info!("Incoming connection from {}", inaddr);
+
+        if let Some(multiconn) = multiconn {
+            tracing::debug!("Trigger another session");
+            (multiconn.call_me_again_with_this)(Box::new(Some(l)));
+        }
+
         let (r, w) = c.into_split();
         Ok(websocat_api::Bipipe {
             r: websocat_api::Source::ByteStream(Box::pin(r)),
