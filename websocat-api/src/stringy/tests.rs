@@ -18,7 +18,7 @@ fn test_display_simple() {
     assert_eq!(
         format!(
             "{}",
-            StringyNode {
+            StrNode {
                 name: s("qqq"),
                 properties: vec![],
                 array: Vec::new(),
@@ -30,7 +30,7 @@ fn test_display_simple() {
     assert_eq!(
         format!(
             "{}",
-            StringyNode {
+            StrNode {
                 name: s("www"),
                 properties: vec![(s("a"), ss("b"))].into_iter().collect(),
                 array: Vec::new(),
@@ -42,7 +42,7 @@ fn test_display_simple() {
     assert_eq!(
         format!(
             "{}",
-            StringyNode {
+            StrNode {
                 name: s("eee"),
                 properties: vec![],
                 array: vec![ss("c")],
@@ -54,7 +54,7 @@ fn test_display_simple() {
     assert_eq!(
         format!(
             "{}",
-            StringyNode {
+            StrNode {
                 name: s("rrr"),
                 properties: vec![(s("a"), ss("b"))].into_iter().collect(),
                 array: vec![Str("c".to_owned())],
@@ -66,7 +66,7 @@ fn test_display_simple() {
     assert_eq!(
         format!(
             "{}",
-            StringyNode {
+            StrNode {
                 name: s("ttt"),
                 properties: vec![(s("a"), ss("b")), (s("a2"), ss("b2"))]
                     .into_iter()
@@ -82,7 +82,7 @@ fn test_display_escaping() {
     assert_eq!(
         format!(
             "{}",
-            StringyNode {
+            StrNode {
                 name: s("eee"),
                 properties: vec![],
                 array: vec![ss("\"")],
@@ -94,7 +94,7 @@ fn test_display_escaping() {
     assert_eq!(
         format!(
             "{}",
-            StringyNode {
+            StrNode {
                 name: s("eee"),
                 properties: vec![],
                 array: vec![ss("[]")],
@@ -106,7 +106,7 @@ fn test_display_escaping() {
     assert_eq!(
         format!(
             "{}",
-            StringyNode {
+            StrNode {
                 name: s("eee"),
                 properties: vec![],
                 array: vec![ss("[")],
@@ -118,7 +118,7 @@ fn test_display_escaping() {
     assert_eq!(
         format!(
             "{}",
-            StringyNode {
+            StrNode {
                 name: s("eee"),
                 properties: vec![],
                 array: vec![ss("")],
@@ -130,7 +130,7 @@ fn test_display_escaping() {
     assert_eq!(
         format!(
             "{}",
-            StringyNode {
+            StrNode {
                 name: s("eee"),
                 properties: vec![],
                 array: vec![ss("]")],
@@ -142,7 +142,7 @@ fn test_display_escaping() {
     assert_eq!(
         format!(
             "{}",
-            StringyNode {
+            StrNode {
                 name: s("eee"),
                 properties: vec![],
                 array: vec![ss("a=b")],
@@ -154,7 +154,7 @@ fn test_display_escaping() {
     assert_eq!(
         format!(
             "{}",
-            StringyNode {
+            StrNode {
                 name: s("eee"),
                 properties: vec![],
                 array: vec![ss("\\")],
@@ -166,7 +166,7 @@ fn test_display_escaping() {
     assert_eq!(
         format!(
             "{}",
-            StringyNode {
+            StrNode {
                 name: s("eee"),
                 properties: vec![],
                 array: vec![ss(r#"[qqq w=e r ""]"#)],
@@ -181,11 +181,11 @@ fn test_display_nested() {
     assert_eq!(
         format!(
             "{}",
-            StringyNode {
+            StrNode {
                 name: s("eee"),
                 properties: vec![(
                     s("zz"),
-                    Subnode(StringyNode {
+                    Subnode(StrNode {
                         name: s("bobo"),
                         properties: vec![],
                         array: vec![],
@@ -200,10 +200,10 @@ fn test_display_nested() {
     assert_eq!(
         format!(
             "{}",
-            StringyNode {
+            StrNode {
                 name: s("rrr"),
                 properties: vec![(s("zz"), ss("z"))],
-                array: vec![Subnode(StringyNode {
+                array: vec![Subnode(StrNode {
                     name: s("xoxo"),
                     properties: vec![],
                     array: vec![],
@@ -216,7 +216,7 @@ fn test_display_nested() {
     assert_eq!(
         format!(
             "{}",
-            StringyNode {
+            StrNode {
                 name: s("ttt"),
                 properties: vec![
                     (s("zz"), ss("z")),
@@ -224,11 +224,11 @@ fn test_display_nested() {
                     (s("zz3"), ss("[qq]")),
                     (
                         s("inner"),
-                        Subnode(StringyNode {
+                        Subnode(StrNode {
                             name: s("yoyo"),
                             properties: vec![(
                                 s("kk"),
-                                Subnode(StringyNode {
+                                Subnode(StrNode {
                                     name: s("yoyo"),
                                     properties: vec![(s("mm"), ss("MMM"))],
                                     array: vec![],
@@ -239,13 +239,13 @@ fn test_display_nested() {
                     ),
                     (s("zz4"), ss("5.6")),
                 ],
-                array: vec![Subnode(StringyNode {
+                array: vec![Subnode(StrNode {
                     name: s("ppp"),
                     properties: vec![],
-                    array: vec![Subnode(StringyNode {
+                    array: vec![Subnode(StrNode {
                         name: s("pp"),
                         properties: vec![],
-                        array: vec![Subnode(StringyNode {
+                        array: vec![Subnode(StrNode {
                             name: s("p"),
                             properties: vec![],
                             array: vec![],
@@ -260,11 +260,11 @@ fn test_display_nested() {
 
 
 fn pass(x: &'static str, y: &'static str) {
-    assert_eq!(StringyNode::from_str(x).ok().map(|x|format!("{}", x)), Some(y.to_owned()));
+    assert_eq!(StrNode::from_str(x).ok().map(|x|format!("{}", x)), Some(y.to_owned()));
 }
 
 fn fail(x: &'static str) {
-    assert_eq!(StringyNode::from_str(x).ok().map(|x|format!("{}", x)), None);
+    assert_eq!(StrNode::from_str(x).ok().map(|x|format!("{}", x)), None);
 }
 #[test]
 fn test_parse1() {
@@ -300,7 +300,7 @@ fn test_parse1() {
 pub struct SoSStrat;
 
 
-type SoST = < <super::StringyNode as proptest::arbitrary::Arbitrary>::Strategy as proptest::strategy::Strategy>::Tree;
+type SoST = < <super::StrNode as proptest::arbitrary::Arbitrary>::Strategy as proptest::strategy::Strategy>::Tree;
 type SsST = < <String as proptest::arbitrary::Arbitrary>::Strategy as proptest::strategy::Strategy>::Tree;
 pub enum SoSTree {
     Sub(SoST),
@@ -325,7 +325,7 @@ impl proptest::strategy::Strategy for SoSStrat {
         let x = runner.rng().next_u32();
         if x % 150 == 0 {
             Ok(SoSTree::Sub(
-                super::StringyNode::arbitrary().new_tree(runner)?
+                super::StrNode::arbitrary().new_tree(runner)?
             ))
         } else {
             Ok(SoSTree::Str(
@@ -366,7 +366,7 @@ fn print_some_trees() {
     let mut tr = proptest::test_runner::TestRunner::deterministic();
 
     for _ in 0..25 {
-        let mut q = super::StringyNode::arbitrary().new_tree(&mut tr).unwrap();
+        let mut q = super::StrNode::arbitrary().new_tree(&mut tr).unwrap();
 
         println!("{}", q.current());
 
@@ -382,9 +382,9 @@ use proptest::arbitrary::Arbitrary;
 
 proptest::proptest! {
     #[test]
-    fn format_to_read(a in super::StringyNode::arbitrary()) {
+    fn format_to_read(a in super::StrNode::arbitrary()) {
         let s = format!("{}", a);
-        let b = StringyNode::from_str(&s).unwrap();
+        let b = StrNode::from_str(&s).unwrap();
         proptest::prop_assert_eq!(a, b);
     }
 }

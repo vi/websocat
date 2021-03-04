@@ -9,7 +9,7 @@ use super::Result;
 #[cfg_attr(test,derive(Clone))]
 pub enum StringOrSubnode {
     Str(String),
-    Subnode(StringyNode),
+    Subnode(StrNode),
 }
 #[derive(Eq, PartialEq, Debug)]
 #[cfg_attr(test,derive(Clone, proptest_derive::Arbitrary))]
@@ -17,11 +17,11 @@ pub struct Ident(
     #[cfg_attr(test, proptest(regex = "[a-z0-9._]+"))]
     pub String
 );
-/// A part of parsed command line before looking up the SpecifierClasses.
+/// A part of parsed command line before looking up the `NodeClass`es.
 
 #[derive(Eq, PartialEq, Debug)]
 #[cfg_attr(test,derive(Clone, proptest_derive::Arbitrary))]
-pub struct StringyNode {
+pub struct StrNode {
     pub name: Ident,
     pub properties: Vec<(Ident, StringOrSubnode)>,
     pub array: Vec<StringOrSubnode>,
@@ -41,8 +41,8 @@ impl<'a> std::fmt::Display for ValueForPrinting<'a> {
             if x.len() > 1 { 
                 tainted = true;
             } else {
-                match x[0] {
-                    x if identchar(x) => (),
+                match x.get(0) {
+                    Some(x) if identchar(*x) => (),
                     _ => tainted = true,
                 }
             }
@@ -59,7 +59,7 @@ impl<'a> std::fmt::Display for ValueForPrinting<'a> {
     }
 }
 
-impl std::fmt::Display for StringyNode {
+impl std::fmt::Display for StrNode {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "[{}", self.name.0)?;
         for (k, v) in &self.properties {
@@ -92,14 +92,9 @@ fn identchar(b: u8) -> bool {
 }
 
 #[rustfmt::skip] // tends to collapse character ranges into one line and to remove trailing `|`s.
-impl StringyNode {
+impl StrNode {
     #[tracing::instrument(name="StringyNode::read", level="trace", skip(r), err)]
-    fn read(r: &mut std::iter::Peekable<impl Iterator<Item=u8>>) -> Result<StringyNode> {
-        tracing::trace!("Reading from string to a stringy node");
-        let mut chunk : Vec<u8> = Vec::with_capacity(20);
-
-        if r.next() != Some(b'[') { anyhow::bail!("Tree node must begin with `[` character"); }
-
+    fn read(r: &mut std::iter::Peekable<impl Iterator<Item=u8>>) -> Result<StrNode> {
         #[derive(Clone,Copy, Eq, PartialEq, Debug)]
         enum S {
             BeforeName,
@@ -112,6 +107,12 @@ impl StringyNode {
             ChunkEscHex,
             Finish,
         }
+        
+        tracing::trace!("Reading from string to a stringy node");
+        let mut chunk : Vec<u8> = Vec::with_capacity(20);
+
+        if r.next() != Some(b'[') { anyhow::bail!("Tree node must begin with `[` character"); }
+
 
         let mut state = S::BeforeName;
 
@@ -121,7 +122,7 @@ impl StringyNode {
     
         let mut property_name : Option<String> = None;
 
-        let mut hex : tinyvec::ArrayVec<[u8; 2]> = Default::default();
+        let mut hex  = tinyvec::ArrayVec::<[u8; 2]>::default();
 
         while let Some(c) = r.peek() {
             tracing::trace!("Peeked byte {} in state {:?}", std::ascii::escape_default(*c), state);
@@ -187,7 +188,7 @@ impl StringyNode {
                             break;
                         }
                         b'[' => {
-                            let subnode = StringyNode::read(r).with_context(||format!(
+                            let subnode = StrNode::read(r).with_context(||format!(
                                 "Failed to read subnode array element {} of node {}",
                                 array.len()+1,
                                 name.as_deref().unwrap_or("???"),
@@ -265,7 +266,7 @@ impl StringyNode {
                                         name.as_deref().unwrap_or("???"),
                                     );
                                 }
-                                let subnode = StringyNode::read(r).with_context(||format!(
+                                let subnode = StrNode::read(r).with_context(||format!(
                                     "Failed to read property {} value of node {}",
                                     pn,
                                     name.as_deref().unwrap_or("???"),
@@ -359,7 +360,7 @@ impl StringyNode {
             );
         }
         tracing::debug!("Finished reading from string into stringy node {}", name.as_ref().unwrap());
-        Ok(StringyNode {
+        Ok(StrNode {
             name: Ident(name.unwrap()),
             properties,
             array,
@@ -367,11 +368,11 @@ impl StringyNode {
     }
 }
 
-impl std::str::FromStr for StringyNode {
+impl std::str::FromStr for StrNode {
     type Err = anyhow::Error;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        StringyNode::read(&mut s.bytes().peekable())
+        StrNode::read(&mut s.bytes().peekable())
     }
 }
 
@@ -412,7 +413,7 @@ impl super::PropertyValueType {
     }
 }
 
-impl StringyNode {
+impl StrNode {
     #[tracing::instrument(name="StringyNode::build_impl", level="trace", skip(tree, classes, self), fields(node=&*self.name.0), err)]
     fn build_impl(
         &self,
@@ -421,6 +422,9 @@ impl StringyNode {
     ) -> Result<super::NodeId> {
         tracing::debug!("Building parsed node");
         if let Some(cls) = classes.officname_to_classes.get(&self.name.0) {
+            use super::{PropertyValueType as PVT, PropertyValue as PV};
+            use StringOrSubnode::{Str,Subnode};
+
             tracing::trace!("Obtained class: {:?}", cls);
             let props = cls.properties();
             let mut p: HashMap<String, super::PropertyValueType> =
@@ -428,9 +432,6 @@ impl StringyNode {
             p.extend(props.into_iter().map(|pi| (pi.name, pi.r#type)));
 
             let mut b = cls.new_node();
-
-            use super::{PropertyValueType as PVT, PropertyValue as PV};
-            use StringOrSubnode::{Str,Subnode};
 
             for (Ident(k), v) in &self.properties {
                 tracing::trace!("Handling property {}", k);
@@ -525,7 +526,7 @@ impl StringyNode {
                 let sn = match (v, r#type) {
                     (super::PropertyValue::ChildNode(q), super::PropertyValueType::ChildNode) => {
                         tracing::trace!("Descending into subnode {}", q.0);
-                        StringOrSubnode::Subnode(StringyNode::reverse(q, tree)?)
+                        StringOrSubnode::Subnode(StrNode::reverse(q, tree)?)
                     },
                     (_, super::PropertyValueType::ChildNode) => {
                         anyhow::bail!("Inconsistent property value for {} in node type {}", pn, name.0)
@@ -564,7 +565,7 @@ impl StringyNode {
                 }
                 (super::PropertyValue::ChildNode(q), Some(super::PropertyValueType::ChildNode)) => {
                     tracing::trace!("Descending into subnode {}", q.0);
-                    StringOrSubnode::Subnode(StringyNode::reverse(q, tree)?)
+                    StringOrSubnode::Subnode(StrNode::reverse(q, tree)?)
                 },
                 (_, Some(super::PropertyValueType::ChildNode)) => {
                     anyhow::bail!("Inconsistent array elment value in node type {}", name.0)
@@ -579,7 +580,7 @@ impl StringyNode {
             array.push(sn);
         }
 
-        Ok(StringyNode {
+        Ok(StrNode {
             name,
             properties,
             array,

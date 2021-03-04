@@ -100,19 +100,30 @@ impl<T: Node + Send + Sync + 'static> super::Node for T {
         ctx: RunContext,
         multiconn: Option<ServerModeContext>,
     ) -> Result<super::Bipipe> {
-        let (buffer_sizes_tx, mut buffer_sizes_rx) = tokio::sync::mpsc::unbounded_channel();
-        let (buffers_tx, buffers_rx) = tokio::sync::mpsc::channel(1);
+        let (tx,mut rx) = tokio::sync::mpsc::channel(1);
 
-        let rg = SyncReadGateway {
-            reqests: buffer_sizes_tx,
-            replies: buffers_rx,
-            requested_bytes: None,
-        };
-        let wg = SyncWriteGateway {}; 
         Node::run(self, ctx, multiconn.is_some(), move |pipe| {
             let span = tracing::trace_span!("SyncReadGatewayThread");
             match pipe.r {
                 Source::ByteStream(mut rr) => {
+                    let (buffer_sizes_tx, mut buffer_sizes_rx) = tokio::sync::mpsc::unbounded_channel();
+                    let (buffers_tx, buffers_rx) = tokio::sync::mpsc::channel(1);
+
+                    let rg = SyncReadGateway {
+                        reqests: buffer_sizes_tx,
+                        replies: buffers_rx,
+                        requested_bytes: None,
+                    };
+                    let wg = SyncWriteGateway {}; 
+                    let bipipe = super::Bipipe {
+                        r: super::Source::ByteStream(Box::pin(rg)),
+                        w: super::Sink::ByteStream(Box::pin(wg)),
+                        closing_notification: None,
+                    };
+                    if tx.blocking_send(bipipe).is_err() {
+                        anyhow::bail!("Failed to send the bipipe to async world");
+                    }
+
                     while let Some(b) = buffer_sizes_rx.blocking_recv() {
                         tracing::trace!(parent: &span, "Received read request for buffer size {}", b);
                         let mut bb = bytes::BytesMut::with_capacity(b);
@@ -140,11 +151,7 @@ impl<T: Node + Send + Sync + 'static> super::Node for T {
 
             Ok(())
         })?;
-        Ok(super::Bipipe {
-            r: super::Source::ByteStream(Box::pin(rg)),
-            w: super::Sink::ByteStream(Box::pin(wg)),
-            closing_notification: None,
-
-        })
+        let bipipe = rx.recv().await.ok_or_else(||anyhow::anyhow!("Failed to receive a bipipe from sync"))?;
+        Ok(bipipe)
     }
 }

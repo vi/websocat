@@ -1,5 +1,9 @@
+#![forbid(unsafe_code)]
+#![allow(clippy::missing_errors_doc)]
+
 #[macro_use]
 extern crate slab_typesafe;
+
 
 use std::{str::FromStr, collections::HashMap};
 use anyhow::Context;
@@ -16,7 +20,7 @@ use std::pin::Pin;
 use std::time::Duration;
 
 pub mod stringy;
-pub use stringy::StringyNode;
+pub use stringy::StrNode;
 
 pub extern crate anyhow;
 pub extern crate tokio;
@@ -117,7 +121,7 @@ pub trait Enum {
     fn variant_to_index(&self) -> string_interner::DefaultSymbol;
 }
 
-/// A user-facing information block about some property of some SpecifierClass
+/// A user-facing information block about some property of some `NodeClass`
 pub struct PropertyInfo {
     pub name: String,
     pub help: Box<dyn Fn()->String + Send + 'static>,
@@ -152,15 +156,15 @@ static_assertions::assert_impl_all!(RunContext : Send);
 pub type AnyObject = Box<dyn std::any::Any + Send + 'static>;
 
 /// Used to support serving multiple clients, allowing to restart Websocat session from
-/// nodes like "tcp-listen", passing listening sockets though AnyObject.
+/// nodes like "tcp-listen", passing listening sockets though `AnyObject`.
 /// 
-/// First time `you_are_called_not_the_first_time` is None, meaning that e.g. TcpListener should be
+/// First time `you_are_called_not_the_first_time` is None, meaning that e.g. `TcpListener` should be
 /// created from scratch.
 /// 
 /// Invoking `call_me_again_with_this` spawns a Tokio task that should ultimately return back
 /// to the node that issued `call_me_again_with_this`, but with `you_are_called_not_the_first_time`
 /// filled in, so `TcpListener` (with potential next pending connection) should be restored
-/// from the AnyObject instead of being created from stratch. 
+/// from the `AnyObject` instead of being created from stratch. 
 pub struct ServerModeContext {
     pub you_are_called_not_the_first_time: Option<AnyObject>,
 
@@ -247,10 +251,10 @@ impl Session {
     pub fn build_from_two_tree_strings(reg: &ClassRegistrar, left: &str, right: &str) -> Result<Session> {
         let mut t = Tree::new();
     
-        let q = StringyNode::from_str(left).context("Parsing the left tree")?;
+        let q = StrNode::from_str(left).context("Parsing the left tree")?;
         let w = q.build(&reg, &mut t).context("Building the left tree")?;
     
-        let q2 = StringyNode::from_str(right).context("Parsing the right tree")?;
+        let q2 = StrNode::from_str(right).context("Parsing the right tree")?;
         let w2 = q2.build(&reg, &mut t).context("Building the right tree")?;
 
         let c = Session::new(t, w, w2);
@@ -259,6 +263,7 @@ impl Session {
 }
 
 impl Session {
+    #[must_use]
     pub fn new(nodes: Tree, left : NodeId, right : NodeId) -> Session {
         Session {
             nodes: Arc::new(nodes),
@@ -296,9 +301,9 @@ pub trait NodeClass : Debug {
     /// Return non-empty vector if linter detected a warning
     /// Linter may rearrange or add notes, change properties, etc.
     ///
-    /// Linter is expected to access WebsocatContext::left or ...::right based on `placement`, then look up the parsed node by `nodeid`,
+    /// Linter is expected to access `WebsocatContext::left` or `...::right` based on `placement`, then look up the parsed node by `nodeid`,
     /// then downcast to to native node type, then check all the necessary things.
-    fn run_lints(&self, nodeid: &NodeId, placement: NodePlacement, context: &Session) -> Result<Vec<String>>;
+    fn run_lints(&self, nodeid: NodeId, placement: NodePlacement, context: &Session) -> Result<Vec<String>>;
 }
 
 /// Typical propery name for child nodes
@@ -350,18 +355,39 @@ pub enum Source {
     None,
 }
 
+
 pub enum Sink {
     ByteStream(Pin<Box<dyn AsyncWrite + Send  + 'static>>),
     Datagrams(Pin<Box<dyn futures::sink::Sink<bytes::BytesMut, Error=anyhow::Error> + Send  + 'static>>),
     None,
 }
 
-
 /// A bi-directional channel + special closing notification
 pub struct Bipipe {
     pub r: Source,
     pub w: Sink,
     pub closing_notification: Option<Pin<Box<dyn Future<Output=()> + Send + 'static>>>,
+}
+
+impl std::fmt::Debug for Bipipe {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self.r {
+            Source::ByteStream(..) => write!(f, "(r=ByteStream")?,
+            Source::Datagrams(..) =>  write!(f, "(r=Datagrams")?,
+            Source::None =>  write!(f, "(r=None")?,
+        };
+        match self.w {
+            Sink::ByteStream(..) => write!(f, " w=ByteStream")?,
+            Sink::Datagrams(..) =>  write!(f, " w=Datagrams")?,
+            Sink::None =>  write!(f, " w=None")?,
+        };
+        if self.closing_notification.is_some() {
+            write!(f, " +CN)")?;
+        } else {
+            write!(f, ")")?;
+        }
+        Ok(())
+    }
 }
 
 

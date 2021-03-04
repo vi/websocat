@@ -104,8 +104,8 @@ async fn main() {
         &args[2],
     ).unwrap();
 
-    println!("{}", websocat_api::StringyNode::reverse(c.left, &c.nodes).unwrap());
-    println!("{}", websocat_api::StringyNode::reverse(c.right, &c.nodes).unwrap());
+    println!("{}", websocat_api::StrNode::reverse(c.left, &c.nodes).unwrap());
+    println!("{}", websocat_api::StrNode::reverse(c.right, &c.nodes).unwrap());
     
 
     if let Err(e) = websocat_session::run(c).await {

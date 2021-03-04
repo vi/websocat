@@ -283,13 +283,10 @@ impl websocat_api::Node for TcpListen {
         }
 
         let addrs = &self.addrs;
-        let l = match l { 
-            Some(x) => x, 
-            None => {
-                let ret = tokio::net::TcpListener::bind(addrs[0]).await?;
-                tracing::debug!("Bound listening socket to {}", addrs[0]);
-                ret
-            }
+        let l = if let Some(x) = l { x } else {
+            let ret = tokio::net::TcpListener::bind(addrs[0]).await?;
+            tracing::debug!("Bound listening socket to {}", addrs[0]);
+            ret
         };
         let (c, inaddr) = l.accept().await?;
 

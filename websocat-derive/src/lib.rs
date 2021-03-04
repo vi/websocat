@@ -601,7 +601,7 @@ impl ClassInfo {
                     ::std::boxed::Box::new(#buildername::default())
                 }
             
-                fn run_lints(&self, nodeid: &::websocat_api::NodeId, placement: ::websocat_api::NodePlacement, context: &::websocat_api::Session) -> ::websocat_api::Result<::std::vec::Vec<::std::string::String>> {
+                fn run_lints(&self, nodeid: ::websocat_api::NodeId, placement: ::websocat_api::NodePlacement, context: &::websocat_api::Session) -> ::websocat_api::Result<::std::vec::Vec<::std::string::String>> {
                     Ok(vec![])
                 }
             }
