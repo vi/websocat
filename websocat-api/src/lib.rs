@@ -393,3 +393,7 @@ impl std::fmt::Debug for Bipipe {
 
 #[cfg(feature="sync")]
 pub mod sync;
+
+
+#[cfg(feature="sync")]
+pub use sync::Node as SyncNode;

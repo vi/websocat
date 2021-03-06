@@ -426,6 +426,7 @@ dependencies = [
  "websocat-basic",
  "websocat-derive",
  "websocat-session",
+ "websocat-syncnodes",
 ]
 
 [[package]]
@@ -978,6 +979,15 @@ dependencies = [
  "tokio",
  "tracing",
  "websocat-api",
+]
+
+[[package]]
+name = "websocat-syncnodes"
+version = "0.1.0"
+dependencies = [
+ "tracing",
+ "websocat-api",
+ "websocat-derive",
 ]
 
 [[package]]
