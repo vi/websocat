@@ -347,49 +347,83 @@ impl SyncWriteGateway {
 
 #[async_trait::async_trait]
 impl<T: Node + Send + Sync + 'static> super::Node for T {
+    #[tracing::instrument(name="SyncNode", level="debug", skip(ctx,self,multiconn))]
     async fn run(
         &self,
         ctx: RunContext,
-        multiconn: Option<ServerModeContext>,
+        mut multiconn: Option<ServerModeContext>,
     ) -> Result<super::Bipipe> {
-        let (tx,mut rx) = tokio::sync::mpsc::channel(1);
 
-        Node::run(self, ctx, multiconn.is_some(), move |pipe| {
-            let r = match pipe.r {
-                Source::ByteStream(rr) => {
-                    let rg = SyncReadGateway::run(rr);
-                    super::Source::ByteStream(Box::pin(rg))
-                    
-                }
-                Source::Datagrams(_) => {todo!()}
-                Source::None => {
-                    super::Source::None
-                }
-            };
+        let mut rx : Option<tokio::sync::mpsc::Receiver<super::Bipipe>> = None;
+ 
+        let allow_multiconnect = multiconn.is_some();
 
-            let w = match pipe.w {
-                Sink::ByteStream(ww) => {
-                    let wg = SyncWriteGateway::run(ww);
-                    super::Sink::ByteStream(Box::pin(wg))
-                }
-                Sink::Datagrams(_) => {todo!()}
-                Sink::None => {
-                    super::Sink::None
-                }
-            };
+        if let Some(ref mut mc) = multiconn {
+            if let Some(ref mut cag) = mc.you_are_called_not_the_first_time {
+                let tmp = cag.downcast_mut::<Option<tokio::sync::mpsc::Receiver<super::Bipipe>>>().expect("Unexpected object passed to restarted SyncNode::run");
+                rx = Some(tmp.take().unwrap());
+            }
+        }
 
-            let bipipe = super::Bipipe {
-                r,
-                w,
-                closing_notification: None,
-            };
-            if tx.blocking_send(bipipe).is_err() {
-                anyhow::bail!("Failed to send the bipipe to async world");
+        if rx.is_none() {
+            if allow_multiconnect {
+                tracing::debug!("Initializing SyncNode for the first time in multiple connection series");
+            } else {
+                tracing::debug!("Initializing SyncNode for serving one connection");
             }
 
-            Ok(())
-        })?;
+            let (tx, rx_) = tokio::sync::mpsc::channel(1);
+            rx = Some(rx_);
+
+            Node::run(self, ctx, allow_multiconnect, move |pipe| {
+                let r = match pipe.r {
+                    Source::ByteStream(rr) => {
+                        let rg = SyncReadGateway::run(rr);
+                        super::Source::ByteStream(Box::pin(rg))
+                        
+                    }
+                    Source::Datagrams(_) => {todo!()}
+                    Source::None => {
+                        super::Source::None
+                    }
+                };
+    
+                let w = match pipe.w {
+                    Sink::ByteStream(ww) => {
+                        let wg = SyncWriteGateway::run(ww);
+                        super::Sink::ByteStream(Box::pin(wg))
+                    }
+                    Sink::Datagrams(_) => {todo!()}
+                    Sink::None => {
+                        super::Sink::None
+                    }
+                };
+    
+                let bipipe = super::Bipipe {
+                    r,
+                    w,
+                    closing_notification: None,
+                };
+                if tx.blocking_send(bipipe).is_err() {
+                    anyhow::bail!("Failed to send the bipipe to async world");
+                }
+    
+                Ok(())
+            })?;
+        } else {
+            tracing::debug!("Restored SyncNode's received from multiconnect context")
+        }
+        
+        let mut rx = rx.unwrap();
+
         let bipipe = rx.recv().await.ok_or_else(||anyhow::anyhow!("Failed to receive a bipipe from sync"))?;
+
+        tracing::debug!("Received bipipe");
+
+        if let Some(mc) = multiconn {
+            (mc.call_me_again_with_this)(Box::new(Some(rx)));
+        }
+
         Ok(bipipe)
     }
 }
