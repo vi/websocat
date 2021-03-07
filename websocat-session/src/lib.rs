@@ -36,7 +36,7 @@ async fn half_session(dir:&'static str, r: websocat_api::Source, w : websocat_ap
     match (r, w) {
         (websocat_api::Source::ByteStream(mut r), websocat_api::Sink::ByteStream(mut w)) => {
             tracing::debug!("A bytestream session");
-            let bytes = copy::copy(&mut r, &mut w).await.unwrap();
+            let bytes = copy::copy(&mut r, &mut w).await?;
             tracing::info!(
                 "Finished Websocat byte transfer session. Processed {} bytes",
                 bytes
@@ -121,7 +121,7 @@ async fn run_impl(
     let parallel = readlock.fetch_add(1, std::sync::atomic::Ordering::SeqCst) + 1;
     tracing::debug!("Now running {} parallel sessions", parallel);
 
-    let p1: websocat_api::Bipipe = c.nodes[c.left].run(rc1, Some(multiconn)).await.unwrap();
+    let p1: websocat_api::Bipipe = c.nodes[c.left].run(rc1, Some(multiconn)).await?;
 
     let rc2 = websocat_api::RunContext {
         nodes: c.nodes.clone(),
@@ -130,11 +130,19 @@ async fn run_impl(
         globals: c.global_things.clone(),
     };
 
-    let p2: websocat_api::Bipipe = c.nodes[c.right].run(rc2, None).await.unwrap();
+    let try_block = async move {
+        let p2: websocat_api::Bipipe = c.nodes[c.right].run(rc2, None).await?;
 
-    let t = tokio::spawn(half_session("<", p2.r, p1.w));
-    half_session(">", p1.r, p2.w).await?;
-    t.await??;
+        let t = tokio::spawn(half_session("<", p2.r, p1.w));
+        half_session(">", p1.r, p2.w).await?;
+        t.await??;
+        Ok::<(), anyhow::Error>(())
+    };
+
+
+    if let Err(e) = try_block.await {
+        tracing::error!("Session finished with error: {}", e);
+    }
 
 
     let parallel2 = readlock.fetch_sub(1, std::sync::atomic::Ordering::SeqCst) - 1;
