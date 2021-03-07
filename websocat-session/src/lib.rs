@@ -30,6 +30,48 @@ fn rerun(
     })
 }
 
+
+#[tracing::instrument(name="half", level="debug", skip(r,w),  fields(d=tracing::field::display(dir)), err)]
+async fn half_session(dir:&'static str, r: websocat_api::Source, w : websocat_api::Sink) -> websocat_api::Result<()> {
+    match (r, w) {
+        (websocat_api::Source::ByteStream(mut r), websocat_api::Sink::ByteStream(mut w)) => {
+            tracing::debug!("A bytestream session");
+            let bytes = copy::copy(&mut r, &mut w).await.unwrap();
+            tracing::info!(
+                "Finished Websocat byte transfer session. Processed {} bytes",
+                bytes
+            );
+        }
+        (websocat_api::Source::Datagrams(r), websocat_api::Sink::Datagrams(w)) => {
+            use futures::stream::StreamExt;
+            tracing::debug!("A datagram session");
+            r.forward(w).await?;
+            tracing::info!(
+                "Finished Websocat datagram transfer session. Processed {} datagrams",
+                '?'
+            );
+        }
+        (websocat_api::Source::None, websocat_api::Sink::None) => {
+            tracing::info!(
+                "Finished Websocat dummy transfer session.",
+            );
+        }
+        (websocat_api::Source::Datagrams(_), websocat_api::Sink::ByteStream(_)) => {
+            anyhow::bail!("Failed to connect datagram-based node to a bytestream-based node")
+        }
+        (websocat_api::Source::ByteStream(_), websocat_api::Sink::Datagrams(_)) => {
+            anyhow::bail!("Failed to connect bytestream-based node to a datagram-based node")
+        }
+        (websocat_api::Source::None, _) => {
+            anyhow::bail!("Failed to interconnect an unreadable node to a node that expects some writing")
+        }
+        (_, websocat_api::Sink::None) => {
+            anyhow::bail!("Failed to interconnect an unwriteable node to a node that expects some reading")
+        }
+    };
+    Ok(())
+}
+
 #[tracing::instrument(name="session", level="debug", skip(c,continuation,ball),  fields(i=tracing::field::display(ball.i)), err)]
 async fn run_impl(
     c: websocat_api::Session,
@@ -90,40 +132,10 @@ async fn run_impl(
 
     let p2: websocat_api::Bipipe = c.nodes[c.right].run(rc2, None).await.unwrap();
 
-    match (p1.r, p2.w) {
-        (websocat_api::Source::ByteStream(mut r), websocat_api::Sink::ByteStream(mut w)) => {
-            let bytes = copy::copy(&mut r, &mut w).await.unwrap();
-            tracing::info!(
-                "Finished Websocat byte transfer session. Processed {} bytes",
-                bytes
-            );
-        }
-        (websocat_api::Source::Datagrams(r), websocat_api::Sink::Datagrams(w)) => {
-            use futures::stream::StreamExt;
-            r.forward(w).await?;
-            tracing::info!(
-                "Finished Websocat datagram transfer session. Processed {} datagrams",
-                '?'
-            );
-        }
-        (websocat_api::Source::None, websocat_api::Sink::None) => {
-            tracing::info!(
-                "Finished Websocat dummy transfer session.",
-            );
-        }
-        (websocat_api::Source::Datagrams(_), websocat_api::Sink::ByteStream(_)) => {
-            anyhow::bail!("Failed to connect datagram-based node to a bytestream-based node")
-        }
-        (websocat_api::Source::ByteStream(_), websocat_api::Sink::Datagrams(_)) => {
-            anyhow::bail!("Failed to connect bytestream-based node to a datagram-based node")
-        }
-        (websocat_api::Source::None, _) => {
-            anyhow::bail!("Failed to interconnect an unreadable node to a node that expects some writing")
-        }
-        (_, websocat_api::Sink::None) => {
-            anyhow::bail!("Failed to interconnect an unwriteable node to a node that expects some reading")
-        }
-    };
+    let t = tokio::spawn(half_session("<", p2.r, p1.w));
+    half_session(">", p1.r, p2.w).await?;
+    t.await??;
+
 
     let parallel2 = readlock.fetch_sub(1, std::sync::atomic::Ordering::SeqCst) - 1;
     tracing::debug!("Now running {} parallel sessions", parallel2);
