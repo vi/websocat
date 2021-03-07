@@ -26,6 +26,8 @@ pub extern crate anyhow;
 pub extern crate tokio;
 pub extern crate async_trait;
 pub extern crate string_interner;
+pub extern crate bytes;
+pub extern crate futures;
 
 declare_slab_token!(pub NodeId);
 
@@ -351,7 +353,7 @@ pub enum ArmedNode {
 
 pub enum Source {
     ByteStream(Pin<Box<dyn AsyncRead + Send  + 'static>>),
-    Datagrams(Pin<Box<dyn futures::stream::Stream<Item=bytes::BytesMut> + Send  + 'static>>),
+    Datagrams(Pin<Box<dyn futures::stream::Stream<Item=Result<bytes::BytesMut>> + Send  + 'static>>),
     None,
 }
 
