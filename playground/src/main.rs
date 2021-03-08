@@ -97,6 +97,7 @@ async fn main() {
     reg.register::<websocat_syncnodes::net::TcpListen>();
     reg.register::<websocat_syncnodes::net::UdpConnect>();
     reg.register::<websocat_syncnodes::net::UdpListen>();
+    reg.register::<websocat_http::HttpClient>();
 
     //println!("{:?}", reg);
 

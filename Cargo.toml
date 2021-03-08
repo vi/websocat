@@ -15,6 +15,7 @@ members = [
     "websocat-basic",
     "websocat-session",
     "websocat-syncnodes",
+    "websocat-http",
     "playground",
     "playground2",
 ]
