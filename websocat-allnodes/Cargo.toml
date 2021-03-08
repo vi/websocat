@@ -1,0 +1,14 @@
+[package]
+name = "websocat-allnodes"
+version = "0.1.0"
+authors = ["Vitaly _Vi Shukela <vi0oss@gmail.com>"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+websocat-api = {path = "../websocat-api"}
+websocat-basic = {path = "../websocat-basic"}
+websocat-syncnodes = {path = "../websocat-syncnodes"}
+websocat-session = {path = "../websocat-session"}
+websocat-http = {path = "../websocat-http"}

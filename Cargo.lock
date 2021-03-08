@@ -1022,7 +1022,22 @@ checksum = "fd6fbd9a79829dd1ad0cc20627bf1ed606756a7f77edff7b66b7064f9cb327c6"
 name = "websocat"
 version = "3.0.0"
 dependencies = [
+ "tokio",
+ "tracing-subscriber",
+ "websocat-allnodes",
  "websocat-api",
+ "websocat-session",
+]
+
+[[package]]
+name = "websocat-allnodes"
+version = "0.1.0"
+dependencies = [
+ "websocat-api",
+ "websocat-basic",
+ "websocat-http",
+ "websocat-session",
+ "websocat-syncnodes",
 ]
 
 [[package]]

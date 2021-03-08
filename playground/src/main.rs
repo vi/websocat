@@ -82,7 +82,6 @@ impl websocat_api::sync::Node for Bar {
     }
 }
 
-
 #[tokio::main(flavor = "current_thread")]
 async fn main() {
     tracing_subscriber::fmt::init();
