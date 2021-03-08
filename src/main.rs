@@ -8,24 +8,29 @@ async fn main() {
 
     let mut treestrings = vec![];
     let mut program_name_processed = false;
+    let mut enable_forward = true;
+    let mut enable_backward = true;
 
     for arg in std::env::args_os() {
         if !program_name_processed {
             program_name_processed = true;
             continue;
         }
-        if arg == "--str" {
-            from_str_mode = true;
-        } else if from_str_mode {
-            let s = arg.to_str().unwrap();
-
-            match websocat_api::StrNode::from_str(s) {
-                Ok(x) => println!("{}", x),
-                Err(e) => println!("{:#}", e),
+        match arg.to_str().unwrap() {
+            "--str" => {
+                from_str_mode = true;
             }
-        } else {
-            let s = arg.to_str().unwrap().to_owned();
-            treestrings.push(s);
+            "-u" => enable_backward = false,
+            "-U" => enable_forward = false,
+            s if from_str_mode => {
+                match websocat_api::StrNode::from_str(s) {
+                    Ok(x) => println!("{}", x),
+                    Err(e) => println!("{:#}", e),
+                }
+            }
+            s => {
+                treestrings.push(s.to_owned());
+            }
         }
     }
 
@@ -47,7 +52,12 @@ async fn main() {
     println!("{}", websocat_api::StrNode::reverse(c.right, &c.nodes).unwrap());
     
 
-    if let Err(e) = websocat_session::run(c).await {
+    let opts = websocat_session::Opts {
+        enable_forward,
+        enable_backward,
+    };
+
+    if let Err(e) = websocat_session::run(opts, c).await {
         eprintln!("Error: {:#}", e);
     }
 

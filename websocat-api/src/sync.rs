@@ -432,7 +432,7 @@ impl SyncSinkGateway {
 
 #[async_trait::async_trait]
 impl<T: Node + Send + Sync + 'static> super::Node for T {
-    #[tracing::instrument(name = "SyncNode", level = "debug", skip(ctx, self, multiconn))]
+    #[tracing::instrument(name = "SyncNode", level = "debug", skip(ctx, self, multiconn), err)]
     async fn run(
         &self,
         ctx: RunContext,
@@ -450,6 +450,8 @@ impl<T: Node + Send + Sync + 'static> super::Node for T {
                 rx = Some(tmp.take().unwrap());
             }
         }
+        
+        let mut nonfirst_connection = false;
 
         if rx.is_none() {
             if allow_multiconnect {
@@ -500,15 +502,23 @@ impl<T: Node + Send + Sync + 'static> super::Node for T {
                 Ok(())
             })?;
         } else {
-            tracing::debug!("Restored SyncNode's received from multiconnect context")
+            tracing::debug!("Restored SyncNode's received from multiconnect context");
+            nonfirst_connection = true;
         }
 
         let mut rx = rx.unwrap();
 
         let bipipe = rx
             .recv()
-            .await
-            .ok_or_else(|| anyhow::anyhow!("Failed to receive a bipipe from sync"))?;
+            .await;
+        let bipipe = bipipe
+            .ok_or_else(|| 
+                if ! nonfirst_connection {
+                    anyhow::anyhow!("Failed to receive a bipipe from sync")
+                } else {
+                    anyhow::anyhow!("No more connections from this sync node")
+                }
+        )?;
 
         tracing::debug!("Received bipipe");
 

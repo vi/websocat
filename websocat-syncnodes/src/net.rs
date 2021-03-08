@@ -203,6 +203,7 @@ impl websocat_api::SyncNode for UdpListen {
                         let addr  = *i2.a.read().unwrap();
                         let addr = if let Some(x) = addr { x } else {
                             tracing::warn!(parent: &span2, "No peer address so far. Waiting for incoming datagrams");
+                            std::thread::sleep(std::time::Duration::from_millis(1000));
                             continue;
                         };
                         break addr;

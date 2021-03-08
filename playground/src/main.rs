@@ -113,7 +113,7 @@ async fn main() {
     println!("{}", websocat_api::StrNode::reverse(c.right, &c.nodes).unwrap());
     
 
-    if let Err(e) = websocat_session::run(c).await {
+    if let Err(e) = websocat_session::run(websocat_session::Opts{enable_backward: false, enable_forward: true}, c).await {
         eprintln!("Error: {:#}", e);
     }
 }

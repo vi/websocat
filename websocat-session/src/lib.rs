@@ -22,12 +22,13 @@ struct Ball {
 }
 
 fn rerun(
+    opts: Opts,
     c: websocat_api::Session,
     continuation: Option<websocat_api::AnyObject>,
     ball: Ball,
 ) -> tokio::task::JoinHandle<()> {
     tokio::spawn(async move {
-        let _ = run_impl(c, continuation, ball).await;
+        let _ = run_impl(opts, c, continuation, ball).await;
     })
 }
 
@@ -73,8 +74,9 @@ async fn half_session(dir:&'static str, r: websocat_api::Source, w : websocat_ap
     Ok(())
 }
 
-#[tracing::instrument(name="session", level="debug", skip(c,continuation,ball),  fields(i=tracing::field::display(ball.i)), err)]
+#[tracing::instrument(name="session", level="debug", skip(c,continuation,ball,opts),  fields(i=tracing::field::display(ball.i)), err)]
 async fn run_impl(
+    opts: Opts,
     c: websocat_api::Session,
     continuation: Option<websocat_api::AnyObject>,
     ball: Ball,
@@ -101,12 +103,16 @@ async fn run_impl(
         (tx, Some(rx))
     };
 
+    let enable_forward = opts.enable_forward;
+    let enable_backward = opts.enable_backward;
+
     let i = ball.i;
     let ctr2 = ball.ctr.clone();
     let multiconn = websocat_api::ServerModeContext {
         you_are_called_not_the_first_time: continuation,
         call_me_again_with_this: Box::new(move |cont| {
             rerun(
+                opts,
                 c2,
                 Some(cont),
                 Ball {
@@ -122,21 +128,41 @@ async fn run_impl(
     let parallel = readlock.fetch_add(1, std::sync::atomic::Ordering::SeqCst) + 1;
     tracing::debug!("Now running {} parallel sessions", parallel);
 
-    let p1: websocat_api::Bipipe = c.nodes[c.left].run(rc1, Some(multiconn)).await?;
-
-    let rc2 = websocat_api::RunContext {
-        nodes: c.nodes.clone(),
-        left_to_right_things_to_be_filled_in: None,
-        left_to_right_things_to_read_from: None,
-        globals: c.global_things.clone(),
-    };
-
     let try_block = async move {
+        let p1: websocat_api::Bipipe = c.nodes[c.left].run(rc1, Some(multiconn)).await?;
+    
+        let rc2 = websocat_api::RunContext {
+            nodes: c.nodes.clone(),
+            left_to_right_things_to_be_filled_in: None,
+            left_to_right_things_to_read_from: None,
+            globals: c.global_things.clone(),
+        };
+
         let p2: websocat_api::Bipipe = c.nodes[c.right].run(rc2, None).await?;
-        let span = tracing::Span::current();
-        let t = tokio::spawn(half_session( "<", p2.r, p1.w).instrument(span));
-        half_session(">", p1.r, p2.w).await?;
-        t.await??;
+
+        match (enable_forward, enable_backward) {
+            (true, true) => {
+                let span = tracing::Span::current();
+                let t = tokio::spawn(half_session( "<", p2.r, p1.w).instrument(span));
+                half_session(">", p1.r, p2.w).await?;
+                t.await??;
+            }
+            (true, false) => {
+                half_session(">", p1.r, p2.w).await?;
+                drop(p2.r);
+                drop(p1.w);
+            }
+            (false, true) => {
+                half_session("<", p2.r, p1.w).await?;
+                drop(p2.w);
+                drop(p1.r);
+            }
+            (false, false) => {
+                tracing::info!("Finished a dummy session with both forward and backward transfer directions disabled");
+            }
+        }
+       
+
         Ok::<(), anyhow::Error>(())
     };
 
@@ -163,7 +189,7 @@ async fn run_impl(
         let writelock = ball.ctr.write().await;
         if writelock.load(std::sync::atomic::Ordering::SeqCst) != 0 {
             tracing::error!(
-                "Somehow obtained write lock while there are also parallel sessions running?"
+                "Somehow obtained a write lock while there are also parallel sessions running?"
             );
             futures::future::pending::<()>().await;
         }
@@ -175,10 +201,17 @@ async fn run_impl(
     Ok(())
 }
 
+pub struct Opts {
+    pub enable_forward: bool,
+    pub enable_backward: bool,
+}
+
 pub fn run(
+    opts: Opts,
     c: websocat_api::Session,
 ) -> impl std::future::Future<Output = websocat_api::Result<()>> {
     run_impl(
+        opts,
         c,
         None,
         Ball {
