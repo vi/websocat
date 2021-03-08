@@ -1,13 +1,12 @@
-use std::any;
 
-use websocat_api::{anyhow, bytes, tokio, async_trait::async_trait};
+use websocat_api::{anyhow, async_trait::async_trait, bytes, futures::TryStreamExt, tokio};
 use websocat_derive::WebsocatNode;
 
 #[derive(Debug,Clone,WebsocatNode)]
 #[websocat_node(
-    official_name = "http-client"
+    official_name = "http-upgrade-client"
 )]
-pub struct HttpClient {
+pub struct HttpUpgradeClient {
     /// IO object to use for HTTP1 handshake
     inner: websocat_api::NodeId,
 }
@@ -20,21 +19,21 @@ impl hyper::body::HttpBody for DummyBody {
 
     fn poll_data(
         self: std::pin::Pin<&mut Self>,
-        cx: &mut std::task::Context<'_>,
+        _cx: &mut std::task::Context<'_>,
     ) -> std::task::Poll<Option<Result<Self::Data, Self::Error>>> {
         std::task::Poll::Ready(None)
     }
 
     fn poll_trailers(
         self: std::pin::Pin<&mut Self>,
-        cx: &mut std::task::Context<'_>,
+        _cx: &mut std::task::Context<'_>,
     ) -> std::task::Poll<Result<Option<hyper::HeaderMap>, Self::Error>> {
         std::task::Poll::Ready(Ok(None))
     }
 }
 
 #[async_trait]
-impl websocat_api::Node for HttpClient {
+impl websocat_api::Node for HttpUpgradeClient {
     async fn run(&self, ctx: websocat_api::RunContext, _multiconn: Option<websocat_api::ServerModeContext>) -> websocat_api::Result<websocat_api::Bipipe> {
         let io = ctx.nodes[self.inner].run(ctx.clone(), None).await?;
         let cn = io.closing_notification;
@@ -43,13 +42,13 @@ impl websocat_api::Node for HttpClient {
                 readwrite::ReadWriteTokio::new(r, w)
             },
             _ => {
-                anyhow::bail!("HTTP client requires bytestream-based inner node");
+                anyhow::bail!("HTTP upgrade client requires bytestream-based inner node");
             }
         });
 
         let b = hyper::client::conn::Builder::new().handshake::<_,DummyBody>(io.take().unwrap());
         let (mut sr, conn) = b.await?;
-        let h = tokio::spawn(conn/* .without_shutdown() */);
+        let _h = tokio::spawn(conn/* .without_shutdown() */);
 
         let rq = hyper::Request::new(DummyBody);
 
@@ -68,6 +67,51 @@ impl websocat_api::Node for HttpClient {
         Ok(websocat_api::Bipipe {
             r: websocat_api::Source::ByteStream(r),
             w: websocat_api::Sink::ByteStream(w),
+            closing_notification: cn,
+        })
+    }
+}
+
+
+#[derive(Debug,Clone,WebsocatNode)]
+#[websocat_node(
+    official_name = "http-client"
+)]
+pub struct HttpClient {
+    /// IO object to use for HTTP1 handshake
+    inner: websocat_api::NodeId,
+}
+
+#[async_trait]
+impl websocat_api::Node for HttpClient {
+    async fn run(&self, ctx: websocat_api::RunContext, _multiconn: Option<websocat_api::ServerModeContext>) -> websocat_api::Result<websocat_api::Bipipe> {
+        let io = ctx.nodes[self.inner].run(ctx.clone(), None).await?;
+        let cn = io.closing_notification;
+        let mut io = Some(match (io.r, io.w) {
+            (websocat_api::Source::ByteStream(r), websocat_api::Sink::ByteStream(w)) => {
+                readwrite::ReadWriteTokio::new(r, w)
+            },
+            _ => {
+                anyhow::bail!("HTTP client requires bytestream-based inner node");
+            }
+        });
+
+        let b = hyper::client::conn::Builder::new().handshake::<_,hyper::Body>(io.take().unwrap());
+        let (mut sr, conn) = b.await?;
+        let _h = tokio::spawn(conn/* .without_shutdown() */);
+
+        let rq = hyper::Request::new(hyper::Body::empty());
+
+        let resp = sr.send_request(rq).await?;
+
+        let body = resp.into_body();
+
+        let r = websocat_api::Source::Datagrams(Box::pin(body.map_err(|e|e.into())));
+
+        //let (r,w) = io.unwrap().into_inner();
+        Ok(websocat_api::Bipipe {
+            r,
+            w: websocat_api::Sink::None,
             closing_notification: cn,
         })
     }

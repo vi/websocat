@@ -4,13 +4,13 @@ use super::{NodeProperyAccess, Result, RunContext, ServerModeContext};
 
 pub enum Source {
     ByteStream(Box<dyn std::io::Read + Send + 'static>),
-    Datagrams(Box<dyn FnMut() -> Result<bytes::BytesMut> + Send + 'static>),
+    Datagrams(Box<dyn FnMut() -> Result<bytes::Bytes> + Send + 'static>),
     None,
 }
 
 pub enum Sink {
     ByteStream(Box<dyn std::io::Write + Send + 'static>),
-    Datagrams(Box<dyn FnMut(bytes::BytesMut) -> Result<()> + Send + 'static>),
+    Datagrams(Box<dyn FnMut(bytes::Bytes) -> Result<()> + Send + 'static>),
     None,
 }
 
@@ -33,7 +33,7 @@ pub trait Node: NodeProperyAccess {
 
 struct SyncReadGateway {
     reqests: tokio::sync::mpsc::UnboundedSender<usize>,
-    replies: tokio::sync::mpsc::Receiver<std::io::Result<bytes::BytesMut>>,
+    replies: tokio::sync::mpsc::Receiver<std::io::Result<bytes::Bytes>>,
     requested_bytes: Option<usize>,
 }
 
@@ -111,7 +111,7 @@ impl SyncReadGateway {
                                 sz
                             );
                             bb.truncate(sz);
-                            if buffers_tx.blocking_send(Ok(bb)).is_err() {
+                            if buffers_tx.blocking_send(Ok(bb.freeze())).is_err() {
                                 tracing::debug!("Failed to sent to SyncReadGateway");
                                 break 'outer;
                             }
@@ -392,8 +392,8 @@ struct SyncStreamGateway;
 
 impl SyncStreamGateway {
     fn run(
-        rr: Box<dyn FnMut() -> Result<bytes::BytesMut> + Send + 'static>,
-    ) -> impl futures::stream::Stream<Item = Result<bytes::BytesMut>> {
+        rr: Box<dyn FnMut() -> Result<bytes::Bytes> + Send + 'static>,
+    ) -> impl futures::stream::Stream<Item = Result<bytes::Bytes>> {
         use futures::stream::StreamExt;
         let r = std::sync::Arc::new(std::sync::Mutex::new(rr));
         futures::stream::repeat(()).then(move |()| {
@@ -413,11 +413,11 @@ struct SyncSinkGateway;
 
 impl SyncSinkGateway {
     fn run(
-        ww: Box<dyn FnMut(bytes::BytesMut) -> Result<()> + Send + 'static>,
-    ) -> impl futures::sink::Sink<bytes::BytesMut, Error=anyhow::Error> {
+        ww: Box<dyn FnMut(bytes::Bytes) -> Result<()> + Send + 'static>,
+    ) -> impl futures::sink::Sink<bytes::Bytes, Error=anyhow::Error> {
         use futures::sink::SinkExt;
         let w = std::sync::Arc::new(std::sync::Mutex::new(ww));
-        futures::sink::drain().with(move |buf: bytes::BytesMut| {
+        futures::sink::drain().with(move |buf: bytes::Bytes| {
             let w = w.clone();
             async move {
                 //let w = w.clone();

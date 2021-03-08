@@ -353,14 +353,14 @@ pub enum ArmedNode {
 
 pub enum Source {
     ByteStream(Pin<Box<dyn AsyncRead + Send  + 'static>>),
-    Datagrams(Pin<Box<dyn futures::stream::Stream<Item=Result<bytes::BytesMut>> + Send  + 'static>>),
+    Datagrams(Pin<Box<dyn futures::stream::Stream<Item=Result<bytes::Bytes>> + Send  + 'static>>),
     None,
 }
 
 
 pub enum Sink {
     ByteStream(Pin<Box<dyn AsyncWrite + Send  + 'static>>),
-    Datagrams(Pin<Box<dyn futures::sink::Sink<bytes::BytesMut, Error=anyhow::Error> + Send  + 'static>>),
+    Datagrams(Pin<Box<dyn futures::sink::Sink<bytes::Bytes, Error=anyhow::Error> + Send  + 'static>>),
     None,
 }
 

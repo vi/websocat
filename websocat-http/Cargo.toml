@@ -13,5 +13,5 @@ websocat-api = {path = "../websocat-api"}
 
 tracing = "0.1.25"
 
-hyper = { version = "0.14.4", default_features=false, features = ["client","http1","server"] }
+hyper = { version = "0.14.4", default_features=false, features = ["client","http1","server","stream"] }
 readwrite = {version = "0.2", features=["tokio"]}
