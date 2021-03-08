@@ -1,6 +1,7 @@
 #![allow(clippy::option_if_let_else)]
 pub mod copy;
 
+use tracing::Instrument;
 use websocat_api::{anyhow, futures};
 
 /// this ball is passed around from session to session
@@ -31,7 +32,7 @@ fn rerun(
 }
 
 
-#[tracing::instrument(name="half", level="debug", skip(r,w),  fields(d=tracing::field::display(dir)), err)]
+#[tracing::instrument(name="half", level="debug", skip(r,w,dir),  fields(d=tracing::field::display(dir)), err)]
 async fn half_session(dir:&'static str, r: websocat_api::Source, w : websocat_api::Sink) -> websocat_api::Result<()> {
     match (r, w) {
         (websocat_api::Source::ByteStream(mut r), websocat_api::Sink::ByteStream(mut w)) => {
@@ -132,8 +133,8 @@ async fn run_impl(
 
     let try_block = async move {
         let p2: websocat_api::Bipipe = c.nodes[c.right].run(rc2, None).await?;
-
-        let t = tokio::spawn(half_session("<", p2.r, p1.w));
+        let span = tracing::Span::current();
+        let t = tokio::spawn(half_session( "<", p2.r, p1.w).instrument(span));
         half_session(">", p1.r, p2.w).await?;
         t.await??;
         Ok::<(), anyhow::Error>(())
