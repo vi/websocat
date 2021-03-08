@@ -1051,6 +1051,7 @@ dependencies = [
  "futures",
  "http",
  "id_tree",
+ "pin-project",
  "proptest",
  "proptest-derive",
  "slab_typesafe",

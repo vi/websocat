@@ -56,14 +56,19 @@ impl websocat_api::Node for HttpUpgradeClient {
 
         let upg = hyper::upgrade::on(resp).await?;
 
-        //let parts = h.await??;
-        //parts.read_buf // TODO
-        //let io = parts.io;
+        let tmp = upg.downcast().unwrap();
+        let readbuf = tmp.read_buf;
 
-        io = Some(upg.downcast().unwrap().io);
+        io = Some(tmp.io);
     
 
-        let (r,w) = io.unwrap().into_inner();
+        let (mut r,w) = io.unwrap().into_inner();
+
+        if ! readbuf.is_empty() {
+            tracing::debug!("Inserting additional indirection layer due to remaining bytes in the read buffer");
+            r = Box::pin(websocat_api::util::PrependReader(readbuf, r));
+        }
+
         Ok(websocat_api::Bipipe {
             r: websocat_api::Source::ByteStream(r),
             w: websocat_api::Sink::ByteStream(w),

@@ -399,3 +399,6 @@ pub mod sync;
 
 #[cfg(feature="sync")]
 pub use sync::Node as SyncNode;
+
+/// Things not directly related to Websocat
+pub mod util;
