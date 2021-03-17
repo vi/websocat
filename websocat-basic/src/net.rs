@@ -17,6 +17,7 @@ pub struct Tcp {
     hostport: Option<String>,
 
     /// Resolve hostname to IP once, at start, not every time before the connection
+    #[cli="cached-resolved-ip"]
     cache_resolved_ip: Option<bool>,
 }
 
@@ -238,7 +239,6 @@ impl websocat_api::Node for Tcp {
     }
 }
 
-
 #[derive(Debug, Clone, websocat_derive::WebsocatNode)]
 #[websocat_node(official_name = "tcp-listen", prefix = "tcp-listen")]
 pub struct TcpListen {
@@ -256,6 +256,7 @@ pub struct TcpListen {
     hostport: Option<String>,
 
     /// Resolve hostname to IP once, at start, not every time before the connection
+    #[cli="cached-resolved-ip"]
     cache_resolved_ip: Option<bool>,
 }
 

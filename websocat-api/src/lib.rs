@@ -5,7 +5,7 @@
 extern crate slab_typesafe;
 
 
-use std::{str::FromStr, collections::HashMap};
+use std::{collections::HashMap, hash::Hash, str::FromStr};
 use anyhow::Context;
 use tokio::io::{AsyncRead,AsyncWrite};
 use std::future::Future;
@@ -95,6 +95,52 @@ pub enum PropertyValueType {
     // pub fn interpret(&self, x: &str) -> Result<PropertyValue>;
 }
 
+impl std::fmt::Display for PropertyValueType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            PropertyValueType::Enummy(x)  => {
+                write!(f, "enum(")?;
+                for (n,(_,v)) in x.into_iter().enumerate() {
+                    if n > 0 { write!(f, ",")?; }
+                    write!(f, "{}", v)?;
+                }
+                write!(f, ")")?;
+                Ok(())
+            }
+            PropertyValueType::Stringy    => write!(f,"string"),
+            PropertyValueType::Numbery    => write!(f,"number"),
+            PropertyValueType::Floaty     => write!(f,"float"),
+            PropertyValueType::Booly      => write!(f,"bool"),
+            PropertyValueType::SockAddr   => write!(f,"sockaddr"),
+            PropertyValueType::IpAddr     => write!(f,"ipaddr"),
+            PropertyValueType::PortNumber => write!(f,"portnumber"),
+            PropertyValueType::Path       => write!(f,"path"),
+            PropertyValueType::Uri        => write!(f,"uri"),
+            PropertyValueType::Duration   => write!(f,"duration"),
+            PropertyValueType::ChildNode  => write!(f,"subnode"),
+        }
+    }
+}
+
+impl PropertyValueType {
+    pub fn tag(&self) -> PropertyValueTypeTag {
+        match self {
+            PropertyValueType::Stringy    => PropertyValueTypeTag::Stringy,
+            PropertyValueType::Enummy(_)  => PropertyValueTypeTag::Enummy,
+            PropertyValueType::Numbery    => PropertyValueTypeTag::Numbery,
+            PropertyValueType::Floaty     => PropertyValueTypeTag::Floaty    ,
+            PropertyValueType::Booly      => PropertyValueTypeTag::Booly     ,
+            PropertyValueType::SockAddr   => PropertyValueTypeTag::SockAddr  ,
+            PropertyValueType::IpAddr     => PropertyValueTypeTag::IpAddr    ,
+            PropertyValueType::PortNumber => PropertyValueTypeTag::PortNumber,
+            PropertyValueType::Path       => PropertyValueTypeTag::Path      ,
+            PropertyValueType::Uri        => PropertyValueTypeTag::Uri       ,
+            PropertyValueType::Duration   => PropertyValueTypeTag::Duration  ,
+            PropertyValueType::ChildNode  => PropertyValueTypeTag::ChildNode ,
+        }
+    }
+}
+
 #[derive(Debug,Clone,Eq,PartialEq,Ord,PartialOrd,Hash)]
 pub enum PropertyValueTypeTag {
     Stringy,
@@ -128,6 +174,10 @@ pub struct PropertyInfo {
     pub name: String,
     pub help: Box<dyn Fn()->String + Send + 'static>,
     pub r#type: PropertyValueType,
+    
+    /// Auto-add this option to CLI API. Specify the name without trailing `--`.
+    /// Short options are privileged and cannot be auto-populated: there is explicit table of them in CLI crate. 
+    pub inject_cli_long_option: Option<String>,
 }
 
 type Properties = HashMap<String, PropertyValue>;
@@ -250,14 +300,14 @@ pub struct Session {
 
 impl Session {
     /// Helper function, can be implemented using other low-level functions exposed by this crate
-    pub fn build_from_two_tree_strings(reg: &ClassRegistrar, left: &str, right: &str) -> Result<Session> {
+    pub fn build_from_two_tree_strings(reg: &ClassRegistrar, cli_opts: &std::collections::HashMap<String,PropertyValue>,  left: &str, right: &str) -> Result<Session> {
         let mut t = Tree::new();
     
         let q = StrNode::from_str(left).context("Parsing the left tree")?;
-        let w = q.build(&reg, &mut t).context("Building the left tree")?;
+        let w = q.build(&reg, cli_opts, &mut t).context("Building the left tree")?;
     
         let q2 = StrNode::from_str(right).context("Parsing the right tree")?;
-        let w2 = q2.build(&reg, &mut t).context("Building the right tree")?;
+        let w2 = q2.build(&reg, cli_opts, &mut t).context("Building the right tree")?;
 
         let c = Session::new(t, w, w2);
         Ok(c)
@@ -330,6 +380,61 @@ impl ClassRegistrar {
     pub fn register_impl(&mut self, cls: DNodeClass) {
         self.officname_to_classes.insert(cls.official_name(), cls);
     }
+
+    /// Get all class-injected long CLI options with their types
+    pub fn get_all_cli_options(&self) -> Result<HashMap<String, PropertyValueType>> {
+        let mut v = HashMap::with_capacity(32);
+        // for error reporintg
+        let mut provenance = <HashMap<String,String>>::with_capacity(32);
+
+        for k in self.officname_to_classes.values() {
+            for ref p in k.properties() {
+                if let Some(ref clin) = p.inject_cli_long_option {
+                    let prov = format!("{}::{}",  k.official_name(), p.name);
+                    if p.r#type.tag() == PropertyValueTypeTag::ChildNode {
+                        anyhow::bail!(
+                            "Internal error: attempt to create CLI option `{}` that maps to subnode-typed property `{}`.",
+                            clin,
+                            prov,
+                        );
+                    }
+                    match v.entry(clin.clone()) {
+                        std::collections::hash_map::Entry::Occupied(x) => {
+                            if x.get() == &p.r#type {
+                                tracing::debug!(
+                                    "CLI long option `{}` of type `{}` also maps to `{}`",
+                                    clin,
+                                    p.r#type,
+                                    prov,
+                                );
+                            } else {
+                                anyhow::bail!(
+                                    "Internal error: conflicting types of long CLI option `{}`. Accorting to `{}` it should be `{}`, but according to `{}` it should be `{}`.",
+                                    clin,
+                                    provenance[&**clin],
+                                    x.get(),
+                                    prov,
+                                    p.r#type,
+                                );
+                            }
+                        }
+                        std::collections::hash_map::Entry::Vacant(x) => {
+                            tracing::debug!(
+                                "Inserting global CLI long option: `{}` of type `{}`, mapping to `{}`",
+                                clin,
+                                p.r#type,
+                                prov,
+                            );
+                            provenance.insert(clin.clone(), prov);
+                            x.insert(p.r#type.clone());
+                        }
+                    }
+                }
+            }
+        }
+
+        Ok(v)
+    }
 }
 
 impl std::fmt::Debug for ClassRegistrar {
@@ -337,19 +442,6 @@ impl std::fmt::Debug for ClassRegistrar {
         self.officname_to_classes.keys().fmt(f)
     }
 }
-
-
-/*
-type PendingPipe  = Box<dyn FnOnce() -> Box<dyn Future<Output=anyhow::Result<Pipe>> + Send + Sync + 'static> + Send + Sync + 'static>;
-type PendingPipes = Box<dyn FnOnce() -> Box<dyn Stream<Item=anyhow::Result<Pipe>> + Send + Sync + 'static> + Send + Sync + 'static>;
-type PendingOverlay = Box<dyn FnMut(Vec<Pipe>) ->  Box<dyn Future<Output=anyhow::Result<Pipe>> + Send + Sync + 'static> + Send + Sync + 'static>;
-
-pub enum ArmedNode {
-    ReadyToOverlay(PendingOverlay),
-    ReadyToProduceAConnection(PendingPipe),
-    ReadyToProduceMultipleConnections(PendingPipes),
-}
-*/
 
 pub enum Source {
     ByteStream(Pin<Box<dyn AsyncRead + Send  + 'static>>),

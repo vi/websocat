@@ -10,6 +10,15 @@ async fn main() {
     let mut program_name_processed = false;
     let mut enable_forward = true;
     let mut enable_backward = true;
+    let mut dryrun = false;
+
+    let reg = websocat_allnodes::all_node_classes();
+
+    tracing_subscriber::fmt::init();
+
+    let allopts = reg.get_all_cli_options().unwrap();
+
+    let mut class_induced_cli_opts : std::collections::HashMap<String, _> = std::collections::HashMap::new();
 
     for arg in std::env::args_os() {
         if !program_name_processed {
@@ -19,6 +28,24 @@ async fn main() {
         match arg.to_str().unwrap() {
             "--str" => {
                 from_str_mode = true;
+            }
+            "--dryrun" => {
+                dryrun = true;
+            }
+            x if x.starts_with("--") => {
+                let rest = &x[2..];
+
+                if let Some(t) = allopts.get(rest) {
+                    //let val = x.interpret(x)
+                    match t {
+                        websocat_api::PropertyValueType::Booly => {
+                            class_induced_cli_opts.insert(rest.to_owned(), websocat_api::PropertyValue::Booly(true));
+                        }
+                        _ => todo!(),
+                    }
+                } else {
+                    panic!("Long option not found: {}", x);
+                }
             }
             "-u" => enable_backward = false,
             "-U" => enable_forward = false,
@@ -34,16 +61,17 @@ async fn main() {
         }
     }
 
+    if from_str_mode {
+        return;
+    }
+
     if treestrings.len() != 2 {
         panic!("Exactly two positional arguments requires");
     }
 
-    tracing_subscriber::fmt::init();
-
-    let reg = websocat_allnodes::all_node_classes();
-
     let c = websocat_api::Session::build_from_two_tree_strings(
         &reg, 
+        &class_induced_cli_opts,
         &treestrings[0],
         &treestrings[1],
     ).unwrap();
@@ -56,6 +84,10 @@ async fn main() {
         enable_forward,
         enable_backward,
     };
+
+    if dryrun {
+        return;
+    }
 
     if let Err(e) = websocat_session::run(opts, c).await {
         eprintln!("Error: {:#}", e);

@@ -22,6 +22,7 @@ fn test_display_simple() {
                 name: s("qqq"),
                 properties: vec![],
                 array: Vec::new(),
+                enable_autopopulate: false,
             }
         ),
         "[qqq]"
@@ -31,9 +32,23 @@ fn test_display_simple() {
         format!(
             "{}",
             StrNode {
+                name: s("qqq"),
+                properties: vec![],
+                array: Vec::new(),
+                enable_autopopulate: true,
+            }
+        ),
+        "[qqq +]"
+    );
+
+    assert_eq!(
+        format!(
+            "{}",
+            StrNode {
                 name: s("www"),
                 properties: vec![(s("a"), ss("b"))].into_iter().collect(),
                 array: Vec::new(),
+                enable_autopopulate: false,
             }
         ),
         "[www a=b]"
@@ -46,6 +61,7 @@ fn test_display_simple() {
                 name: s("eee"),
                 properties: vec![],
                 array: vec![ss("c")],
+                enable_autopopulate: false,
             }
         ),
         "[eee c]"
@@ -58,6 +74,7 @@ fn test_display_simple() {
                 name: s("rrr"),
                 properties: vec![(s("a"), ss("b"))].into_iter().collect(),
                 array: vec![Str("c".to_owned())],
+                enable_autopopulate: false,
             }
         ),
         "[rrr a=b c]"
@@ -72,6 +89,7 @@ fn test_display_simple() {
                     .into_iter()
                     .collect(),
                 array: vec![ss("c"), ss("c2")],
+                enable_autopopulate: false,
             }
         ),
         "[ttt a=b a2=b2 c c2]"
@@ -86,6 +104,7 @@ fn test_display_escaping() {
                 name: s("eee"),
                 properties: vec![],
                 array: vec![ss("\"")],
+                enable_autopopulate: false,
             }
         ),
         "[eee \"\\\"\"]"
@@ -98,6 +117,7 @@ fn test_display_escaping() {
                 name: s("eee"),
                 properties: vec![],
                 array: vec![ss("[]")],
+                enable_autopopulate: false,
             }
         ),
         "[eee \"[]\"]"
@@ -110,6 +130,7 @@ fn test_display_escaping() {
                 name: s("eee"),
                 properties: vec![],
                 array: vec![ss("[")],
+                enable_autopopulate: false,
             }
         ),
         "[eee \"[\"]"
@@ -122,6 +143,7 @@ fn test_display_escaping() {
                 name: s("eee"),
                 properties: vec![],
                 array: vec![ss("")],
+                enable_autopopulate: false,
             }
         ),
         "[eee \"\"]"
@@ -134,6 +156,7 @@ fn test_display_escaping() {
                 name: s("eee"),
                 properties: vec![],
                 array: vec![ss("]")],
+                enable_autopopulate: false,
             }
         ),
         "[eee \"]\"]"
@@ -146,6 +169,7 @@ fn test_display_escaping() {
                 name: s("eee"),
                 properties: vec![],
                 array: vec![ss("a=b")],
+                enable_autopopulate: false,
             }
         ),
         "[eee \"a=b\"]"
@@ -158,6 +182,7 @@ fn test_display_escaping() {
                 name: s("eee"),
                 properties: vec![],
                 array: vec![ss("\\")],
+                enable_autopopulate: false,
             }
         ),
         "[eee \"\\\\\"]"
@@ -170,6 +195,7 @@ fn test_display_escaping() {
                 name: s("eee"),
                 properties: vec![],
                 array: vec![ss(r#"[qqq w=e r ""]"#)],
+                enable_autopopulate: false,
             }
         ),
         r#"[eee "[qqq w=e r \"\"]"]"#
@@ -189,9 +215,11 @@ fn test_display_nested() {
                         name: s("bobo"),
                         properties: vec![],
                         array: vec![],
+                        enable_autopopulate: false,
                     })
                 )],
                 array: vec![],
+                enable_autopopulate: false,
             }
         ),
         "[eee zz=[bobo]]"
@@ -207,7 +235,9 @@ fn test_display_nested() {
                     name: s("xoxo"),
                     properties: vec![],
                     array: vec![],
+                    enable_autopopulate: false,
                 })],
+                enable_autopopulate: false,
             }
         ),
         "[rrr zz=z [xoxo]]"
@@ -232,9 +262,11 @@ fn test_display_nested() {
                                     name: s("yoyo"),
                                     properties: vec![(s("mm"), ss("MMM"))],
                                     array: vec![],
+                                    enable_autopopulate: false,
                                 })
                             )],
                             array: vec![],
+                            enable_autopopulate: false,
                         })
                     ),
                     (s("zz4"), ss("5.6")),
@@ -249,9 +281,13 @@ fn test_display_nested() {
                             name: s("p"),
                             properties: vec![],
                             array: vec![],
+                            enable_autopopulate: false,
                         })],
+                        enable_autopopulate: false,
                     })],
+                    enable_autopopulate: false,
                 })],
+                enable_autopopulate: false,
             }
         ),
         r#"[ttt zz=z zz2=z2 zz3="[qq]" inner=[yoyo kk=[yoyo mm=MMM]] zz4=5.6 [ppp [pp [p]]]]"#

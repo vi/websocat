@@ -6,7 +6,7 @@ use syn::{DeriveInput, parse_macro_input};
 use quote::quote as q;
 
 #[derive(Debug, darling::FromField)]
-#[darling(attributes(websocat_node, enum), forward_attrs(doc))]
+#[darling(attributes(websocat_node, enum), forward_attrs(doc,cli))]
 struct Field1 {
     ident:	Option<syn::Ident>,
     ty:	syn::Type,
@@ -41,6 +41,8 @@ struct PropertyInfo {
     enumname: Option<syn::TypePath>,
     optional: bool,
     help: String,
+
+    pub inject_cli_long_option: Option<String>,
 }
 #[derive(Debug)]
 struct ClassInfo {
@@ -200,21 +202,27 @@ impl ClassInfo {
                         _ => panic!("Unknown type for field named {}", ident),
                     };
                     let mut help = String::with_capacity(64);
+                    let mut inject_cli_long_option = None;
                     for attr in &field.attrs {
-                        if attr.path.segments.last().unwrap().ident == "doc" {
+                        let name = &attr.path.segments.last().unwrap().ident;
+                        if name == "doc" || name == "cli" {
                             match attr.tokens.clone().into_iter().last() {
                                 Some(proc_macro2::TokenTree::Literal(l)) => {
                                     match syn::Lit::new(l) {
                                         syn::Lit::Str(ll) => {
-                                            if ! help.is_empty() {
-                                                help += &"\n";
+                                            if name == "doc" {
+                                                if ! help.is_empty() {
+                                                    help += &"\n";
+                                                }
+                                                help += &ll.value();
+                                            } else if name == "cli" {
+                                                inject_cli_long_option = Some(ll.value());
                                             }
-                                            help += &ll.value();
                                         }
-                                        _ => panic!("doc attribute is not a string literal"),
+                                        _ => panic!("doc or cli attribute is not a string literal"),
                                     }
                                 }
-                                _ => panic!("doc attribute is not a string literal"),
+                                _ => panic!("doc or cli attribute is not a string literal"),
                             }
                         }
                     }
@@ -232,6 +240,7 @@ impl ClassInfo {
                             enumname,
                             optional: false,
                             help,
+                            inject_cli_long_option: None,
 
                         });
                     } else { 
@@ -248,6 +257,7 @@ impl ClassInfo {
                             optional,
                             ident,
                             enumname,
+                            inject_cli_long_option,
                         });
                     }
                 }
@@ -518,6 +528,11 @@ impl ClassInfo {
             let pn = &p.ident;
             let pn_s = pn.to_string();
             let help = &p.help;
+            let iclo = if let Some(ref x) = p.inject_cli_long_option {
+                q!{::std::option::Option::Some(#x.to_owned())}
+            } else {
+                q!{::std::option::Option::None}
+            };
             if p.typ != websocat_api::PropertyValueTypeTag::Enummy {
                 let pt = p.typ.ident();
 
@@ -525,7 +540,8 @@ impl ClassInfo {
                     ::websocat_api::PropertyInfo {
                         name: #pn_s.to_owned(),
                         r#type: websocat_api::PropertyValueType::#pt,
-                        help: Box::new(||#help.to_owned()),
+                        help: ::std::boxed::Box::new(||#help.to_owned()),
+                        inject_cli_long_option: #iclo,
                     },
                 })
             } else {
@@ -534,7 +550,8 @@ impl ClassInfo {
                     ::websocat_api::PropertyInfo {
                         name: #pn_s.to_owned(),
                         r#type: websocat_api::PropertyValueType::Enummy(<#enn as ::websocat_api::Enum>::interner()),
-                        help: Box::new(||#help.to_owned()),
+                        help: ::std::boxed::Box::new(||#help.to_owned()),
+                        inject_cli_long_option: #iclo,
                     },
                 })
             }
@@ -614,7 +631,7 @@ impl ClassInfo {
     }
 }
 
-#[proc_macro_derive(WebsocatNode, attributes(websocat_node))]
+#[proc_macro_derive(WebsocatNode, attributes(websocat_node,cli))]
 pub fn derive_websocat_node(input: TokenStream) -> TokenStream {
     let x = parse_macro_input!(input as DeriveInput);
     let ci = ClassInfo::parse(&x);
@@ -730,6 +747,7 @@ pub fn derive_websocat_enum(input: TokenStream) -> TokenStream {
             }
         
             fn index_to_variant(sym: ::websocat_api::string_interner::DefaultSymbol) -> Self {
+                use ::websocat_api::string_interner::Symbol;
                 match sym.to_usize() {
                     #index_to_variant_match
                     x => panic!("Invalid numeric value {} for enummy {}", x, #namestr),
@@ -737,6 +755,7 @@ pub fn derive_websocat_enum(input: TokenStream) -> TokenStream {
             }
 
             fn variant_to_index(&self) -> ::websocat_api::string_interner::DefaultSymbol {
+                use ::websocat_api::string_interner::Symbol;
                 match self {
                     #variant_to_index_match
                 }

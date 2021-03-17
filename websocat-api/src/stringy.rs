@@ -3,6 +3,8 @@ use anyhow::Context;
 use string_interner::Symbol;
 use std::collections::HashMap;
 
+use crate::PropertyValue;
+
 use super::Result;
 
 #[derive(Eq, PartialEq, Debug)]
@@ -25,7 +27,9 @@ pub struct StrNode {
     pub name: Ident,
     pub properties: Vec<(Ident, StringOrSubnode)>,
     pub array: Vec<StringOrSubnode>,
-    // pub child_nodes: id_tree::NodeId -- implied,
+
+    /// Allow automatically filling options for this node from CLI arguments
+    pub enable_autopopulate: bool,
 }
 
 
@@ -74,7 +78,11 @@ impl std::fmt::Display for StrNode {
                 StringOrSubnode::Subnode(x) => write!(f, " {}", x)?,
             };
         }
-        write!(f, "]")?;
+        if self.enable_autopopulate {
+            write!(f, " +]")?;
+        } else {
+            write!(f, "]")?;
+        }
         Ok(())
     }
 }
@@ -123,6 +131,8 @@ impl StrNode {
         let mut property_name : Option<String> = None;
 
         let mut hex  = tinyvec::ArrayVec::<[u8; 2]>::default();
+        
+        let mut enable_autopopulate = false;
 
         while let Some(c) = r.peek() {
             tracing::trace!("Peeked byte {} in state {:?}", std::ascii::escape_default(*c), state);
@@ -166,7 +176,7 @@ impl StrNode {
                             break;
                         }
                         _ => anyhow::bail!(
-                            "Expected a space character or `]` after `\"` or `]`, not {} when parsing node named {}",
+                            "Expected a space character or `]` after `\"` or `]` or `+`, not {} when parsing node named {}",
                             std::ascii::escape_default(*c),
                             name.as_deref().unwrap_or("???"),
                         ),
@@ -174,6 +184,13 @@ impl StrNode {
                 }
                 S::Space => {
                     match c {
+                        b'+' => {
+                            if enable_autopopulate {
+                                anyhow::bail!("Invalid `+` character: CLI auto-populate is already enabled for this node");
+                            }
+                            enable_autopopulate = true;
+                            state = S::ForcedSpace;
+                        }
                         x if identchar(*x)
                         => {
                             chunk.push(*c);
@@ -364,6 +381,7 @@ impl StrNode {
             name: Ident(name.unwrap()),
             properties,
             array,
+            enable_autopopulate,
         })
     }
 }
@@ -414,10 +432,11 @@ impl super::PropertyValueType {
 }
 
 impl StrNode {
-    #[tracing::instrument(name="StringyNode::build_impl", level="trace", skip(tree, classes, self), fields(node=&*self.name.0), err)]
+    #[tracing::instrument(name="StringyNode::build_impl", level="trace", skip(tree, classes, self, cli_opts), fields(node=&*self.name.0), err)]
     fn build_impl(
         &self,
         classes: &super::ClassRegistrar,
+        cli_opts: &std::collections::HashMap<String, PropertyValue>,
         tree: &mut super::Slab<super::NodeId, super::DNode>,
     ) -> Result<super::NodeId> {
         tracing::debug!("Building parsed node");
@@ -426,19 +445,37 @@ impl StrNode {
             use StringOrSubnode::{Str,Subnode};
 
             tracing::trace!("Obtained class: {:?}", cls);
+            
+            let mut b = cls.new_node();
+
             let props = cls.properties();
+
+            if self.enable_autopopulate {
+                for prop in &props {
+                    if let Some(ref clip) = prop.inject_cli_long_option {
+                        if let Some(vv) = cli_opts.get(clip) {
+                            tracing::trace!("Setting property {} from CLI option {}", prop.name, clip);
+                            b.set_property(&prop.name, vv.clone()).with_context(|| {
+                                format!("Failed to set property {} in node {} from CLI options", prop.name, self.name.0)
+                            })?;
+                        }
+                    }
+                }
+            } else {
+                tracing::trace!("Auto-population of CLI options is not enabled for this node");
+            }
+
             let mut p: HashMap<String, super::PropertyValueType> =
                 HashMap::with_capacity(props.len());
             p.extend(props.into_iter().map(|pi| (pi.name, pi.r#type)));
 
-            let mut b = cls.new_node();
 
             for (Ident(k), v) in &self.properties {
                 tracing::trace!("Handling property {}", k);
                 if let Some(typ) = p.get(k) {
                     let vv = match (typ, v) {
                         (PVT::ChildNode, Subnode(x)) => PV::ChildNode(
-                            x.build_impl(classes, tree).with_context(||format!(
+                            x.build_impl(classes, cli_opts, tree).with_context(||format!(
                                 "Building subbnode property {} value of node type {}",
                                 k, self.name.0,
                             ))?,
@@ -467,7 +504,7 @@ impl StrNode {
                 if let Some(at) = &at {
                     let vv = match (at, e) {
                         (PVT::ChildNode, Subnode(x)) => PV::ChildNode(
-                            x.build_impl(classes, tree).with_context(||format!(
+                            x.build_impl(classes, cli_opts, tree).with_context(||format!(
                                 "Building subnode array element number {} in node {}",
                                 n, self.name.0,
                             ))?,
@@ -502,9 +539,10 @@ impl StrNode {
     pub fn build(
         &self,
         classes: &super::ClassRegistrar,
+        cli_opts: &std::collections::HashMap<String, PropertyValue>,
         tree: &mut super::Tree,
     ) -> Result<super::NodeId> {
-        self.build_impl(classes, tree)
+        self.build_impl(classes, cli_opts, tree)
     }
 
     /// Turn parsed node back into it's stringy representation
@@ -519,7 +557,7 @@ impl StrNode {
         let mut properties : Vec<(Ident, StringOrSubnode)> = Vec::new();
         let mut array : Vec<StringOrSubnode> = Vec::new();
 
-        for super::PropertyInfo { name: pn, help: _, r#type } in c.properties() {
+        for super::PropertyInfo { name: pn, help: _, r#type, inject_cli_long_option: _ } in c.properties() {
             tracing::trace!("Processing property {}", pn);
             if let Some(v) = n.get_property(&pn) {
                 tracing::trace!("Property {} is found", pn);
@@ -579,11 +617,12 @@ impl StrNode {
             };
             array.push(sn);
         }
-
+        let enable_autopopulate = false;
         Ok(StrNode {
             name,
             properties,
             array,
+            enable_autopopulate,
         })
     }
 }
