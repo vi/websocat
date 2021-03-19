@@ -1,4 +1,4 @@
-use super::{NodeProperyAccess, Result, RunContext, ServerModeContext};
+use super::{NodeProperyAccess, Result, RunContext};
 
 pub enum Source {
     ByteStream(Box<dyn std::io::Read + Send + 'static>),
@@ -69,10 +69,24 @@ where
     }
 }    
 
+#[cfg(not(feature="sync_impl"))]
+#[async_trait::async_trait]
+impl<T: Node + Send + Sync + 'static> crate::Node for T {
+    async fn run(
+        &self,
+        _ctx: RunContext,
+        _multiconn: Option<crate::ServerModeContext>,
+    ) -> Result<crate::Bipipe> {
+        anyhow::bail!("Cargo feature websocat-api/sync_impl is not enabled")
+    }
+}
+
 #[cfg(feature="sync_impl")]
 mod syncimpl {
     use std::pin::Pin;
-    use super::*;
+    use super::{RunContext, Node, Source, Result, Sink};
+    use crate::ServerModeContext;
+    use crate::{Bipipe as AsyncBipipe};
     struct SyncReadGateway {
         reqests: tokio::sync::mpsc::UnboundedSender<usize>,
         replies: tokio::sync::mpsc::Receiver<std::io::Result<bytes::Bytes>>,
@@ -479,15 +493,15 @@ mod syncimpl {
             &self,
             ctx: RunContext,
             mut multiconn: Option<ServerModeContext>,
-        ) -> Result<crate::Bipipe> {
-            let mut rx: Option<tokio::sync::mpsc::Receiver<crate::Bipipe>> = None;
+        ) -> Result<AsyncBipipe> {
+            let mut rx: Option<tokio::sync::mpsc::Receiver<AsyncBipipe>> = None;
     
             let allow_multiconnect = multiconn.is_some();
     
             if let Some(ref mut mc) = multiconn {
                 if let Some(ref mut cag) = mc.you_are_called_not_the_first_time {
                     let tmp = cag
-                        .downcast_mut::<Option<tokio::sync::mpsc::Receiver<crate::Bipipe>>>()
+                        .downcast_mut::<Option<tokio::sync::mpsc::Receiver<AsyncBipipe>>>()
                         .expect("Unexpected object passed to restarted SyncNode::run");
                     rx = Some(tmp.take().unwrap());
                 }
@@ -532,7 +546,7 @@ mod syncimpl {
                         Sink::None => crate::Sink::None,
                     };
     
-                    let bipipe = crate::Bipipe {
+                    let bipipe = AsyncBipipe {
                         r,
                         w,
                         closing_notification: None,
