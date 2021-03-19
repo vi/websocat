@@ -88,29 +88,44 @@ impl websocat_api::Node for HttpClient {
             let (response_tx, response_rx) = tokio::sync::mpsc::channel::<bytes::Bytes>(1);
             tokio::spawn(async move {
                 let try_block = async move {
-                    let rq = hyper::Request::new(b);
+                    let mut rq = hyper::Request::new(b);
+                    *rq.method_mut() = hyper::Method::POST;
+                    //rq.headers_mut().insert(hyper::header::CONTENT_TYPE, "text/plain".parse().unwrap());
+                    //rq.headers_mut().insert(hyper::header::TRANSFER_ENCODING, "identity".parse().unwrap());
+                    //rq.headers_mut().insert(hyper::header::CONTENT_LENGTH, "15".parse().unwrap()); 
                     let resp = sr.send_request(rq).await?;
                     let mut body = resp.into_body();
                     use futures::stream::StreamExt;
                     while let Some(buf) = body.next().await {
                         response_tx.send(buf?).await?;
                     }
+                    tracing::debug!("Finished sending streamed response");
                     Ok::<_,anyhow::Error>(())
                 };
                 if let Err(e) = try_block.await {
                     tracing::error!("streamed-http-client error: {}", e);
                 }
             });
-            let sink = futures::sink::unfold(sender, move |mut sender, buf| {
+            let sink = futures::sink::unfold(sender, move |mut sender, buf : bytes::Bytes| {
                 async move {
-                    sender.send_data(buf).await?;
+                    tracing::trace!("Sending {} bytes chunk as HTTP request body", buf.len());
+                    sender.send_data(buf).await.map_err(|e|{
+                        tracing::error!("Failed sending more HTTP request body: {}", e);
+                        e
+                    })?;
                     Ok(sender)
                 }
             });
             let rx = futures::stream::unfold(response_rx, move |mut response_rx| {
                 async move {
                     let maybe_buf : Option<bytes::Bytes> = response_rx.recv().await;
-                    maybe_buf.map(move |buf|((Ok(buf), response_rx)))
+                    if maybe_buf.is_none() {
+                        tracing::debug!("HTTP response body finished");
+                    }
+                    maybe_buf.map(move |buf|{
+                        tracing::trace!("Sending {} bytes chunk as HTTP response body", buf.len());
+                        ((Ok(buf), response_rx))
+                    })
                 }
             });
             Ok(websocat_api::Bipipe {
