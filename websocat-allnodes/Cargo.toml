@@ -7,7 +7,7 @@ edition = "2018"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-websocat-api = {path = "../websocat-api"}
+websocat-api = {path = "../websocat-api", features=["sync_impl"]}
 websocat-basic = {path = "../websocat-basic"}
 websocat-syncnodes = {path = "../websocat-syncnodes"}
 websocat-session = {path = "../websocat-session"}

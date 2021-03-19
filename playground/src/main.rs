@@ -102,9 +102,11 @@ async fn main() {
     //println!("{:?}", reg);
 
     let args = std::env::args().collect::<Vec<_>>();
+    let cliopts = std::collections::HashMap::new();
 
     let c = websocat_api::Session::build_from_two_tree_strings(
         &reg, 
+        &cliopts,
         &args[1],
         &args[2],
     ).unwrap();

@@ -29,4 +29,5 @@ proptest-derive = "0.3.0"
 
 [features]
 default = ["sync"]
-sync = ["tokio/sync"]
+sync = []
+sync_impl = ["tokio/sync", "tokio/rt"]
