@@ -325,15 +325,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "id_tree"
-version = "1.7.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8233bef841ffcb4766af63c917b09c786430cfcfbaf41bffeae57d53284ddd00"
-dependencies = [
- "snowflake",
-]
-
-[[package]]
 name = "ident_case"
 version = "1.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -775,12 +766,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "fbee7696b84bbf3d89a1c2eccff0850e3047ed46bfcd2e92c29a2d074d57e252"
 
 [[package]]
-name = "snowflake"
-version = "1.3.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "27207bb65232eda1f588cf46db2fee75c0808d557f6b3cf19a75f5d6d7c94df1"
-
-[[package]]
 name = "socket2"
 version = "0.3.19"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1050,12 +1035,10 @@ dependencies = [
  "downcast-rs",
  "futures",
  "http",
- "id_tree",
  "pin-project",
  "proptest",
  "proptest-derive",
  "slab_typesafe",
- "smallvec",
  "static_assertions",
  "string-interner",
  "tinyvec",
