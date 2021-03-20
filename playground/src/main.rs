@@ -26,7 +26,7 @@ struct Foo {
 
 #[websocat_api::async_trait::async_trait]
 impl websocat_api::Node for Foo {
-    async fn run(&self, ctx: websocat_api::RunContext, _multiconn: Option<ServerModeContext>) -> websocat_api::Result<websocat_api::Bipipe> {
+    async fn run(self: std::pin::Pin<std::sync::Arc<Self>>, ctx: websocat_api::RunContext, _multiconn: Option<ServerModeContext>) -> websocat_api::Result<websocat_api::Bipipe> {
         Err(websocat_api::anyhow::anyhow!("nimpl"))
     }
 }
@@ -59,7 +59,7 @@ struct Bar {
 }
 
 impl websocat_api::sync::Node for Bar {
-    fn run(&self, ctx: websocat_api::RunContext, allow_multiconnect: bool, mut closure: impl FnMut(websocat_api::sync::Bipipe) -> websocat_api::Result<()> + Send + 'static ) -> websocat_api::Result<()> {
+    fn run(self: std::pin::Pin<std::sync::Arc<Self>>, ctx: websocat_api::RunContext, allow_multiconnect: bool, mut closure: impl FnMut(websocat_api::sync::Bipipe) -> websocat_api::Result<()> + Send + 'static ) -> websocat_api::Result<()> {
         let (r,mut w2) = pipe::pipe();
         let w = std::io::sink();
         std::thread::spawn(move|| {
@@ -97,7 +97,6 @@ async fn main() {
     reg.register::<websocat_syncnodes::net::UdpConnect>();
     reg.register::<websocat_syncnodes::net::UdpListen>();
     reg.register::<websocat_http::HttpClient>();
-    reg.register::<websocat_http::HttpUpgradeClient>();
 
     //println!("{:?}", reg);
 

@@ -119,8 +119,7 @@ impl websocat_api::Node for HttpClient {
 
                 tokio::spawn(async move {
                     let try_block = async move {
-                        //let mut rq = self.get_request(request_body)?;
-                        let rq = hyper::Request::new(request_body);
+                        let rq = self.get_request(request_body)?;
                         let resp = sr.send_request(rq).await?;
                         let mut body = resp.into_body();
                         use futures::stream::StreamExt;
@@ -169,8 +168,7 @@ impl websocat_api::Node for HttpClient {
                 tokio::spawn(async move {
                     let try_block = async move {
                         let request_buf = rx.await?;
-                        //let mut rq = self.get_request(request_buf.freeze().into())?;
-                        let rq = hyper::Request::new(request_buf.freeze().into());
+                        let rq = self.get_request(request_buf.freeze().into())?;
                         let resp = sr.send_request(rq).await?;
                         let mut body = resp.into_body();
                         use futures::stream::StreamExt;
