@@ -371,7 +371,11 @@ impl ClassRegistrar {
     }
 
     pub fn register_impl(&mut self, cls: DNodeClass) {
-        self.officname_to_classes.insert(cls.official_name(), cls);
+        let name = cls.official_name();
+        if self.officname_to_classes.contains_key(&name) {
+            tracing::error!("Clashing websocat node classes for official name `{}`", name);
+        }
+        self.officname_to_classes.insert(name, cls);
     }
 
     /// Get all class-injected long CLI options with their types

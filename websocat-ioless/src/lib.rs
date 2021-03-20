@@ -138,3 +138,86 @@ impl Node for DevNull {
         }
     }
 }
+
+#[derive(Debug,Clone,WebsocatNode)]
+#[websocat_node(
+    official_name="split",
+)]
+pub struct Split {
+    /// Subnode to use for receiving data
+    pub rx : Option<NodeId>,
+
+    /// Subnode to use for sending data
+    pub tx : Option<NodeId>,
+}
+
+#[async_trait]
+impl Node for Split {
+    async fn run(self: std::pin::Pin<std::sync::Arc<Self>>, ctx: RunContext, _multiconn: Option<websocat_api::ServerModeContext>) -> Result<Bipipe> {
+        match (self.rx, self.tx) {
+            (None, None) => {
+                tracing::info!("Split node is fully dummy, neither `rx` nor `tx`.");
+                Ok(Bipipe {
+                    r: Source::None,
+                    w: Sink::None,
+                    closing_notification: None,
+                })
+            }
+            (Some(rx), None) => {
+                let x = ctx.nodes[rx].clone().run(ctx, None).await?;
+                tracing::info!("Split node is removing the writing part from inner node.");
+                Ok(Bipipe {
+                    r: x.r,
+                    w: Sink::None,
+                    closing_notification: x.closing_notification,
+                })
+            }
+            (None, Some(tx)) => {
+                let x = ctx.nodes[tx].clone().run(ctx, None).await?;
+                tracing::info!("Split node is removing the reading part from inner node.");
+                Ok(Bipipe {
+                    r: Source::None,
+                    w: x.w,
+                    closing_notification: x.closing_notification,
+                })
+            }
+            (Some(rx), Some(tx)) => {
+                let mut xr : Option<Bipipe> = None;
+                let mut xw : Option<Bipipe> = None;
+                let rn = ctx.nodes[rx].clone();
+                let wn = ctx.nodes[tx].clone();
+                let mut rxf = rn.run(ctx.clone(), None);
+                let mut txf = wn.run(ctx, None);
+                while xr.is_none() || xw.is_none()  {
+                    tokio::select! {
+                        rr = &mut rxf, if xr.is_none() => {
+                            xr = Some(rr?);
+                            tracing::debug!("split nodes's reading part finished initializing first");
+                        },
+                        ww = &mut txf, if xw.is_none() => {
+                            xw = Some(ww?);
+                            tracing::debug!("split nodes's writing part finished initializing first");
+                        },
+                    }
+                }
+                let xr = xr.unwrap();
+                let xw = xw.unwrap();
+                let cn = match (xr.closing_notification, xw.closing_notification) {
+                    (None, None) => None,
+                    (Some(t), None) => Some(t),
+                    (None, Some(t)) => Some(t),
+                    (Some(_tr), Some(tw)) => {
+                        tracing::debug!("split node is preferring to preserve write part's closing notification over reading part's one");
+                        Some(tw)
+                    }
+                };
+                tracing::debug!("split node is ready");
+                Ok(Bipipe {
+                    r: xr.r,
+                    w: xw.w,
+                    closing_notification: cn,
+                })
+            }
+        }
+    }
+}
