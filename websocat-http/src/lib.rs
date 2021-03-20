@@ -81,11 +81,11 @@ impl HttpClient {
 #[async_trait]
 impl websocat_api::Node for HttpClient {
     async fn run(
-        &self,
+        self: std::pin::Pin<std::sync::Arc<Self>>,
         ctx: websocat_api::RunContext,
         _multiconn: Option<websocat_api::ServerModeContext>,
     ) -> websocat_api::Result<websocat_api::Bipipe> {
-        let io = ctx.nodes[self.inner].run(ctx.clone(), None).await?;
+        let io = ctx.nodes[self.inner].clone().run(ctx.clone(), None).await?;
         let cn = io.closing_notification;
         let mut io = Some(match (io.r, io.w) {
             (websocat_api::Source::ByteStream(r), websocat_api::Sink::ByteStream(w)) => {

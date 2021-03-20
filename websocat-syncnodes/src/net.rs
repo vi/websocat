@@ -10,7 +10,7 @@ pub struct TcpConnect {
 
 impl websocat_api::SyncNode for TcpConnect {
     fn run(
-        &self,
+        self: std::pin::Pin<std::sync::Arc<Self>>,
         _ctx: websocat_api::RunContext,
         _allow_multiconnect: bool,
         mut closure: impl FnMut(websocat_api::sync::Bipipe) -> websocat_api::Result<()> + Send + 'static,
@@ -42,7 +42,7 @@ pub struct TcpListen {
 
 impl websocat_api::SyncNode for TcpListen {
     fn run(
-        &self,
+        self: std::pin::Pin<std::sync::Arc<Self>>,
         _ctx: websocat_api::RunContext,
         allow_multiconnect: bool,
         mut closure: impl FnMut(websocat_api::sync::Bipipe) -> websocat_api::Result<()> + Send + 'static,
@@ -83,7 +83,7 @@ pub struct UdpConnect {
 
 impl websocat_api::SyncNode for UdpConnect {
     fn run(
-        &self,
+        self: std::pin::Pin<std::sync::Arc<Self>>,
         _ctx: websocat_api::RunContext,
         _allow_multiconnect: bool,
         mut closure: impl FnMut(websocat_api::sync::Bipipe) -> websocat_api::Result<()> + Send + 'static,
@@ -154,7 +154,7 @@ impl UdpListen {
 
 impl websocat_api::SyncNode for UdpListen {
     fn run(
-        &self,
+        self: std::pin::Pin<std::sync::Arc<Self>>,
         _ctx: websocat_api::RunContext,
         _allow_multiconnect: bool,
         mut closure: impl FnMut(websocat_api::sync::Bipipe) -> websocat_api::Result<()> + Send + 'static,

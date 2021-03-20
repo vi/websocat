@@ -107,7 +107,7 @@ fn resolve_sync(this: &(dyn AddressesAndResolves + Send + Sync), only_one_addres
 }
 
 #[tracing::instrument(level = "debug", name = "resolve", skip(this,only_one_address), err)]
-async fn resolve_async(this: &(dyn AddressesAndResolves + Send + Sync), only_one_address: bool) -> websocat_api::anyhow::Result<Vec<std::net::SocketAddr>> {
+async fn resolve_async(this: std::pin::Pin<&(dyn AddressesAndResolves + Send + Sync)>, only_one_address: bool) -> websocat_api::anyhow::Result<Vec<std::net::SocketAddr>> {
     let mut addrs: Vec<std::net::SocketAddr>;
     if let Some(hostport) = this.hostport() {
         tracing::debug!("Resolving {}", hostport);
@@ -147,14 +147,14 @@ impl Tcp {
 impl websocat_api::Node for Tcp {
     #[tracing::instrument(level = "debug", name = "Tcp", skip(self), err)]
     async fn run(
-        &self,
+        self: std::pin::Pin<std::sync::Arc<Self>>,
         _: websocat_api::RunContext,
         _: Option<websocat_api::ServerModeContext>,
     ) -> websocat_api::Result<websocat_api::Bipipe> {
         let mut addrs = &self.addrs;
         let addrs_holder;
         if self.addrs.is_empty() {
-            addrs_holder = resolve_async(self, cfg!(not(feature="race"))).await?;
+            addrs_holder = resolve_async(self.as_ref(), cfg!(not(feature="race"))).await?;
             addrs = &addrs_holder;
         }
         if addrs.is_empty() {
@@ -265,7 +265,7 @@ pub struct TcpListen {
 impl websocat_api::Node for TcpListen {
     #[tracing::instrument(level = "debug", name = "TcpListen", skip(self,multiconn), err)]
     async fn run(
-        &self,
+        self: std::pin::Pin<std::sync::Arc<Self>>,
         _: websocat_api::RunContext,
         mut multiconn: Option<websocat_api::ServerModeContext>,
     ) -> websocat_api::Result<websocat_api::Bipipe> {

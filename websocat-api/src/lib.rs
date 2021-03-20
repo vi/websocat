@@ -235,7 +235,7 @@ pub type DNodeInProgressOfParsing = Box<dyn NodeInProgressOfParsing + Send + 'st
 /// Deriveable part of [`Node`].
 pub trait NodeProperyAccess : Debug  {
     fn class(&self) -> DNodeClass;
-    fn clone(&self) -> DNode;
+    fn deep_clone(&self) -> DNode;
 
     fn get_property(&self, name:&str) -> Option<PropertyValue>;
     fn get_array(&self) -> Vec<PropertyValue>;
@@ -252,17 +252,10 @@ pub trait Node : NodeProperyAccess + Downcast {
     /// Actually start the node (i.e. connect to TCP or recursively start another child node)
     /// If you want to serve multiple connections and `multiconn` is not None, you can
     /// trigger starting another Tokio task by using `multiconn`.
-    async fn run(&self, ctx: RunContext, multiconn: Option<ServerModeContext>) -> Result<Bipipe>;
+    async fn run(self: Pin<Arc<Self>>, ctx: RunContext, multiconn: Option<ServerModeContext>) -> Result<Bipipe>;
 }
 impl_downcast!(Node);
-pub type DNode = Pin<Box<dyn Node + Send + Sync + 'static>>;
-
-impl Clone for DNode {
-    fn clone(&self) -> Self {
-        tracing::trace!("Cloning node of type {}", self.class().official_name());
-        NodeProperyAccess::clone(&**self)
-    }
-}
+pub type DNode = Pin<Arc<dyn Node + Send + Sync + 'static>>;
 
 pub struct NodeInATree<'a>(pub NodeId, pub &'a Tree);
 

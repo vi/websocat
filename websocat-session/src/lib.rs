@@ -129,7 +129,7 @@ async fn run_impl(
     tracing::debug!("Now running {} parallel sessions", parallel);
 
     let try_block = async move {
-        let p1: websocat_api::Bipipe = c.nodes[c.left].run(rc1, Some(multiconn)).await?;
+        let p1: websocat_api::Bipipe = websocat_api::Node::run(c.nodes[c.left].clone(),rc1, Some(multiconn)).await?;
     
         let rc2 = websocat_api::RunContext {
             nodes: c.nodes.clone(),
@@ -138,7 +138,7 @@ async fn run_impl(
             globals: c.global_things.clone(),
         };
 
-        let p2: websocat_api::Bipipe = c.nodes[c.right].run(rc2, None).await?;
+        let p2: websocat_api::Bipipe = websocat_api::Node::run(c.nodes[c.right].clone(),rc2, None).await?;
 
         match (enable_forward, enable_backward) {
             (true, true) => {

@@ -356,8 +356,8 @@ impl ClassInfo {
                     #array_accessor
                 }
                 
-                fn clone(&self) -> ::websocat_api::DNode {
-                    ::std::boxed::Box::pin(::std::clone::Clone::clone(self))
+                fn deep_clone(&self) -> ::websocat_api::DNode {
+                    ::std::sync::Arc::pin(::std::clone::Clone::clone(self))
                 }
             }        
         };
@@ -506,7 +506,7 @@ impl ClassInfo {
                         #fields
                     };
                     #validate
-                    ::std::result::Result::Ok(::std::boxed::Box::pin(
+                    ::std::result::Result::Ok(::std::sync::Arc::pin(
                         x
                     ))
                 }

@@ -22,7 +22,7 @@ pub trait Node: NodeProperyAccess {
     /// If this is a server that does multiple connections, start `closure` in a loop.
     /// The `closure` is supposed to run in a thread that can block
     fn run(
-        &self,
+        self: std::pin::Pin<std::sync::Arc<Self>>,
         ctx: RunContext,
         allow_multiconnect: bool,
         closure: impl FnMut(Bipipe) -> Result<()> + Send + 'static,
@@ -490,7 +490,7 @@ mod syncimpl {
     impl<T: Node + Send + Sync + 'static> crate::Node for T {
         #[tracing::instrument(name = "SyncNode", level = "debug", skip(ctx, self, multiconn), err)]
         async fn run(
-            &self,
+            self: std::pin::Pin<std::sync::Arc<Self>>,
             ctx: RunContext,
             mut multiconn: Option<ServerModeContext>,
         ) -> Result<AsyncBipipe> {
