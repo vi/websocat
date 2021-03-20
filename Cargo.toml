@@ -20,6 +20,7 @@ members = [
     "websocat-session",
     "websocat-syncnodes",
     "websocat-http",
+    "websocat-ioless",
     "websocat-allnodes",
     "playground",
     "playground2",

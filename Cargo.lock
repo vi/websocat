@@ -1021,6 +1021,7 @@ dependencies = [
  "websocat-api",
  "websocat-basic",
  "websocat-http",
+ "websocat-ioless",
  "websocat-session",
  "websocat-syncnodes",
 ]
@@ -1074,6 +1075,16 @@ dependencies = [
  "futures",
  "hyper",
  "readwrite",
+ "tokio",
+ "tracing",
+ "websocat-api",
+ "websocat-derive",
+]
+
+[[package]]
+name = "websocat-ioless"
+version = "0.1.0"
+dependencies = [
  "tokio",
  "tracing",
  "websocat-api",

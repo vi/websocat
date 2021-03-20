@@ -8,6 +8,7 @@ edition = "2018"
 
 [dependencies]
 websocat-api = {path = "../websocat-api", features=["sync_impl"]}
+websocat-ioless = {path = "../websocat-ioless"}
 websocat-basic = {path = "../websocat-basic"}
 websocat-syncnodes = {path = "../websocat-syncnodes"}
 websocat-session = {path = "../websocat-session"}
