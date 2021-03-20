@@ -42,6 +42,9 @@ pub enum PropertyValue {
     /// A catch-all variant for properties lacking some dedicated thing
     Stringy(String),
 
+    /// Some block of bytes
+    BytesBuffer(bytes::Bytes),
+
     /// One of specific set of strings.
     /// 0 means the first value from PropertyValueType::Enummy vector (may be up to upper/lowercase)
     Enummy(string_interner::DefaultSymbol),

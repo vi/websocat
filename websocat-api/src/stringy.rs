@@ -647,6 +647,7 @@ impl std::fmt::Display for super::PropertyValue {
             crate::PropertyValue::Uri(x) => x.fmt(f),
             crate::PropertyValue::Duration(_) => todo!(),
             crate::PropertyValue::ChildNode(_) => write!(f, "[???]"),
+            crate::PropertyValue::BytesBuffer(x) => write!(f, "[len={}]", x.len()),
         }
     }
 }
