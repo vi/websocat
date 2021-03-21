@@ -7,10 +7,12 @@ use crate::PropertyValue;
 
 use super::Result;
 
+use bytes::{Bytes, Buf, BytesMut, BufMut};
+
 #[derive(Eq, PartialEq, Debug)]
 #[cfg_attr(test,derive(Clone))]
 pub enum StringOrSubnode {
-    Str(String),
+    Str(Bytes),
     Subnode(StrNode),
 }
 #[derive(Eq, PartialEq, Debug)]
@@ -33,13 +35,16 @@ pub struct StrNode {
 }
 
 
-struct ValueForPrinting<'a>(&'a str);
+struct ValueForPrinting<T : bytes::Buf>(T);
 
-impl<'a> std::fmt::Display for ValueForPrinting<'a> {
+impl<T: Buf> std::fmt::Display for ValueForPrinting<T> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let mut s = String::with_capacity(self.0.len());
+        let mut s = String::with_capacity(self.0.remaining());
+        assert_eq!(self.0.remaining(), self.0.chunk().len());
+        let buf = self.0.chunk();
+
         let mut tainted = false;
-        for x in self.0.as_bytes().iter().map(|b|std::ascii::escape_default(*b)) {
+        for x in buf.iter().map(|b|std::ascii::escape_default(*b)) {
             let x : Vec<u8> = x.collect();
             
             if x.len() > 1 { 
@@ -53,11 +58,11 @@ impl<'a> std::fmt::Display for ValueForPrinting<'a> {
 
             s.push_str(&String::from_utf8(x).unwrap());
         }
-        if self.0.is_empty() { tainted = true; }
+        if buf.is_empty() { tainted = true; }
         if tainted {
             write!(f, "\"{}\"", s)?;
         } else {
-            write!(f, "{}", self.0)?;
+            write!(f, "{}", s)?;
         }
         Ok(())
     }
@@ -68,13 +73,13 @@ impl std::fmt::Display for StrNode {
         write!(f, "[{}", self.name.0)?;
         for (k, v) in &self.properties {
             match v {
-                StringOrSubnode::Str(x) => write!(f, " {}={}", k.0, ValueForPrinting(x))?,
+                StringOrSubnode::Str(x) => write!(f, " {}={}", k.0, ValueForPrinting(x.clone()))?,
                 StringOrSubnode::Subnode(x) => write!(f, " {}={}", k.0, x)?,
             };
         }
         for e in &self.array {
             match e {
-                StringOrSubnode::Str(x) => write!(f, " {}", ValueForPrinting(x))?,
+                StringOrSubnode::Str(x) => write!(f, " {}", ValueForPrinting(x.clone()))?,
                 StringOrSubnode::Subnode(x) => write!(f, " {}", x)?,
             };
         }
@@ -117,7 +122,7 @@ impl StrNode {
         }
         
         tracing::trace!("Reading from string to a stringy node");
-        let mut chunk : Vec<u8> = Vec::with_capacity(20);
+        let mut chunk = BytesMut::with_capacity(20);
 
         if r.next() != Some(b'[') { anyhow::bail!("Tree node must begin with `[` character"); }
 
@@ -142,13 +147,13 @@ impl StrNode {
                     match c {
                         x if identchar(*x)
                         => {
-                            chunk.push(*c);
+                            chunk.put_u8(*c);
                             state = S::Name;
                         }
                         b' ' => {
                             if state == S::Name {
-                                name = Some(String::from_utf8(chunk)?);
-                                chunk = Vec::with_capacity(20);
+                                name = Some(String::from_utf8(chunk.to_vec())?);
+                                chunk = BytesMut::with_capacity(20);
                                 state = S::Space;
                             } else {
                                 // no-op
@@ -156,7 +161,7 @@ impl StrNode {
                         }
                         b']' => {
                             if state == S::Name {
-                                name = Some(String::from_utf8(chunk)?); 
+                                name = Some(String::from_utf8(chunk.to_vec())?); 
                             } 
                             state = S::Finish;
                             r.next();
@@ -193,7 +198,7 @@ impl StrNode {
                         }
                         x if identchar(*x)
                         => {
-                            chunk.push(*c);
+                            chunk.put_u8(*c);
                             state = S::Chunk;
                         }
                         b'"' => {
@@ -228,7 +233,7 @@ impl StrNode {
                     match c {
                         x if identchar(*x)
                         => {
-                            chunk.push(*c);
+                            chunk.put_u8(*c);
                         }
                         b' ' | b']' => {
                             if chunk.is_empty() {
@@ -238,12 +243,12 @@ impl StrNode {
                                     name.as_deref().unwrap_or("???"),
                                 );
                             }
-                            let ch = String::from_utf8(chunk)?;
-                            chunk = Vec::with_capacity(20);
+                            let ch = chunk;
+                            chunk = BytesMut::with_capacity(20);
                             if let Some(pn) = property_name {
-                                properties.push((Ident(pn), StringOrSubnode::Str(ch)));
+                                properties.push((Ident(pn), StringOrSubnode::Str(ch.freeze())));
                             } else {
-                                array.push(StringOrSubnode::Str(ch));
+                                array.push(StringOrSubnode::Str(ch.freeze()));
                             }
                             property_name = None;
                             if *c == b']' {
@@ -262,9 +267,9 @@ impl StrNode {
                                     name.as_deref().unwrap_or("???"),
                                 );
                             }
-                            let ch = String::from_utf8(chunk)?;
+                            let ch = String::from_utf8(chunk.to_vec())?;
                             property_name = Some(ch);
-                            chunk = Vec::with_capacity(20);
+                            chunk = BytesMut::with_capacity(20);
                         }
                         b'"' => {
                             if property_name.is_none() || ! chunk.is_empty() {
@@ -309,12 +314,12 @@ impl StrNode {
                 S::ChunkEsc => {
                     match c {
                         b'"' => {
-                            let ch = String::from_utf8(chunk)?;
-                            chunk = Vec::with_capacity(20);
+                            let ch = chunk;
+                            chunk = BytesMut::with_capacity(20);
                             if let Some(pn) = property_name {
-                                properties.push((Ident(pn), StringOrSubnode::Str(ch)));
+                                properties.push((Ident(pn), StringOrSubnode::Str(ch.freeze())));
                             } else {
-                                array.push(StringOrSubnode::Str(ch));
+                                array.push(StringOrSubnode::Str(ch.freeze()));
                             }
                             property_name = None;
                             state = S::ForcedSpace;
@@ -323,17 +328,17 @@ impl StrNode {
                             state = S::ChunkEscBs;
                         }
                         _ => {
-                            chunk.push(*c);
+                            chunk.put_u8(*c);
                         }
                     }
                 }
                 S::ChunkEscBs => {
                     match c {
-                        b't' => chunk.push(b'\t'),
-                        b'n' => chunk.push(b'\n'),
-                        b'\'' => chunk.push(b'\''),
-                        b'"' => chunk.push(b'"'),
-                        b'\\' => chunk.push(b'\\'),
+                        b't' => chunk.put_u8(b'\t'),
+                        b'n' => chunk.put_u8(b'\n'),
+                        b'\'' => chunk.put_u8(b'\''),
+                        b'"' => chunk.put_u8(b'"'),
+                        b'\\' => chunk.put_u8(b'\\'),
                         b'x' => (),
                         _ => anyhow::bail!(
                             "Invalid escape sequence character {} when parsing tree node {}",
@@ -356,7 +361,7 @@ impl StrNode {
                         ),
                     }
                     if hex.len() == 2 {
-                        chunk.push(hex[0] * 16 + hex[1]);
+                        chunk.put_u8(hex[0] * 16 + hex[1]);
                         state = S::ChunkEsc;
                         hex.clear();
                     }
@@ -395,12 +400,13 @@ impl std::str::FromStr for StrNode {
 }
 
 impl super::PropertyValueType {
-    pub fn interpret(&self, x: &str) -> super::Result<super::PropertyValue> {
+    pub fn interpret(&self, b: &Bytes) -> super::Result<super::PropertyValue> {
         use super::{PropertyValue as PV, PropertyValueType as PVT};
+        let x = String::from_utf8(b.to_vec())?;
         match self {
-            PVT::Stringy => Ok(PV::Stringy(x.to_owned())),
+            PVT::Stringy => Ok(PV::Stringy(x)),
             PVT::Enummy(si) => {
-                if let Some(sym) = si.get(x) {
+                if let Some(sym) = si.get(&x) {
                     Ok(PV::Enummy(sym))
                 } else {
                     let totallen : usize  = si.into_iter().map(|(_,v)|v.len()+1).sum();
@@ -485,7 +491,7 @@ impl StrNode {
                         (ty, Str(x)) => ty.interpret(x).with_context(|| {
                             format!(
                                 "Failed to parse property {} in node {} that has value `{}`",
-                                k, self.name.0, x
+                                k, self.name.0, ValueForPrinting(x.clone())
                             )
                         })?,
                     };
@@ -513,7 +519,7 @@ impl StrNode {
                         (ty, Str(x)) => ty.interpret(x).with_context(|| {
                             format!(
                                 "Failed to array element number {} in node {} that has value `{}`",
-                                n, self.name.0, x
+                                n, self.name.0, ValueForPrinting(x.clone()),
                             )
                         })?,
                         (_, Subnode(_)) => anyhow::bail!("A subnode is not expected as an array element number {} of node {}", n, self.name.0),
@@ -574,7 +580,8 @@ impl StrNode {
                     }
                     (super::PropertyValue::Enummy(sym), super::PropertyValueType::Enummy(symtab)) => {
                         if let Some(s) = symtab.resolve(sym) {
-                            StringOrSubnode::Str(s.to_owned())
+                            let ss : Bytes = (s.to_owned()).into();
+                            StringOrSubnode::Str(ss)
                         } else {
                             anyhow::bail!(
                                 "Failed to resolve enum value {} for property {} in node type {}",
@@ -588,7 +595,7 @@ impl StrNode {
                         anyhow::bail!("Inconsistent property value for {} in node type {}", pn, name.0)
                     }
                     (opv, _) => {
-                        StringOrSubnode::Str(format!("{}", opv))
+                        StringOrSubnode::Str(format!("{}", opv).into())
                     }
                 };
                 properties.push((Ident(pn), sn));
@@ -612,7 +619,7 @@ impl StrNode {
                     anyhow::bail!("Inconsistent array element value in node type {}", name.0)
                 }
                 (opv, Some(_)) => {
-                    StringOrSubnode::Str(format!("{}", opv))
+                    StringOrSubnode::Str(format!("{}", opv).into())
                 }
             };
             array.push(sn);
