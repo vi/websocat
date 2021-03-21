@@ -74,6 +74,7 @@ fn proptype(x: &websocat_api::PropertyValueTypeTag, enbt: &Option<syn::TypePath>
         websocat_api::PropertyValueTypeTag::Uri => q!{::websocat_api::http::Uri},
         websocat_api::PropertyValueTypeTag::Duration => q!{::std::time::Duration},
         websocat_api::PropertyValueTypeTag::ChildNode => q!{::websocat_api::NodeId},
+        websocat_api::PropertyValueTypeTag::BytesBuffer => q!{::websocat_api::bytes::Bytes},
     }
 }
 
@@ -86,6 +87,7 @@ fn resolve_type(x: &syn::Ident) -> websocat_api::PropertyValueTypeTag {
         "SocketAddr" => websocat_api::PropertyValueTypeTag::SockAddr,
         "u16" => websocat_api::PropertyValueTypeTag::PortNumber,
         "bool" => websocat_api::PropertyValueTypeTag::Booly,
+        "Bytes" => websocat_api::PropertyValueTypeTag::BytesBuffer,
         y => panic!("Unknown type {}", y),
     } 
 }
@@ -117,6 +119,7 @@ impl PVTHelper for websocat_api::PropertyValueTypeTag {
             Uri,
             Duration,
             ChildNode,
+            BytesBuffer,
         )
     }
 }

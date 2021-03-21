@@ -15,6 +15,9 @@ pub fn all_node_classes() -> websocat_api::ClassRegistrar {
     reg.register::<websocat_ioless::Mirror>();
     reg.register::<websocat_ioless::DevNull>();
     reg.register::<websocat_ioless::Split>();
+    reg.register::<websocat_ioless::Literal>();
+    reg.register::<websocat_ioless::Stream>();
+    reg.register::<websocat_ioless::Datagrams>();
     reg
 }
     

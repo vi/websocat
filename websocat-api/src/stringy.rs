@@ -402,9 +402,13 @@ impl std::str::FromStr for StrNode {
 impl super::PropertyValueType {
     pub fn interpret(&self, b: &Bytes) -> super::Result<super::PropertyValue> {
         use super::{PropertyValue as PV, PropertyValueType as PVT};
+        if matches!(self, PVT::BytesBuffer) {
+            return Ok(PV::BytesBuffer(b.clone()));
+        }
         let x = String::from_utf8(b.to_vec())?;
         match self {
             PVT::Stringy => Ok(PV::Stringy(x)),
+            PVT::BytesBuffer => unreachable!(),
             PVT::Enummy(si) => {
                 if let Some(sym) = si.get(&x) {
                     Ok(PV::Enummy(sym))

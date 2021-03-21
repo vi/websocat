@@ -83,6 +83,7 @@ pub enum PropertyValue {
 #[derive(Debug,Clone,Eq,PartialEq)]
 pub enum PropertyValueType {
     Stringy,
+    BytesBuffer,
     Enummy(string_interner::StringInterner),
     Numbery,
     Floaty,
@@ -111,6 +112,7 @@ impl std::fmt::Display for PropertyValueType {
                 Ok(())
             }
             PropertyValueType::Stringy    => write!(f,"string"),
+            PropertyValueType::BytesBuffer => write!(f,"bytes"),
             PropertyValueType::Numbery    => write!(f,"number"),
             PropertyValueType::Floaty     => write!(f,"float"),
             PropertyValueType::Booly      => write!(f,"bool"),
@@ -129,6 +131,7 @@ impl PropertyValueType {
     pub fn tag(&self) -> PropertyValueTypeTag {
         match self {
             PropertyValueType::Stringy    => PropertyValueTypeTag::Stringy,
+            PropertyValueType::BytesBuffer=> PropertyValueTypeTag::BytesBuffer,
             PropertyValueType::Enummy(_)  => PropertyValueTypeTag::Enummy,
             PropertyValueType::Numbery    => PropertyValueTypeTag::Numbery,
             PropertyValueType::Floaty     => PropertyValueTypeTag::Floaty    ,
@@ -147,6 +150,7 @@ impl PropertyValueType {
 #[derive(Debug,Clone,Eq,PartialEq,Ord,PartialOrd,Hash)]
 pub enum PropertyValueTypeTag {
     Stringy,
+    BytesBuffer,
     Enummy,
     Numbery,
     Floaty,

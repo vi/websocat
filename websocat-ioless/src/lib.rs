@@ -1,19 +1,23 @@
-use websocat_api::{anyhow, tokio, futures, bytes};
-use websocat_api::{Bipipe, Node, RunContext, Result, NodeId, async_trait::async_trait, Source, Sink};
-use websocat_derive::{WebsocatNode, WebsocatEnum};
+use websocat_api::{anyhow, bytes, futures, tokio};
+use websocat_api::{
+    async_trait::async_trait, Bipipe, Node, NodeId, Result, RunContext, Sink, Source,
+};
+use websocat_derive::{WebsocatEnum, WebsocatNode};
 
-#[derive(Debug,Clone,WebsocatNode)]
-#[websocat_node(
-    official_name="identity"
-)]
+#[derive(Debug, Clone, WebsocatNode)]
+#[websocat_node(official_name = "identity")]
 pub struct Identity {
     /// inner node to be identical to
-    inner : NodeId,
+    inner: NodeId,
 }
 
 #[async_trait]
 impl Node for Identity {
-    async fn run(self: std::pin::Pin<std::sync::Arc<Self>>, ctx: RunContext, multiconn: Option<websocat_api::ServerModeContext>) -> Result<Bipipe> {
+    async fn run(
+        self: std::pin::Pin<std::sync::Arc<Self>>,
+        ctx: RunContext,
+        multiconn: Option<websocat_api::ServerModeContext>,
+    ) -> Result<Bipipe> {
         tracing::debug!("Before running inner node of identity node");
         let x = ctx.nodes[self.inner].clone().run(ctx, multiconn).await?;
         tracing::debug!("After running inner node of identity node");
@@ -21,22 +25,32 @@ impl Node for Identity {
     }
 }
 
-#[derive(Debug,Eq,PartialEq,Copy,Clone,WebsocatEnum)]
+#[derive(Debug, Eq, PartialEq, Copy, Clone, WebsocatEnum)]
 #[websocat_enum(rename_all_lowercase)]
 pub enum NodeMode {
     Bytes,
     Datagrams,
 }
 
-#[derive(Debug,Clone,WebsocatNode)]
-#[websocat_node(
-    official_name="mirror",
-    validate,
-)]
+fn validate_buffer_size(bs: &mut Option<i64>, def: i64) -> Result<()> {
+    if bs.is_none() {
+        *bs = Some(def);
+    }
+    if bs.unwrap() < 1 {
+        anyhow::bail!("buffer_size must be positive");
+    }
+    if bs.unwrap() > 100 * 1024 * 1024 {
+        tracing::warn!("Suspiciously large buffer size encountered");
+    }
+    Ok(())
+}
+
+#[derive(Debug, Clone, WebsocatNode)]
+#[websocat_node(official_name = "mirror", validate)]
 pub struct Mirror {
     /// bytestream mirror of datagram mirror
     #[websocat_node(enum)]
-    pub mode : NodeMode,
+    pub mode: NodeMode,
 
     /// Size of the buffer in bytes mode
     pub buffer_size: Option<i64>,
@@ -47,32 +61,28 @@ impl Mirror {
         match self.mode {
             NodeMode::Datagrams => {
                 if self.buffer_size.is_some() {
-                    anyhow::bail!("Settign buffer_size in datagrams mode is meaningless");
+                    anyhow::bail!("Setting buffer_size in datagrams mode is meaningless");
                 }
             }
             NodeMode::Bytes => {
-                if self.buffer_size.is_none() {
-                    self.buffer_size = Some(1024);
-                }
-                if self.buffer_size.unwrap() < 1 {
-                    anyhow::bail!("buffer_size must be positive");
-                }
-                if self.buffer_size.unwrap() > 100*1024*1024 {
-                    tracing::warn!("Suspiciously large buffer_size in mirror node");
-                }
+                validate_buffer_size(&mut self.buffer_size, 1024)?;
             }
         }
-       
+
         Ok(())
     }
 }
 
 #[async_trait]
 impl Node for Mirror {
-    async fn run(self: std::pin::Pin<std::sync::Arc<Self>>, _ctx: RunContext, _multiconn: Option<websocat_api::ServerModeContext>) -> Result<Bipipe> {
+    async fn run(
+        self: std::pin::Pin<std::sync::Arc<Self>>,
+        _ctx: RunContext,
+        _multiconn: Option<websocat_api::ServerModeContext>,
+    ) -> Result<Bipipe> {
         match self.mode {
             NodeMode::Bytes => {
-                let (tx,rx) = tokio::io::duplex(self.buffer_size.unwrap() as usize);
+                let (tx, rx) = tokio::io::duplex(self.buffer_size.unwrap() as usize);
                 Ok(Bipipe {
                     r: Source::ByteStream(Box::pin(rx)),
                     w: Sink::ByteStream(Box::pin(tx)),
@@ -80,19 +90,15 @@ impl Node for Mirror {
                 })
             }
             NodeMode::Datagrams => {
-                let (tx,rx) = tokio::sync::mpsc::channel::<bytes::Bytes>(1);
-                let tx2 = futures::sink::unfold(tx, move |tx, buf: bytes::Bytes| {
-                    async move {
-                        tracing::trace!("{} bytes buffer goes into the mirror", buf.len());
-                        tx.send(buf).await?;
-                        Ok(tx)
-                    }
+                let (tx, rx) = tokio::sync::mpsc::channel::<bytes::Bytes>(1);
+                let tx2 = futures::sink::unfold(tx, move |tx, buf: bytes::Bytes| async move {
+                    tracing::trace!("{} bytes buffer goes into the mirror", buf.len());
+                    tx.send(buf).await?;
+                    Ok(tx)
                 });
-                let rx2 = futures::stream::unfold(rx, move |mut rx| {
-                    async move {
-                        let buf = rx.recv().await;
-                        buf.map(move |x| (Ok(x), rx))
-                    }
+                let rx2 = futures::stream::unfold(rx, move |mut rx| async move {
+                    let buf = rx.recv().await;
+                    buf.map(move |x| (Ok(x), rx))
                 });
                 Ok(Bipipe {
                     r: Source::Datagrams(Box::pin(rx2)),
@@ -104,34 +110,32 @@ impl Node for Mirror {
     }
 }
 
-
-
-#[derive(Debug,Clone,WebsocatNode)]
-#[websocat_node(
-    official_name="devnull",
-)]
+#[derive(Debug, Clone, WebsocatNode)]
+#[websocat_node(official_name = "devnull")]
 pub struct DevNull {
     /// bytestream void of datagram void
     #[websocat_node(enum)]
-    pub mode : NodeMode,
+    pub mode: NodeMode,
 }
 
 #[async_trait]
 impl Node for DevNull {
-    async fn run(self: std::pin::Pin<std::sync::Arc<Self>>, _ctx: RunContext, _multiconn: Option<websocat_api::ServerModeContext>) -> Result<Bipipe> {
+    async fn run(
+        self: std::pin::Pin<std::sync::Arc<Self>>,
+        _ctx: RunContext,
+        _multiconn: Option<websocat_api::ServerModeContext>,
+    ) -> Result<Bipipe> {
         match self.mode {
-            NodeMode::Bytes => {
-                Ok(Bipipe {
-                    r: Source::ByteStream(Box::pin(tokio::io::empty())),
-                    w: Sink::ByteStream(Box::pin(tokio::io::sink())),
-                    closing_notification: None,
-                })
-            }
+            NodeMode::Bytes => Ok(Bipipe {
+                r: Source::ByteStream(Box::pin(tokio::io::empty())),
+                w: Sink::ByteStream(Box::pin(tokio::io::sink())),
+                closing_notification: None,
+            }),
             NodeMode::Datagrams => {
                 use futures::sink::SinkExt;
                 Ok(Bipipe {
                     r: Source::Datagrams(Box::pin(futures::stream::empty())),
-                    w: Sink::Datagrams(Box::pin(futures::sink::drain().sink_map_err(|x|x.into()))),
+                    w: Sink::Datagrams(Box::pin(futures::sink::drain().sink_map_err(|x| x.into()))),
                     closing_notification: None,
                 })
             }
@@ -139,22 +143,24 @@ impl Node for DevNull {
     }
 }
 
-#[derive(Debug,Clone,WebsocatNode)]
-#[websocat_node(
-    official_name="split",
-)]
+#[derive(Debug, Clone, WebsocatNode)]
+#[websocat_node(official_name = "split")]
 pub struct Split {
     /// Subnode to use for receiving data
-    pub rx : Option<NodeId>,
+    pub r: Option<NodeId>,
 
     /// Subnode to use for sending data
-    pub tx : Option<NodeId>,
+    pub w: Option<NodeId>,
 }
 
 #[async_trait]
 impl Node for Split {
-    async fn run(self: std::pin::Pin<std::sync::Arc<Self>>, ctx: RunContext, _multiconn: Option<websocat_api::ServerModeContext>) -> Result<Bipipe> {
-        match (self.rx, self.tx) {
+    async fn run(
+        self: std::pin::Pin<std::sync::Arc<Self>>,
+        ctx: RunContext,
+        _multiconn: Option<websocat_api::ServerModeContext>,
+    ) -> Result<Bipipe> {
+        match (self.r, self.w) {
             (None, None) => {
                 tracing::info!("Split node is fully dummy, neither `rx` nor `tx`.");
                 Ok(Bipipe {
@@ -182,13 +188,13 @@ impl Node for Split {
                 })
             }
             (Some(rx), Some(tx)) => {
-                let mut xr : Option<Bipipe> = None;
-                let mut xw : Option<Bipipe> = None;
+                let mut xr: Option<Bipipe> = None;
+                let mut xw: Option<Bipipe> = None;
                 let rn = ctx.nodes[rx].clone();
                 let wn = ctx.nodes[tx].clone();
                 let mut rxf = rn.run(ctx.clone(), None);
                 let mut txf = wn.run(ctx, None);
-                while xr.is_none() || xw.is_none()  {
+                while xr.is_none() || xw.is_none() {
                     tokio::select! {
                         rr = &mut rxf, if xr.is_none() => {
                             xr = Some(rr?);
@@ -219,5 +225,161 @@ impl Node for Split {
                 })
             }
         }
+    }
+}
+
+#[derive(Debug, Clone, WebsocatNode)]
+#[websocat_node(official_name = "literal")]
+pub struct Literal {
+    /// List of explicit datagrams to provide as a datagram source
+    pub bufs: Vec<bytes::Bytes>,
+}
+
+#[async_trait]
+impl Node for Literal {
+    async fn run(
+        self: std::pin::Pin<std::sync::Arc<Self>>,
+        _ctx: RunContext,
+        _multiconn: Option<websocat_api::ServerModeContext>,
+    ) -> Result<Bipipe> {
+        use futures::stream::StreamExt;
+        let src = futures::stream::iter(self.bufs.clone()).map(|x| Ok(x));
+        Ok(Bipipe {
+            r: Source::Datagrams(Box::pin(src)),
+            w: Sink::None,
+            closing_notification: None,
+        })
+    }
+}
+
+#[derive(Debug, Clone, WebsocatNode)]
+#[websocat_node(official_name = "stream", validate)]
+pub struct Stream {
+    /// The node whose datagram sequences are to be converted to bytestreams
+    pub inner: NodeId,
+
+    /// Buffer size for temporary reading area
+    pub buffer_size_r: Option<i64>,
+
+    /// Buffer size for temporary writing area
+    pub buffer_size_w: Option<i64>,
+}
+
+impl Stream {
+    fn validate(&mut self) -> Result<()> {
+        validate_buffer_size(&mut self.buffer_size_r, 1024)?;
+        validate_buffer_size(&mut self.buffer_size_w, 1024)?;
+        Ok(())
+    }
+}
+
+#[async_trait]
+impl Node for Stream {
+    async fn run(
+        self: std::pin::Pin<std::sync::Arc<Self>>,
+        ctx: RunContext,
+        multiconn: Option<websocat_api::ServerModeContext>,
+    ) -> Result<Bipipe> {
+        let p = ctx.nodes[self.inner].clone().run(ctx, multiconn).await?;
+
+        if !matches!(p.r, Source::Datagrams(_)) && !matches!(p.w, Sink::Datagrams(_)) {
+            tracing::warn!("Redundant use of `bytestream` node");
+        }
+
+        let r: Source = match p.r {
+            Source::Datagrams(dgs) => {
+                let (tx, rx) = tokio::io::duplex(self.buffer_size_r.unwrap() as usize);
+                use futures::{StreamExt, TryStreamExt};
+                use tokio_util::codec::BytesCodec;
+                let dgs = dgs.map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e));
+                let w = tokio_util::codec::FramedWrite::new(tx, BytesCodec::new());
+
+                tokio::spawn(async move {
+                    if let Err(e) = dgs.forward(w).await {
+                        tracing::error!("Error from `stream` node's read part: {}", e);
+                    }
+                });
+                Source::ByteStream(Box::pin(rx))
+            }
+            x => x,
+        };
+
+        let w: Sink = match p.w {
+            Sink::Datagrams(dgs) => {
+                let (tx, rx) = tokio::io::duplex(self.buffer_size_w.unwrap() as usize);
+                use futures::StreamExt;
+                use tokio_util::codec::BytesCodec;
+                let r = tokio_util::codec::FramedRead::new(rx, BytesCodec::new());
+
+                tokio::spawn(async move {
+                    if let Err(e) = r
+                        .map(|x| x.map(|y| y.freeze()).map_err(|e| e.into()))
+                        .forward(dgs)
+                        .await
+                    {
+                        tracing::error!("Error from `stream` node's write part: {}", e);
+                    }
+                });
+                Sink::ByteStream(Box::pin(tx))
+            }
+            x => x,
+        };
+
+        Ok(Bipipe {
+            r,
+            w,
+            closing_notification: p.closing_notification,
+        })
+    }
+}
+
+#[derive(Debug, Clone, WebsocatNode)]
+#[websocat_node(official_name = "datagrams")]
+pub struct Datagrams {
+    /// The node whose datagram sequences are to be converted to bytestreams
+    pub inner: NodeId,
+}
+
+#[async_trait]
+impl Node for Datagrams {
+    async fn run(
+        self: std::pin::Pin<std::sync::Arc<Self>>,
+        ctx: RunContext,
+        multiconn: Option<websocat_api::ServerModeContext>,
+    ) -> Result<Bipipe> {
+        let p = ctx.nodes[self.inner].clone().run(ctx, multiconn).await?;
+
+        if !matches!(p.r, Source::ByteStream(_)) && !matches!(p.w, Sink::ByteStream(_)) {
+            tracing::warn!("Redundant use of `datagrams` node");
+        }
+
+        let r: Source = match p.r {
+            Source::ByteStream(s) => {
+                use futures::{StreamExt, TryStreamExt};
+                use tokio_util::codec::BytesCodec;
+                let r = tokio_util::codec::FramedRead::new(s, BytesCodec::new());
+                let r = r.map_err(|e| e.into());
+                let r = r.map(|x| x.map(|y| y.freeze()));
+                Source::Datagrams(Box::pin(r))
+            }
+            x => x,
+        };
+
+        let w: Sink = match p.w {
+            Sink::ByteStream(s) => {
+                use tokio_util::codec::BytesCodec;
+                use futures::SinkExt;
+                let w = tokio_util::codec::FramedWrite::new(s, BytesCodec::new());
+                let w = w.sink_map_err(|e|e.into());
+                Sink::Datagrams(Box::pin(w))
+            }
+            x => x,
+        };
+
+        Ok(Bipipe {
+            r,
+            w,
+            closing_notification: p.closing_notification,
+        })
     }
 }
