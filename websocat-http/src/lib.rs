@@ -56,6 +56,9 @@ pub struct HttpClient {
 
     /// Request URI
     uri : Option<websocat_api::http::Uri>,
+
+    /// Request WebSocket upgrade from server
+    websocket: Option<bool>,
 }
 
 impl HttpClient {
@@ -104,6 +107,14 @@ impl HttpClient {
             anyhow::bail!("Cannot set both textplain and options to true");
         }
 
+        if self.stream_request_body == Some(true) && self.websocket == Some(true) {
+            anyhow::bail!("stream_request_body and websocket options are incompatible");
+        }
+
+        if self.websocket == Some(true) {
+            self.upgrade = Some(true);
+        }
+
         Ok(())
     }
 }
@@ -111,6 +122,17 @@ impl HttpClient {
 impl HttpClient {
     fn get_request(&self, body: hyper::Body, ctx: &websocat_api::RunContext) -> Result<hyper::Request<hyper::Body>> {
         let mut rq = hyper::Request::new(body);
+
+        if self.websocket == Some(true) {
+            let r: [u8; 16] = rand::random();
+            let key = base64::encode(&r);
+
+            rq.headers_mut().insert(hyper::header::CONNECTION, "Upgrade".parse().unwrap());
+            rq.headers_mut().insert(hyper::header::UPGRADE, "websocket".parse().unwrap());
+            rq.headers_mut().insert(hyper::header::SEC_WEBSOCKET_VERSION, "13".parse().unwrap());
+            rq.headers_mut().insert(hyper::header::SEC_WEBSOCKET_KEY, key.parse().unwrap());
+        }
+
         if let Some(ref verb) = self.method {
             *rq.method_mut() = hyper::Method::from_bytes(verb.as_bytes())?;
         } else if self.request_supposed_to_contain_body() {
