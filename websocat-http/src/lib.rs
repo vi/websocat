@@ -2,6 +2,22 @@ use websocat_api::{
     anyhow, async_trait::async_trait, bytes, futures::TryStreamExt, tokio, NodeId, Result,
 };
 use websocat_derive::WebsocatNode;
+#[derive(Debug, Clone, WebsocatNode)]
+#[websocat_node(official_name = "header")]
+pub struct Header {
+    /// HTTP header name
+    n: String,
+    /// HTTP header value
+    v: String,
+}
+
+#[async_trait]
+impl websocat_api::Node for Header {
+    async fn run(self: std::pin::Pin<std::sync::Arc<Self>>, _ctx: websocat_api::RunContext, _multiconn: Option<websocat_api::ServerModeContext>) -> Result<websocat_api::Bipipe> {
+        anyhow::bail!("`header` nodes are not supposed to be used directly, only array elements of http-client or http-server nodes")
+    }
+}
+
 
 #[derive(Debug, Clone, WebsocatNode)]
 #[websocat_node(official_name = "http-client", validate)]
@@ -23,6 +39,23 @@ pub struct HttpClient {
 
     /// Preallocate this amount of memory for caching request body
     buffer_request_body_size_hint: Option<i64>,
+
+    /// Override HTTP request verb
+    method: Option<String>,
+
+    /// Set request content_type to `application/json`
+    //#[cli="json"]
+    json: Option<bool>, 
+
+    /// Set request content_type to `text/plain`
+    //#[cli="json"]
+    textplain: Option<bool>, 
+
+    /// Add these headers to HTTP request
+    request_headers: Vec<NodeId>,
+
+    /// Request URI
+    uri : Option<websocat_api::http::Uri>,
 }
 
 impl HttpClient {
@@ -63,18 +96,59 @@ impl HttpClient {
             self.buffer_request_body_size_hint = Some(1024);
         }
 
+        if let Some(ref verb) = self.method {
+            let _ = hyper::Method::from_bytes(verb.as_bytes())?;
+        }
+
+        if self.textplain == Some(true) && self.json == Some(true) {
+            anyhow::bail!("Cannot set both textplain and options to true");
+        }
+
         Ok(())
     }
 }
 
 impl HttpClient {
-    fn get_request(&self, body: hyper::Body) -> Result<hyper::Request<hyper::Body>> {
+    fn get_request(&self, body: hyper::Body, ctx: &websocat_api::RunContext) -> Result<hyper::Request<hyper::Body>> {
         let mut rq = hyper::Request::new(body);
-        *rq.method_mut() = hyper::Method::POST;
-        //rq.headers_mut().insert(hyper::header::CONTENT_TYPE, "text/plain".parse().unwrap());
-        //rq.headers_mut().insert(hyper::header::TRANSFER_ENCODING, "identity".parse().unwrap());
-        //rq.headers_mut().insert(hyper::header::CONTENT_LENGTH, "15".parse().unwrap());
+        if let Some(ref verb) = self.method {
+            *rq.method_mut() = hyper::Method::from_bytes(verb.as_bytes())?;
+        } else if self.request_supposed_to_contain_body() {
+            *rq.method_mut() = hyper::Method::POST;
+        }
+        if self.json == Some(true) {
+            rq.headers_mut().insert(hyper::header::CONTENT_TYPE, "application/json".parse().unwrap());
+        }
+        if self.textplain == Some(true) {
+            rq.headers_mut().insert(hyper::header::CONTENT_TYPE, "text/plain".parse().unwrap());
+        }
+
+        for h in &self.request_headers {
+            use websocat_api::PropertyValue;
+            let h = &*ctx.nodes[h];
+            if let (Some(PropertyValue::Stringy(n)), Some(PropertyValue::Stringy(v))) = (h.get_property("n"), h.get_property("v")) {
+                rq.headers_mut().insert(
+                    hyper::header::HeaderName::from_bytes(n.as_bytes())?, 
+                    hyper::header::HeaderValue::from_bytes(v.as_bytes())?,
+                );
+            } else {
+                anyhow::bail!("http-client's array elements must be `header` nodes");
+            }
+        }
+
+        if let Some(ref uri) = self.uri {
+            *rq.uri_mut() = uri.clone();
+        }
+
         Ok(rq)
+    }
+
+    fn handle_response(&self, _resp: &hyper::Response<hyper::Body>) -> Result<()> {
+        Ok(())
+    }
+
+    fn request_supposed_to_contain_body(&self) -> bool {
+        self.stream_request_body == Some(true) || self.request_body.is_some()
     }
 }
 
@@ -119,8 +193,9 @@ impl websocat_api::Node for HttpClient {
 
                 tokio::spawn(async move {
                     let try_block = async move {
-                        let rq = self.get_request(request_body)?;
+                        let rq = self.get_request(request_body, &ctx)?;
                         let resp = sr.send_request(rq).await?;
+                        self.handle_response(&resp)?;
                         let mut body = resp.into_body();
                         use futures::stream::StreamExt;
                         while let Some(buf) = body.next().await {
@@ -168,8 +243,9 @@ impl websocat_api::Node for HttpClient {
                 tokio::spawn(async move {
                     let try_block = async move {
                         let request_buf = rx.await?;
-                        let rq = self.get_request(request_buf.freeze().into())?;
+                        let rq = self.get_request(request_buf.freeze().into(), &ctx)?;
                         let resp = sr.send_request(rq).await?;
+                        self.handle_response(&resp)?;
                         let mut body = resp.into_body();
                         use futures::stream::StreamExt;
                         while let Some(buf) = body.next().await {
@@ -202,9 +278,11 @@ impl websocat_api::Node for HttpClient {
             })
         } else {
             // body is not received from upstream in this mode
-            let rq = hyper::Request::new(hyper::Body::empty());
+            let rqbody = hyper::Body::empty();
+            let rq = self.get_request(rqbody, &ctx)?;
 
             let resp = sr.send_request(rq).await?;
+            self.handle_response(&resp)?;
 
             if self.upgrade == Some(true) {
                 let upg = hyper::upgrade::on(resp).await?;

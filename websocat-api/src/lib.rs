@@ -11,7 +11,7 @@ use tokio::io::{AsyncRead,AsyncWrite};
 use std::future::Future;
 use std::net::{SocketAddr,IpAddr};
 use std::path::PathBuf;
-use downcast_rs::{impl_downcast,Downcast};
+use downcast_rs::{impl_downcast,DowncastSync};
 use std::fmt::Debug;
 use std::sync::{Arc,Mutex};
 use async_trait::async_trait;
@@ -28,6 +28,8 @@ pub extern crate async_trait;
 pub extern crate string_interner;
 pub extern crate bytes;
 pub extern crate futures;
+pub extern crate downcast_rs;
+pub extern crate http;
 
 declare_slab_token!(pub NodeId);
 
@@ -255,22 +257,22 @@ pub trait NodeProperyAccess : Debug  {
 /// The tree of those is supposed to be checked and modified by linting engine.
 /// Primary way to get those is by `SpecifierClass::parse`ing respective `StringyNode`s.
 #[async_trait]
-pub trait Node : NodeProperyAccess + Downcast {
+pub trait Node : NodeProperyAccess + DowncastSync {
     /// Actually start the node (i.e. connect to TCP or recursively start another child node)
     /// If you want to serve multiple connections and `multiconn` is not None, you can
     /// trigger starting another Tokio task by using `multiconn`.
     async fn run(self: Pin<Arc<Self>>, ctx: RunContext, multiconn: Option<ServerModeContext>) -> Result<Bipipe>;
 }
-impl_downcast!(Node);
+impl_downcast!(sync Node);
 pub type DNode = Pin<Arc<dyn Node + Send + Sync + 'static>>;
 
 pub struct NodeInATree<'a>(pub NodeId, pub &'a Tree);
 
 
-pub trait GlobalInfo : Debug + Downcast {
+pub trait GlobalInfo : Debug + DowncastSync {
 
 }
-impl_downcast!(GlobalInfo);
+impl_downcast!(sync GlobalInfo);
 type Globals = HashMap<String, Box<dyn GlobalInfo + Send + 'static>>;
 
 pub enum NodePlacement {

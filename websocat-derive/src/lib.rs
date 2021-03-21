@@ -88,6 +88,7 @@ fn resolve_type(x: &syn::Ident) -> websocat_api::PropertyValueTypeTag {
         "u16" => websocat_api::PropertyValueTypeTag::PortNumber,
         "bool" => websocat_api::PropertyValueTypeTag::Booly,
         "Bytes" => websocat_api::PropertyValueTypeTag::BytesBuffer,
+        "Uri" => websocat_api::PropertyValueTypeTag::Uri,
         y => panic!("Unknown type {}", y),
     } 
 }
@@ -302,7 +303,7 @@ impl ClassInfo {
                 let typ = p.typ.ident();
                 if ! p.optional {
                     property_accessors.extend(q! {
-                        #qn => Some(::websocat_api::PropertyValue::#typ(self.#nam)),
+                        #qn => Some(::websocat_api::PropertyValue::#typ(self.#nam.clone())),
                     });
                 } else {
                     property_accessors.extend(q! {

@@ -432,7 +432,7 @@ impl super::PropertyValueType {
             PVT::IpAddr => Ok(PV::IpAddr(x.parse()?)),
             PVT::PortNumber => Ok(PV::PortNumber(x.parse()?)),
             PVT::Path => todo!(),
-            PVT::Uri => todo!(),
+            PVT::Uri => Ok(PV::Uri(x.parse()?)),
             PVT::Duration => todo!(),
             PVT::ChildNode => panic!(
                 "You can't use PropertyValueType::interpret for obtaining child node pointers"
