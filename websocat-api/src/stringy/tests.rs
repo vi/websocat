@@ -7,7 +7,7 @@ use super::*;
 use StringOrSubnode::{Str, Subnode};
 
 fn ss(x: &'static str) -> StringOrSubnode {
-    Str(x.to_owned())
+    Str(x.to_owned().into())
 }
 fn s(x: &'static str) -> Ident {
     Ident(x.to_owned())
@@ -73,7 +73,7 @@ fn test_display_simple() {
             StrNode {
                 name: s("rrr"),
                 properties: vec![(s("a"), ss("b"))].into_iter().collect(),
-                array: vec![Str("c".to_owned())],
+                array: vec![Str("c".to_owned().into())],
                 enable_autopopulate: false,
             }
         ),
@@ -375,7 +375,7 @@ impl proptest::strategy::ValueTree for SoSTree {
     type Value = super::StringOrSubnode;
     fn current(&self) -> Self::Value {
         match self {
-            SoSTree::Str(x) => super::StringOrSubnode::Str(x.current()),
+            SoSTree::Str(x) => super::StringOrSubnode::Str(x.current().into()),
             SoSTree::Sub(x) => super::StringOrSubnode::Subnode(x.current()),
         }
     }

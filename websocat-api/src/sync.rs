@@ -73,7 +73,7 @@ where
 #[async_trait::async_trait]
 impl<T: Node + Send + Sync + 'static> crate::Node for T {
     async fn run(
-        &self,
+        self: std::pin::Pin<std::sync::Arc<Self>>,
         _ctx: RunContext,
         _multiconn: Option<crate::ServerModeContext>,
     ) -> Result<crate::Bipipe> {
