@@ -59,6 +59,7 @@ impl<T: Buf> std::fmt::Display for ValueForPrinting<T> {
             s.push_str(&String::from_utf8(x).unwrap());
         }
         if buf.is_empty() { tainted = true; }
+        if buf == b"@" { tainted = true; }
         if tainted {
             write!(f, "\"{}\"", s)?;
         } else {
@@ -106,8 +107,8 @@ fn identchar(b: u8) -> bool {
 
 #[rustfmt::skip] // tends to collapse character ranges into one line and to remove trailing `|`s.
 impl StrNode {
-    #[tracing::instrument(name="StringyNode::read", level="trace", skip(r), err)]
-    fn read(r: &mut std::iter::Peekable<impl Iterator<Item=u8>>) -> Result<StrNode> {
+    #[tracing::instrument(name="StringyNode::read", level="trace", skip(r,require_opening_bracket), err)]
+    fn read(r: &mut std::iter::Peekable<impl Iterator<Item=u8>>, require_opening_bracket: bool) -> Result<StrNode> {
         #[derive(Clone,Copy, Eq, PartialEq, Debug)]
         enum S {
             BeforeName,
@@ -124,7 +125,9 @@ impl StrNode {
         tracing::trace!("Reading from string to a stringy node");
         let mut chunk = BytesMut::with_capacity(20);
 
-        if r.next() != Some(b'[') { anyhow::bail!("Tree node must begin with `[` character"); }
+        if require_opening_bracket {
+            if r.next() != Some(b'[') { anyhow::bail!("Tree node must begin with `[` character"); }
+        }
 
 
         let mut state = S::BeforeName;
@@ -210,7 +213,7 @@ impl StrNode {
                             break;
                         }
                         b'[' => {
-                            let subnode = StrNode::read(r).with_context(||format!(
+                            let subnode = StrNode::read(r, true).with_context(||format!(
                                 "Failed to read subnode array element {} of node {}",
                                 array.len()+1,
                                 name.as_deref().unwrap_or("???"),
@@ -242,6 +245,22 @@ impl StrNode {
                                     property_name.as_deref().unwrap_or("???"),
                                     name.as_deref().unwrap_or("???"),
                                 );
+                            }
+                            if chunk == b"@"[..] && property_name.is_none() {
+                                if *c == b']' {
+                                    anyhow::bail!(
+                                        "Invalid `@ ]` combination at the end of node {}",
+                                        name.as_deref().unwrap_or("???"),
+                                    ); 
+                                }
+                                let subnode = StrNode::read(r, false).with_context(||format!(
+                                    "Failed to read trailing inner subnode element {} of node {}",
+                                    array.len()+1,
+                                    name.as_deref().unwrap_or("???"),
+                                ))?;
+                                properties.push((Ident("inner".to_owned()), StringOrSubnode::Subnode(subnode)));
+                                state = S::Finish;
+                                break;
                             }
                             let ch = chunk;
                             chunk = BytesMut::with_capacity(20);
@@ -288,7 +307,7 @@ impl StrNode {
                                         name.as_deref().unwrap_or("???"),
                                     );
                                 }
-                                let subnode = StrNode::read(r).with_context(||format!(
+                                let subnode = StrNode::read(r, true).with_context(||format!(
                                     "Failed to read property {} value of node {}",
                                     pn,
                                     name.as_deref().unwrap_or("???"),
@@ -395,7 +414,7 @@ impl std::str::FromStr for StrNode {
     type Err = anyhow::Error;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        StrNode::read(&mut s.bytes().peekable())
+        StrNode::read(&mut s.bytes().peekable(), true)
     }
 }
 

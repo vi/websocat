@@ -18,7 +18,11 @@ impl Node for Readline {
         mut closure: impl FnMut(Bipipe) -> Result<()> + Send + 'static,
     ) -> Result<()> {
         let ed = linefeed::Interface::new("websocat")?;
-        ed.set_prompt(":% ")?;
+        //ed.lock_reader().set_catch_signals(true);
+        ed.set_prompt("|| ")?;
+        //ed.set_report_signal(linefeed::terminal::Signal::Interrupt, true);
+        //ed.set_ignore_signal(linefeed::terminal::Signal::Interrupt, false);
+        //ed.set_ignore_signal(linefeed::terminal::Signal::Interrupt, true);
         let ed = std::sync::Arc::new(ed);
         std::thread::spawn(move || {
             let ed2 = ed.clone();
@@ -29,6 +33,7 @@ impl Node for Readline {
                             Ok(bytes::Bytes::new())
                         }
                         linefeed::ReadResult::Input(x) => {
+                            ed.add_history_unique(x.clone());
                             Ok(x.into())
                         }
                         linefeed::ReadResult::Signal(e) => {

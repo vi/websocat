@@ -1,0 +1,8 @@
+# Seeds for failure cases proptest has generated in the past. It is
+# automatically read and these particular cases re-run before any
+# novel cases are generated.
+#
+# It is recommended to check this file in to source control so that
+# everyone who runs the test benefits from these saved cases.
+cc c056a62c7981ef7e12bc8b9466b664b1b745bc17a11f3a30629bd650dd5afb65 # shrinks to a = StrNode { name: Ident("a"), properties: [], array: [Subnode(StrNode { name: Ident("_"), properties: [(Ident("a"), Subnode(StrNode { name: Ident("a"), properties: [(Ident("."), Str(b"@"))], array: [], enable_autopopulate: false }))], array: [], enable_autopopulate: false })], enable_autopopulate: false }
+cc 0497dd44855014ceac875e748712b60988e7f2b8917739cca7d34734b40f7be5 # shrinks to a = StrNode { name: Ident("_"), properties: [], array: [Str(b"@")], enable_autopopulate: false }
