@@ -1,0 +1,13 @@
+[package]
+name = "websocat-readline"
+version = "0.1.0"
+authors = ["Vitaly _Vi Shukela <vi0oss@gmail.com>"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+websocat-derive = {path = "../websocat-derive"}
+websocat-api = {path = "../websocat-api"}
+
+rustyline = "8.0.0"
