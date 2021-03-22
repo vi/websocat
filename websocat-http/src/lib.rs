@@ -218,9 +218,9 @@ impl websocat_api::Node for HttpClient {
     async fn run(
         self: std::pin::Pin<std::sync::Arc<Self>>,
         ctx: websocat_api::RunContext,
-        _multiconn: Option<websocat_api::ServerModeContext>,
+        multiconn: Option<websocat_api::ServerModeContext>,
     ) -> websocat_api::Result<websocat_api::Bipipe> {
-        let io = ctx.nodes[self.inner].clone().run(ctx.clone(), None).await?;
+        let io = ctx.nodes[self.inner].clone().run(ctx.clone(), multiconn).await?;
         let cn = io.closing_notification;
         let mut io = Some(match (io.r, io.w) {
             (websocat_api::Source::ByteStream(r), websocat_api::Sink::ByteStream(w)) => {
@@ -339,7 +339,83 @@ impl websocat_api::Node for HttpClient {
             })
         } else {
             // body is not received from upstream in this mode
-            let rqbody = hyper::Body::empty();
+            let rqbody = if let Some(ref bnid) = self.request_body {
+                let bio = ctx.nodes[bnid].clone().run(ctx.clone(), None).await?;
+                drop(bio.w);
+                drop(bio.closing_notification);
+                if self.buffer_request_body == Some(true) {
+                    match bio.r {
+                        websocat_api::Source::ByteStream(mut bs) => {
+                            use tokio::io::AsyncReadExt;
+                            let mut bufbuf = Vec::with_capacity(
+                                self.buffer_request_body_size_hint.unwrap() as usize,
+                            );
+                            bs.read_to_end(&mut bufbuf).await?;
+                            bufbuf.into()
+                        }
+                        websocat_api::Source::Datagrams(x) => {
+                            let mut bufbuf = bytes::BytesMut::with_capacity(
+                                self.buffer_request_body_size_hint.unwrap() as usize,
+                            );
+                            use futures::StreamExt;
+                            let sink = futures::sink::unfold(
+                                &mut bufbuf,
+                                move |bufbuf: &mut bytes::BytesMut, buf: bytes::Bytes| async move {
+                                    tracing::trace!(
+                                        "Adding {} bytes chunk to cached HTTP request body",
+                                        buf.len()
+                                    );
+                                    bufbuf.extend(buf);
+                                    Ok::<_,anyhow::Error>(bufbuf)
+                                },
+                            );
+                            x.forward(sink).await?;
+                            tracing::debug!("Finished buffering up HTTP request body");
+                            bufbuf.freeze().into()
+                        }
+                        websocat_api::Source::None => {
+                            tracing::warn!("Unusable http-client's request_body subnode specifier: null source");
+                            hyper::Body::empty() 
+                        }
+                    }
+                } else {
+                    // non-buffered body
+                    let (sender, body) = hyper::Body::channel();
+
+                    let sink = futures::sink::unfold(
+                        sender,
+                        move |mut sender, buf: bytes::Bytes| async move {
+                            tracing::trace!("Sending {} bytes chunk as HTTP request body", buf.len());
+                            sender.send_data(buf).await.map_err(|e| {
+                                tracing::error!("Failed sending more HTTP request body: {}", e);
+                                e
+                            })?;
+                            Ok(sender)
+                        },
+                    );
+
+                    match bio.r {
+                        websocat_api::Source::ByteStream(_) => {
+                            anyhow::bail!("Use datagram-based subnode for HTTP request body. You may want to wrap it in `[datagrams inner=[...]]` or use buffer_request_body setting.")
+                        }
+                        websocat_api::Source::Datagrams(x) => {
+                            use futures::StreamExt;
+                            tokio::spawn(async move {
+                                if let Err(e) = x.forward(sink).await {
+                                    tracing::error!("Error forwarding chunked http request body from subnode to hyper: {}", e);
+                                }
+                            });
+                            body
+                        }
+                        websocat_api::Source::None => {
+                            tracing::warn!("Unusable http-client's request_body subnode specifier: null source");
+                            hyper::Body::empty() 
+                        }
+                    }
+                }
+            } else {
+                 hyper::Body::empty() 
+            };
             let (rq, wskey) = self.get_request(rqbody, &ctx)?;
 
             let resp = sr.send_request(rq).await?;
