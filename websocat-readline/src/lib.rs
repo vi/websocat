@@ -1,6 +1,7 @@
 use websocat_derive::{WebsocatNode};
 use websocat_api::Result;
-use websocat_api::sync::*;
+use websocat_api::sync::{Bipipe, Node, Source, Sink};
+use websocat_api::{bytes, anyhow};
 
 
 #[derive(Debug, Clone, WebsocatNode)]
@@ -9,25 +10,34 @@ pub struct Readline {
   
 }
 
-impl websocat_api::sync::Node for Readline {
+impl Node for Readline {
     fn run(
         self: std::pin::Pin<std::sync::Arc<Self>>,
         _ctx: websocat_api::RunContext,
         _allow_multiconnect: bool,
         mut closure: impl FnMut(Bipipe) -> Result<()> + Send + 'static,
     ) -> Result<()> {
+        let ed = linefeed::Interface::new("websocat")?;
+        ed.set_prompt(":% ")?;
+        let ed = std::sync::Arc::new(ed);
         std::thread::spawn(move || {
-            let mut ed : rustyline::Editor<()> = rustyline::Editor::new();
-
+            let ed2 = ed.clone();
             let p = Bipipe {
                 r: Source::Datagrams(Box::new(move || {
-                    let l = ed.readline(":% ")?;
-                    ed.add_history_entry(&l);
-                    Ok(l.into())
+                    match ed.read_line()? {
+                        linefeed::ReadResult::Eof => {
+                            Ok(bytes::Bytes::new())
+                        }
+                        linefeed::ReadResult::Input(x) => {
+                            Ok(x.into())
+                        }
+                        linefeed::ReadResult::Signal(e) => {
+                            Err(anyhow::anyhow!("Signal arrived: {:?}", e))
+                        }
+                    }
                 })),
                 w: Sink::Datagrams(Box::new(move |buf| {
-                    use std::io::Write;
-                    std::io::stdout().write_all(&buf[..])?;
+                    writeln!(ed2, "{}", String::from_utf8_lossy(&buf[..]))?;
                     Ok(())
                 })),
                 closing_notification: None,

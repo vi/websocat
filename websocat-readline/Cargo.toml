@@ -10,4 +10,5 @@ edition = "2018"
 websocat-derive = {path = "../websocat-derive"}
 websocat-api = {path = "../websocat-api"}
 
-rustyline = "8.0.0"
+# rustyline = "8.0.0"
+linefeed = "0.6.0"
