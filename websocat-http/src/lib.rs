@@ -119,13 +119,30 @@ impl HttpClient {
     }
 }
 
+/// Derive the `Sec-WebSocket-Accept` response header from a `Sec-WebSocket-Key` request header.
+///
+/// This function can be used to perform a handshake before passing a raw TCP stream to
+/// [`WebSocket::from_raw_socket`][crate::protocol::WebSocket::from_raw_socket].
+///
+/// Based on https://github.com/snapview/tungstenite-rs/blob/985d6571923c2eac3310d8a9981a2306ae675214/src/handshake/mod.rs#L113
+fn derive_accept_key(request_key: &[u8]) -> String {
+    use sha1::{Digest, Sha1};
+    const WS_GUID: &[u8] = b"258EAFA5-E914-47DA-95CA-C5AB0DC85B11";
+    let mut sha1 = Sha1::default();
+    sha1.update(request_key);
+    sha1.update(WS_GUID);
+    base64::encode(&sha1.finalize())
+}
+
 impl HttpClient {
-    fn get_request(&self, body: hyper::Body, ctx: &websocat_api::RunContext) -> Result<hyper::Request<hyper::Body>> {
+    fn get_request(&self, body: hyper::Body, ctx: &websocat_api::RunContext) -> Result<(hyper::Request<hyper::Body>, Option<[u8;16]>)> {
         let mut rq = hyper::Request::new(body);
+        let mut thekey = None;
 
         if self.websocket == Some(true) {
             let r: [u8; 16] = rand::random();
             let key = base64::encode(&r);
+            thekey = Some(r);
 
             rq.headers_mut().insert(hyper::header::CONNECTION, "Upgrade".parse().unwrap());
             rq.headers_mut().insert(hyper::header::UPGRADE, "websocket".parse().unwrap());
@@ -162,10 +179,32 @@ impl HttpClient {
             *rq.uri_mut() = uri.clone();
         }
 
-        Ok(rq)
+        Ok((rq, thekey))
     }
 
-    fn handle_response(&self, _resp: &hyper::Response<hyper::Body>) -> Result<()> {
+    fn handle_response(&self, resp: &hyper::Response<hyper::Body>, wskey: Option<[u8; 16]>) -> Result<()> {
+        tracing::debug!("Response status: {}", resp.status());
+        for h in resp.headers() {
+            tracing::debug!("Response header: {}={:?}", h.0, h.1);
+        }
+        if let Some(key) = wskey {
+            let hh = resp.headers();
+            if let (Some(c), Some(u), Some(a)) = (hh.get(hyper::header::CONNECTION), hh.get(hyper::header::UPGRADE), hh.get(hyper::header::SEC_WEBSOCKET_ACCEPT)) {
+                if ! c.as_bytes().eq_ignore_ascii_case(b"upgrade") {
+                    anyhow::bail!("http-client is in websocket mode `Connection:` is not `upgrade`");
+                }
+                if ! u.as_bytes().eq_ignore_ascii_case(b"websocket") {
+                    anyhow::bail!("http-client is in websocket mode `Upgrade:` is not `websocket`");
+                }
+                let accept = derive_accept_key(base64::encode(key).as_bytes());
+                if accept != String::from_utf8_lossy(a.as_bytes()) {
+                    anyhow::bail!("Sec-Websocket-Accept key mismatch: expected {}, got {:?}", accept, a);
+                }
+            } else {
+                anyhow::bail!("http-client is in websocket mode and some of the three websocekt response headers are not found");
+            }
+            tracing::debug!("WebSocket client response verification finished");
+        }
         Ok(())
     }
 
@@ -215,9 +254,9 @@ impl websocat_api::Node for HttpClient {
 
                 tokio::spawn(async move {
                     let try_block = async move {
-                        let rq = self.get_request(request_body, &ctx)?;
+                        let rq = self.get_request(request_body, &ctx)?.0;
                         let resp = sr.send_request(rq).await?;
-                        self.handle_response(&resp)?;
+                        self.handle_response(&resp, None)?;
                         let mut body = resp.into_body();
                         use futures::stream::StreamExt;
                         while let Some(buf) = body.next().await {
@@ -265,9 +304,9 @@ impl websocat_api::Node for HttpClient {
                 tokio::spawn(async move {
                     let try_block = async move {
                         let request_buf = rx.await?;
-                        let rq = self.get_request(request_buf.freeze().into(), &ctx)?;
+                        let rq = self.get_request(request_buf.freeze().into(), &ctx)?.0;
                         let resp = sr.send_request(rq).await?;
-                        self.handle_response(&resp)?;
+                        self.handle_response(&resp, None)?;
                         let mut body = resp.into_body();
                         use futures::stream::StreamExt;
                         while let Some(buf) = body.next().await {
@@ -301,10 +340,10 @@ impl websocat_api::Node for HttpClient {
         } else {
             // body is not received from upstream in this mode
             let rqbody = hyper::Body::empty();
-            let rq = self.get_request(rqbody, &ctx)?;
+            let (rq, wskey) = self.get_request(rqbody, &ctx)?;
 
             let resp = sr.send_request(rq).await?;
-            self.handle_response(&resp)?;
+            self.handle_response(&resp, wskey)?;
 
             if self.upgrade == Some(true) {
                 let upg = hyper::upgrade::on(resp).await?;
