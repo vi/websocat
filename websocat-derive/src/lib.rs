@@ -15,6 +15,9 @@ struct Field1 {
 
     #[darling(default, rename="enum")]
     r#enum: bool,
+
+    #[darling(default, rename="ignore")]
+    ignored: bool,
 }
 
 #[derive(Debug, darling::FromDeriveInput)]
@@ -48,6 +51,7 @@ struct PropertyInfo {
 struct ClassInfo {
     name: syn::Ident,
     properties: Vec<PropertyInfo>,
+    ignored_fields: Vec<syn::Ident>,
     array_type: Option<PropertyInfo>,
 
     official_name: String,
@@ -140,12 +144,18 @@ impl ClassInfo {
             writeln!(f, "{:#?}", cc).unwrap();
         }
 
+        let mut ignored_fields = Vec::new();
+
         match cc.data {
             darling::ast::Data::Enum(_) => panic!("Enums are not supported"),
             darling::ast::Data::Struct(x) => {
                 for field in x {
                     //eprintln!("{:?}", field);
                     let ident = field.ident.expect("Struct fields must have names");
+                    if field.ignored {
+                        ignored_fields.push(ident);
+                        continue;
+                    }
                     let (typ, optional, enumname,vector) = match field.ty {
                         syn::Type::Path(t) => {
                             let lastpathsegment = t.path.segments.last().expect("Failed to extract leaf type from path in a field");
@@ -271,6 +281,7 @@ impl ClassInfo {
         let ci = ClassInfo {
             name: x.ident.clone(),
             properties,
+            ignored_fields,
             array_type,
             prefixes: cc.prefixes,
             official_name: cc.official_name,
@@ -478,6 +489,12 @@ impl ClassInfo {
         } else {
             push_array_element.extend(q! {
                 ::websocat_api::anyhow::bail!("No array elements are expected here");
+            });
+        }
+
+        for igf in &self.ignored_fields {
+            fields.extend(q!{
+                #igf: ::std::default::Default::default(),
             });
         }
 

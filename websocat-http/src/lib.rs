@@ -231,8 +231,8 @@ impl websocat_api::Node for HttpClient {
             }
         });
 
-        let b = hyper::client::conn::Builder::new().handshake::<_, hyper::Body>(io.take().unwrap());
-        let (mut sr, conn) = b.await?;
+        let http_client_builder = hyper::client::conn::Builder::new().handshake::<_, hyper::Body>(io.take().unwrap());
+        let (mut send_request, conn) = http_client_builder.await?;
         let _h = tokio::spawn(conn /* .without_shutdown() */);
 
         if self.stream_request_body == Some(true) {
@@ -255,7 +255,7 @@ impl websocat_api::Node for HttpClient {
                 tokio::spawn(async move {
                     let try_block = async move {
                         let rq = self.get_request(request_body, &ctx)?.0;
-                        let resp = sr.send_request(rq).await?;
+                        let resp = send_request.send_request(rq).await?;
                         self.handle_response(&resp, None)?;
                         let mut body = resp.into_body();
                         use futures::stream::StreamExt;
@@ -305,7 +305,7 @@ impl websocat_api::Node for HttpClient {
                     let try_block = async move {
                         let request_buf = rx.await?;
                         let rq = self.get_request(request_buf.freeze().into(), &ctx)?.0;
-                        let resp = sr.send_request(rq).await?;
+                        let resp = send_request.send_request(rq).await?;
                         self.handle_response(&resp, None)?;
                         let mut body = resp.into_body();
                         use futures::stream::StreamExt;
@@ -418,7 +418,7 @@ impl websocat_api::Node for HttpClient {
             };
             let (rq, wskey) = self.get_request(rqbody, &ctx)?;
 
-            let resp = sr.send_request(rq).await?;
+            let resp = send_request.send_request(rq).await?;
             self.handle_response(&resp, wskey)?;
 
             if self.upgrade == Some(true) {
