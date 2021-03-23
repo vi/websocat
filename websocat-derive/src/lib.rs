@@ -6,7 +6,7 @@ use syn::{DeriveInput, parse_macro_input};
 use quote::quote as q;
 
 #[derive(Debug, darling::FromField)]
-#[darling(attributes(websocat_node, enum), forward_attrs(doc,cli))]
+#[darling(attributes(websocat_prop, enum), forward_attrs(doc,cli))]
 struct Field1 {
     ident:	Option<syn::Ident>,
     ty:	syn::Type,
@@ -18,6 +18,21 @@ struct Field1 {
 
     #[darling(default, rename="ignore")]
     ignored: bool,
+
+    #[darling(default, rename="min")]
+    strict_min: Option<i64>,
+
+    #[darling(default, rename="max")]
+    strict_max: Option<i64>,
+
+    #[darling(default, rename="reasonable_min")]
+    reasonable_min: Option<i64>,
+
+    #[darling(default, rename="reasonable_max")]
+    reasonable_max: Option<i64>,
+
+    #[darling(default, rename="default")]
+    default: Option<syn::Lit>,
 }
 
 #[derive(Debug, darling::FromDeriveInput)]
@@ -46,6 +61,12 @@ struct PropertyInfo {
     help: String,
 
     pub inject_cli_long_option: Option<String>,
+
+    strict_min: Option<i64>,
+    strict_max: Option<i64>,
+    reasonable_min: Option<i64>,
+    reasonable_max: Option<i64>,
+    default: Option<syn::Lit>,
 }
 #[derive(Debug)]
 struct ClassInfo {
@@ -156,7 +177,7 @@ impl ClassInfo {
                         ignored_fields.push(ident);
                         continue;
                     }
-                    let (typ, optional, enumname,vector) = match field.ty {
+                    let (typ, mut optional, enumname,vector) = match field.ty {
                         syn::Type::Path(t) => {
                             let lastpathsegment = t.path.segments.last().expect("Failed to extract leaf type from path in a field");
                             match &lastpathsegment.ident.to_string()[..] {
@@ -215,6 +236,12 @@ impl ClassInfo {
                         },
                         _ => panic!("Unknown type for field named {}", ident),
                     };
+                    if field.default.is_some() {
+                        if optional {
+                            panic!("Optional properties should wither be Option<> or have #websocat_node(default=...), not both. Problem with `{}`", ident);
+                        }
+                        optional = true;
+                    }
                     let mut help = String::with_capacity(64);
                     let mut inject_cli_long_option = None;
                     for attr in &field.attrs {
@@ -256,6 +283,12 @@ impl ClassInfo {
                             help,
                             inject_cli_long_option: None,
 
+                            strict_min: field.strict_min,
+                            strict_max: field.strict_max,
+                            reasonable_min: field.reasonable_min,
+                            reasonable_max: field.reasonable_max,
+                            default: field.default,
+
                         });
                     } else { 
                         if typ == websocat_api::PropertyValueTypeTag::PortNumber {
@@ -272,6 +305,12 @@ impl ClassInfo {
                             ident,
                             enumname,
                             inject_cli_long_option,
+
+                            strict_min: field.strict_min,
+                            strict_max: field.strict_max,
+                            reasonable_min: field.reasonable_min,
+                            reasonable_max: field.reasonable_max,
+                            default: field.default,
                         });
                     }
                 }
@@ -312,7 +351,7 @@ impl ClassInfo {
             let qn = format!("{}", p.ident);
             if p.typ != websocat_api::PropertyValueTypeTag::Enummy {
                 let typ = p.typ.ident();
-                if ! p.optional {
+                if ! p.optional || p.default.is_some() {
                     property_accessors.extend(q! {
                         #qn => Some(::websocat_api::PropertyValue::#typ(self.#nam.clone())),
                     });
@@ -323,7 +362,7 @@ impl ClassInfo {
                 }
             } else {
                 //let enn = p.enumname.as_ref().unwrap();
-                if ! p.optional {
+                if ! p.optional || p.default.is_some() {
                     property_accessors.extend(q! {
                         #qn => Some(::websocat_api::PropertyValue::Enummy(::websocat_api::Enum::variant_to_index(&self.#nam))),
                     });
@@ -416,7 +455,7 @@ impl ClassInfo {
         let buildername = quote::format_ident!("{}Builder", self.name);
         let name = &self.name;
 
-        let mut none_checks =  proc_macro2::TokenStream::new();
+        let mut checks =  proc_macro2::TokenStream::new();
         let mut fields=  proc_macro2::TokenStream::new();
         let mut matchers=  proc_macro2::TokenStream::new();
         let mut push_array_element = proc_macro2::TokenStream::new();
@@ -424,18 +463,27 @@ impl ClassInfo {
         for p in &self.properties {
             let pn = &p.ident;
             let pn_s = pn.to_string();
-            if ! p.optional {
-                let name_s = name.to_string();
+            let name_s = name.to_string();
+            if ! p.optional || p.default.is_some()  {
 
-                none_checks.extend(q! {
-                    if self.#pn.is_none() {
-                        ::websocat_api::anyhow::bail!(
-                            "Property `{}` must be set in node of type `{}`",
-                            #pn_s,
-                            #name_s,
-                        );
-                    }
-                });
+                if p.default.is_none() {
+                    checks.extend(q! {
+                        if self.#pn.is_none() {
+                            ::websocat_api::anyhow::bail!(
+                                "Property `{}` must be set in node of type `{}`",
+                                #pn_s,
+                                #name_s,
+                            );
+                        }
+                    });
+                } else {
+                    let def = p.default.clone().unwrap();
+                    checks.extend(q! {
+                        if self.#pn.is_none() {
+                            self.#pn = Some(#def);
+                        }
+                    });
+                }
                 fields.extend(q! {
                     #pn : self.#pn.unwrap(),
                 });
@@ -444,6 +492,64 @@ impl ClassInfo {
                     #pn : self.#pn,
                 });
             }
+
+            if let Some(x) = p.strict_min {
+                checks.extend(q! {
+                    if let Some(ref j) = self.#pn {
+                        if (*j as i64) < #x {
+                            ::websocat_api::anyhow::bail!(
+                                "Property `{}` must not be less than `{}` in node of type `{}`",
+                                #pn_s,
+                                #x,
+                                #name_s,
+                            );
+                        }
+                    }
+                });
+            }
+            if let Some(x) = p.strict_max {
+                checks.extend(q! {
+                    if let Some(ref j) = self.#pn {
+                        if (*j as i64) > #x {
+                            ::websocat_api::anyhow::bail!(
+                                "Property `{}` must not be more than `{}` in node of type `{}`",
+                                #pn_s,
+                                #x,
+                                #name_s,
+                            );
+                        }
+                    }
+                });
+            }
+            if let Some(x) = p.reasonable_min {
+                checks.extend(q! {
+                    if let Some(ref j) = self.#pn {
+                        if (*j as i64) < #x {
+                            ::websocat_api::tracing::warn!(
+                                "Property `{}` in node of type `{}` has suspiciously low value, lower than `{}`",
+                                #pn_s,
+                                #name_s,
+                                #x,
+                            );
+                        }
+                    }
+                });
+            }
+            if let Some(x) = p.reasonable_max {
+                checks.extend(q! {
+                    if let Some(ref j) = self.#pn {
+                        if (*j as i64) > #x {
+                            ::websocat_api::tracing::warn!(
+                                "Property `{}` in node of type `{}` has suspiciously high value, higher than `{}`",
+                                #pn_s,
+                                #name_s,
+                                #x,
+                            );
+                        }
+                    }
+                });
+            }
+
 
             if p.typ != websocat_api::PropertyValueTypeTag::Enummy {
                 let pty = p.typ.ident();
@@ -521,8 +627,8 @@ impl ClassInfo {
                     #push_array_element
                 }
 
-                fn finish(self: Box<Self>) -> ::websocat_api::Result<websocat_api::DNode> {
-                    #none_checks
+                fn finish(mut self: Box<Self>) -> ::websocat_api::Result<websocat_api::DNode> {
+                    #checks
                     let mut x = #name {
                         #fields
                     };
@@ -652,7 +758,7 @@ impl ClassInfo {
     }
 }
 
-#[proc_macro_derive(WebsocatNode, attributes(websocat_node,cli))]
+#[proc_macro_derive(WebsocatNode, attributes(websocat_node,websocat_prop,cli))]
 pub fn derive_websocat_node(input: TokenStream) -> TokenStream {
     let x = parse_macro_input!(input as DeriveInput);
     let ci = ClassInfo::parse(&x);

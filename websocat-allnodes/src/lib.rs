@@ -21,6 +21,7 @@ pub fn all_node_classes() -> websocat_api::ClassRegistrar {
     reg.register::<websocat_ioless::Literal>();
     reg.register::<websocat_ioless::Stream>();
     reg.register::<websocat_ioless::Datagrams>();
+    reg.register::<websocat_ioless::reuse::Reuse>();
 
     reg.register::<websocat_readline::Readline>();
     reg

@@ -30,6 +30,7 @@ pub extern crate bytes;
 pub extern crate futures;
 pub extern crate downcast_rs;
 pub extern crate http;
+pub extern crate tracing;
 
 declare_slab_token!(pub NodeId);
 

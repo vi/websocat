@@ -46,31 +46,15 @@ fn validate_buffer_size(bs: &mut Option<i64>, def: i64) -> Result<()> {
 }
 
 #[derive(Debug, Clone, WebsocatNode)]
-#[websocat_node(official_name = "mirror", validate)]
+#[websocat_node(official_name = "mirror")]
 pub struct Mirror {
     /// bytestream mirror of datagram mirror
-    #[websocat_node(enum)]
+    #[websocat_prop(enum)]
     pub mode: NodeMode,
 
     /// Size of the buffer in bytes mode
-    pub buffer_size: Option<i64>,
-}
-
-impl Mirror {
-    fn validate(&mut self) -> Result<()> {
-        match self.mode {
-            NodeMode::Datagrams => {
-                if self.buffer_size.is_some() {
-                    anyhow::bail!("Setting buffer_size in datagrams mode is meaningless");
-                }
-            }
-            NodeMode::Bytes => {
-                validate_buffer_size(&mut self.buffer_size, 1024)?;
-            }
-        }
-
-        Ok(())
-    }
+    #[websocat_prop(default=1024, min=1, reasonable_max=100_000_000)]
+    pub buffer_size: i64,
 }
 
 #[async_trait]
@@ -82,7 +66,7 @@ impl Node for Mirror {
     ) -> Result<Bipipe> {
         match self.mode {
             NodeMode::Bytes => {
-                let (tx, rx) = tokio::io::duplex(self.buffer_size.unwrap() as usize);
+                let (tx, rx) = tokio::io::duplex(self.buffer_size as usize);
                 Ok(Bipipe {
                     r: Source::ByteStream(Box::pin(rx)),
                     w: Sink::ByteStream(Box::pin(tx)),
@@ -114,7 +98,7 @@ impl Node for Mirror {
 #[websocat_node(official_name = "devnull")]
 pub struct DevNull {
     /// bytestream void of datagram void
-    #[websocat_node(enum)]
+    #[websocat_prop(enum)]
     pub mode: NodeMode,
 }
 
@@ -384,46 +368,4 @@ impl Node for Datagrams {
     }
 }
 
-#[derive(Debug, WebsocatNode)]
-#[websocat_node(official_name = "reuse")]
-pub struct Reuse {
-    /// The node, whose connection is kept persistent and is reused when `reuse` node is reinvoked
-    pub inner: NodeId,
-
-    /// Whether to route information coming from the inner node to all connecting nodes or to just some one of them
-    pub broadcast: bool,
-
-    /// How many concurrent users to allow
-    pub simultaneous_user_limit: Option<i64>,
-
-    #[websocat_node(ignore)]
-    the_pipe : tokio::sync::Mutex<Option<tokio::sync::oneshot::Receiver<Bipipe>>>,
-}
-
-impl Clone for Reuse {
-    fn clone(&self) -> Self {
-        Reuse {
-            inner: self.inner,
-            broadcast: self.broadcast,
-            simultaneous_user_limit: self.simultaneous_user_limit,
-            the_pipe: Default::default(),
-        }
-    }
-}
-
-#[async_trait]
-impl Node for Reuse {
-    async fn run(
-        self: std::pin::Pin<std::sync::Arc<Self>>,
-        ctx: RunContext,
-        multiconn: Option<websocat_api::ServerModeContext>,
-    ) -> Result<Bipipe> {
-        let p = ctx.nodes[self.inner].clone().run(ctx, multiconn).await?;
-        tracing::error!("`reuse` is not implemented");
-        Ok(Bipipe {
-            r: p.r,
-            w: p.w,
-            closing_notification: p.closing_notification,
-        })
-    }
-}
+pub mod reuse;
