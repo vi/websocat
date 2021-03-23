@@ -92,7 +92,6 @@ async fn run_impl(
         nodes: c.nodes.clone(),
         left_to_right_things_to_be_filled_in: None,
         left_to_right_things_to_read_from: None,
-        globals: c.global_things.clone(),
     };
 
     let c2 = c.clone();
@@ -135,7 +134,6 @@ async fn run_impl(
             nodes: c.nodes.clone(),
             left_to_right_things_to_be_filled_in: None,
             left_to_right_things_to_read_from: None,
-            globals: c.global_things.clone(),
         };
 
         let p2: websocat_api::Bipipe = websocat_api::Node::run(c.nodes[c.right].clone(),rc2, None).await?;

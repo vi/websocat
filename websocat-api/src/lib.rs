@@ -11,7 +11,6 @@ use tokio::io::{AsyncRead,AsyncWrite};
 use std::future::Future;
 use std::net::{SocketAddr,IpAddr};
 use std::path::PathBuf;
-use downcast_rs::{impl_downcast,DowncastSync};
 use std::fmt::Debug;
 use std::sync::{Arc,Mutex};
 use async_trait::async_trait;
@@ -28,7 +27,6 @@ pub extern crate async_trait;
 pub extern crate string_interner;
 pub extern crate bytes;
 pub extern crate futures;
-pub extern crate downcast_rs;
 pub extern crate http;
 pub extern crate tracing;
 
@@ -208,8 +206,6 @@ pub struct RunContext {
     /// Use d "on the right side" of websocat call to act based on properties
     /// collected during acceping incoming connection
     pub left_to_right_things_to_read_from: Option<Arc<Mutex<Properties>>>,
-
-    pub globals: Arc<Mutex<Globals>>,
 }
 
 static_assertions::assert_impl_all!(RunContext : Send);
@@ -258,23 +254,15 @@ pub trait NodeProperyAccess : Debug  {
 /// The tree of those is supposed to be checked and modified by linting engine.
 /// Primary way to get those is by `SpecifierClass::parse`ing respective `StringyNode`s.
 #[async_trait]
-pub trait Node : NodeProperyAccess + DowncastSync {
+pub trait Node : NodeProperyAccess {
     /// Actually start the node (i.e. connect to TCP or recursively start another child node)
     /// If you want to serve multiple connections and `multiconn` is not None, you can
     /// trigger starting another Tokio task by using `multiconn`.
     async fn run(self: Pin<Arc<Self>>, ctx: RunContext, multiconn: Option<ServerModeContext>) -> Result<Bipipe>;
 }
-impl_downcast!(sync Node);
 pub type DNode = Pin<Arc<dyn Node + Send + Sync + 'static>>;
 
 pub struct NodeInATree<'a>(pub NodeId, pub &'a Tree);
-
-
-pub trait GlobalInfo : Debug + DowncastSync {
-
-}
-impl_downcast!(sync GlobalInfo);
-type Globals = HashMap<String, Box<dyn GlobalInfo + Send + 'static>>;
 
 pub enum NodePlacement {
     /// First positional argument of Websocat, "server side", connections acceptor
@@ -288,10 +276,6 @@ pub type Tree = Slab<NodeId, DNode>;
 
 #[derive(Clone)]
 pub struct Session {
-    /// Place where specific nodes can store their process-global values
-    /// Key should probably be `NodeClass::official_name`
-    pub global_things: Arc<Mutex<Globals>>,
-
     pub nodes: Arc<Tree>,
 
     pub left : NodeId,
@@ -325,7 +309,6 @@ impl Session {
             left,
             right,
             global_parameters: Arc::new(Mutex::new(Properties::new())),
-            global_things: Arc::new(Mutex::new(Globals::new())),
         }
     }
 }
@@ -357,7 +340,7 @@ pub trait NodeClass : Debug {
     /// Linter may rearrange or add notes, change properties, etc.
     ///
     /// Linter is expected to access `WebsocatContext::left` or `...::right` based on `placement`, then look up the parsed node by `nodeid`,
-    /// then downcast to to native node type, then check all the necessary things.
+    /// then use `NodeProperyAccess` methods to check state of the nodes
     fn run_lints(&self, nodeid: NodeId, placement: NodePlacement, context: &Session) -> Result<Vec<String>>;
 }
 

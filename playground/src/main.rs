@@ -54,7 +54,7 @@ enum Qqq {
 )]
 struct Bar {
     /// Content to print
-    #[websocat_node(enum)]
+    #[websocat_prop(enum)]
     content : Vec<Qqq>,
 }
 
