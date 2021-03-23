@@ -1,3 +1,4 @@
+#[allow(unused_imports)]
 use websocat_api::{anyhow, bytes, futures, tokio};
 use websocat_api::{
     async_trait::async_trait, Bipipe, Node, NodeId, Result, RunContext, Sink, Source,
