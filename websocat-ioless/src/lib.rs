@@ -31,20 +31,6 @@ pub enum NodeMode {
     Bytes,
     Datagrams,
 }
-
-fn validate_buffer_size(bs: &mut Option<i64>, def: i64) -> Result<()> {
-    if bs.is_none() {
-        *bs = Some(def);
-    }
-    if bs.unwrap() < 1 {
-        anyhow::bail!("buffer_size must be positive");
-    }
-    if bs.unwrap() > 100 * 1024 * 1024 {
-        tracing::warn!("Suspiciously large buffer size encountered");
-    }
-    Ok(())
-}
-
 #[derive(Debug, Clone, WebsocatNode)]
 #[websocat_node(official_name = "mirror")]
 pub struct Mirror {
@@ -53,7 +39,7 @@ pub struct Mirror {
     pub mode: NodeMode,
 
     /// Size of the buffer in bytes mode
-    #[websocat_prop(default=1024, min=1, reasonable_max=100_000_000)]
+    #[websocat_prop(default=1024, min=1, reasonable_min=64, reasonable_max=100_000_000)]
     pub buffer_size: i64,
 }
 
@@ -237,24 +223,19 @@ impl Node for Literal {
 }
 
 #[derive(Debug, Clone, WebsocatNode)]
-#[websocat_node(official_name = "stream", validate)]
+#[websocat_node(official_name = "stream")]
 pub struct Stream {
     /// The node whose datagram sequences are to be converted to bytestreams
     pub inner: NodeId,
 
     /// Buffer size for temporary reading area
-    pub buffer_size_r: Option<i64>,
+    #[websocat_prop(default=1024, min=1, reasonable_min=64, reasonable_max=100_000_000)]
+    pub buffer_size_r: i64,
 
     /// Buffer size for temporary writing area
-    pub buffer_size_w: Option<i64>,
-}
 
-impl Stream {
-    fn validate(&mut self) -> Result<()> {
-        validate_buffer_size(&mut self.buffer_size_r, 1024)?;
-        validate_buffer_size(&mut self.buffer_size_w, 1024)?;
-        Ok(())
-    }
+    #[websocat_prop(default=1024, min=1, reasonable_min=64, reasonable_max=100_000_000)]
+    pub buffer_size_w: i64,
 }
 
 #[async_trait]
@@ -272,7 +253,7 @@ impl Node for Stream {
 
         let r: Source = match p.r {
             Source::Datagrams(dgs) => {
-                let (tx, rx) = tokio::io::duplex(self.buffer_size_r.unwrap() as usize);
+                let (tx, rx) = tokio::io::duplex(self.buffer_size_r as usize);
                 use futures::{StreamExt, TryStreamExt};
                 use tokio_util::codec::BytesCodec;
                 let dgs = dgs.map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e));
@@ -290,7 +271,7 @@ impl Node for Stream {
 
         let w: Sink = match p.w {
             Sink::Datagrams(dgs) => {
-                let (tx, rx) = tokio::io::duplex(self.buffer_size_w.unwrap() as usize);
+                let (tx, rx) = tokio::io::duplex(self.buffer_size_w as usize);
                 use futures::StreamExt;
                 use tokio_util::codec::BytesCodec;
                 let r = tokio_util::codec::FramedRead::new(rx, BytesCodec::new());
