@@ -12,9 +12,10 @@ async fn main() {
     let mut enable_backward = true;
     let mut dryrun = false;
 
+    tracing_subscriber::fmt::init();
+    
     let reg = websocat_allnodes::all_node_classes();
 
-    tracing_subscriber::fmt::init();
 
     let allopts = reg.get_all_cli_options().unwrap();
 
