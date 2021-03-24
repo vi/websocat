@@ -433,16 +433,20 @@ impl std::fmt::Debug for ClassRegistrar {
     }
 }
 
+pub type ByteStreamSource = Pin<Box<dyn AsyncRead + Send  + 'static>>;
+pub type DatagramSource = Pin<Box<dyn futures::stream::Stream<Item=Result<bytes::Bytes>> + Send  + 'static>>;
+pub type ByteStreamSink = Pin<Box<dyn AsyncWrite + Send  + 'static>>;
+pub type DatagramSink = Pin<Box<dyn futures::sink::Sink<bytes::Bytes, Error=anyhow::Error> + Send  + 'static>>;
+
 pub enum Source {
-    ByteStream(Pin<Box<dyn AsyncRead + Send  + 'static>>),
-    Datagrams(Pin<Box<dyn futures::stream::Stream<Item=Result<bytes::Bytes>> + Send  + 'static>>),
+    ByteStream(ByteStreamSource),
+    Datagrams(DatagramSource),
     None,
 }
 
-
 pub enum Sink {
-    ByteStream(Pin<Box<dyn AsyncWrite + Send  + 'static>>),
-    Datagrams(Pin<Box<dyn futures::sink::Sink<bytes::Bytes, Error=anyhow::Error> + Send  + 'static>>),
+    ByteStream(ByteStreamSink),
+    Datagrams(DatagramSink),
     None,
 }
 
