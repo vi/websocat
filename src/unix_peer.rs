@@ -1,7 +1,6 @@
 extern crate tokio_reactor;
 extern crate tokio_uds;
 
-#[cfg(any(feature = "workaround1", feature = "seqpacket"))]
 extern crate libc;
 
 use futures;
