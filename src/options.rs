@@ -36,6 +36,7 @@ pub struct Options {
     pub exit_on_eof: bool,
     pub oneshot: bool,
     pub unlink_unix_socket: bool,
+    pub unix_socket_accept_from_fd: bool,
     pub exec_args: Vec<String>,
     pub ws_c_uri: String, // TODO: delete this
     pub linemode_strip_newlines: bool,

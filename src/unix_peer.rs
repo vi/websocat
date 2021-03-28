@@ -21,7 +21,7 @@ use self::tokio_uds::{UnixDatagram, UnixListener, UnixStream};
 //#[cfg_attr(feature="cargo-clippy",allow(unused_imports))]
 #[allow(unused_imports)]
 use super::simple_err;
-use super::{box_up_err, peer_err_s, BoxedNewPeerFuture, BoxedNewPeerStream, Peer};
+use super::{box_up_err, peer_err_s, util::peer_err_sb, BoxedNewPeerFuture, BoxedNewPeerStream, Peer};
 use super::{multi, once, ConstructParams, Options, PeerConstructor, Specifier};
 
 #[derive(Debug, Clone)]
@@ -101,6 +101,8 @@ to websocat based on URLs.
 
 Obviously, Nginx can also redirect to TCP-listening
 websocat just as well - UNIX sockets are not a requirement for this feature.
+
+See `moreexamples.md` for SystemD usage (untested).
 
 TODO: --chmod option?
 "#
@@ -346,10 +348,29 @@ pub fn unix_connect_peer(addr: &Path) -> BoxedNewPeerFuture {
 }
 
 pub fn unix_listen_peer(addr: &Path, opts: &Rc<Options>) -> BoxedNewPeerStream {
-    if opts.unlink_unix_socket {
-        let _ = ::std::fs::remove_file(addr);
+    let bound = if opts.unix_socket_accept_from_fd {
+        // Special mode for SystemD (untested yet)
+        let fdnum: libc::c_int = match addr.to_str().map(|x|x.parse()) {
+            Some(Ok(x)) => x,
+            _ => {
+                let e: Box<dyn std::error::Error> = From::from("Specify numeric arguemnt instead of path in --accept-from-fd mode");
+                return peer_err_sb(e);
+            }
+        };
+        use std::os::unix::io::FromRawFd;
+        let l = unsafe { std::os::unix::net::UnixListener::from_raw_fd(fdnum) } ;
+        let _ = l.set_nonblocking(true);
+        let bound =  
+        UnixListener::from_std(l, &tokio_reactor::Handle::default());
+        bound
+    } else {
+        if opts.unlink_unix_socket {
+            let _ = ::std::fs::remove_file(addr);
+        };
+        let bound = UnixListener::bind(&addr);
+        bound
     };
-    let bound = match UnixListener::bind(&addr) {
+    let bound = match bound {
         Ok(x) => x,
         Err(e) => return peer_err_s(e),
     };

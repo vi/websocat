@@ -170,6 +170,12 @@ struct Opt {
     unlink_unix_socket: bool,
 
     #[structopt(
+        long = "accept-from-fd",
+        help = "[A] Do not call `socket(2)` in UNIX socket listerer peer, start with `accept(2)` using specified file descriptor number as argument instead of filename"
+    )]
+    unix_socket_accept_from_fd: bool,
+
+    #[structopt(
         long = "exec-args",
         raw(allow_hyphen_values = r#"true"#),
         help = "[A] Arguments for the `exec:` specifier. Must be the last option, everything after it gets into the exec args list."
@@ -703,6 +709,7 @@ fn run() -> Result<()> {
             exit_on_eof
             oneshot
             unlink_unix_socket
+            unix_socket_accept_from_fd
             exec_args
             ws_c_uri
             linemode_strip_newlines
