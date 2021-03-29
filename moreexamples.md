@@ -180,7 +180,7 @@ location /mywebsocket {
     #proxy_pass http://unix:/tmp/unixsocket_websocat;
     proxy_http_version 1.1;
     proxy_set_header Upgrade $http_upgrade;
-    proxy_set_header Connection \"upgrade\";
+    proxy_set_header Connection "upgrade";
 }
 ```
 
@@ -332,4 +332,6 @@ ExecStart=/opt/websocat -E -b --accept-from-fd l-ws-unix:3 tcp:127.0.0.1:22
 WantedBy=multi-user.target
 ```
 
-with `SocketUser=www-data` it can be combined with Nginx setup above. 
+with `SocketUser=www-data` it can be combined with Nginx setup above.
+
+Example SSH client command: `ssh root@localhost -o 'ProxyCommand=/opt/websocat -E -b - ws-c:unix:/run/qqq.socket'`
