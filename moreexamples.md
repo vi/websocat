@@ -255,3 +255,81 @@ WRITE 53 "\x17\x03\x03\x000\x17\x19\xf4>\xddSG8\xdd\xcd\x00\xf2\xf58\x15n\xbaY\x
 READ 5 "\x17\x03\x03\x000"
 READ 48 "j#\x9d\x17B\x89\xee\x92\x90\xcaH6\xf7PQe|p\xed\xf8,=\x0f+\x8a\x10)\xcf\x06\xb1\x06\xde\x9eA>B\xb7g\xde\xce\xcc\xfd\x88\x1c\xf1-\x96\x00"
 ```
+
+# listening websockets from systemd
+
+Systemd units for WebSocket-to-localhost-SSH redirector.
+
+## `Accept=yes` mode
+
+Each client connection gets separate Websocat process.
+
+`/etc/systemd/system/qqq.socket`
+
+```
+[Unit]
+Description="websocat"
+
+[Socket]
+ListenStream=/run/qqq.socket
+#ListenStream=127.0.0.1:1234 # also works for TCP
+Accept=yes
+
+[Install]
+WantedBy=sockets.target
+```
+
+`/etc/systemd/system/qqq@.service` (note the important `@` character).
+
+```
+[Unit]
+Description="websocat"
+Requires=qqq.socket
+
+[Service]
+Type=simple
+ExecStart=/opt/websocat -E -b ws-inetd: tcp:127.0.0.1:22
+StandardInput=socket
+NonBlocking=true
+
+[Install]
+WantedBy=multi-user.target
+```
+
+## `Accept=no` mode
+
+Websocat is socket-activated by systemd and keeps on listening for more connections
+
+Requires new enough Websocat version with `--accept-from-fd` option.
+
+`/etc/systemd/system/qqq.socket`
+
+```
+[Unit]
+Description="websocat"
+
+[Socket]
+ListenStream=/run/qqq.socket
+# does _not_ work with TCP socket currently
+Accept=no
+
+[Install]
+WantedBy=sockets.target
+```
+
+
+`/etc/systemd/system/qqq.service` (note the absense of  `@`).
+
+```
+[Unit]
+Description="websocat"
+Requires=qqq.socket
+
+[Service]
+ExecStart=/opt/websocat -E -b --accept-from-fd l-ws-unix:3 tcp:127.0.0.1:22
+
+[Install]
+WantedBy=multi-user.target
+```
+
+with `SocketUser=www-data` it can be combined with Nginx setup above. 
