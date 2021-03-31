@@ -91,8 +91,9 @@ impl<T: WsStream + 'static> Read for WsReadWrapper<T> {
         }
         loop {
             return match self.s.poll().map_err(io_other_error)? {
-                Ready(Some(OwnedMessage::Close(_))) => {
+                Ready(Some(OwnedMessage::Close(x))) => {
                     info!("Received WebSocket close message");
+                    debug!("The close message is {:?}", x);
                     abort_and_broken_pipe!()
                 }
                 Ready(None) => {
