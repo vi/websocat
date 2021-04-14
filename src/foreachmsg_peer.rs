@@ -54,6 +54,7 @@ enum Phase {
     WriteDebt(Vec<u8>),
     Flushing,
     Closing,
+    WaitingForReadToFinish,
 }
 
 struct State {
@@ -63,6 +64,12 @@ struct State {
     cp: ConstructParams,
     aux: State2,
     ph: Phase,
+    finished_reading: bool,
+    read_waiter_tx: Option<futures::sync::oneshot::Sender<()>>,
+    read_waiter_rx: Option<futures::sync::oneshot::Receiver<()>>,
+    wait_for_new_peer_tx: Option<futures::sync::oneshot::Sender<()>>,
+    wait_for_new_peer_rx: Option<futures::sync::oneshot::Receiver<()>>,
+    need_wait_for_reading: bool,
 }
 
 /// This implementation's poll is to be reused many times, both after returning item and error
@@ -88,6 +95,9 @@ impl State {
                 match bnpf.poll() {
                     Ok(Async::Ready(p)) => {
                         *pp = Some(p);
+                        if let Some(tx) = self.wait_for_new_peer_tx.take() {
+                            let _ = tx.send(());
+                        }
                         continue;
                     }
                     Ok(Async::NotReady) => {
@@ -110,6 +120,10 @@ impl State {
             let l2r = cp.left_to_right.clone();
             let pc: PeerConstructor = self.s.construct(cp);
             *nn = Some(pc.get_only_first_conn(l2r));
+            self.finished_reading = false;
+            self.ph = Phase::Idle;
+            self.read_waiter_tx = None;
+            self.read_waiter_rx = None;
         }
     }
 }
@@ -134,6 +148,9 @@ impl State {
         info!("Reconnect");
         self.p = None;
         self.ph = Phase::Idle;
+        self.finished_reading = false;
+        self.read_waiter_tx = None;
+        self.read_waiter_rx = None;
     }
 }
 
@@ -141,6 +158,14 @@ impl Read for PeerHandle {
     fn read(&mut self, b: &mut [u8]) -> Result<usize, IoError> {
         let mut state = self.0.borrow_mut();
         loop {
+            if let Some(w) = state.wait_for_new_peer_rx.as_mut() {
+                match w.poll() {
+                    Ok(Async::NotReady) => return wouldblock(),
+                    _ => {
+                        state.wait_for_new_peer_rx = None;
+                    }
+                }
+            }
             let p : &mut Peer = match state.poll() {
                 Ok(Async::Ready(p)) => p,
                 Ok(Async::NotReady) => return wouldblock(),
@@ -148,19 +173,41 @@ impl Read for PeerHandle {
                     return Err(simple_err(format!("{}", e)));
                 }
             };
+            let mut finished_but_loop_around = false;
             match p.0.read(b) {
                 Ok(0) => { 
-                    return Ok(0);
+                    state.finished_reading = true;
+                    if state.need_wait_for_reading {
+                        finished_but_loop_around = true;
+                    } else {
+                        return Ok(0);
+                    }
                 }
                 Err(e) => {
                     if e.kind() == ::std::io::ErrorKind::WouldBlock {
                         return Err(e);
                     }
+                    state.finished_reading = true;
                     warn!("{}", e);
-                    return Err(e);
+
+                    if state.need_wait_for_reading {
+                        // Get a new peer to read from
+                        finished_but_loop_around = true;
+                    } else {
+                        return Err(e);
+                    }
                 }
                 Ok(x) => {
                     return Ok(x);
+                }
+            }
+            if finished_but_loop_around {
+                state.finished_reading = true;
+                let (tx,rx) = futures::sync::oneshot::channel();
+                state.wait_for_new_peer_tx = Some(tx);
+                state.wait_for_new_peer_rx = Some(rx);
+                if let Some(rw) = state.read_waiter_tx.take() {
+                    let _ = rw.send(());
                 }
             }
         }
@@ -268,11 +315,35 @@ impl Write for PeerHandle {
                                     return wouldblock();
                                 },
                                 Ok(Async::Ready(())) => {
-                                    debug!("Closed");
-                                    finished=true;
+                                    if state.need_wait_for_reading {
+                                        if state.finished_reading {
+                                            debug!("Closed and reading is also done");
+                                            finished=true;
+                                        } else {
+                                            debug!("Closed, but need to wait for other direction to finish");
+                                            ph = Phase::WaitingForReadToFinish;
+                                            let (tx,rx) = futures::sync::oneshot::channel();
+                                            state.read_waiter_tx = Some(tx);
+                                            state.read_waiter_rx = Some(rx);
+                                        }
+                                    } else {
+                                        debug!("Closed");
+                                        finished=true;
+                                    }
                                 }
                             }
                         },
+                        Phase::WaitingForReadToFinish => {
+                            match state.read_waiter_rx.as_mut().unwrap().poll() {
+                                Ok(Async::NotReady) => {
+                                    return wouldblock();
+                                }
+                                _ => {
+                                    debug!("Waited for read to finish");
+                                    finished=true;
+                                }
+                            }
+                        }
                     }
                 }
                 state.ph = ph;
@@ -292,6 +363,7 @@ impl AsyncWrite for PeerHandle {
 }
 
 pub fn foreachmsg_peer(s: Rc<dyn Specifier>, cp: ConstructParams) -> BoxedNewPeerFuture {
+    let need_wait_for_reading = cp.program_options.foreachmsg_wait_reads;
     let s = Rc::new(RefCell::new(State {
         cp,
         s,
@@ -299,6 +371,12 @@ pub fn foreachmsg_peer(s: Rc<dyn Specifier>, cp: ConstructParams) -> BoxedNewPee
         n: None,
         aux: Default::default(),
         ph: Phase::Idle,
+        finished_reading: false,
+        read_waiter_tx: None,
+        read_waiter_rx: None,
+        wait_for_new_peer_rx: None,
+        wait_for_new_peer_tx: None,
+        need_wait_for_reading,
     }));
     let ph1 = PeerHandle(s.clone());
     let ph2 = PeerHandle(s);

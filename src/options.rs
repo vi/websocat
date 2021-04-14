@@ -92,4 +92,6 @@ pub struct Options {
 
     /// Only affects linter
     pub asyncstdio: bool,
+
+    pub foreachmsg_wait_reads: bool,
 }

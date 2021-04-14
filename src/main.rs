@@ -495,6 +495,10 @@ struct Opt {
     /// Add `Authorization: Basic` HTTP request header with this base64-encoded parameter
     #[structopt(long = "--basic-auth")]
     pub basic_auth: Option<String>,
+
+    /// [A] Wait for reading to finish before closing foreachmsg:'s peer
+    #[structopt(long = "--foreachmsg-wait-read")]
+    pub foreachmsg_wait_reads: bool,
 }
 
 // TODO: make it byte-oriented/OsStr?
@@ -753,6 +757,7 @@ fn run() -> Result<()> {
             ws_binary_base64
             ws_text_base64
             asyncstdio
+            foreachmsg_wait_reads
         );
         #[cfg(feature = "ssl")]
         {
