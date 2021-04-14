@@ -491,6 +491,10 @@ struct Opt {
     /// [A] Inhibit using stdin/stdout in a nonblocking way if it is not a tty 
     #[structopt(long = "--no-async-stdio")]
     pub noasyncstdio: bool,
+
+    /// Add `Authorization: Basic` HTTP request header with this base64-encoded parameter
+    #[structopt(long = "--basic-auth")]
+    pub basic_auth: Option<String>,
 }
 
 // TODO: make it byte-oriented/OsStr?
@@ -759,6 +763,13 @@ fn run() -> Result<()> {
             }
         }
     };
+
+    if let Some(ba) = cmd.basic_auth {
+        let x = base64::encode(&ba);
+        let q = format!("Basic {}", x);
+        opts.custom_headers.push(("Authorization".to_owned(), q.as_bytes().to_vec()));
+        opts.request_headers.push((http::header::AUTHORIZATION, http::header::HeaderValue::from_bytes(q.as_bytes()).unwrap()));
+    }
 
     let (s1, s2): (String, String) = match (cmd.addr1, cmd.addr2) {
         (None, None) => {
