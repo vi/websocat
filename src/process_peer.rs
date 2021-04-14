@@ -1,7 +1,7 @@
 extern crate tokio_process;
 
 use futures;
-use std;
+use std::{self, process::ExitStatus};
 use std::io::Result as IoResult;
 use std::io::{Read, Write};
 use tokio_io::{AsyncRead, AsyncWrite};
@@ -166,17 +166,19 @@ fn process_connect_peer(
     }
     cmd.stdin(Stdio::piped()).stdout(Stdio::piped());
     let child = cmd.spawn_async()?;
-    let ph = ProcessPeer(Rc::new(RefCell::new(child)), zero_sighup, close_sighup);
+    let ph = ProcessPeer(Rc::new(RefCell::new(ForgetfulProcess(Some(child)))), zero_sighup, close_sighup);
     Ok(Peer::new(ph.clone(), ph, None /* TODO */))
 }
 
+struct ForgetfulProcess(Option<Child>);
 #[derive(Clone)]
-struct ProcessPeer(Rc<RefCell<Child>>, bool, bool);
+struct ProcessPeer(Rc<RefCell<ForgetfulProcess>>, bool, bool);
 
 impl Read for ProcessPeer {
     fn read(&mut self, buf: &mut [u8]) -> IoResult<usize> {
         self.0
             .borrow_mut()
+            .0.as_mut().unwrap()
             .stdout()
             .as_mut()
             .expect("assertion failed 1425")
@@ -199,6 +201,7 @@ impl Write for ProcessPeer {
         }
         self.0
             .borrow_mut()
+            .0.as_mut().unwrap()
             .stdin()
             .as_mut()
             .expect("assertion failed 1425")
@@ -208,6 +211,7 @@ impl Write for ProcessPeer {
     fn flush(&mut self) -> IoResult<()> {
         self.0
             .borrow_mut()
+            .0.as_mut().unwrap()
             .stdin()
             .as_mut()
             .expect("assertion failed 1425")
@@ -230,12 +234,30 @@ impl AsyncWrite for ProcessPeer {
                 }
             }
         }
+        debug!("Shutdown of process peer's writer");
         let mut c: tokio_process::ChildStdin = self
             .0
             .borrow_mut()
+            .0.as_mut().unwrap()
             .stdin()
             .take()
             .expect("assertion failed 1425");
         c.shutdown()
+    }
+}
+
+impl Drop for ForgetfulProcess {
+    fn drop(&mut self) {
+        let chld = self.0.take().unwrap();
+        use futures::Future;
+        tokio::spawn(chld.map(|exc: ExitStatus| {
+            if exc.success() {
+                debug!("Child process exited")
+            } else {
+                warn!("Child process exited unsuccessfully: {:?}", exc.code());
+            }
+        }).map_err(|e| {
+            error!("Error waiting for child process termination: {}", e);
+        }));
     }
 }
