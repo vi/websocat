@@ -92,7 +92,7 @@ There are multiple options for installing WebSocat. From easy to hard:
 ## `--help=long` output
 
 ```
-websocat 1.7.0
+websocat 1.8.0
 Vitaly "_Vi" Shukela <vi0oss@gmail.com>
 Command-line client for web sockets, like netcat/curl/socat for ws://.
 
@@ -111,6 +111,7 @@ FLAGS:
                                                 request URI and client address (if TCP)
                                                 Beware of ShellShock or similar security problems.
     -E, --exit-on-eof                           Close a data transfer direction if the other one reached EOF
+        --foreachmsg-wait-read                  [A] Wait for reading to finish before closing foreachmsg:'s peer
         --jsonrpc                               Format messages you type as JSON RPC 2.0 method calls. First word
                                                 becomes method name, the rest becomes parameters, possibly automatically
                                                 wrapped in [].
@@ -147,6 +148,9 @@ FLAGS:
     -u, --unidirectional                        Inhibit copying data in one direction
     -U, --unidirectional-reverse                Inhibit copying data in the other direction (or maybe in both directions
                                                 if combined with -u)
+        --accept-from-fd                        [A] Do not call `socket(2)` in UNIX socket listerer peer, start with
+                                                `accept(2)` using specified file descriptor number as argument instead
+                                                of filename
         --unlink                                [A] Unlink listening UNIX socket before binding to it
     -V, --version                               Prints version information
     -v                                          Increase verbosity level to info or further
@@ -170,6 +174,9 @@ OPTIONS:
             --socks5 127.0.0.1:9050
         --autoreconnect-delay-millis <autoreconnect_delay_millis>
             [A] Delay before reconnect attempt for `autoreconnect:` overlay. [default: 20]
+
+        --basic-auth <basic_auth>
+            Add `Authorization: Basic` HTTP request header with this base64-encoded parameter
 
         --queue-len <broadcast_queue_len>
             [A] Number of pending queued messages for broadcast reuser [default: 16]
