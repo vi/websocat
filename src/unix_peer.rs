@@ -80,7 +80,7 @@ Example: forward connections from a UNIX socket to a WebSocket
 Example: Accept forwarded WebSocket connections from Nginx
 
     umask 0000
-    websocat --unlink ws-l:unix-l:/tmp/wstest tcp:[::]:22
+    websocat --unlink -b -E ws-u:unix-l:/tmp/wstest tcp:[::]:22
       
 Nginx config:
     
