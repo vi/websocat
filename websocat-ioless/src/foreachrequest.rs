@@ -141,18 +141,18 @@ impl Node for Spawner {
 
                     if early_drop && remaining_requests == 0 {
                         tracing::debug!("Immediately dropping inner subnode due to `eary_drop` mode activated");
-                        Ok((SinkState {
+                        Ok(SinkState {
                             dgrsink: None,
                             remaining_requests: 0,
     
-                        }))
+                        })
                     } else {
                         tracing::debug!("{} requests remaining to be served by inner subnode of spawner", remaining_requests);
-                        Ok((SinkState {
+                        Ok(SinkState {
                             dgrsink: Some(dgrsink),
                             remaining_requests: remaining_requests,
     
-                        }))
+                        })
                     }
                 }
             });

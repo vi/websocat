@@ -185,7 +185,7 @@ impl Node for ReuseBroadcast {
                                 anyhow::bail!("Cannot send a message from reuse-broadcast's client to the reused subnode");
                             }
                         }
-                        Ok((tx))
+                        Ok(tx)
                     }
                 });
                 Sink::Datagrams(Box::pin(sink))

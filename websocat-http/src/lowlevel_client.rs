@@ -306,7 +306,7 @@ impl websocat_api::Node for HttpClient {
                 }
                 maybe_buf.map(move |buf| {
                     tracing::trace!("Sending {} bytes chunk as HTTP response body", buf.len());
-                    ((Ok(buf), response_rx))
+                    (Ok(buf), response_rx)
                 })
             });
             Ok(websocat_api::Bipipe {
