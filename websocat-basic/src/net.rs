@@ -145,11 +145,11 @@ impl Tcp {
 
 #[websocat_api::async_trait::async_trait]
 impl websocat_api::Node for Tcp {
-    #[tracing::instrument(level = "debug", name = "Tcp", skip(self), err)]
+    #[tracing::instrument(level = "debug", name = "Tcp", skip(self,_q,_w), err)]
     async fn run(
         self: std::pin::Pin<std::sync::Arc<Self>>,
-        _: websocat_api::RunContext,
-        _: Option<websocat_api::ServerModeContext>,
+        _q: websocat_api::RunContext,
+        _w: Option<websocat_api::ServerModeContext>,
     ) -> websocat_api::Result<websocat_api::Bipipe> {
         let mut addrs = &self.addrs;
         let addrs_holder;
@@ -263,10 +263,10 @@ pub struct TcpListen {
 
 #[websocat_api::async_trait::async_trait]
 impl websocat_api::Node for TcpListen {
-    #[tracing::instrument(level = "debug", name = "TcpListen", skip(self,multiconn), err)]
+    #[tracing::instrument(level = "debug", name = "TcpListen", skip(self,multiconn,_q), err)]
     async fn run(
         self: std::pin::Pin<std::sync::Arc<Self>>,
-        _: websocat_api::RunContext,
+        _q: websocat_api::RunContext,
         mut multiconn: Option<websocat_api::ServerModeContext>,
     ) -> websocat_api::Result<websocat_api::Bipipe> {
         let mut l : Option<tokio::net::TcpListener> = None;
