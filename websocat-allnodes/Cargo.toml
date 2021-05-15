@@ -14,3 +14,4 @@ websocat-syncnodes = {path = "../websocat-syncnodes"}
 websocat-session = {path = "../websocat-session"}
 websocat-http = {path = "../websocat-http", features=["highlevel"]}
 websocat-readline = {path = "../websocat-readline"}
+websocat-tungstenite = {path = "../websocat-tungstenite"}

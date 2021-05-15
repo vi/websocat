@@ -26,6 +26,8 @@ pub fn all_node_classes() -> websocat_api::ClassRegistrar {
     reg.register::<websocat_ioless::foreachrequest::Spawner>();
 
     reg.register::<websocat_readline::Readline>();
+
+    reg.register::<websocat_tungstenite::WebsocketClient>();
     reg
 }
     

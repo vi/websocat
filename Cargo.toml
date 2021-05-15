@@ -22,6 +22,7 @@ members = [
     "websocat-http",
     "websocat-readline",
     "websocat-ioless",
+    "websocat-tungstenite",
     "websocat-allnodes",
     "playground",
     "playground2",
