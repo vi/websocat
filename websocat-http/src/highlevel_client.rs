@@ -1,3 +1,4 @@
+#![allow(unused)]
 use websocat_api::{
     anyhow, async_trait::async_trait, bytes, futures::TryStreamExt, tokio, NodeId, Result,
 };
@@ -216,7 +217,7 @@ impl websocat_api::Node for HttpClient {
             if let Some(ref c) = *lock {
                 c.clone()
             } else {
-                let c = hyper::client::Client::new();
+                let c = hyper::client::Client::builder().build_http();
                 *lock = Some(c.clone());
                 c
             }

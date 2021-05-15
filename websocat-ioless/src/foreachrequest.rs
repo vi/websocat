@@ -59,7 +59,7 @@ impl Node for Spawner {
         struct SinkState {
             dgrsink: Option<websocat_api::DatagramSink>,
             remaining_requests: usize,
-        };
+        }
 
         let initial = SinkState {
             dgrsink: None,
