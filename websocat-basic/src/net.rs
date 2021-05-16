@@ -161,7 +161,7 @@ impl websocat_api::Node for Tcp {
             websocat_api::anyhow::bail!("No destination address for TCP connection specified");
         }
         if addrs.len() == 1 {
-            let addr = self.addrs[0];
+            let addr = addrs[0];
             tracing::debug!("Connecting to {}", addr);
             let c = tokio::net::TcpStream::connect(addr).await?;
             let (r, w) = c.into_split();

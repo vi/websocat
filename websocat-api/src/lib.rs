@@ -437,6 +437,7 @@ pub type ByteStreamSource = Pin<Box<dyn AsyncRead + Send  + 'static>>;
 pub type DatagramSource = Pin<Box<dyn futures::stream::Stream<Item=Result<bytes::Bytes>> + Send  + 'static>>;
 pub type ByteStreamSink = Pin<Box<dyn AsyncWrite + Send  + 'static>>;
 pub type DatagramSink = Pin<Box<dyn futures::sink::Sink<bytes::Bytes, Error=anyhow::Error> + Send  + 'static>>;
+pub type ClosingNotification = Pin<Box<dyn Future<Output=()> + Send + 'static>>;
 
 pub enum Source {
     ByteStream(ByteStreamSource),
@@ -454,7 +455,7 @@ pub enum Sink {
 pub struct Bipipe {
     pub r: Source,
     pub w: Sink,
-    pub closing_notification: Option<Pin<Box<dyn Future<Output=()> + Send + 'static>>>,
+    pub closing_notification: Option<ClosingNotification>,
 }
 
 impl std::fmt::Debug for Bipipe {
