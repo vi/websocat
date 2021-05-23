@@ -2,7 +2,7 @@ use websocat_api::anyhow::Context;
 
 
 #[derive(Debug, Clone, websocat_derive::WebsocatNode)]
-#[websocat_node(official_name=".sockaddr", data_only, debug_derive)]
+#[websocat_node(official_name=".sockaddr", data_only)]
 struct SockAddr {
     /// Specify a set of socket addresses.
     /// For clients, it would initiate a race for the first successfull connection.

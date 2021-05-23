@@ -78,7 +78,7 @@ struct PropertyInfo {
 struct ClassInfo {
     name: syn::Ident,
     properties: Vec<PropertyInfo>,
-    flattened_fields: Vec<syn::Ident>,
+    flattened_fields: Vec<(syn::Ident, syn::TypePath)>,
     ignored_fields: Vec<syn::Ident>,
     array_type: Option<PropertyInfo>,
 
@@ -124,6 +124,20 @@ fn resolve_type(x: &syn::Ident) -> websocat_api::PropertyValueTypeTag {
         "Uri" => websocat_api::PropertyValueTypeTag::Uri,
         y => panic!("Unknown type {}", y),
     } 
+}
+
+fn type_append(t: &syn::TypePath, suffix: &str) -> syn::TypePath {
+    let mut x = t.clone();
+    if let Some(h) = x.path.segments.pop() {
+        let mut h = h.into_value();
+
+        h.ident = quote::format_ident!("{}{}", h.ident, suffix);
+
+        x.path.segments.push(h);
+    } else {
+        panic!("Cannot append a thing to TypePath")
+    }
+    x
 }
 
 trait PVTHelper {
@@ -174,7 +188,7 @@ impl ClassInfo {
         }
 
         let mut ignored_fields = Vec::new();
-        let mut flattened_fields: Vec<syn::Ident> = Vec::new();
+        let mut flattened_fields: Vec<(syn::Ident, syn::TypePath)> = Vec::new();
 
         match cc.data {
             darling::ast::Data::Enum(_) => panic!("Enums are not supported"),
@@ -187,8 +201,14 @@ impl ClassInfo {
                         continue;
                     }
                     if field.flatten {
-                        flattened_fields.push(ident);
-                        continue;
+                        match field.ty {
+                            syn::Type::Path(t) => {
+                                flattened_fields.push((ident, t));
+                                continue;
+                            }
+                            _ => panic!("Flattened fields should be of some TypePath")
+                        }
+                       
                     }
                     let (typ, mut optional, enumname,vector) = match field.ty {
                         syn::Type::Path(t) => {
@@ -358,6 +378,7 @@ impl ClassInfo {
         let ci = self;
         let mut property_accessors = proc_macro2::TokenStream::new();
         let mut array_accessor = proc_macro2::TokenStream::new();
+        let mut flat_attempts = proc_macro2::TokenStream::new();
 
         let classname = quote::format_ident!("{}Class", ci.name);
 
@@ -387,6 +408,14 @@ impl ClassInfo {
                     });
                 }
             }
+        }
+
+        for (flf, _flt) in &self.flattened_fields {
+            flat_attempts.extend(q!{
+                if let Some(x) = self.#flf.get_property(name) { 
+                    return Some(x)
+                }
+            });
         }
 
         if let Some(p) = &ci.array_type {
@@ -427,7 +456,10 @@ impl ClassInfo {
                 fn get_property(&self, name:&str) -> ::std::option::Option<::websocat_api::PropertyValue> {
                     match name {
                         #property_accessors
-                        _ => None,
+                        _ => {
+                            #flat_attempts
+                            None
+                        },
                     }
                 }
             
@@ -468,6 +500,13 @@ impl ClassInfo {
                 #nam : ::std::vec::Vec<#typ>,
             });
         }
+
+        for (flf,flt) in &self.flattened_fields {
+            let flf_b = type_append(flt, "Builder");
+            fields.extend(q!{
+                #flf: #flf_b,
+            });
+        }
     
         let ts = q! {
             #[derive(Default)]
@@ -487,6 +526,7 @@ impl ClassInfo {
         let mut checks =  proc_macro2::TokenStream::new();
         let mut fields=  proc_macro2::TokenStream::new();
         let mut matchers=  proc_macro2::TokenStream::new();
+        let mut flat_attempts = proc_macro2::TokenStream::new();
         let mut push_array_element = proc_macro2::TokenStream::new();
         
         for p in &self.properties {
@@ -596,6 +636,14 @@ impl ClassInfo {
             }
         }
 
+        for (flf, _flt) in &self.flattened_fields {
+            flat_attempts.extend(q!{
+                if self.#flf.set_property(name, _val).is_ok() { 
+                    return Ok(())
+                }
+            });
+        }
+
         if let Some(p) = &self.array_type {
             let pn = &p.ident;
             fields.extend(q!{
@@ -632,6 +680,11 @@ impl ClassInfo {
                 #igf: ::std::default::Default::default(),
             });
         }
+        for (flf,_flt) in &self.flattened_fields {
+            fields.extend(q!{
+                #flf: self.#flf.finish_impl()?,
+            });
+        }
 
         let mut validate = proc_macro2::TokenStream::new();
 
@@ -647,7 +700,10 @@ impl ClassInfo {
                 fn set_property(&mut self, name: &str, val: ::websocat_api::PropertyValue) -> ::websocat_api::Result<()> {
                     match (name, val) {
                         #matchers
-                        _ => ::websocat_api::anyhow::bail!("Unknown property {} or wrong type", name),
+                        (_, _val) => {
+                            #flat_attempts
+                            ::websocat_api::anyhow::bail!("Unknown property {} or wrong type", name);
+                        }
                     }
                     Ok(())
                 }
@@ -657,14 +713,20 @@ impl ClassInfo {
                 }
 
                 fn finish(mut self: Box<Self>) -> ::websocat_api::Result<websocat_api::DDataNode> {
+                    ::std::result::Result::Ok(::std::sync::Arc::pin(
+                        self.finish_impl()?
+                    ))
+                }
+            }
+
+            impl #buildername {
+                fn finish_impl(mut self) -> ::websocat_api::Result<#name> {
                     #checks
                     let mut x = #name {
                         #fields
                     };
                     #validate
-                    ::std::result::Result::Ok(::std::sync::Arc::pin(
-                        x
-                    ))
+                    ::std::result::Result::Ok(x)
                 }
             }
         };
@@ -676,6 +738,7 @@ impl ClassInfo {
         let offiname = &self.official_name;
 
         let mut property_infos =  proc_macro2::TokenStream::new();
+        let mut flat_props =  proc_macro2::TokenStream::new();
 
         let mut array_type =  proc_macro2::TokenStream::new();
         let mut array_help =  proc_macro2::TokenStream::new();
@@ -734,6 +797,13 @@ impl ClassInfo {
             array_help.extend(q!{ None });
         }
 
+        for (_flf, flt) in &self.flattened_fields {
+            let flf_c = type_append(flt, "Class");
+            flat_props.extend(q!{
+                v.extend(::websocat_api::NodeClass::properties(&#flf_c::default()));
+            });
+        }
+
         let mut prefixes = proc_macro2::TokenStream::new();
 
         for pr in &self.prefixes {
@@ -757,10 +827,13 @@ impl ClassInfo {
                     #prefixes
                 ] }
             
+                #[allow(unused_mut)]
                 fn properties(&self) -> ::std::vec::Vec<::websocat_api::PropertyInfo> {
-                    vec![
+                    let mut v = vec![
                         #property_infos
-                    ]
+                    ];
+                    #flat_props
+                    v
                 }
             
                 fn array_type(&self) -> ::std::option::Option<::websocat_api::PropertyValueType> {
