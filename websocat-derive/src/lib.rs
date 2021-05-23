@@ -6,7 +6,7 @@ use syn::{DeriveInput, parse_macro_input};
 use quote::quote as q;
 
 #[derive(Debug, darling::FromField)]
-#[darling(attributes(websocat_prop, enum), forward_attrs(doc,cli))]
+#[darling(attributes(websocat_prop, enum, flatten), forward_attrs(doc,cli))]
 struct Field1 {
     ident:	Option<syn::Ident>,
     ty:	syn::Type,
@@ -33,6 +33,9 @@ struct Field1 {
 
     #[darling(default, rename="default")]
     default: Option<syn::Lit>,
+
+    #[darling(default, rename="flatten")]
+    flatten: bool,
 }
 
 #[derive(Debug, darling::FromDeriveInput)]
@@ -40,7 +43,7 @@ struct Field1 {
 struct Class1 {
     ident: syn::Ident,
     data: darling::ast::Data<(),Field1>,
-    official_name: String,
+    official_name: Option<String>,
 
     #[darling(multiple, rename="prefix")]
     prefixes: Vec<String>,
@@ -50,6 +53,12 @@ struct Class1 {
 
     #[darling(default)]
     validate: bool,
+
+    #[darling(default)]
+    data_only: bool,
+
+    #[darling(default)]
+    no_class: bool,
 }
 
 #[derive(Debug)]
@@ -72,14 +81,16 @@ struct PropertyInfo {
 struct ClassInfo {
     name: syn::Ident,
     properties: Vec<PropertyInfo>,
+    flattened_fields: Vec<syn::Ident>,
     ignored_fields: Vec<syn::Ident>,
     array_type: Option<PropertyInfo>,
 
-    official_name: String,
+    official_name: Option<String>,
     prefixes: Vec<String>,  
     validate: bool,
 
     debug_derive: bool,
+    data_only: bool,
 }
 
 fn proptype(x: &websocat_api::PropertyValueTypeTag, enbt: &Option<syn::TypePath>) -> proc_macro2::TokenStream {
@@ -156,6 +167,10 @@ impl ClassInfo {
 
         let cc = Class1::from_derive_input(x).unwrap();
 
+        if cc.official_name.is_none() ^ !cc.no_class {
+            panic!("Set exactly one of official_name or no_class");
+        }
+
         let mut properties: Vec<PropertyInfo> = vec![];
         let mut array_type: Option<PropertyInfo> = None;
         
@@ -166,6 +181,7 @@ impl ClassInfo {
         }
 
         let mut ignored_fields = Vec::new();
+        let mut flattened_fields: Vec<syn::Ident> = Vec::new();
 
         match cc.data {
             darling::ast::Data::Enum(_) => panic!("Enums are not supported"),
@@ -175,6 +191,10 @@ impl ClassInfo {
                     let ident = field.ident.expect("Struct fields must have names");
                     if field.ignored {
                         ignored_fields.push(ident);
+                        continue;
+                    }
+                    if field.flatten {
+                        flattened_fields.push(ident);
                         continue;
                     }
                     let (typ, mut optional, enumname,vector) = match field.ty {
@@ -326,6 +346,8 @@ impl ClassInfo {
             official_name: cc.official_name,
             debug_derive: cc.debug_derive,
             validate: cc.validate,
+            data_only: cc.data_only,
+            flattened_fields,
         };
 
         if cc.debug_derive {
@@ -392,6 +414,16 @@ impl ClassInfo {
             });
         }
     
+        let upgr = if self.data_only {
+            q!{
+                ::std::result::Result::Err(::websocat_api::PurelyDataNodeError)
+            }
+        } else {
+            q!{
+                ::std::result::Result::Ok(self)
+            }
+        };
+
         let name = &ci.name;
         let ts = q! {
             impl ::websocat_api::DataNode for #name {
@@ -415,7 +447,7 @@ impl ClassInfo {
                 }
 
                 fn upgrade(self: ::std::pin::Pin<::std::sync::Arc<Self>>) -> std::result::Result<::websocat_api::DRunnableNode, ::websocat_api::PurelyDataNodeError> {
-                    ::std::result::Result::Ok(self)
+                    #upgr
                 }
             }        
         };
@@ -648,7 +680,7 @@ impl ClassInfo {
 
     #[allow(non_snake_case)]
     fn generate_NodeClass(&self) -> proc_macro2::TokenStream {
-        let offiname = &self.official_name;
+        let offiname = self.official_name.as_ref().unwrap();
 
         let mut property_infos =  proc_macro2::TokenStream::new();
 
@@ -772,7 +804,9 @@ pub fn derive_websocat_node(input: TokenStream) -> TokenStream {
     code.extend(ci.generate_DataNode());
     code.extend(ci.generate_builder());
     code.extend(ci.generate_NodeInProgressOfParsing());
-    code.extend(ci.generate_NodeClass());
+    if ci.official_name.is_some() {
+        code.extend(ci.generate_NodeClass());
+    }
     
     if ci.debug_derive {
         use std::io::Write;
