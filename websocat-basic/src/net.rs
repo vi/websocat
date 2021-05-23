@@ -1,5 +1,29 @@
 use websocat_api::anyhow::Context;
 
+
+#[derive(Debug, Clone, websocat_derive::WebsocatNode)]
+#[websocat_node(official_name=".sockaddr", data_only, debug_derive)]
+struct SockAddr {
+    /// Specify a set of socket addresses.
+    /// For clients, it would initiate a race for the first successfull connection.
+    /// For servers, it would cause it to listen all of the mentioned ports.
+    addrs: Vec<std::net::SocketAddr>,
+
+    /// A port to connect to. Must be combined with `port`.
+    port: Option<u16>,
+
+    /// A host to resolve, then to connect to. Must be combined with `host`.
+    host: Option<String>,
+
+    /// TCP host and port pair to resolve and connect to.
+    hostport: Option<String>,
+
+    /// Resolve hostname to IP once, at start, not every time before the connection
+    #[cli="cached-resolved-ip"]
+    #[websocat_prop(default=false)]
+    cache_resolved_ip: bool,
+}
+
 #[derive(Debug, Clone, websocat_derive::WebsocatNode)]
 #[websocat_node(official_name = "tcp", prefix = "tcp", validate)]
 pub struct Tcp {

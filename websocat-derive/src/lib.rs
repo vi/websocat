@@ -43,7 +43,7 @@ struct Field1 {
 struct Class1 {
     ident: syn::Ident,
     data: darling::ast::Data<(),Field1>,
-    official_name: Option<String>,
+    official_name: String,
 
     #[darling(multiple, rename="prefix")]
     prefixes: Vec<String>,
@@ -56,9 +56,6 @@ struct Class1 {
 
     #[darling(default)]
     data_only: bool,
-
-    #[darling(default)]
-    no_class: bool,
 }
 
 #[derive(Debug)]
@@ -85,7 +82,7 @@ struct ClassInfo {
     ignored_fields: Vec<syn::Ident>,
     array_type: Option<PropertyInfo>,
 
-    official_name: Option<String>,
+    official_name: String,
     prefixes: Vec<String>,  
     validate: bool,
 
@@ -166,10 +163,6 @@ impl ClassInfo {
         use darling::FromDeriveInput;
 
         let cc = Class1::from_derive_input(x).unwrap();
-
-        if cc.official_name.is_none() ^ !cc.no_class {
-            panic!("Set exactly one of official_name or no_class");
-        }
 
         let mut properties: Vec<PropertyInfo> = vec![];
         let mut array_type: Option<PropertyInfo> = None;
@@ -680,7 +673,7 @@ impl ClassInfo {
 
     #[allow(non_snake_case)]
     fn generate_NodeClass(&self) -> proc_macro2::TokenStream {
-        let offiname = self.official_name.as_ref().unwrap();
+        let offiname = &self.official_name;
 
         let mut property_infos =  proc_macro2::TokenStream::new();
 
@@ -804,9 +797,7 @@ pub fn derive_websocat_node(input: TokenStream) -> TokenStream {
     code.extend(ci.generate_DataNode());
     code.extend(ci.generate_builder());
     code.extend(ci.generate_NodeInProgressOfParsing());
-    if ci.official_name.is_some() {
-        code.extend(ci.generate_NodeClass());
-    }
+    code.extend(ci.generate_NodeClass());
     
     if ci.debug_derive {
         use std::io::Write;
