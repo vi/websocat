@@ -19,6 +19,7 @@ bytes = "1.0.1"
 tracing = "0.1.25"
 string-interner = "0.12.2"
 pin-project = "1"
+thiserror = "1.0.24"
 
 [dev-dependencies]
 proptest = "1.0.0"

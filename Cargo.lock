@@ -1758,6 +1758,7 @@ dependencies = [
  "slab_typesafe",
  "static_assertions",
  "string-interner",
+ "thiserror",
  "tinyvec",
  "tokio",
  "tracing",

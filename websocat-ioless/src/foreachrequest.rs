@@ -1,7 +1,7 @@
 #![allow(unused_imports)]
 use websocat_api::{anyhow, bytes, futures, tokio};
 use websocat_api::{
-    async_trait::async_trait, Bipipe, Node, NodeId, Result, RunContext, Sink, Source,
+    async_trait::async_trait, Bipipe, RunnableNode, NodeId, Result, RunContext, Sink, Source,
 };
 use websocat_derive::{WebsocatEnum, WebsocatNode};
 
@@ -25,7 +25,7 @@ pub struct Spawner {
 }
 
 #[async_trait]
-impl Node for Spawner {
+impl RunnableNode for Spawner {
     async fn run(
         self: std::pin::Pin<std::sync::Arc<Self>>,
         ctx: RunContext,
@@ -81,7 +81,7 @@ impl Node for Spawner {
                         }
                         _ => {
                             tracing::debug!("Spawner is creating a new subnode");
-                            let p = ctx.nodes[inner].clone().run(ctx, None).await?;
+                            let p = ctx.nodes[inner].clone().upgrade()?.run(ctx, None).await?;
                             drop(p.closing_notification);
                             let dgrsink = match p.w {
                                 Sink::ByteStream(_) => anyhow::bail!("spawner supports only datagram-based nodes. Wrap your inner not in some adapter."),

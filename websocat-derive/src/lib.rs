@@ -339,7 +339,7 @@ impl ClassInfo {
 
 
     #[allow(non_snake_case)]
-    fn generate_NodeProperyAccess(&self) -> proc_macro2::TokenStream {
+    fn generate_DataNode(&self) -> proc_macro2::TokenStream {
         let ci = self;
         let mut property_accessors = proc_macro2::TokenStream::new();
         let mut array_accessor = proc_macro2::TokenStream::new();
@@ -394,7 +394,7 @@ impl ClassInfo {
     
         let name = &ci.name;
         let ts = q! {
-            impl ::websocat_api::NodeProperyAccess for #name {
+            impl ::websocat_api::DataNode for #name {
                 fn class(&self) -> ::websocat_api::DNodeClass {
                     Box::new(#classname)
                 }
@@ -410,8 +410,12 @@ impl ClassInfo {
                     #array_accessor
                 }
                 
-                fn deep_clone(&self) -> ::websocat_api::DNode {
+                fn deep_clone(&self) -> ::websocat_api::DDataNode {
                     ::std::sync::Arc::pin(::std::clone::Clone::clone(self))
+                }
+
+                fn upgrade(self: ::std::pin::Pin<::std::sync::Arc<Self>>) -> std::result::Result<::websocat_api::DRunnableNode, ::websocat_api::PurelyDataNodeError> {
+                    ::std::result::Result::Ok(self)
                 }
             }        
         };
@@ -627,7 +631,7 @@ impl ClassInfo {
                     #push_array_element
                 }
 
-                fn finish(mut self: Box<Self>) -> ::websocat_api::Result<websocat_api::DNode> {
+                fn finish(mut self: Box<Self>) -> ::websocat_api::Result<websocat_api::DDataNode> {
                     #checks
                     let mut x = #name {
                         #fields
@@ -765,7 +769,7 @@ pub fn derive_websocat_node(input: TokenStream) -> TokenStream {
     
     let mut code = proc_macro2::TokenStream::new();
 
-    code.extend(ci.generate_NodeProperyAccess());
+    code.extend(ci.generate_DataNode());
     code.extend(ci.generate_builder());
     code.extend(ci.generate_NodeInProgressOfParsing());
     code.extend(ci.generate_NodeClass());

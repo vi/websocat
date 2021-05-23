@@ -466,7 +466,7 @@ impl StrNode {
         &self,
         classes: &super::ClassRegistrar,
         cli_opts: &std::collections::HashMap<String, PropertyValue>,
-        tree: &mut super::Slab<super::NodeId, super::DNode>,
+        tree: &mut super::Slab<super::NodeId, super::DDataNode>,
     ) -> Result<super::NodeId> {
         tracing::debug!("Building parsed node");
         if let Some(cls) = classes.officname_to_classes.get(&self.name.0) {

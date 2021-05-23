@@ -1,7 +1,7 @@
 #[allow(unused_imports)]
 use websocat_api::{anyhow, bytes, futures, tokio};
 use websocat_api::{
-    async_trait::async_trait, Bipipe, Node, NodeId, Result, RunContext, Sink, Source,
+    async_trait::async_trait, Bipipe, RunnableNode, NodeId, Result, RunContext, Sink, Source,
 };
 use websocat_derive::{WebsocatEnum, WebsocatNode};
 
@@ -13,14 +13,14 @@ pub struct Identity {
 }
 
 #[async_trait]
-impl Node for Identity {
+impl RunnableNode for Identity {
     async fn run(
         self: std::pin::Pin<std::sync::Arc<Self>>,
         ctx: RunContext,
         multiconn: Option<websocat_api::ServerModeContext>,
     ) -> Result<Bipipe> {
         tracing::debug!("Before running inner node of identity node");
-        let x = ctx.nodes[self.inner].clone().run(ctx, multiconn).await?;
+        let x = ctx.nodes[self.inner].clone().upgrade()?.run(ctx, multiconn).await?;
         tracing::debug!("After running inner node of identity node");
         Ok(x)
     }
@@ -45,7 +45,7 @@ pub struct Mirror {
 }
 
 #[async_trait]
-impl Node for Mirror {
+impl RunnableNode for Mirror {
     async fn run(
         self: std::pin::Pin<std::sync::Arc<Self>>,
         _ctx: RunContext,
@@ -90,7 +90,7 @@ pub struct DevNull {
 }
 
 #[async_trait]
-impl Node for DevNull {
+impl RunnableNode for DevNull {
     async fn run(
         self: std::pin::Pin<std::sync::Arc<Self>>,
         _ctx: RunContext,
@@ -125,7 +125,7 @@ pub struct Split {
 }
 
 #[async_trait]
-impl Node for Split {
+impl RunnableNode for Split {
     async fn run(
         self: std::pin::Pin<std::sync::Arc<Self>>,
         ctx: RunContext,
@@ -141,7 +141,7 @@ impl Node for Split {
                 })
             }
             (Some(rx), None) => {
-                let x = ctx.nodes[rx].clone().run(ctx, None).await?;
+                let x = ctx.nodes[rx].clone().upgrade()?.run(ctx, None).await?;
                 tracing::info!("Split node is removing the writing part from inner node.");
                 Ok(Bipipe {
                     r: x.r,
@@ -150,7 +150,7 @@ impl Node for Split {
                 })
             }
             (None, Some(tx)) => {
-                let x = ctx.nodes[tx].clone().run(ctx, None).await?;
+                let x = ctx.nodes[tx].clone().upgrade()?.run(ctx, None).await?;
                 tracing::info!("Split node is removing the reading part from inner node.");
                 Ok(Bipipe {
                     r: Source::None,
@@ -161,8 +161,8 @@ impl Node for Split {
             (Some(rx), Some(tx)) => {
                 let mut xr: Option<Bipipe> = None;
                 let mut xw: Option<Bipipe> = None;
-                let rn = ctx.nodes[rx].clone();
-                let wn = ctx.nodes[tx].clone();
+                let rn = ctx.nodes[rx].clone().upgrade()?;
+                let wn = ctx.nodes[tx].clone().upgrade()?;
                 let mut rxf = rn.run(ctx.clone(), None);
                 let mut txf = wn.run(ctx, None);
                 while xr.is_none() || xw.is_none() {
@@ -207,7 +207,7 @@ pub struct Literal {
 }
 
 #[async_trait]
-impl Node for Literal {
+impl RunnableNode for Literal {
     async fn run(
         self: std::pin::Pin<std::sync::Arc<Self>>,
         _ctx: RunContext,
@@ -240,13 +240,13 @@ pub struct Stream {
 }
 
 #[async_trait]
-impl Node for Stream {
+impl RunnableNode for Stream {
     async fn run(
         self: std::pin::Pin<std::sync::Arc<Self>>,
         ctx: RunContext,
         multiconn: Option<websocat_api::ServerModeContext>,
     ) -> Result<Bipipe> {
-        let p = ctx.nodes[self.inner].clone().run(ctx, multiconn).await?;
+        let p = ctx.nodes[self.inner].clone().upgrade()?.run(ctx, multiconn).await?;
 
         if !matches!(p.r, Source::Datagrams(_)) && !matches!(p.w, Sink::Datagrams(_)) {
             tracing::warn!("Redundant use of `bytestream` node");
@@ -307,13 +307,13 @@ pub struct Datagrams {
 }
 
 #[async_trait]
-impl Node for Datagrams {
+impl RunnableNode for Datagrams {
     async fn run(
         self: std::pin::Pin<std::sync::Arc<Self>>,
         ctx: RunContext,
         multiconn: Option<websocat_api::ServerModeContext>,
     ) -> Result<Bipipe> {
-        let p = ctx.nodes[self.inner].clone().run(ctx, multiconn).await?;
+        let p = ctx.nodes[self.inner].clone().upgrade()?.run(ctx, multiconn).await?;
 
         if !matches!(p.r, Source::ByteStream(_)) && !matches!(p.w, Sink::ByteStream(_)) {
             tracing::warn!("Redundant use of `datagrams` node");

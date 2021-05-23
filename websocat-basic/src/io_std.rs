@@ -8,7 +8,7 @@ pub struct Stdio {
 }
 
 #[websocat_api::async_trait::async_trait]
-impl websocat_api::Node for Stdio {
+impl websocat_api::RunnableNode for Stdio {
     #[tracing::instrument(level="debug", name="Stdio", err, skip(_q, _w))]
     async fn run(self: std::pin::Pin<std::sync::Arc<Self>>, _q: websocat_api::RunContext, _w: Option<websocat_api::ServerModeContext>) -> websocat_api::Result<websocat_api::Bipipe> {
         tracing::trace!("Obtaining stdin and stdout");

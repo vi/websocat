@@ -25,7 +25,7 @@ struct Foo {
 
 
 #[websocat_api::async_trait::async_trait]
-impl websocat_api::Node for Foo {
+impl websocat_api::RunnableNode for Foo {
     async fn run(self: std::pin::Pin<std::sync::Arc<Self>>, ctx: websocat_api::RunContext, _multiconn: Option<ServerModeContext>) -> websocat_api::Result<websocat_api::Bipipe> {
         Err(websocat_api::anyhow::anyhow!("nimpl"))
     }

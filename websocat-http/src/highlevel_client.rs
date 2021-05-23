@@ -204,7 +204,7 @@ impl HttpClient {
 }
 
 #[async_trait]
-impl websocat_api::Node for HttpClient {
+impl websocat_api::RunnableNode for HttpClient {
     async fn run(
         self: std::pin::Pin<std::sync::Arc<Self>>,
         ctx: websocat_api::RunContext,
@@ -328,7 +328,7 @@ impl websocat_api::Node for HttpClient {
         } else {
             // body is not received from upstream in this mode
             let rqbody = if let Some(ref bnid) = self.request_body {
-                let bio = ctx.nodes[bnid].clone().run(ctx.clone(), None).await?;
+                let bio = ctx.nodes[bnid].clone().upgrade()?.run(ctx.clone(), None).await?;
                 drop(bio.w);
                 drop(bio.closing_notification);
                 if self.buffer_request_body == Some(true) {

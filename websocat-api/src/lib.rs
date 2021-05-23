@@ -234,33 +234,42 @@ pub trait NodeInProgressOfParsing {
     fn set_property(&mut self, name: &str, val: PropertyValue) -> Result<()>;
     fn push_array_element(&mut self, val: PropertyValue) -> Result<()>;
     
-    fn finish(self: Box<Self>) -> Result<DNode>;
+    fn finish(self: Box<Self>) -> Result<DDataNode>;
 }
 pub type DNodeInProgressOfParsing = Box<dyn NodeInProgressOfParsing + Send + 'static>;
 
+#[derive(Copy,Clone,Debug,thiserror::Error)]
+#[error("This node is a purely data storage and cannot be actually run")]
+pub struct PurelyDataNodeError;
+
+/// A storage for properties values.
 /// Deriveable part of [`Node`].
-pub trait NodeProperyAccess : Debug  {
+/// Many of them can be converted to proper runnable [`Node`]s.
+pub trait DataNode : Debug  {
     fn class(&self) -> DNodeClass;
-    fn deep_clone(&self) -> DNode;
+    fn deep_clone(&self) -> DDataNode;
 
     fn get_property(&self, name:&str) -> Option<PropertyValue>;
     fn get_array(&self) -> Vec<PropertyValue>;
 
+    fn upgrade(self: Pin<Arc<Self>>) -> ::std::result::Result<DRunnableNode, PurelyDataNodeError>;
+
     // Inherent method that is called after `NodeInProgressOfParsing::finish` if `validate` attribute is passed to the derive macro.
     // fn validate(&self) -> Result<()>;
 }
+pub type DDataNode = Pin<Arc<dyn DataNode + Send + Sync + 'static>>;
 
 /// Interpreted part of a command line describing some one aspect of a connection.
 /// The tree of those is supposed to be checked and modified by linting engine.
 /// Primary way to get those is by `SpecifierClass::parse`ing respective `StringyNode`s.
 #[async_trait]
-pub trait Node : NodeProperyAccess {
+pub trait RunnableNode : DataNode {
     /// Actually start the node (i.e. connect to TCP or recursively start another child node)
     /// If you want to serve multiple connections and `multiconn` is not None, you can
     /// trigger starting another Tokio task by using `multiconn`.
     async fn run(self: Pin<Arc<Self>>, ctx: RunContext, multiconn: Option<ServerModeContext>) -> Result<Bipipe>;
 }
-pub type DNode = Pin<Arc<dyn Node + Send + Sync + 'static>>;
+pub type DRunnableNode = Pin<Arc<dyn RunnableNode + Send + Sync + 'static>>;
 
 pub struct NodeInATree<'a>(pub NodeId, pub &'a Tree);
 
@@ -272,7 +281,7 @@ pub enum NodePlacement {
     Right,
 }
 
-pub type Tree = Slab<NodeId, DNode>;
+pub type Tree = Slab<NodeId, DDataNode>;
 
 #[derive(Clone)]
 pub struct Session {

@@ -1,7 +1,7 @@
 #![allow(unused_imports)]
 use websocat_api::{anyhow, bytes, futures, tokio};
 use websocat_api::{
-    async_trait::async_trait, Bipipe, Node, NodeId, Result, RunContext, Sink, Source,
+    async_trait::async_trait, Bipipe, RunnableNode, NodeId, Result, RunContext, Sink, Source,
 };
 use websocat_derive::{WebsocatEnum, WebsocatNode};
 
@@ -51,7 +51,7 @@ impl Clone for ReuseBroadcast {
 }
 
 #[async_trait]
-impl Node for ReuseBroadcast {
+impl RunnableNode for ReuseBroadcast {
     async fn run(
         self: std::pin::Pin<std::sync::Arc<Self>>,
         ctx: RunContext,
@@ -61,7 +61,7 @@ impl Node for ReuseBroadcast {
         {
             let mut l = self.the_pipe.lock().await;
             if l.is_none() {
-                let p = ctx.nodes[self.inner].clone().run(ctx, multiconn).await?;
+                let p = ctx.nodes[self.inner].clone().upgrade()?.run(ctx, multiconn).await?;
 
                 let rpart = match p.r {
                     Source::ByteStream(_) => {anyhow::bail!("reuser works only on datagram-based data. Use `datagrams` node to convert.")}

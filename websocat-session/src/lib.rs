@@ -2,7 +2,7 @@
 pub mod copy;
 
 use tracing::Instrument;
-use websocat_api::{anyhow, futures};
+use websocat_api::{anyhow::{self, Context}, futures};
 
 /// this ball is passed around from session to session
 struct Ball {
@@ -128,15 +128,17 @@ async fn run_impl(
     tracing::debug!("Now running {} parallel sessions", parallel);
 
     let try_block = async move {
-        let p1: websocat_api::Bipipe = websocat_api::Node::run(c.nodes[c.left].clone(),rc1, Some(multiconn)).await?;
+        let n1 = c.nodes[c.left].clone().upgrade().with_context(||format!("Trying to run the left node"))?;
+        let p1: websocat_api::Bipipe = websocat_api::RunnableNode::run(n1,rc1, Some(multiconn)).await?;
     
         let rc2 = websocat_api::RunContext {
             nodes: c.nodes.clone(),
             left_to_right_things_to_be_filled_in: None,
-            left_to_right_things_to_read_from: None,
+            left_to_right_things_to_read_from: None,    
         };
 
-        let p2: websocat_api::Bipipe = websocat_api::Node::run(c.nodes[c.right].clone(),rc2, None).await?;
+        let n2 = c.nodes[c.right].clone().upgrade().with_context(||format!("Trying to run the right node"))?;
+        let p2: websocat_api::Bipipe = websocat_api::RunnableNode::run(n2,rc2, None).await?;
 
         match (enable_forward, enable_backward) {
             (true, true) => {
@@ -166,7 +168,7 @@ async fn run_impl(
 
 
     if let Err(e) = try_block.await {
-        tracing::error!("Session finished with error: {}", e);
+        tracing::error!("Session finished with error: {:#}", e);
     }
 
 

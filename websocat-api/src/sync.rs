@@ -1,4 +1,4 @@
-use super::{NodeProperyAccess, Result, RunContext};
+use super::{DataNode, Result, RunContext};
 
 pub enum Source {
     ByteStream(Box<dyn std::io::Read + Send + 'static>),
@@ -17,7 +17,7 @@ pub struct Bipipe {
     pub w: Sink,
     pub closing_notification: Option<tokio::sync::oneshot::Receiver<()>>,
 }
-pub trait Node: NodeProperyAccess {
+pub trait Node: DataNode {
     /// Started from a Tokio runtime thread, so don't block it, spawn your own thread to handle things.
     /// If this is a server that does multiple connections, start `closure` in a loop.
     /// The `closure` is supposed to run in a thread that can block
@@ -487,7 +487,7 @@ mod syncimpl {
     }
     
     #[async_trait::async_trait]
-    impl<T: Node + Send + Sync + 'static> crate::Node for T {
+    impl<T: Node + Send + Sync + 'static> crate::RunnableNode for T {
         #[tracing::instrument(name = "SyncNode", level = "debug", skip(ctx, self, multiconn), err)]
         async fn run(
             self: std::pin::Pin<std::sync::Arc<Self>>,

@@ -23,13 +23,13 @@ pub struct WebsocketClient {
 
 
 #[websocat_api::async_trait::async_trait]
-impl websocat_api::Node for WebsocketClient {
+impl websocat_api::RunnableNode for WebsocketClient {
     #[tracing::instrument(level="debug", name="WebsocketClient", err, skip(ctx, multiconn))]
     async fn run(self: std::pin::Pin<std::sync::Arc<Self>>, ctx: websocat_api::RunContext, multiconn: Option<websocat_api::ServerModeContext>) -> websocat_api::Result<websocat_api::Bipipe> {
         let mut closing_notification = None;
 
         if let Some(inn) = self.inner {
-            let io = ctx.nodes[inn].clone().run(ctx, multiconn).await?;
+            let io = ctx.nodes[inn].clone().upgrade()?.run(ctx, multiconn).await?;
             closing_notification = io.closing_notification;
             let io = match (io.r, io.w) {
                 (websocat_api::Source::ByteStream(r), websocat_api::Sink::ByteStream(w)) => {
@@ -105,10 +105,10 @@ pub struct WebsocketLowlevel {
 
 
 #[websocat_api::async_trait::async_trait]
-impl websocat_api::Node for WebsocketLowlevel {
+impl websocat_api::RunnableNode for WebsocketLowlevel {
     #[tracing::instrument(level="debug", name="WebsocketLowlevel", err, skip(ctx, multiconn))]
     async fn run(self: std::pin::Pin<std::sync::Arc<Self>>, ctx: websocat_api::RunContext, multiconn: Option<websocat_api::ServerModeContext>) -> websocat_api::Result<websocat_api::Bipipe> {
-        let io = ctx.nodes[self.inner].clone().run(ctx, multiconn).await?;
+        let io = ctx.nodes[self.inner].clone().upgrade()?.run(ctx, multiconn).await?;
         let closing_notification = io.closing_notification;
         let io = match (io.r, io.w) {
             (websocat_api::Source::ByteStream(r), websocat_api::Sink::ByteStream(w)) => {

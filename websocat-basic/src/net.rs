@@ -144,7 +144,7 @@ impl Tcp {
 }
 
 #[websocat_api::async_trait::async_trait]
-impl websocat_api::Node for Tcp {
+impl websocat_api::RunnableNode for Tcp {
     #[tracing::instrument(level = "debug", name = "Tcp", skip(self,_q,_w), err)]
     async fn run(
         self: std::pin::Pin<std::sync::Arc<Self>>,
@@ -262,7 +262,7 @@ pub struct TcpListen {
 
 
 #[websocat_api::async_trait::async_trait]
-impl websocat_api::Node for TcpListen {
+impl websocat_api::RunnableNode for TcpListen {
     #[tracing::instrument(level = "debug", name = "TcpListen", skip(self,multiconn,_q), err)]
     async fn run(
         self: std::pin::Pin<std::sync::Arc<Self>>,

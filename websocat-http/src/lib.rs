@@ -20,7 +20,7 @@ pub struct Header {
 }
 
 #[async_trait]
-impl websocat_api::Node for Header {
+impl websocat_api::RunnableNode for Header {
     async fn run(self: std::pin::Pin<std::sync::Arc<Self>>, _ctx: websocat_api::RunContext, _multiconn: Option<websocat_api::ServerModeContext>) -> Result<websocat_api::Bipipe> {
         anyhow::bail!("`header` nodes are not supposed to be used directly, only as array elements of http-client or http-server nodes")
     }
