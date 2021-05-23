@@ -27,9 +27,12 @@ struct SockAddr {
 #[derive(Debug, Clone, websocat_derive::WebsocatNode)]
 #[websocat_node(official_name = "tcp", prefix = "tcp", validate)]
 pub struct Tcp {
-    /// Destination IP and port to where TCP connection should be established
-    /// If multiple is specified, they are tried in parallel and the first one who gets though wins.
-    addrs: Vec<std::net::SocketAddr>,
+    #[websocat_prop(flatten, delegate_array)]
+    sockaddr: SockAddr,
+
+    // Destination IP and port to where TCP connection should be established
+    // If multiple is specified, they are tried in parallel and the first one who gets though wins.
+    //addrs: Vec<std::net::SocketAddr>,
 
     /// TCP port to connect to. Must be combined with `port`.
     port: Option<u16>,
@@ -56,8 +59,8 @@ trait AddressesAndResolves {
 
 #[rustfmt::skip]
 impl AddressesAndResolves for Tcp {
-    fn addrs(&self) -> &Vec<std::net::SocketAddr> {  &self.addrs }
-    fn addrs_mut(&mut self) -> &mut Vec<std::net::SocketAddr> {  &mut self.addrs }
+    fn addrs(&self) -> &Vec<std::net::SocketAddr> {  &self.sockaddr.addrs }
+    fn addrs_mut(&mut self) -> &mut Vec<std::net::SocketAddr> {  &mut self.sockaddr.addrs }
     fn port(&self) -> &Option<u16> { &self.port }
     fn host(&self) -> &Option<String> { &self.host }
     fn hostport(&self) -> &Option<String> { &self.hostport }
@@ -175,9 +178,9 @@ impl websocat_api::RunnableNode for Tcp {
         _q: websocat_api::RunContext,
         _w: Option<websocat_api::ServerModeContext>,
     ) -> websocat_api::Result<websocat_api::Bipipe> {
-        let mut addrs = &self.addrs;
+        let mut addrs = &self.sockaddr.addrs;
         let addrs_holder;
-        if self.addrs.is_empty() {
+        if self.sockaddr.addrs.is_empty() {
             addrs_holder = resolve_async(self.as_ref(), cfg!(not(feature="race"))).await?;
             addrs = &addrs_holder;
         }
@@ -200,7 +203,7 @@ impl websocat_api::RunnableNode for Tcp {
             {
                 tracing::debug!(
                     "Setting up a race of trying to connect {} addresses",
-                    self.addrs.len()
+                    self.sockaddr.addrs.len()
                 );
                 let mut reply_rx;
                 {
@@ -251,7 +254,7 @@ impl websocat_api::RunnableNode for Tcp {
                 } else {
                     websocat_api::anyhow::bail!(
                         "All {} connection attempts failed",
-                        self.addrs.len()
+                        self.sockaddr.addrs.len()
                     )
                 }
             }

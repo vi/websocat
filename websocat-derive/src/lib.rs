@@ -6,7 +6,7 @@ use syn::{DeriveInput, parse_macro_input};
 use quote::quote as q;
 
 #[derive(Debug, darling::FromField)]
-#[darling(attributes(websocat_prop, enum, flatten), forward_attrs(doc,cli))]
+#[darling(attributes(websocat_prop, enum, flatten, delegate_array), forward_attrs(doc,cli))]
 struct Field1 {
     ident:	Option<syn::Ident>,
     ty:	syn::Type,
@@ -36,6 +36,9 @@ struct Field1 {
 
     #[darling(default, rename="flatten")]
     flatten: bool,
+
+    #[darling(default, rename="delegate_array")]
+    delegate_array: bool,
 }
 
 #[derive(Debug, darling::FromDeriveInput)]
@@ -79,6 +82,9 @@ struct ClassInfo {
     name: syn::Ident,
     properties: Vec<PropertyInfo>,
     flattened_fields: Vec<(syn::Ident, syn::TypePath)>,
+
+    delegate_array: Option<(syn::Ident, syn::TypePath)>,
+
     ignored_fields: Vec<syn::Ident>,
     array_type: Option<PropertyInfo>,
 
@@ -189,6 +195,7 @@ impl ClassInfo {
 
         let mut ignored_fields = Vec::new();
         let mut flattened_fields: Vec<(syn::Ident, syn::TypePath)> = Vec::new();
+        let mut delegate_array: Option<(syn::Ident, syn::TypePath)> = None;
 
         match cc.data {
             darling::ast::Data::Enum(_) => panic!("Enums are not supported"),
@@ -203,7 +210,18 @@ impl ClassInfo {
                     if field.flatten {
                         match field.ty {
                             syn::Type::Path(t) => {
+                                if field.delegate_array {
+                                    if delegate_array.is_some() {
+                                        panic!("There can only be one delegate_array field.")
+                                    }
+                                    if array_type.is_some() {
+                                        panic!("There cannot be both array field and delegate_array field.")
+                                    }
+                                    delegate_array = Some((ident.clone(), t.clone()));
+                                }
+
                                 flattened_fields.push((ident, t));
+
                                 continue;
                             }
                             _ => panic!("Flattened fields should be of some TypePath")
@@ -307,6 +325,9 @@ impl ClassInfo {
                         if array_type.is_some() {
                             panic!("There can only be one array per node");
                         }
+                        if delegate_array.is_some() {
+                            panic!("There cannot be both array field and delegate_array field.")
+                        }
                         assert!(!optional);
                         array_type = Some(PropertyInfo {
                             ident,
@@ -361,6 +382,7 @@ impl ClassInfo {
             validate: cc.validate,
             data_only: cc.data_only,
             flattened_fields,
+            delegate_array,
         };
 
         if cc.debug_derive {
@@ -430,6 +452,10 @@ impl ClassInfo {
                     self.#nam.iter().map(|x| ::websocat_api::PropertyValue::#typ(x.clone())).collect()
                 });
             }
+        } else if let Some((dai, _dat)) = &self.delegate_array {
+            array_accessor.extend(q!{
+                self.#dai.get_array()
+            });
         } else {
             array_accessor.extend(q!{
                 vec![]
@@ -669,6 +695,10 @@ impl ClassInfo {
                     Ok(())
                 });
             }
+        } else if let Some((dai, _dat)) = &self.delegate_array {
+            push_array_element.extend(q! {
+                self.#dai.push_array_element(val)
+            });
         } else {
             push_array_element.extend(q! {
                 ::websocat_api::anyhow::bail!("No array elements are expected here");
@@ -792,6 +822,10 @@ impl ClassInfo {
             array_help.extend(q!{
                 Some(#help.to_owned())
             })
+        } else if let Some((_dai, dat)) = &self.delegate_array {
+            let dat_c = type_append(dat, "Class");
+            array_type.extend(q!{ ::websocat_api::NodeClass::array_type(&#dat_c::default()) });
+            array_help.extend(q!{ ::websocat_api::NodeClass::array_help(&#dat_c::default()) });
         } else {
             array_type.extend(q!{ None });
             array_help.extend(q!{ None });
