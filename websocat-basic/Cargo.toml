@@ -15,8 +15,8 @@ tracing = "0.1.25"
 
 [features]
 default = ["net","io-std", "fs", "process", "race"]
-net = ["tokio/net", "tokio/rt", "tokio/rt"]
-race = ["tokio/sync", "tokio/macros"]
+net = ["tokio/net", "tokio/rt", "tokio/rt", "tokio/sync"]
+race = ["tokio/macros"]
 io-std = ["tokio/io-std"]
 fs = ["tokio/fs"]
 process = ["tokio/process"]

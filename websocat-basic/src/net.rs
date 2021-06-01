@@ -240,10 +240,11 @@ pub struct TcpListen {
 
 impl TcpListen {
     fn validate(&mut self) -> websocat_api::Result<()> {
-        self.sockaddr.validate(true)?;
+        self.sockaddr.validate(false)?;
         Ok(())
     }
 }
+
 
 
 #[websocat_api::async_trait::async_trait]
@@ -254,12 +255,21 @@ impl websocat_api::RunnableNode for TcpListen {
         _q: websocat_api::RunContext,
         mut multiconn: Option<websocat_api::ServerModeContext>,
     ) -> websocat_api::Result<websocat_api::Bipipe> {
-        let mut l : Option<tokio::net::TcpListener> = None;
+        /// Thing that call passed though when serving multiple connections - either a direct TcpListener or a channel's receiver when
+        /// there are multiple receivers
+        /// Balls are "kicked" down the stream into `multiconn.call_me_again_with_this` and return from up as `multiconn.you_are_called_not_the_first_time`.
+        enum Ball {
+            Sole(tokio::net::TcpListener),
+            Multiple(tokio::sync::mpsc::Receiver<tokio::net::TcpStream>),
+        }
+
+
+        let mut ball_ : Option<Ball> = None;
         if let Some(multiconn) = &mut multiconn {
-            if let Some(mut socket) = multiconn.you_are_called_not_the_first_time.take() {
-                let so : &mut Option<tokio::net::TcpListener>;
-                so = socket.downcast_mut().expect("Unexpected object passed to restarted TcpListen::run");
-                l = Some(so.take().unwrap());
+            if let Some(mut ball) = multiconn.you_are_called_not_the_first_time.take() {
+                let so : &mut Option<Ball>;
+                so = ball.downcast_mut().expect("Unexpected object passed to a restarted TcpListen::run");
+                ball_ = Some(so.take().unwrap());
                 tracing::debug!("Restored the listening socket from multiconn context");
             } else {
                 tracing::debug!("This is the first serving of possible series of incoming connections");
@@ -268,28 +278,60 @@ impl websocat_api::RunnableNode for TcpListen {
             tracing::debug!("No multiconn requested");
         }
 
-        let mut addrs = &self.sockaddr.addrs;
-        let addrs_holder;
-        if self.sockaddr.addrs.is_empty() {
-            addrs_holder = SockAddr::resolve_async(&self.sockaddr, false).await?;
-            addrs = &addrs_holder;
-        }
-        if addrs.is_empty() {
-            websocat_api::anyhow::bail!("No addresses for TCP listen specified");
-        }
+        let mut ball = if let Some(x) = ball_ { x } else {
+            let mut addrs = &self.sockaddr.addrs;
+            let addrs_holder;
+            if self.sockaddr.addrs.is_empty() {
+                addrs_holder = SockAddr::resolve_async(&self.sockaddr, false).await?;
+                addrs = &addrs_holder;
+            }
+            if addrs.is_empty() {
+                websocat_api::anyhow::bail!("No addresses for TCP listen specified");
+            }
 
-        let l = if let Some(x) = l { x } else {
-            let ret = tokio::net::TcpListener::bind(addrs[0]).await?;
-            tracing::debug!("Bound listening socket to {}", addrs[0]);
-            ret
+            if addrs.len() == 1 {
+                let ret = tokio::net::TcpListener::bind(addrs[0]).await?;
+                tracing::debug!("Bound listening socket to single address {}", addrs[0]);
+                Ball::Sole(ret)
+            } else {
+                let (tx, rx) = tokio::sync::mpsc::channel(1);
+                for addr in addrs {
+                    let tx = tx.clone();
+                    let logger =
+                        tracing::debug_span!("listener", addr = tracing::field::display(addr));
+                    let addr = addr.clone();
+                    let _h = tokio::spawn(async move {
+                        async fn listener(logger: websocat_api::tracing::Span, addr: std::net::SocketAddr, tx: tokio::sync::mpsc::Sender<tokio::net::TcpStream>) -> websocat_api::Result<()> {
+                            let l = tokio::net::TcpListener::bind(addr).await?;
+                            tracing::debug!(parent: &logger, "Spawned a listeter");
+                            loop {
+                                let (c, inaddr) = l.accept().await?;
+                                tracing::info!(parent: &logger,"Incoming connection from {}", inaddr);
+                                tx.send(c).await?;
+                            }
+                        }
+                        if let Err(e) = listener(logger, addr, tx).await {
+                            tracing::error!("In incoming connections acceptor task: {}", e);
+                        }
+                    });
+                }
+                Ball::Multiple(rx)
+            }
         };
-        let (c, inaddr) = l.accept().await?;
-
-        tracing::info!("Incoming connection from {}", inaddr);
+        let c = match ball {
+            Ball::Sole(ref l) => {
+                let (c, inaddr) = l.accept().await?;
+                tracing::info!("Incoming connection from {}", inaddr);
+                c
+            }
+            Ball::Multiple(ref mut rx) => {
+                rx.recv().await.with_context(||format!("Failed to receive a connected socket from mpsc channel"))?
+            }
+        };
 
         if let Some(multiconn) = multiconn {
             tracing::debug!("Trigger another session");
-            (multiconn.call_me_again_with_this)(Box::new(Some(l)));
+            (multiconn.call_me_again_with_this)(Box::new(Some(ball)));
         }
 
         let (r, w) = c.into_split();
