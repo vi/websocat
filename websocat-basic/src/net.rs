@@ -19,7 +19,7 @@ struct SockAddr {
     hostport: Option<String>,
 
     /// Resolve hostname to IP once, at start, not every time before the connection
-    #[cli="cached-resolved-ip"]
+    #[cli="cache-resolved-ip"]
     #[websocat_prop(default=false)]
     cache_resolved_ip: bool,
 }
@@ -29,143 +29,108 @@ struct SockAddr {
 pub struct Tcp {
     #[websocat_prop(flatten, delegate_array)]
     sockaddr: SockAddr,
-
-    // Destination IP and port to where TCP connection should be established
-    // If multiple is specified, they are tried in parallel and the first one who gets though wins.
-    //addrs: Vec<std::net::SocketAddr>,
-
-    /// TCP port to connect to. Must be combined with `port`.
-    port: Option<u16>,
-
-    /// TCP host to resolve, then to connect to. Must be combined with `host`.
-    host: Option<String>,
-
-    /// TCP host and port pair to resolve and connect to.
-    hostport: Option<String>,
-
-    /// Resolve hostname to IP once, at start, not every time before the connection
-    #[cli="cached-resolved-ip"]
-    cache_resolved_ip: Option<bool>,
 }
 
-trait AddressesAndResolves {
-    fn addrs(&self) -> &Vec<std::net::SocketAddr>;
-    fn addrs_mut(&mut self) -> &mut Vec<std::net::SocketAddr>;
-    fn port(&self) -> &Option<u16>;
-    fn host(&self) -> &Option<String>;
-    fn hostport(&self) -> &Option<String>;
-    fn cache_resolved_ip(&self) -> &Option<bool>;
-}
+impl SockAddr {
+    #[tracing::instrument(level = "debug", name = "validate", skip(self,only_one_address), err)]
+    fn validate(&mut self, only_one_address: bool) -> websocat_api::anyhow::Result<()> {
 
-#[rustfmt::skip]
-impl AddressesAndResolves for Tcp {
-    fn addrs(&self) -> &Vec<std::net::SocketAddr> {  &self.sockaddr.addrs }
-    fn addrs_mut(&mut self) -> &mut Vec<std::net::SocketAddr> {  &mut self.sockaddr.addrs }
-    fn port(&self) -> &Option<u16> { &self.port }
-    fn host(&self) -> &Option<String> { &self.host }
-    fn hostport(&self) -> &Option<String> { &self.hostport }
-    fn cache_resolved_ip(&self) -> &Option<bool> { &self.cache_resolved_ip }
-}
+        if self.port.is_some() != self.host.is_some() {
+            websocat_api::anyhow::bail!("`host` and `port` options must be specified together");
+        }
+        let mut specifiers = 0;
+        if !self.addrs.is_empty() {
+            specifiers += 1;
+        }
+        if self.hostport.is_some() {
+            specifiers += 1;
+        }
+        if self.host.is_some() {
+            specifiers += 1;
+        }
+        if specifiers < 1 {
+            websocat_api::anyhow::bail!("No socket address specified");
+        }
+        if specifiers > 1 {
+            websocat_api::anyhow::bail!("Specify exactly one of {array of explicit addresses}, {`hostport` property} or {`host`+`port` properties}.");
+        }
 
-
-#[tracing::instrument(level = "debug", name = "validate", skip(this,only_one_address), err)]
-fn validate(this: &mut (dyn AddressesAndResolves + Send + Sync), only_one_address: bool) -> websocat_api::anyhow::Result<()> {
-    
-    if this.port().is_some() != this.host().is_some() {
-        websocat_api::anyhow::bail!("`host` and `port` options must be specified together");
-    }
-    let mut specifiers = 0;
-    if !this.addrs().is_empty() {
-        specifiers += 1;
-    }
-    if this.hostport().is_some() {
-        specifiers += 1;
-    }
-    if this.host().is_some() {
-        specifiers += 1;
-    }
-    if specifiers < 1 {
-        websocat_api::anyhow::bail!("No destination address specified");
-    }
-    if specifiers > 1 {
-        websocat_api::anyhow::bail!("Specify exactly one of {array of explicit addresses}, {`hostport` property} or {`host`+`port` properties}.");
-    }
-
-    if only_one_address && this.addrs().len() > 1 {
-        websocat_api::anyhow::bail!("Only one address may be specified here");
-    }
+        if only_one_address && self.addrs.len() > 1 {
+            websocat_api::anyhow::bail!("Only one address may be specified here");
+        }
 
 
-    if this.addrs().is_empty() && this.cache_resolved_ip() == &Some(true) {
-        *this.addrs_mut() = self::resolve_sync(this, only_one_address)?;
+        if self.addrs.is_empty() && self.cache_resolved_ip {
+            self.addrs = self.resolve_sync( only_one_address)?;
+        }
+        Ok(())
     }
-    Ok(())
-}
 
-#[tracing::instrument(level = "debug", name = "resolve", skip(this,only_one_address), err)]
-fn resolve_sync(this: &(dyn AddressesAndResolves + Send + Sync), only_one_address: bool) -> websocat_api::anyhow::Result<Vec<std::net::SocketAddr>> {
-    use std::net::ToSocketAddrs;
+    #[tracing::instrument(level = "debug", name = "resolve", skip(self,only_one_address), err)]
+    fn resolve_sync(&self, only_one_address: bool) -> websocat_api::anyhow::Result<Vec<std::net::SocketAddr>> {
+        use std::net::ToSocketAddrs;
 
-    let mut addrs: Vec<std::net::SocketAddr>;
-    if let Some(hostport) = this.hostport() {
-        tracing::debug!("Resolving {}", hostport);
-        addrs = hostport
-            .to_socket_addrs()
-            .with_context(|| format!("Error resolving {}", hostport))?
-            .collect();
-    } else if let (Some(host), Some(port)) = (this.host(), this.port()) {
-        tracing::debug!("Resolving {}", host);
-        addrs = (&**host, *port)
-            .to_socket_addrs()
-            .with_context(|| format!("Error resolving {}", host))?
-            .collect();
-    } else {
-        unreachable!()
+        let mut addrs: Vec<std::net::SocketAddr>;
+        if let Some(hostport) = &self.hostport {
+            tracing::debug!("Resolving {}", hostport);
+            addrs = hostport
+                .to_socket_addrs()
+                .with_context(|| format!("Error resolving {}", hostport))?
+                .collect();
+        } else if let (Some(host), Some(port)) = (&self.host, self.port) {
+            tracing::debug!("Resolving {}", host);
+            addrs = (&host[..], port)
+                .to_socket_addrs()
+                .with_context(|| format!("Error resolving {}", host))?
+                .collect();
+        } else {
+            unreachable!()
+        }
+        if only_one_address && addrs.len() > 1 {
+            addrs.resize_with(1, || unreachable!());
+            tracing::warn!("Using only one of resolved IP addresses");
+        }
+        tracing::debug!("Resolved to {:?}", addrs);
+        if addrs.is_empty() {
+            websocat_api::anyhow::bail!("Failed to resolve hostname ip IP address");
+        }
+        Ok(addrs)
     }
-    if only_one_address && addrs.len() > 1 {
-        addrs.resize_with(1, || unreachable!());
-        tracing::warn!("Using only one of resolved IP addresses");
-    }
-    tracing::debug!("Resolved to {:?}", addrs);
-    if addrs.is_empty() {
-        websocat_api::anyhow::bail!("Failed to resolve hostname ip IP address");
-    }
-    Ok(addrs)
-}
 
-#[tracing::instrument(level = "debug", name = "resolve", skip(this,only_one_address), err)]
-async fn resolve_async(this: std::pin::Pin<&(dyn AddressesAndResolves + Send + Sync)>, only_one_address: bool) -> websocat_api::anyhow::Result<Vec<std::net::SocketAddr>> {
-    let mut addrs: Vec<std::net::SocketAddr>;
-    if let Some(hostport) = this.hostport() {
-        tracing::debug!("Resolving {}", hostport);
-        addrs = tokio::net::lookup_host(hostport)
-            .await
-            .with_context(|| format!("Error resolving {}", hostport))?
-            .collect();
-    } else if let (Some(host), Some(port)) = (this.host(), this.port()) {
-        tracing::debug!("Resolving {}", host);
-        addrs = tokio::net::lookup_host(format!("{}:0", host))
-            .await
-            .with_context(|| format!("Error resolving {}", host))?
-            .map(|sa| std::net::SocketAddr::new(sa.ip(), *port))
-            .collect();
-    } else {
-        unreachable!()
+    #[tracing::instrument(level = "debug", name = "resolve", skip(self,only_one_address), err)]
+    async fn resolve_async(&self, only_one_address: bool) -> websocat_api::anyhow::Result<Vec<std::net::SocketAddr>> {
+        let mut addrs: Vec<std::net::SocketAddr>;
+        if let Some(hostport) = &self.hostport {
+            tracing::debug!("Resolving {}", hostport);
+            addrs = tokio::net::lookup_host(hostport)
+                .await
+                .with_context(|| format!("Error resolving {}", hostport))?
+                .collect();
+        } else if let (Some(host), Some(port)) = (&self.host, self.port) {
+            tracing::debug!("Resolving {}", host);
+            addrs = tokio::net::lookup_host(format!("{}:0", host))
+                .await
+                .with_context(|| format!("Error resolving {}", host))?
+                .map(|sa| std::net::SocketAddr::new(sa.ip(), port))
+                .collect();
+        } else {
+            unreachable!()
+        }
+        if only_one_address && addrs.len() > 1 {
+            addrs.resize_with(1, || unreachable!());
+            tracing::warn!("Using only one of resolved IP addresses");
+        }
+        tracing::debug!("Resolved to {:?}", addrs);
+        if addrs.is_empty() {
+            websocat_api::anyhow::bail!("Failed to resolve hostname ip IP address");
+        }
+        Ok(addrs)
     }
-    if only_one_address && addrs.len() > 1 {
-        addrs.resize_with(1, || unreachable!());
-        tracing::warn!("Using only one of resolved IP addresses");
-    }
-    tracing::debug!("Resolved to {:?}", addrs);
-    if addrs.is_empty() {
-        websocat_api::anyhow::bail!("Failed to resolve hostname ip IP address");
-    }
-    Ok(addrs)
 }
 
 impl Tcp {
     fn validate(&mut self) -> websocat_api::anyhow::Result<()> {
-        self::validate(self, cfg!(not(feature="race")))?;
+        self.sockaddr.validate(cfg!(not(feature="race")))?;
         Ok(())
     }
 }
@@ -181,7 +146,7 @@ impl websocat_api::RunnableNode for Tcp {
         let mut addrs = &self.sockaddr.addrs;
         let addrs_holder;
         if self.sockaddr.addrs.is_empty() {
-            addrs_holder = resolve_async(self.as_ref(), cfg!(not(feature="race"))).await?;
+            addrs_holder = SockAddr::resolve_async(&self.sockaddr, cfg!(not(feature="race"))).await?;
             addrs = &addrs_holder;
         }
         if addrs.is_empty() {
@@ -267,24 +232,17 @@ impl websocat_api::RunnableNode for Tcp {
 }
 
 #[derive(Debug, Clone, websocat_derive::WebsocatNode)]
-#[websocat_node(official_name = "tcp-listen", prefix = "tcp-listen")]
+#[websocat_node(official_name = "tcp-listen", prefix = "tcp-listen", validate)]
 pub struct TcpListen {
-    /// Destination IP and port to where TCP connection should be established
-    /// If multiple is specified, they are tried in parallel and the first one who gets though wins.
-    addrs: Vec<std::net::SocketAddr>,
+    #[websocat_prop(flatten, delegate_array)]
+    sockaddr: SockAddr,
+}
 
-    /// TCP port to connect to. Must be combined with `port`.
-    port: Option<u16>,
-
-    /// TCP host to resolve, then to connect to. Must be combined with `host`.
-    host: Option<String>,
-
-    /// TCP host and port pair to resolve and connect to.
-    hostport: Option<String>,
-
-    /// Resolve hostname to IP once, at start, not every time before the connection
-    #[cli="cached-resolved-ip"]
-    cache_resolved_ip: Option<bool>,
+impl TcpListen {
+    fn validate(&mut self) -> websocat_api::Result<()> {
+        self.sockaddr.validate(true)?;
+        Ok(())
+    }
 }
 
 
@@ -310,7 +268,16 @@ impl websocat_api::RunnableNode for TcpListen {
             tracing::debug!("No multiconn requested");
         }
 
-        let addrs = &self.addrs;
+        let mut addrs = &self.sockaddr.addrs;
+        let addrs_holder;
+        if self.sockaddr.addrs.is_empty() {
+            addrs_holder = SockAddr::resolve_async(&self.sockaddr, false).await?;
+            addrs = &addrs_holder;
+        }
+        if addrs.is_empty() {
+            websocat_api::anyhow::bail!("No addresses for TCP listen specified");
+        }
+
         let l = if let Some(x) = l { x } else {
             let ret = tokio::net::TcpListener::bind(addrs[0]).await?;
             tracing::debug!("Bound listening socket to {}", addrs[0]);
