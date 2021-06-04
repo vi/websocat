@@ -4,11 +4,8 @@ use websocat_api::{
 };
 use websocat_derive::WebsocatNode;
 
-pub mod lowlevel_client;
-pub use lowlevel_client::HttpClient;
-
-pub mod highlevel_client;
-pub use highlevel_client::HttpClient as HttpHighlevelClient;
+pub mod client;
+pub use client::HttpClient;
 
 #[derive(Debug, Clone, WebsocatNode)]
 #[websocat_node(official_name = "header", data_only)]

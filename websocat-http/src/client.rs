@@ -1,37 +1,46 @@
-#![allow(unused)]
 use websocat_api::{
-    anyhow, async_trait::async_trait, bytes, futures::TryStreamExt, tokio, NodeId, Result,
+    anyhow, async_trait::async_trait, bytes, futures::TryStreamExt, tokio, NodeId, Result, http,
 };
 use websocat_derive::WebsocatNode;
 #[derive(Debug, derivative::Derivative, WebsocatNode)]
-#[websocat_node(official_name = "http-highlevel-client", validate)]
+#[websocat_node(official_name = "http-client", validate)]
 #[derivative(Clone)]
 pub struct HttpClient {
+    /// Low-level mode: IO object to use for HTTP1 handshake
+    /// If unset, use high-level mode and expect `uri` to be set and be a full URI
+    inner: Option<NodeId>,
+
     /// Expect and work upon upgrades
-    upgrade: Option<bool>,
+    #[websocat_prop(default=false)]
+    upgrade: bool,
 
     /// Immediately return connection, stream bytes into request body.
-    stream_request_body: Option<bool>,
+    #[websocat_prop(default=false)]
+    stream_request_body: bool,
 
     /// Subnode to read request body from
     request_body: Option<NodeId>,
 
     /// Fully read request body into memory prior to sending it
-    buffer_request_body: Option<bool>,
+    #[websocat_prop(default=false)]
+    buffer_request_body: bool,
 
     /// Preallocate this amount of memory for caching request body
-    buffer_request_body_size_hint: Option<i64>,
+    #[websocat_prop(default=1024, min=1, reasonable_max=100_000_000)]
+    buffer_request_body_size_hint: i64,
 
     /// Override HTTP request verb
     method: Option<String>,
 
     /// Set request content_type to `application/json`
     //#[cli="json"]
-    json: Option<bool>, 
+    #[websocat_prop(default=false)]
+    json: bool, 
 
     /// Set request content_type to `text/plain`
     //#[cli="json"]
-    textplain: Option<bool>, 
+    #[websocat_prop(default=false)]
+    textplain: bool, 
 
     /// Add these headers to HTTP request
     request_headers: Vec<NodeId>,
@@ -40,21 +49,42 @@ pub struct HttpClient {
     uri : Option<websocat_api::http::Uri>,
 
     /// Request WebSocket upgrade from server
-    websocket: Option<bool>,
+    #[websocat_prop(default=false)]
+    websocket: bool,
 
+    #[cfg(feature="highlevel")]
     #[websocat_prop(ignore)]
     #[derivative(Clone(clone_with="ignorant_default"))]
     client: tokio::sync::Mutex<Option<hyper::client::Client<hyper::client::connect::HttpConnector, hyper::body::Body>>>,
 }
 
+#[allow(unused)]
 fn ignorant_default<T : Default>(_x: &T) -> T {
     Default::default()
 }
 
 impl HttpClient {
     fn validate(&mut self) -> Result<()> {
-        if self.stream_request_body == Some(true) {
-            if self.upgrade == Some(true) {
+        let (uri_is_websocket, _uri_is_wss) = match self.uri {
+            Some(ref u) if u.scheme_str() == Some("ws") => (true, false),
+            Some(ref u) if u.scheme_str() == Some("wss") => (true, true),
+            _ => (false, false),
+        };
+
+        if uri_is_websocket {
+            self.websocket = true;
+
+            let mut parts = self.uri.take().unwrap().into_parts();
+            match parts.scheme.as_ref().unwrap().as_str().to_ascii_lowercase().as_str() {
+                "ws" => parts.scheme = Some(http::uri::Scheme::HTTP),
+                "wss" => parts.scheme = Some(http::uri::Scheme::HTTPS),
+                _ => (),
+            }
+            self.uri = Some(http::Uri::from_parts(parts).unwrap());
+        }
+
+        if self.stream_request_body {
+            if self.upgrade {
                 anyhow::bail!(
                     "Cannot set both `upgrade` and `stream_request_body` options at the same time"
                 );
@@ -66,43 +96,45 @@ impl HttpClient {
             }
         }
 
-        if self.buffer_request_body == Some(true)
-            && (self.request_body.is_none() && self.stream_request_body != Some(true))
+        if self.buffer_request_body
+            && (self.request_body.is_none() && !self.stream_request_body)
         {
             anyhow::bail!("buffer_request_body option is meaningless withouth stream_request_body or request_body options");
         }
 
-        if self.buffer_request_body != Some(true) && self.buffer_request_body_size_hint.is_some() {
+        if !self.buffer_request_body  && self.buffer_request_body_size_hint != 1024  {
             anyhow::bail!("buffer_request_body_size_hint option is meaningless withouth buffer_request_body option");
-        }
-
-        if let Some(sz) = self.buffer_request_body_size_hint {
-            if sz < 0 {
-                anyhow::bail!("buffer_request_body_size_hint option should have nonnegative value");
-            }
-            if sz > 1024 * 1024 * 100 {
-                tracing::warn!("buffer_request_body_size_hint have suspicously large value");
-            }
-        }
-
-        if self.buffer_request_body == Some(true) && self.buffer_request_body_size_hint.is_none() {
-            self.buffer_request_body_size_hint = Some(1024);
         }
 
         if let Some(ref verb) = self.method {
             let _ = hyper::Method::from_bytes(verb.as_bytes())?;
         }
 
-        if self.textplain == Some(true) && self.json == Some(true) {
+        if self.textplain && self.json {
             anyhow::bail!("Cannot set both textplain and options to true");
         }
 
-        if self.stream_request_body == Some(true) && self.websocket == Some(true) {
+        if self.stream_request_body && self.websocket {
             anyhow::bail!("stream_request_body and websocket options are incompatible");
         }
 
-        if self.websocket == Some(true) {
-            self.upgrade = Some(true);
+        if self.websocket {
+            self.upgrade = true;
+        }
+
+        if self.inner.is_none() {
+            // high-level mode
+            if let Some(ref uri) = self.uri {
+                if uri.authority().is_none() {
+                    anyhow::bail!("URI must contain an authority unless `inner` property is set");
+                }
+            } else {
+                anyhow::bail!("Must set either `uri` or `inner` properties");
+            }
+
+            #[cfg(not(feature="highlevel"))] {
+                anyhow::bail!("`inner` properly is required, as high-level HTTP support is not enabled during compilation");
+            }
         }
 
         Ok(())
@@ -129,7 +161,7 @@ impl HttpClient {
         let mut rq = hyper::Request::new(body);
         let mut thekey = None;
 
-        if self.websocket == Some(true) {
+        if self.websocket  {
             let r: [u8; 16] = rand::random();
             let key = base64::encode(&r);
             thekey = Some(r);
@@ -145,10 +177,10 @@ impl HttpClient {
         } else if self.request_supposed_to_contain_body() {
             *rq.method_mut() = hyper::Method::POST;
         }
-        if self.json == Some(true) {
+        if self.json {
             rq.headers_mut().insert(hyper::header::CONTENT_TYPE, "application/json".parse().unwrap());
         }
-        if self.textplain == Some(true) {
+        if self.textplain {
             rq.headers_mut().insert(hyper::header::CONTENT_TYPE, "text/plain".parse().unwrap());
         }
 
@@ -199,7 +231,7 @@ impl HttpClient {
     }
 
     fn request_supposed_to_contain_body(&self) -> bool {
-        self.stream_request_body == Some(true) || self.request_body.is_some()
+        self.stream_request_body || self.request_body.is_some()
     }
 }
 
@@ -208,24 +240,63 @@ impl websocat_api::RunnableNode for HttpClient {
     async fn run(
         self: std::pin::Pin<std::sync::Arc<Self>>,
         ctx: websocat_api::RunContext,
-        _multiconn: Option<websocat_api::ServerModeContext>,
+        multiconn: Option<websocat_api::ServerModeContext>,
     ) -> websocat_api::Result<websocat_api::Bipipe> {
-        let cn = None;
+        let mut io = None;
+        let mut cn = None;
+        if let Some(inner) = self.inner {
+            let io_ = ctx.nodes[inner].clone().upgrade()?.run(ctx.clone(), multiconn).await?;
+            cn = io_.closing_notification;
+            io = Some(match (io_.r, io_.w) {
+                (websocat_api::Source::ByteStream(r), websocat_api::Sink::ByteStream(w)) => {
+                    readwrite::ReadWriteTokio::new(r, w)
+                }
+                _ => {
+                    anyhow::bail!("HTTP client requires bytestream-based inner node");
+                }
+            });
+        }
 
-        let http_client = {
-            let mut lock = self.client.lock().await;
-            if let Some(ref c) = *lock {
-                c.clone()
-            } else {
-                let c = hyper::client::Client::builder().build_http();
-                *lock = Some(c.clone());
-                c
+        enum ClientVariant {
+            Lowlevel(hyper::client::conn::SendRequest<hyper::Body>),
+            #[cfg(feature="highlevel")]
+            Plain(hyper::Client<hyper::client::HttpConnector>),
+        }
+
+        let client : ClientVariant; 
+        
+        if io.is_some() {
+            // low-level mode
+            let http_client_builder = hyper::client::conn::Builder::new().handshake::<_, hyper::Body>(io.take().unwrap());
+            let (send_request, conn) = http_client_builder.await?;
+            let _h = tokio::spawn(conn /* .without_shutdown() */);
+            client = ClientVariant::Lowlevel(send_request);
+        } else {
+            #[cfg(feature="highlevel")] {
+                let http_client = {
+                    let mut lock = self.client.lock().await;
+                    if let Some(ref c) = *lock {
+                        c.clone()
+                    } else {
+                        let c = hyper::client::Client::builder().build_http();
+                        *lock = Some(c.clone());
+                        c
+                    }
+                };
+    
+                client = ClientVariant::Plain(http_client);
             }
-        };
+            
+            #[cfg(not(feature="highlevel"))] {
+                unreachable!()
+            }
+        }
 
-        if self.stream_request_body == Some(true) {
+       
+
+        if self.stream_request_body {
             let (response_tx, response_rx) = tokio::sync::mpsc::channel::<bytes::Bytes>(1);
-            let w: websocat_api::Sink = if self.buffer_request_body != Some(true) {
+            let w: websocat_api::Sink = if !self.buffer_request_body {
                 // Chunked request body
                 let (sender, request_body) = hyper::Body::channel();
                 let sink = futures::sink::unfold(
@@ -243,7 +314,11 @@ impl websocat_api::RunnableNode for HttpClient {
                 tokio::spawn(async move {
                     let try_block = async move {
                         let rq = self.get_request(request_body, &ctx)?.0;
-                        let resp = http_client.request(rq).await?;
+                        let resp = match client {
+                            ClientVariant::Lowlevel(mut send_request) => send_request.send_request(rq).await?,
+                            #[cfg(feature="highlevel")]
+                            ClientVariant::Plain(http_client) => http_client.request(rq).await?,
+                        };
                         self.handle_response(&resp, None)?;
                         let mut body = resp.into_body();
                         use futures::stream::StreamExt;
@@ -261,7 +336,7 @@ impl websocat_api::RunnableNode for HttpClient {
             } else {
                 // Fully buffered request body
                 let bufbuf = bytes::BytesMut::with_capacity(
-                    self.buffer_request_body_size_hint.unwrap() as usize,
+                    self.buffer_request_body_size_hint as usize,
                 );
                 let (tx, rx) = tokio::sync::oneshot::channel();
                 struct SendawayDropper<T>(Option<T>, Option<tokio::sync::oneshot::Sender<T>>);
@@ -293,7 +368,11 @@ impl websocat_api::RunnableNode for HttpClient {
                     let try_block = async move {
                         let request_buf = rx.await?;
                         let rq = self.get_request(request_buf.freeze().into(), &ctx)?.0;
-                        let resp = http_client.request(rq).await?;
+                        let resp = match client {
+                            ClientVariant::Lowlevel(mut send_request) => send_request.send_request(rq).await?,
+                            #[cfg(feature="highlevel")]
+                            ClientVariant::Plain(http_client) => http_client.request(rq).await?,
+                        };
                         self.handle_response(&resp, None)?;
                         let mut body = resp.into_body();
                         use futures::stream::StreamExt;
@@ -317,7 +396,7 @@ impl websocat_api::RunnableNode for HttpClient {
                 }
                 maybe_buf.map(move |buf| {
                     tracing::trace!("Sending {} bytes chunk as HTTP response body", buf.len());
-                    ((Ok(buf), response_rx))
+                    (Ok(buf), response_rx)
                 })
             });
             Ok(websocat_api::Bipipe {
@@ -331,19 +410,19 @@ impl websocat_api::RunnableNode for HttpClient {
                 let bio = ctx.nodes[bnid].clone().upgrade()?.run(ctx.clone(), None).await?;
                 drop(bio.w);
                 drop(bio.closing_notification);
-                if self.buffer_request_body == Some(true) {
+                if self.buffer_request_body {
                     match bio.r {
                         websocat_api::Source::ByteStream(mut bs) => {
                             use tokio::io::AsyncReadExt;
                             let mut bufbuf = Vec::with_capacity(
-                                self.buffer_request_body_size_hint.unwrap() as usize,
+                                self.buffer_request_body_size_hint as usize,
                             );
                             bs.read_to_end(&mut bufbuf).await?;
                             bufbuf.into()
                         }
                         websocat_api::Source::Datagrams(x) => {
                             let mut bufbuf = bytes::BytesMut::with_capacity(
-                                self.buffer_request_body_size_hint.unwrap() as usize,
+                                self.buffer_request_body_size_hint as usize,
                             );
                             use futures::StreamExt;
                             let sink = futures::sink::unfold(
@@ -406,19 +485,45 @@ impl websocat_api::RunnableNode for HttpClient {
             };
             let (rq, wskey) = self.get_request(rqbody, &ctx)?;
 
-            let resp = http_client.request(rq).await?;
+            let resp = match client {
+                ClientVariant::Lowlevel(mut send_request) => send_request.send_request(rq).await?,
+                #[cfg(feature="highlevel")]
+                ClientVariant::Plain(http_client) => http_client.request(rq).await?,
+            };
             self.handle_response(&resp, wskey)?;
 
-            if self.upgrade == Some(true) {
-                let _upg = hyper::upgrade::on(resp).await?;
-                let r = todo!();
-                let w = todo!();
-
-                Ok(websocat_api::Bipipe {
-                    r: websocat_api::Source::ByteStream(r),
-                    w: websocat_api::Sink::ByteStream(w),
-                    closing_notification: cn,
-                })
+            if self.upgrade {
+                let upg = hyper::upgrade::on(resp).await?;
+                match upg.downcast() {
+                    Ok(downc) => {
+                        tracing::debug!("Upgraded and recovered low-level inner node");
+                        let readbuf = downc.read_buf;
+        
+                        io = Some(downc.io);
+        
+                        let (mut r, w) = io.unwrap().into_inner();
+        
+                        if !readbuf.is_empty() {
+                            tracing::debug!("Inserting additional indirection layer due to remaining bytes in the read buffer");
+                            r = Box::pin(websocat_api::util::PrependReader(readbuf, r));
+                        }
+        
+                        Ok(websocat_api::Bipipe {
+                            r: websocat_api::Source::ByteStream(r),
+                            w: websocat_api::Sink::ByteStream(w),
+                            closing_notification: cn,
+                        })
+                    }
+                    Err(upg) => {
+                        tracing::debug!("Upgraded and turning it to a bytesteam node");
+                        let (r,w) = tokio::io::split(upg);
+                        Ok(websocat_api::Bipipe {
+                            r: websocat_api::Source::ByteStream(Box::pin(r)),
+                            w: websocat_api::Sink::ByteStream(Box::pin(w)),
+                            closing_notification: cn,
+                        })
+                    }
+                }
             } else {
                 let body = resp.into_body();
 
