@@ -9,22 +9,21 @@ use super::Result;
 
 use bytes::{Bytes, Buf, BytesMut, BufMut};
 
-#[derive(Eq, PartialEq, Debug)]
-#[cfg_attr(test,derive(Clone))]
+#[derive(Eq, PartialEq, Debug, Clone)]
 pub enum StringOrSubnode {
     Str(Bytes),
     Subnode(StrNode),
 }
-#[derive(Eq, PartialEq, Debug)]
-#[cfg_attr(test,derive(Clone, proptest_derive::Arbitrary))]
+#[derive(Eq, PartialEq, Debug, Clone, Default)]
+#[cfg_attr(test,derive(proptest_derive::Arbitrary))]
 pub struct Ident(
     #[cfg_attr(test, proptest(regex = "[a-z0-9._]+"))]
     pub String
 );
 /// A part of parsed command line before looking up the `NodeClass`es.
 
-#[derive(Eq, PartialEq, Debug)]
-#[cfg_attr(test,derive(Clone, proptest_derive::Arbitrary))]
+#[derive(Eq, PartialEq, Debug, Clone, Default)]
+#[cfg_attr(test,derive(proptest_derive::Arbitrary))]
 pub struct StrNode {
     pub name: Ident,
     pub properties: Vec<(Ident, StringOrSubnode)>,
@@ -461,15 +460,16 @@ impl super::PropertyValueType {
 }
 
 impl StrNode {
-    #[tracing::instrument(name="StringyNode::build_impl", level="trace", skip(tree, classes, self, cli_opts), fields(node=&*self.name.0), err)]
+    #[tracing::instrument(name="StringyNode::build_impl", level="trace", skip(tree, registry, self, cli_opts), fields(node=&*self.name.0), err)]
     fn build_impl(
         &self,
-        classes: &super::ClassRegistrar,
+        registry: &super::ClassRegistrar,
         cli_opts: &std::collections::HashMap<String, PropertyValue>,
         tree: &mut super::Slab<super::NodeId, super::DDataNode>,
     ) -> Result<super::NodeId> {
         tracing::debug!("Building parsed node");
-        if let Some(cls) = classes.officname_to_classes.get(&self.name.0) {
+
+        if let Some(cls) = registry.classes.get(&self.name.0) {
             use super::{PropertyValueType as PVT, PropertyValue as PV};
             use StringOrSubnode::{Str,Subnode};
 
@@ -504,7 +504,7 @@ impl StrNode {
                 if let Some(typ) = p.get(k) {
                     let vv = match (typ, v) {
                         (PVT::ChildNode, Subnode(x)) => PV::ChildNode(
-                            x.build_impl(classes, cli_opts, tree).with_context(||format!(
+                            x.build_impl(registry, cli_opts, tree).with_context(||format!(
                                 "Building subbnode property {} value of node type {}",
                                 k, self.name.0,
                             ))?,
@@ -533,7 +533,7 @@ impl StrNode {
                 if let Some(at) = &at {
                     let vv = match (at, e) {
                         (PVT::ChildNode, Subnode(x)) => PV::ChildNode(
-                            x.build_impl(classes, cli_opts, tree).with_context(||format!(
+                            x.build_impl(registry, cli_opts, tree).with_context(||format!(
                                 "Building subnode array element number {} in node {}",
                                 n, self.name.0,
                             ))?,
@@ -565,13 +565,53 @@ impl StrNode {
         }
     }
 
+    /// Depth-first processing of all macros.
+    /// Macros are eager to expand and should not see other macros nodes as input
+    /// Upon expansion, the result is scanned for macros again
+    #[tracing::instrument(name="process_macros", level="trace", skip(registry, self, cli_opts), fields(node=&*self.name.0), err)]
+    fn process_macros(
+        mut self,
+        registry: &super::ClassRegistrar,
+        cli_opts: &std::collections::HashMap<String, PropertyValue>,
+    ) -> Result<StrNode> {
+
+        for (_ident, content) in &mut self.properties {
+            match content {
+                StringOrSubnode::Str(_) => {}
+                StringOrSubnode::Subnode(x) => {
+                    let node = std::mem::take(x);
+                    *x = node.process_macros(registry, cli_opts)?;
+                }
+            }
+        }
+        
+        for content in &mut self.array {
+            match content {
+                StringOrSubnode::Str(_) => {}
+                StringOrSubnode::Subnode(x) => {
+                    let node = std::mem::take(x);
+                    *x = node.process_macros(registry, cli_opts)?;
+                }
+            }
+        }
+
+        if let Some(r#macro) = registry.macros.get(&self.name.0) {
+            tracing::trace!("Using macro {}", &self.name.0);
+
+            let newstrnode = r#macro.run(self)?;
+            newstrnode.process_macros(registry, cli_opts)
+        } else {
+            Ok(self)
+        }
+    }
+
     pub fn build(
-        &self,
+        self,
         classes: &super::ClassRegistrar,
         cli_opts: &std::collections::HashMap<String, PropertyValue>,
         tree: &mut super::Tree,
     ) -> Result<super::NodeId> {
-        self.build_impl(classes, cli_opts, tree)
+        self.process_macros(classes, cli_opts)?.build_impl(classes, cli_opts, tree)
     }
 
     /// Turn parsed node back into it's stringy representation

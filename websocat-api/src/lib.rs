@@ -359,9 +359,21 @@ pub trait GetClassOfNode {
     type Class: NodeClass + Default + Send + 'static;
 }
 
+/// Converter of one StrNode to another
+pub trait Macro {
+    /// The name that should trigger the conversion
+    fn official_name(&self) -> String;
+
+    /// do the conversion
+    fn run(&self, strnode: StrNode) -> Result<StrNode>;
+}
+pub type DMacro = Box<dyn Macro + Send + 'static>;
+
 #[derive(Default)]
+// keys of hashmapes are officnames
 pub struct ClassRegistrar {
-    pub(crate) officname_to_classes: HashMap<String, DNodeClass>,
+    pub(crate) classes: HashMap<String, DNodeClass>,
+    pub(crate) macros: HashMap<String, DMacro>,
 }
 
 impl ClassRegistrar {
@@ -371,10 +383,22 @@ impl ClassRegistrar {
 
     pub fn register_impl(&mut self, cls: DNodeClass) {
         let name = cls.official_name();
-        if self.officname_to_classes.contains_key(&name) {
+        if self.classes.contains_key(&name) {
             tracing::error!("Clashing websocat node classes for official name `{}`", name);
         }
-        self.officname_to_classes.insert(name, cls);
+        self.classes.insert(name, cls);
+    }
+
+    pub fn register_macro<M: Macro + Default + Send + 'static>(&mut self) {
+        self.register_macro_impl(Box::new(M::default()))
+    }
+
+    pub fn register_macro_impl(&mut self, r#macro: DMacro) {
+        let name = r#macro.official_name();
+        if self.macros.contains_key(&name) {
+            tracing::error!("Clashing websocat macro for official name `{}`", name);
+        }
+        self.macros.insert(name, r#macro);
     }
 
     /// Get all class-injected long CLI options with their types
@@ -383,7 +407,7 @@ impl ClassRegistrar {
         // for error reporintg
         let mut provenance = <HashMap<String,String>>::with_capacity(32);
 
-        for k in self.officname_to_classes.values() {
+        for k in self.classes.values() {
             for ref p in k.properties() {
                 if let Some(ref clin) = p.inject_cli_long_option {
                     let prov = format!("{}::{}",  k.official_name(), p.name);
@@ -435,7 +459,7 @@ impl ClassRegistrar {
 
 impl std::fmt::Debug for ClassRegistrar {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        self.officname_to_classes.keys().fmt(f)
+        self.classes.keys().fmt(f)
     }
 }
 

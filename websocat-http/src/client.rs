@@ -539,3 +539,15 @@ impl websocat_api::RunnableNode for HttpClient {
         }
     }
 }
+
+#[derive(Default)]
+pub struct AutoLowlevelHttpClient;
+impl websocat_api::Macro for AutoLowlevelHttpClient {
+    fn official_name(&self) -> String {
+        "http".to_owned()
+    }
+
+    fn run(&self, _strnode: websocat_api::StrNode) -> Result<websocat_api::StrNode> {
+        todo!()
+    }
+}

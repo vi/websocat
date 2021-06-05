@@ -12,6 +12,7 @@ pub fn all_node_classes() -> websocat_api::ClassRegistrar {
     reg.register::<websocat_syncnodes::net::UdpListen>();
     
     reg.register::<websocat_http::HttpClient>();
+    reg.register_macro::<websocat_http::AutoLowlevelHttpClient>();
     reg.register::<websocat_http::HttpServer>();
     reg.register::<websocat_http::Header>();
 

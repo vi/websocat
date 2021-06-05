@@ -5,7 +5,7 @@ use websocat_api::{
 use websocat_derive::WebsocatNode;
 
 pub mod client;
-pub use client::HttpClient;
+pub use client::{HttpClient,AutoLowlevelHttpClient};
 
 pub mod server;
 pub use server::HttpServer;
