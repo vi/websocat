@@ -838,10 +838,10 @@ impl ClassInfo {
             });
         }
 
-        let mut prefixes = proc_macro2::TokenStream::new();
+        let mut _prefixes = proc_macro2::TokenStream::new();
 
         for pr in &self.prefixes {
-            prefixes.extend(q!{
+            _prefixes.extend(q!{
                 #pr.to_owned(),
             });
         }
@@ -856,11 +856,7 @@ impl ClassInfo {
 
             impl ::websocat_api::NodeClass for #classname {
                 fn official_name(&self) -> ::std::string::String { #offiname.to_owned() }
-            
-                fn prefixes(&self) -> ::std::vec::Vec<::std::string::String> { vec![
-                    #prefixes
-                ] }
-            
+
                 #[allow(unused_mut)]
                 fn properties(&self) -> ::std::vec::Vec<::websocat_api::PropertyInfo> {
                     let mut v = vec![

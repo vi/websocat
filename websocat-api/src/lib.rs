@@ -327,10 +327,6 @@ pub trait NodeClass : Debug {
     /// Name of the class, like `tcp` or `ws`
     /// If name begins with a dot (`.`), it is considered soft-hidden
     fn official_name(&self) -> String;
-    /// List substrings that what can come before `:` to be considered belonging to this class.
-    /// Should typically include `official_name()`. Like `["tcp-l:", "tcp-listen:", "listen-tcp:"]`.
-    /// Also used for matching the `StringyNode::name`s to the node classes.
-    fn prefixes(&self) -> Vec<String>;
 
     /// Obtain property names, their value types and documentation strings
     fn properties(&self) -> Vec<PropertyInfo>;
