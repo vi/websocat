@@ -547,7 +547,88 @@ impl websocat_api::Macro for AutoLowlevelHttpClient {
         "http".to_owned()
     }
 
-    fn run(&self, _strnode: websocat_api::StrNode) -> Result<websocat_api::StrNode> {
-        todo!()
+    fn run(&self, strnode: websocat_api::StrNode) -> Result<websocat_api::StrNode> {
+        let mut uri = Vec::with_capacity(1);
+
+        use websocat_api::stringy::{Ident,StringOrSubnode};
+
+        let mut newnode = websocat_api::StrNode {
+            name: Ident("http-client".to_owned()),
+            properties: Vec::with_capacity(strnode.properties.len()),
+            array: Vec::with_capacity(strnode.array.len()),
+            enable_autopopulate: strnode.enable_autopopulate,
+        };
+
+        for (prop, val) in strnode.properties {
+            match prop.0.as_str() {
+                "uri" => match val {
+                    StringOrSubnode::Str(x) => uri.push(x),
+                    StringOrSubnode::Subnode(_) => anyhow::bail!("Invalid uri property of `http` node"),
+                }
+                "inner" => anyhow::bail!("`http` does not have `inner` property"),
+                _ => {
+                    newnode.properties.push((prop,val));
+                }
+            }
+        }
+
+        for val in strnode.array {
+            match val {
+                StringOrSubnode::Str(x) => uri.push(x),
+                StringOrSubnode::Subnode(ref v) => {
+                    if v.name.0 == "h" {
+                        newnode.array.push(val);
+                    } else {
+                        anyhow::bail!("`http` node's array mush be either URI or request headers (`h` nodes)")
+                    }
+                }
+            }
+        }
+
+        if uri.is_empty() {
+            anyhow::bail!("You need to specify URI for `http` node");
+        }
+        if uri.len() > 1 {
+            anyhow::bail!("Too many URIs specified for `http` node");
+        }
+
+        let uri = uri.into_iter().next().unwrap();
+        let host: websocat_api::bytes::Bytes;
+        let port;
+
+        let parsed_uri : http::Uri = String::from_utf8(uri.to_vec())?.parse()?;
+        let parsed_uri = parsed_uri.into_parts();
+        if let (Some(auth), Some(sch)) = (parsed_uri.authority, parsed_uri.scheme) {
+            let h = auth.host();
+            host = websocat_api::bytes::Bytes::from(h.as_bytes().to_owned());
+            if let Some(p) = auth.port_u16() {
+                port = p;
+            } else {
+                match sch.as_str().to_ascii_lowercase().as_str() {
+                    "http" => port = 80,
+                    "https" => port = 443,
+                    "ws" => port = 80,
+                    "wss" => port = 443,
+                    _ => anyhow::bail!("Unknown scheme, cannot calculate the port number"),
+                }
+            }
+        } else {
+            anyhow::bail!("URI must contain scheme and authority");
+        }
+
+        let tcpnode = websocat_api::StrNode {
+            name: Ident("tcp".to_owned()),
+            properties: vec![
+                (Ident("host".to_owned()), StringOrSubnode::Str(host)),
+                (Ident("port".to_owned()), StringOrSubnode::Str(format!("{}", port).into())),
+            ],
+            array: vec![],
+            enable_autopopulate: strnode.enable_autopopulate,
+        };
+
+        newnode.properties.push((Ident("uri".to_owned()), StringOrSubnode::Str(uri)));
+        newnode.properties.push((Ident("inner".to_owned()), StringOrSubnode::Subnode(tcpnode)));
+
+        Ok(newnode)
     }
 }
