@@ -252,7 +252,7 @@ impl websocat_api::RunnableNode for HttpClient {
                     readwrite::ReadWriteTokio::new(r, w)
                 }
                 _ => {
-                    anyhow::bail!("HTTP client requires bytestream-based inner node");
+                    anyhow::bail!("HTTP client requires a bytestream-based inner node");
                 }
             });
         }
