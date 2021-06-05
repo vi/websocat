@@ -7,6 +7,9 @@ use websocat_derive::WebsocatNode;
 pub mod client;
 pub use client::HttpClient;
 
+pub mod server;
+pub use server::HttpServer;
+
 #[derive(Debug, Clone, WebsocatNode)]
 #[websocat_node(official_name = "header", data_only)]
 pub struct Header {
