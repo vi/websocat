@@ -193,10 +193,10 @@ so non-prebuilt versions may have problems with them.
 #[derive(Debug, Clone)]
 pub struct AbstractListen(pub String);
 impl Specifier for AbstractListen {
-    fn construct(&self, _: ConstructParams) -> PeerConstructor {
+    fn construct(&self, cp: ConstructParams) -> PeerConstructor {
         multi(unix_listen_peer(
             &to_abstract(&self.0),
-            &Rc::new(Default::default()),
+            &cp.program_options,
         ))
     }
     specifier_boilerplate!(noglobalstate multiconnect no_subspec);
@@ -367,12 +367,22 @@ pub fn unix_listen_peer(addr: &Path, opts: &Rc<Options>) -> BoxedNewPeerStream {
             let _ = ::std::fs::remove_file(addr);
         };
         let bound = UnixListener::bind(&addr);
+        if opts.announce_listens {
+            let poss = addr.as_os_str();
+            use std::os::unix::ffi::OsStrExt;
+            if !poss.is_empty() && poss.as_bytes()[0] == b'\0' {
+                println!("LISTEN proto=abstract,path_hex={}", hex::encode(&poss.as_bytes()[1..]));
+            } else {
+                println!("LISTEN proto=unix,path={:?}", addr);
+            }
+        }
         bound
     };
     let bound = match bound {
         Ok(x) => x,
         Err(e) => return peer_err_s(e),
     };
+    debug!("UNIX listening socket should be ready");
     // TODO: chmod
     use tk_listen::ListenExt;
     Box::new(

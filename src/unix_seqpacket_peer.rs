@@ -176,6 +176,14 @@ pub fn seqpacket_listen_peer(addr: &Path, opts: &Rc<Options>) -> BoxedNewPeerStr
                     return None;
                 }
             }
+            if opts.announce_listens {
+                // too lazy to actually handle '"@'  vs '@"' here - is seqpacket even used by somebody around?
+                let s = format!("LISTEN proto=unix_seqpacket,path={:?}", addr);
+                if s.contains("path=\"@") {
+                    warn!("that particular LISTEN line format should be changed in future Websocat version");
+                }
+                println!("{}", s);
+            }
             Some(s)
         }
     }

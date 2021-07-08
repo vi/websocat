@@ -94,4 +94,5 @@ pub struct Options {
     pub asyncstdio: bool,
 
     pub foreachmsg_wait_reads: bool,
+    pub announce_listens: bool,
 }

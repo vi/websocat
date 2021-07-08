@@ -30,7 +30,7 @@ impl<T: Specifier> Specifier for SocksProxy<T> {
     fn construct(&self, cp: ConstructParams) -> PeerConstructor {
         let inner = self.0.construct(cp.clone());
         inner.map(move |p, l2r| {
-            socks5_peer(p, l2r, false, None, &cp.program_options.socks_destination)
+            socks5_peer(p, l2r, false, None, &cp.program_options.socks_destination, false)
         })
     }
     specifier_boilerplate!(noglobalstate has_subspec);
@@ -67,6 +67,7 @@ impl<T: Specifier> Specifier for SocksBind<T> {
                 true,
                 cp.program_options.socks5_bind_script.clone(),
                 &cp.program_options.socks_destination,
+                cp.program_options.announce_listens,
             )
         })
     }
@@ -196,6 +197,7 @@ pub fn socks5_peer(
     do_bind: bool,
     bind_script: Option<OsString>,
     socks_destination: &Option<SocksSocketAddr>,
+    announce_listen: bool,
 ) -> BoxedNewPeerFuture {
     let (desthost, destport) = if let Some(ref sd) = *socks_destination {
         (sd.host.clone(), sd.port)
@@ -264,6 +266,9 @@ pub fn socks5_peer(
                                     info!("SOCKS5 connect/bind: {:?}", addr);
 
                                     if do_bind {
+                                        if announce_listen {
+                                            println!("LISTEN proto=tcp,port={}", addr.port);
+                                        }
                                         if let Some(bs) = bind_script {
                                             let _ = ::std::process::Command::new(bs)
                                                 .arg(format!("{}", addr.port))

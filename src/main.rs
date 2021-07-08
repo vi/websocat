@@ -499,6 +499,10 @@ struct Opt {
     /// [A] Wait for reading to finish before closing foreachmsg:'s peer
     #[structopt(long = "--foreachmsg-wait-read")]
     pub foreachmsg_wait_reads: bool,
+
+    /// [A] Print a line to stdout for each port being listened
+    #[structopt(long = "--stdout-announce-listening-ports")]
+    pub announce_listens: bool,
 }
 
 // TODO: make it byte-oriented/OsStr?
@@ -758,6 +762,7 @@ fn run() -> Result<()> {
             ws_text_base64
             asyncstdio
             foreachmsg_wait_reads
+            announce_listens
         );
         #[cfg(feature = "ssl")]
         {

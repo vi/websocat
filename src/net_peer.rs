@@ -54,7 +54,7 @@ Example: redirect websocket connections to local SSH server over IPv6
 pub struct TcpListen(pub SocketAddr);
 impl Specifier for TcpListen {
     fn construct(&self, p: ConstructParams) -> PeerConstructor {
-        multi(tcp_listen_peer(&self.0, p.left_to_right))
+        multi(tcp_listen_peer(&self.0, p.left_to_right, p.program_options.announce_listens))
     }
     specifier_boilerplate!(noglobalstate multiconnect no_subspec );
 }
@@ -224,11 +224,15 @@ pub fn tcp_connect_peer(addrs: &[SocketAddr]) -> BoxedNewPeerFuture {
     Box::new(p.map_err(|(e,_)|e)) as BoxedNewPeerFuture
 }
 
-pub fn tcp_listen_peer(addr: &SocketAddr, l2r: L2rUser) -> BoxedNewPeerStream {
+pub fn tcp_listen_peer(addr: &SocketAddr, l2r: L2rUser, announce: bool) -> BoxedNewPeerStream {
     let bound = match TcpListener::bind(&addr) {
         Ok(x) => x,
         Err(e) => return peer_err_s(e),
     };
+    debug!("Listening TCP socket");
+    if announce {
+        println!("LISTEN proto=tcp,ip={},port={}", addr.ip(), addr.port());
+    }
     use tk_listen::ListenExt;
     Box::new(
         bound
@@ -373,6 +377,10 @@ pub fn udp_listen_peer(addr: &SocketAddr, opts: &Rc<Options>) -> BoxedNewPeerFut
         get_udp(addr, opts)
             .and_then(|x| {
                 apply_udp_options(&x, opts)?;
+                debug!("Ready for serving UDP");
+                if opts.announce_listens {
+                    println!("LISTEN proto=udp,ip={},port={}", addr.ip(), addr.port());
+                }
                 let h1 = UdpPeerHandle(Rc::new(RefCell::new(UdpPeer {
                     s: x,
                     state: Some(UdpPeerState::WaitingForAddress(channel())),
