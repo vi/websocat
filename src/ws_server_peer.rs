@@ -250,7 +250,8 @@ pub fn ws_upgrade_peer(
                 Box::new(x.accept().map(move |(y, headers)| {
                     debug!("{:?}", headers);
                     info!("Upgraded");
-                    super::ws_peer::finish_building_ws_peer(&*opts, y, true /* send Close on shutdown */, None)
+                    let close_on_shutdown =  !opts.websocket_dont_close;
+                    super::ws_peer::finish_building_ws_peer(&*opts, y, close_on_shutdown, None)
                 })) as Box<dyn Future<Item = Peer, Error = websocket::WebSocketError>>
             },
         );
