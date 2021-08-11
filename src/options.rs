@@ -95,4 +95,5 @@ pub struct Options {
 
     pub foreachmsg_wait_reads: bool,
     pub announce_listens: bool,
+    pub timestamp_monotonic: bool,
 }

@@ -100,6 +100,7 @@ macro_rules! list_of_all_specifier_classes {
         $your_macro!($crate::unix_peer::unix_seqpacket_peer::SeqpacketListenClass);
 
         $your_macro!($crate::jsonrpc_peer::JsonRpcClass);
+        $your_macro!($crate::timestamp_peer::TimestampClass);
 
         $your_macro!($crate::socks5_peer::SocksProxyClass);
         $your_macro!($crate::socks5_peer::SocksBindClass);

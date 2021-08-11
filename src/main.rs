@@ -503,6 +503,10 @@ struct Opt {
     /// [A] Print a line to stdout for each port being listened
     #[structopt(long = "--stdout-announce-listening-ports")]
     pub announce_listens: bool,
+
+    /// [A] Use monotonic clock for `timestamp:` overlay
+    #[structopt(long = "--timestamp-monotonic")]
+     pub timestamp_monotonic: bool,
 }
 
 // TODO: make it byte-oriented/OsStr?
@@ -763,6 +767,7 @@ fn run() -> Result<()> {
             asyncstdio
             foreachmsg_wait_reads
             announce_listens
+            timestamp_monotonic
         );
         #[cfg(feature = "ssl")]
         {
