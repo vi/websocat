@@ -308,6 +308,21 @@ impl Session {
         let c = Session::new(t, w, w2);
         Ok(c)
     }
+
+
+    /// Helper function, can be implemented using other low-level functions exposed by this crate
+    pub fn build_from_two_tree_bytes(reg: &ClassRegistrar, cli_opts: &std::collections::HashMap<String,PropertyValue>,  left: &[u8], right: &[u8]) -> Result<Session> {
+        let mut t = Tree::new();
+    
+        let q = StrNode::from_bytes(left).context("Parsing the left tree")?;
+        let w = q.build(&reg, cli_opts, &mut t).context("Building the left tree")?;
+    
+        let q2 = StrNode::from_bytes(right).context("Parsing the right tree")?;
+        let w2 = q2.build(&reg, cli_opts, &mut t).context("Building the right tree")?;
+
+        let c = Session::new(t, w, w2);
+        Ok(c)
+    }
 }
 
 impl Session {

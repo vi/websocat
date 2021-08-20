@@ -1,13 +1,12 @@
 
-use std::str::FromStr;
+use websocat_api::anyhow;
 
 
 #[tokio::main(flavor = "current_thread")]
-async fn main() {
+async fn main() -> anyhow::Result<()> {
     let mut from_str_mode = false;
 
     let mut treestrings = vec![];
-    let mut program_name_processed = false;
     let mut enable_forward = true;
     let mut enable_backward = true;
     let mut dryrun = false;
@@ -16,69 +15,59 @@ async fn main() {
     
     let reg = websocat_allnodes::all_node_classes();
 
-
-    let allopts = reg.get_all_cli_options().unwrap();
+    let allopts = reg.get_all_cli_options()?;
 
     let mut class_induced_cli_opts : std::collections::HashMap<String, _> = std::collections::HashMap::new();
 
-    for arg in std::env::args_os() {
-        if !program_name_processed {
-            program_name_processed = true;
-            continue;
-        }
-        match arg.to_str().unwrap() {
-            "--str" => {
-                from_str_mode = true;
-            }
-            "--dryrun" => {
-                dryrun = true;
-            }
-            x if x.starts_with("--") => {
-                let rest = &x[2..];
+    let mut parser = lexopt::Parser::from_env();
 
-                if let Some(t) = allopts.get(rest) {
-                    //let val = x.interpret(x)
-                    match t {
-                        websocat_api::PropertyValueType::Booly => {
-                            class_induced_cli_opts.insert(rest.to_owned(), websocat_api::PropertyValue::Booly(true));
+    while let Some(arg) = parser.next()? {
+        match arg {
+            lexopt::Arg::Short(x) => match x {
+                'u' => enable_backward = false,
+                'U' => enable_forward = false,
+                _ => anyhow::bail!("Unknown short option `{}`", x),
+            }
+            lexopt::Arg::Long(x) => match x {
+                "str" => from_str_mode = true,
+                "dryrun" => dryrun = true,
+                x => {
+                    //let b = parser.value()?;
+                    if let Some(t) = allopts.get(x) {
+                        match t {
+                            websocat_api::PropertyValueType::Booly => {
+                                class_induced_cli_opts.insert(x.to_owned(), websocat_api::PropertyValue::Booly(true));
+                            }
+                            _ => todo!(),
                         }
-                        _ => todo!(),
+                    } else {
+                        anyhow::bail!("Unknown long option `{}`", x);
                     }
-                } else {
-                    panic!("Long option not found: {}", x);
                 }
             }
-            "-u" => enable_backward = false,
-            "-U" => enable_forward = false,
-            s if from_str_mode => {
-                match websocat_api::StrNode::from_str(s) {
-                    Ok(x) => println!("{}", x),
-                    Err(e) => println!("{:#}", e),
-                }
-            }
-            s => {
-                treestrings.push(s.to_owned());
+            lexopt::Arg::Value(x) => {
+                treestrings.push(os_str_bytes::OsStrBytes::to_raw_bytes(&*x).into_owned())
             }
         }
     }
 
     if from_str_mode {
-        return;
+        return Ok(());
     }
 
     if treestrings.len() != 2 {
-        panic!("Exactly two positional arguments requires");
+        anyhow::bail!("Exactly two positional arguments required");
     }
 
-    let c = websocat_api::Session::build_from_two_tree_strings(
+    let c = websocat_api::Session::build_from_two_tree_bytes(
         &reg, 
         &class_induced_cli_opts,
         &treestrings[0],
         &treestrings[1],
-    ).unwrap();
+    )?;
 
-    println!("{}", websocat_api::StrNode::reverse(c.left, &c.nodes).unwrap());
-    println!("{}", websocat_api::StrNode::reverse(c.right, &c.nodes).unwrap());
+    println!("{}", websocat_api::StrNode::reverse(c.left, &c.nodes)?);
+    println!("{}", websocat_api::StrNode::reverse(c.right, &c.nodes)?);
     
 
     let opts = websocat_session::Opts {
@@ -87,13 +76,12 @@ async fn main() {
     };
 
     if dryrun {
-        return;
+        return Ok(());
     }
 
     if let Err(e) = websocat_session::run(opts, c).await {
         eprintln!("Error: {:#}", e);
     }
-
-
+    Ok(())
 }
 

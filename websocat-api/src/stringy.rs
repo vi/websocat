@@ -417,6 +417,12 @@ impl std::str::FromStr for StrNode {
     }
 }
 
+impl StrNode {
+    pub fn from_bytes(b: &[u8]) -> Result<Self, anyhow::Error> {
+        StrNode::read(&mut b.into_iter().copied().peekable(), true)
+    }
+}
+
 impl super::PropertyValueType {
     pub fn interpret(&self, b: &Bytes) -> super::Result<super::PropertyValue> {
         use super::{PropertyValue as PV, PropertyValueType as PVT};
