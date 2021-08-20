@@ -173,16 +173,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "crossbeam-channel"
-version = "0.5.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "06ed27e177f16d65f0f0c22a213e17c696ace5dd64b14258b52f9417ccb52db4"
-dependencies = [
- "cfg-if 1.0.0",
- "crossbeam-utils",
-]
-
-[[package]]
 name = "crossbeam-utils"
 version = "0.8.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -847,41 +837,10 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8b870d8c151b6f2fb93e84a13146138f05d02ed11c7e7c54f8826aaaf7c9f184"
 
 [[package]]
-name = "pipe"
-version = "0.4.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1c7b8f27da217eb966df4c58d4159ea939431950ca03cf782c22bd7c5c1d8d75"
-dependencies = [
- "crossbeam-channel",
-]
-
-[[package]]
 name = "pkg-config"
 version = "0.3.19"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3831453b3449ceb48b6d9c7ad7c96d5ea673e9b470a1dc578c2ce6521230884c"
-
-[[package]]
-name = "playground"
-version = "0.1.0"
-dependencies = [
- "pipe",
- "tokio",
- "tracing-subscriber",
- "websocat-api",
- "websocat-basic",
- "websocat-derive",
- "websocat-http",
- "websocat-session",
- "websocat-syncnodes",
-]
-
-[[package]]
-name = "playground2"
-version = "0.1.0"
-dependencies = [
- "string-interner",
-]
 
 [[package]]
 name = "ppv-lite86"

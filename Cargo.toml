@@ -24,6 +24,4 @@ members = [
     "websocat-ioless",
     "websocat-tungstenite",
     "websocat-allnodes",
-    "playground",
-    "playground2",
 ]
