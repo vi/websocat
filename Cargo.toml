@@ -12,6 +12,7 @@ tracing-subscriber = "0.2.16"
 tokio = {version = "1", features=["macros", "rt"]}
 lexopt = "0.1.0"
 os_str_bytes = "3.1.0"
+textwrap = { version = "0.14.2", default-features = false }
 
 
 [workspace]

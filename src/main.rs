@@ -1,6 +1,27 @@
-
 use websocat_api::anyhow;
 
+fn version() {
+    println!("websocat {}", env!("CARGO_PKG_VERSION"));
+}
+
+mod help;
+use help::{help, HelpMode};
+
+static SHORT_OPTS : [(char, &str); 3] = [
+    ('u', "unidirectional"),
+    ('U', "unidirectional-reverse"),
+    ('V', "version"),
+];
+
+/// Options that do not come from a Websocat classes
+static CORE_OPTS : [(&str, &str, &str); 6] = [
+    ("unidirectional", "", "Inhibit copying data from right to left node"),
+    ("unidirectional-reverse",  "", "Inhibit copying data from left to right node"),
+    ("version", "", "Show Websocat version"),
+    ("help", "[mode]",  "Show Websocat help message. There are four help modes, use --help=help for list them."),
+    ("str", "", "???"),
+    ("dryrun", "", "???"),
+];
 
 #[tokio::main(flavor = "current_thread")]
 async fn main() -> anyhow::Result<()> {
@@ -12,41 +33,76 @@ async fn main() -> anyhow::Result<()> {
     let mut dryrun = false;
 
     tracing_subscriber::fmt::init();
-    
+
     let reg = websocat_allnodes::all_node_classes();
 
     let allopts = reg.get_all_cli_options()?;
 
-    let mut class_induced_cli_opts : std::collections::HashMap<String, _> = std::collections::HashMap::new();
+    let mut class_induced_cli_opts: std::collections::HashMap<String, _> =
+        std::collections::HashMap::new();
 
     let mut parser = lexopt::Parser::from_env();
 
     while let Some(arg) = parser.next()? {
-        match arg {
+        let optname = match arg {
             lexopt::Arg::Short(x) => match x {
-                'u' => enable_backward = false,
-                'U' => enable_forward = false,
-                _ => anyhow::bail!("Unknown short option `{}`", x),
-            }
-            lexopt::Arg::Long(x) => match x {
-                "str" => from_str_mode = true,
-                "dryrun" => dryrun = true,
+                '?' => return Ok(help(HelpMode::Short, &reg, &allopts)),
                 x => {
-                    //let b = parser.value()?;
-                    if let Some(t) = allopts.get(x) {
-                        match t {
-                            websocat_api::PropertyValueType::Booly => {
-                                class_induced_cli_opts.insert(x.to_owned(), websocat_api::PropertyValue::Booly(true));
-                            }
-                            _ => todo!(),
+                    let mut lo = None;
+                    for (short, long) in SHORT_OPTS {
+                        if x == short {
+                            lo = Some(long);
+                            break;
                         }
-                    } else {
-                        anyhow::bail!("Unknown long option `{}`", x);
                     }
+                    if lo.is_none() { anyhow::bail!("Unknown short option `{}`", x); }
+                    lo.unwrap()
                 }
-            }
+            },
+            lexopt::Arg::Long(x) => x,
             lexopt::Arg::Value(x) => {
-                treestrings.push(os_str_bytes::OsStrBytes::to_raw_bytes(&*x).into_owned())
+                treestrings.push(os_str_bytes::OsStrBytes::to_raw_bytes(&*x).into_owned());
+                continue
+            }
+        };
+        match optname {
+            "str" => from_str_mode = true,
+            "dryrun" => dryrun = true,
+            "version" => return Ok(version()),
+            "unidirectional" => enable_backward = false,
+            "unidirectional-reverse" => enable_forward = false,
+            "help" => {
+                let mode = parser.value();
+                let hm = if let Ok(m) = mode {
+                    match m.to_string_lossy().as_ref() {
+                        "short" => HelpMode::Short,
+                        "long" => HelpMode::Full,
+                        "full" => HelpMode::Full,
+                        "manpage" => HelpMode::Man,
+                        "markdown" => HelpMode::Markdown,
+                        "help" => return Ok(println!("--help modes: short, full, manpage, markdown")),
+                         x => return Ok(println!("Unkonwn --help mode `{}`. \
+                         Valid values are short, long (full), manpage and markdown. \
+                         Or just no value at all. `-?` also implies short mode.", x)),
+                    }
+                } else {
+                    HelpMode::Full
+                };
+                return Ok(help(hm, &reg, &allopts));
+            }
+            x => {
+                //let b = parser.value()?;
+                if let Some(t) = allopts.get(x) {
+                    match t {
+                        websocat_api::PropertyValueType::Booly => {
+                            class_induced_cli_opts
+                                .insert(x.to_owned(), websocat_api::PropertyValue::Booly(true));
+                        }
+                        _ => todo!(),
+                    }
+                } else {
+                    anyhow::bail!("Unknown long option `{}`", x);
+                }
             }
         }
     }
@@ -60,7 +116,7 @@ async fn main() -> anyhow::Result<()> {
     }
 
     let c = websocat_api::Session::build_from_two_tree_bytes(
-        &reg, 
+        &reg,
         &class_induced_cli_opts,
         &treestrings[0],
         &treestrings[1],
@@ -68,7 +124,6 @@ async fn main() -> anyhow::Result<()> {
 
     println!("{}", websocat_api::StrNode::reverse(c.left, &c.nodes)?);
     println!("{}", websocat_api::StrNode::reverse(c.right, &c.nodes)?);
-    
 
     let opts = websocat_session::Opts {
         enable_forward,
@@ -84,4 +139,3 @@ async fn main() -> anyhow::Result<()> {
     }
     Ok(())
 }
-
