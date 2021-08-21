@@ -470,6 +470,14 @@ impl ClassRegistrar {
 
         Ok(v)
     }
+
+    pub fn classes(&self) -> impl Iterator<Item=&DNodeClass> {
+        self.classes.iter().map(|(_,cls)|cls)
+    }
+
+    pub fn macros(&self) -> impl Iterator<Item=&DMacro> {
+        self.macros.iter().map(|(_,cls)|cls)
+    }
 }
 
 impl std::fmt::Debug for ClassRegistrar {

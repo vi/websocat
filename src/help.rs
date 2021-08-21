@@ -1,6 +1,6 @@
 #![allow(unused)]
 
-use std::collections::{BTreeMap, HashMap};
+use std::{borrow::Cow, collections::{BTreeMap, HashMap}};
 use websocat_api::{ClassRegistrar, PropertyValueType};
 pub enum HelpMode {
     Full,
@@ -8,6 +8,33 @@ pub enum HelpMode {
     Man,
     Markdown,
 }
+
+fn format_pvt(t: &PropertyValueType) -> Cow<'static, str> {
+    match t {
+        PropertyValueType::Stringy => Cow::Borrowed("string"),
+        PropertyValueType::BytesBuffer => Cow::Borrowed("byte_buffer"),
+        PropertyValueType::Numbery=> Cow::Borrowed("integer"),
+        PropertyValueType::Floaty => Cow::Borrowed("float"),
+        PropertyValueType::Booly => Cow::Borrowed("bool"),
+        PropertyValueType::SockAddr => Cow::Borrowed("socket_address"),
+        PropertyValueType::IpAddr => Cow::Borrowed("ip_address"),
+        PropertyValueType::PortNumber => Cow::Borrowed("port_number"),
+        PropertyValueType::Path => Cow::Borrowed("filesystem_path"),
+        PropertyValueType::Uri => Cow::Borrowed("URI"),
+        PropertyValueType::Duration => Cow::Borrowed("time_duration"),
+        PropertyValueType::ChildNode => Cow::Borrowed("subnode"),
+        PropertyValueType::Enummy(v) => {
+            let mut s = String::with_capacity(40);
+            s.push_str("enum with values:");
+            for (_,x) in v {
+                s.push(' ');
+                s.push_str(x);
+            }
+            Cow::Owned(s)
+        }
+    }
+} 
+
 pub fn help(mode: HelpMode, reg: &ClassRegistrar, allopts: &HashMap<String, PropertyValueType>) {
     crate::version();
     println!("Command line client for WebSockets (RFC 6455), also general socat-like interconnector with web features.");
@@ -97,4 +124,37 @@ Options and flags:
             println!("        {}", helpline.as_ref());
         }
     }
+
+    println!("\nList of all nodes and with their properties:");
+
+    for cls in reg.classes() {
+        println!("  node `{}`", cls.official_name());
+        if let Some(at) = cls.array_type() {
+            println!("    accepts array of elements of type {}", format_pvt(&at));
+        }
+        if let Some(ah) = cls.array_help() {
+            for helpline in textwrap::wrap(&ah, 100) {
+                println!("        {}", helpline.as_ref());
+            }
+        }
+        for p in cls.properties() {
+            println!("    prop `{}` of type {}", p.name, format_pvt(&p.r#type));
+            if let Some(lo) = p.inject_cli_long_option {
+                println!("        Can be set by `--{}`", lo);
+            }
+            for helpline in textwrap::wrap(&(*p.help)(), 100) {
+                println!("        {}", helpline.as_ref());
+            }
+        }
+        println!("  end of node `{}`", cls.official_name());
+    }
+
+    println!("\nList of all macros:");
+
+    for r#macro in reg.macros() {
+        println!("  macro `{}`", r#macro.official_name());
+        println!("  end macro `{}`", r#macro.official_name());
+    }
+
+    println!("\nUse --help=short to get shorter help message");
 }
