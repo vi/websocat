@@ -1,30 +1,4 @@
-[package]
-name = "websocat"
-version = "3.0.0"
-authors = ["Vitaly _Vi Shukela <vi0oss@gmail.com>"]
-edition = "2018"
-
-[dependencies]
-websocat-api = {path="websocat-api"}
-websocat-session = {path="websocat-session"}
-websocat-allnodes = {path = "websocat-allnodes"}
-tracing-subscriber = "0.2.16"
-tokio = {version = "1", features=["macros", "rt"]}
-lexopt = "0.1.0"
-os_str_bytes = "3.1.0"
-textwrap = { version = "0.14.2", default-features = false }
-
-
 [workspace]
 members = [
-    "websocat-api",
-    "websocat-derive",
-    "websocat-basic",
-    "websocat-session",
-    "websocat-syncnodes",
-    "websocat-http",
-    "websocat-readline",
-    "websocat-ioless",
-    "websocat-tungstenite",
-    "websocat-allnodes",
+    "crates/*",
 ]
