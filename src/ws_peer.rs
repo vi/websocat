@@ -44,6 +44,7 @@ pub struct WsReadWrapper<T: WsStream + 'static> {
     pub binary_base64: bool,
     pub text_base64: bool,
     pub creation_time: ::std::time::Instant, // for measuring ping RTTs
+    pub print_rtts: bool,
 }
 
 impl<T: WsStream + 'static> AsyncRead for WsReadWrapper<T> {}
@@ -134,6 +135,9 @@ impl<T: WsStream + 'static> Read for WsReadWrapper<T> {
                         let newts = ::std::time::Instant::now() - self.creation_time;
                         let delta = newts.checked_sub(origts).unwrap_or_default();
                         info!("Received a pong from websocket; RTT = {:?}", delta);
+                        if self.print_rtts {
+                            eprintln!("RTT {}.{:06} s", delta.as_secs(), delta.subsec_micros());
+                        }
 
                     } else {
                         warn!("Received a pong with a strange content from websocket");
@@ -480,6 +484,7 @@ pub fn finish_building_ws_peer<S>(opts: &super::Options, duplex: Duplex<S>, clos
         binary_base64: opts.ws_binary_base64,
         text_base64: opts.ws_text_base64,
         creation_time: now,
+        print_rtts: opts.print_ping_rtts,
     };
     let ws_sin = WsWriteWrapper{
         sink: mpsink,

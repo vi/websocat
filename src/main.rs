@@ -507,6 +507,10 @@ struct Opt {
     /// [A] Use monotonic clock for `timestamp:` overlay
     #[structopt(long = "--timestamp-monotonic")]
      pub timestamp_monotonic: bool,
+
+    /// Print measured round-trip-time to stderr after each received WebSocket pong.
+    #[structopt(long = "print-ping-rtts")]
+    pub print_ping_rtts: bool,
 }
 
 // TODO: make it byte-oriented/OsStr?
@@ -768,6 +772,7 @@ fn run() -> Result<()> {
             foreachmsg_wait_reads
             announce_listens
             timestamp_monotonic
+            print_ping_rtts
         );
         #[cfg(feature = "ssl")]
         {

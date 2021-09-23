@@ -511,6 +511,9 @@ impl WebsocatConfiguration2 {
                 _on_warning("--ping-interval is currenty not very effective without -E or -U")
             }
         }
+        if self.opts.print_ping_rtts && self.opts.ws_ping_interval.is_none() {
+            _on_warning("--print-ping-rtts is not effective without --ping-interval");
+        }
         Ok(())
     }
 
