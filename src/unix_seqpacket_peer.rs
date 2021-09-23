@@ -129,7 +129,7 @@ pub fn seqpacket_connect_peer(addr: &Path) -> BoxedNewPeerFuture {
             Err("Failed to get or connect socket")?
         }
     }
-    Box::new(futures::future::result({ getpeer(addr) })) as BoxedNewPeerFuture
+    Box::new(futures::future::result(getpeer(addr))) as BoxedNewPeerFuture
 }
 
 pub fn seqpacket_listen_peer(addr: &Path, opts: &Rc<Options>) -> BoxedNewPeerStream {

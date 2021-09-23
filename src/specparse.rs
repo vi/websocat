@@ -4,7 +4,7 @@ use std::rc::Rc;
 use std::str::FromStr;
 
 pub fn spec(s: &str) -> Result<Rc<dyn Specifier>> {
-    Specifier::from_stack(&SpecifierStack::from_str(s)?)
+    <dyn Specifier>::from_stack(&SpecifierStack::from_str(s)?)
 }
 
 fn some_checks(s: &str) -> Result<()> {

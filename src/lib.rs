@@ -89,8 +89,8 @@ impl WebsocatConfiguration2 {
     pub fn parse2(self) -> Result<WebsocatConfiguration3> {
         Ok(WebsocatConfiguration3 {
             opts: self.opts,
-            s1: Specifier::from_stack(&self.s1)?,
-            s2: Specifier::from_stack(&self.s2)?,
+            s1: <dyn Specifier>::from_stack(&self.s1)?,
+            s2: <dyn Specifier>::from_stack(&self.s2)?,
         })
     }
 }

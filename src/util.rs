@@ -97,7 +97,7 @@ pub fn peer_err_s<E: std::error::Error + 'static>(e: E) -> BoxedNewPeerStream {
         Box::new(e) as Box<dyn std::error::Error>
     )])) as BoxedNewPeerStream
 }
-pub fn peer_err_sb(e: Box<std::error::Error + 'static>) -> BoxedNewPeerStream {
+pub fn peer_err_sb(e: Box<dyn std::error::Error + 'static>) -> BoxedNewPeerStream {
     Box::new(futures::stream::iter_result(vec![Err(
         e
     )])) as BoxedNewPeerStream
