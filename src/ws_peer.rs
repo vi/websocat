@@ -43,6 +43,7 @@ pub struct WsReadWrapper<T: WsStream + 'static> {
     pub binary_prefix: Option<String>,
     pub binary_base64: bool,
     pub text_base64: bool,
+    pub creation_time: ::std::time::Instant, // for measuring ping RTTs
 }
 
 impl<T: WsStream + 'static> AsyncRead for WsReadWrapper<T> {}
@@ -123,8 +124,20 @@ impl<T: WsStream + 'static> Read for WsReadWrapper<T> {
 
                     continue;
                 }
-                Ready(Some(OwnedMessage::Pong(_))) => {
-                    info!("Received a pong from websocket");
+                Ready(Some(OwnedMessage::Pong(buf))) => {
+                    if buf.len() == 12 {
+                        let (mut origts1, mut origts2) = ([0u8; 8], [0u8; 4]);
+                        origts1.copy_from_slice(&buf[0..8]);
+                        origts2.copy_from_slice(&buf[8..12]);
+                        let (origts1, origts2) = (u64::from_be_bytes(origts1), u32::from_be_bytes(origts2));
+                        let origts = ::std::time::Duration::new(origts1, origts2);
+                        let newts = ::std::time::Instant::now() - self.creation_time;
+                        let delta = newts.checked_sub(origts).unwrap_or_default();
+                        info!("Received a pong from websocket; RTT = {:?}", delta);
+
+                    } else {
+                        warn!("Received a pong with a strange content from websocket");
+                    }
 
                     if let Some((de, intvl)) = self.pong_timeout.as_mut() {
                         de.reset(::std::time::Instant::now() + *intvl);
@@ -330,6 +343,7 @@ pub struct WsPinger<T: WsStream + 'static> {
     st: WsPingerState,
     si: MultiProducerWsSink<T>,
     t: ::tokio_timer::Interval,
+    origin: ::std::time::Instant,
     aborter: ::futures::unsync::oneshot::Receiver<()>,
 }
 
@@ -337,12 +351,14 @@ impl<T: WsStream + 'static> WsPinger<T> {
     pub fn new(
         sink: MultiProducerWsSink<T>,
         interval: ::std::time::Duration,
+        origin: ::std::time::Instant,
         aborter: ::futures::unsync::oneshot::Receiver<()>,
     ) -> Self {
         WsPinger {
             st: WsPingerState::WaitingForTimer,
             t: ::tokio_timer::Interval::new_interval(interval),
             si: sink,
+            origin,
             aborter,
         }
     }
@@ -377,7 +393,12 @@ impl<T: WsStream + 'static> ::futures::Future for WsPinger<T> {
                     }
                 },
                 StartSend => {
-                    let om = OwnedMessage::Ping(vec![]);
+                    let ts = ::std::time::Instant::now().duration_since(self.origin);
+                    let (ts1, ts2) = (ts.as_secs(), ts.subsec_nanos());
+                    let mut ts = [0; 12];
+                    ts[0..8].copy_from_slice(&ts1.to_be_bytes());
+                    ts[8..12].copy_from_slice(&ts2.to_be_bytes());
+                    let om = OwnedMessage::Ping(ts.to_vec());
                     match self.si.borrow_mut().start_send(om) {
                         Err(e) => info!("wsping: {}", e),
                         Ok(AsyncSink::NotReady(_om)) => {
@@ -420,13 +441,14 @@ pub fn finish_building_ws_peer<S>(opts: &super::Options, duplex: Duplex<S>, clos
         Mode1::Binary
     };
 
+    let now = ::std::time::Instant::now();
     let ping_aborter = if let Some(d) = opts.ws_ping_interval {
         debug!("Starting pinger");
 
         let (tx, rx) = ::futures::unsync::oneshot::channel();
 
         let intv = ::std::time::Duration::from_secs(d);
-        let pinger = super::ws_peer::WsPinger::new(mpsink.clone(), intv, rx);
+        let pinger = super::ws_peer::WsPinger::new(mpsink.clone(), intv,now, rx);
         ::tokio_current_thread::spawn(pinger);
         Some(tx)
     } else {
@@ -457,6 +479,7 @@ pub fn finish_building_ws_peer<S>(opts: &super::Options, duplex: Duplex<S>, clos
         binary_prefix: opts.ws_binary_prefix.clone(),
         binary_base64: opts.ws_binary_base64,
         text_base64: opts.ws_text_base64,
+        creation_time: now,
     };
     let ws_sin = WsWriteWrapper{
         sink: mpsink,
