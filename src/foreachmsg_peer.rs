@@ -173,6 +173,7 @@ impl Read for PeerHandle {
                     return Err(simple_err(format!("{}", e)));
                 }
             };
+            #[allow(unused_assignments)]
             let mut finished_but_loop_around = false;
             match p.0.read(b) {
                 Ok(0) => { 
