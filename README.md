@@ -9,7 +9,7 @@ Netcat, curl and socat for [WebSockets](https://en.wikipedia.org/wiki/WebSocket)
 ### Connect to public echo server
 
 ```
-$ websocat ws://echo.websocket.org
+$ websocat ws://ws.vi-server.org/mirror
 123
 123
 ABC
