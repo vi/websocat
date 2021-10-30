@@ -29,7 +29,7 @@ Some address types may be "aliases" to other address types or combinations of ov
 
 ```
 
-websocat 1.7.0
+websocat 1.9.0
 Vitaly "_Vi" Shukela <vi0oss@gmail.com>
 Command-line client for web sockets, like netcat/curl/socat for ws://.
 
@@ -39,6 +39,7 @@ USAGE:
     websocat [FLAGS] [OPTIONS] <addr1> <addr2>  (advanced mode)
 
 FLAGS:
+        --stdout-announce-listening-ports       [A] Print a line to stdout for each port being listened
         --async-stdio                           [A] On UNIX, set stdin and stdout to nonblocking mode instead of
                                                 spawning a thread. This should improve performance, but may break other
                                                 programs running on the same console.
@@ -48,6 +49,7 @@ FLAGS:
                                                 request URI and client address (if TCP)
                                                 Beware of ShellShock or similar security problems.
     -E, --exit-on-eof                           Close a data transfer direction if the other one reached EOF
+        --foreachmsg-wait-read                  [A] Wait for reading to finish before closing foreachmsg:'s peer
         --jsonrpc                               Format messages you type as JSON RPC 2.0 method calls. First word
                                                 becomes method name, the rest becomes parameters, possibly automatically
                                                 wrapped in [].
@@ -65,6 +67,8 @@ FLAGS:
         --no-async-stdio                        [A] Inhibit using stdin/stdout in a nonblocking way if it is not a tty
     -1, --one-message                           Send and/or receive only one message. Use with --no-close and/or -u/-U.
         --oneshot                               Serve only once. Not to be confused with -1 (--one-message)
+        --print-ping-rtts                       Print measured round-trip-time to stderr after each received WebSocket
+                                                pong.
         --exec-sighup-on-stdin-close            [A] Make exec: or sh-c: or cmd: send SIGHUP on UNIX when input is
                                                 closed.
         --exec-sighup-on-zero-msg               [A] Make exec: or sh-c: or cmd: send SIGHUP on UNIX when facing incoming
@@ -75,6 +79,7 @@ FLAGS:
     -s, --server-mode                           Simple server mode: specify TCP port or addr:port as single argument
     -S, --strict                                strict line/message mode: drop too long messages instead of splitting
                                                 them, drop incomplete lines.
+        --timestamp-monotonic                   [A] Use monotonic clock for `timestamp:` overlay
     -k, --insecure                              Accept invalid certificates and hostnames while connecting to TLS
         --udp-broadcast                         [A] Set SO_BROADCAST
         --udp-multicast-loop                    [A] Set IP[V6]_MULTICAST_LOOP
@@ -84,6 +89,9 @@ FLAGS:
     -u, --unidirectional                        Inhibit copying data in one direction
     -U, --unidirectional-reverse                Inhibit copying data in the other direction (or maybe in both directions
                                                 if combined with -u)
+        --accept-from-fd                        [A] Do not call `socket(2)` in UNIX socket listerer peer, start with
+                                                `accept(2)` using specified file descriptor number as argument instead
+                                                of filename
         --unlink                                [A] Unlink listening UNIX socket before binding to it
     -V, --version                               Prints version information
     -v                                          Increase verbosity level to info or further
@@ -107,6 +115,9 @@ OPTIONS:
             --socks5 127.0.0.1:9050
         --autoreconnect-delay-millis <autoreconnect_delay_millis>
             [A] Delay before reconnect attempt for `autoreconnect:` overlay. [default: 20]
+
+        --basic-auth <basic_auth>
+            Add `Authorization: Basic` HTTP request header with this base64-encoded parameter
 
         --queue-len <broadcast_queue_len>
             [A] Number of pending queued messages for broadcast reuser [default: 16]
@@ -217,7 +228,7 @@ ARGS:
 
 Basic examples:
   Command-line websocket client:
-    websocat ws://echo.websocket.org/
+    websocat ws://ws.vi-server.org/mirror/
     
   WebSocket server
     websocat -s 8080
@@ -659,6 +670,8 @@ to websocat based on URLs.
 Obviously, Nginx can also redirect to TCP-listening
 websocat just as well - UNIX sockets are not a requirement for this feature.
 
+See `moreexamples.md` for SystemD usage (untested).
+
 TODO: --chmod option?
 
 
@@ -1073,6 +1086,16 @@ Internal name for --dump-spec: JsonRpc
 [A] Turns messages like `abc 1,2` into `{"jsonrpc":"2.0","id":412, "method":"abc", "params":[1,2]}`.
 
 For simpler manual testing of websocket-based JSON-RPC services
+
+Example: TODO
+
+
+### `timestamp:`
+
+Internal name for --dump-spec: Timestamp
+
+
+[A] Prepend timestamp to each incoming message.
 
 Example: TODO
 

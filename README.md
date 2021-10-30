@@ -104,7 +104,7 @@ There are multiple options for installing WebSocat. From easy to hard:
 ## `--help=long` output
 
 ```
-websocat 1.8.0
+websocat 1.9.0
 Vitaly "_Vi" Shukela <vi0oss@gmail.com>
 Command-line client for web sockets, like netcat/curl/socat for ws://.
 
@@ -114,6 +114,7 @@ USAGE:
     websocat [FLAGS] [OPTIONS] <addr1> <addr2>  (advanced mode)
 
 FLAGS:
+        --stdout-announce-listening-ports       [A] Print a line to stdout for each port being listened
         --async-stdio                           [A] On UNIX, set stdin and stdout to nonblocking mode instead of
                                                 spawning a thread. This should improve performance, but may break other
                                                 programs running on the same console.
@@ -141,6 +142,8 @@ FLAGS:
         --no-async-stdio                        [A] Inhibit using stdin/stdout in a nonblocking way if it is not a tty
     -1, --one-message                           Send and/or receive only one message. Use with --no-close and/or -u/-U.
         --oneshot                               Serve only once. Not to be confused with -1 (--one-message)
+        --print-ping-rtts                       Print measured round-trip-time to stderr after each received WebSocket
+                                                pong.
         --exec-sighup-on-stdin-close            [A] Make exec: or sh-c: or cmd: send SIGHUP on UNIX when input is
                                                 closed.
         --exec-sighup-on-zero-msg               [A] Make exec: or sh-c: or cmd: send SIGHUP on UNIX when facing incoming
@@ -151,6 +154,7 @@ FLAGS:
     -s, --server-mode                           Simple server mode: specify TCP port or addr:port as single argument
     -S, --strict                                strict line/message mode: drop too long messages instead of splitting
                                                 them, drop incomplete lines.
+        --timestamp-monotonic                   [A] Use monotonic clock for `timestamp:` overlay
     -k, --insecure                              Accept invalid certificates and hostnames while connecting to TLS
         --udp-broadcast                         [A] Set SO_BROADCAST
         --udp-multicast-loop                    [A] Set IP[V6]_MULTICAST_LOOP
@@ -299,7 +303,7 @@ ARGS:
 
 Basic examples:
   Command-line websocket client:
-    websocat ws://echo.websocket.org/
+    websocat ws://ws.vi-server.org/mirror/
     
   WebSocket server
     websocat -s 8080
@@ -365,6 +369,7 @@ Full list of overlays:
 	foreachmsg:     	Execute something for each incoming message.
 	log:            	Log each buffer as it pass though the underlying connector.
 	jsonrpc:        	[A] Turns messages like `abc 1,2` into `{"jsonrpc":"2.0","id":412, "method":"abc", "params":[1,2]}`.
+	timestamp:      	[A] Prepend timestamp to each incoming message.
 	socks5-connect: 	SOCKS5 proxy client (raw) [A]
 	socks5-bind:    	SOCKS5 proxy client (raw, bind command) [A]
 ```
