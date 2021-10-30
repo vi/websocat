@@ -44,7 +44,7 @@ use std::ffi::OsString;
     after_help = "
 Basic examples:
   Command-line websocket client:
-    websocat ws://echo.websocket.org/
+    websocat ws://ws.vi-server.org/mirror/
     
   WebSocket server
     websocat -s 8080
