@@ -73,7 +73,19 @@ See [moreexamples.md](./moreexamples.md) for further examples.
 * Auto-reconnect and connection-reuse modes.
 * Linux, Windows and Mac support, with [pre-built executables][releases].
 * Low-level WebSocket clients and servers with overridable underlying transport connection, e.g. calling external program to serve as a transport for websocat (for SSL, proxying, etc.).
-* Buildable by Rust starting from v1.34. Websocats up to version 1.5.0 are buildable by Rust 1.31. Websocat version 1.2.0 (or from [a tag](https://github.com/vi/websocat/releases/tag/last_version_that_supports_rust_1_28)) should be buildable by 1.28.0. Websocat version 1.1.0 and earlier should be buildable with Rust v1.23.0. There is legacy non-async version buildable by even older Rust.
+
+## Rust versions
+
+|Websocat versions|Minimal Rust version|
+|----|----|
+| 1.9       | 1.48 |
+| 1.6 - 1.8 | 1.34 |
+| 1.3 - 1.5 | 1.31 |
+| 1.2       | 1.28 |
+| 1.0-1.1   | 1.23 |
+
+Early non-async versions of Websocat should be buildable by even older rustc.  
+Note that old versions of Websocat may misbehave if built by Rust 1.48 or later due to https://github.com/rust-lang/rust/pull/71274/.
 
 [releases]:https://github.com/vi/websocat/releases
 

@@ -1,6 +1,6 @@
 [package]
 name = "websocat"
-version = "1.8.0"
+version = "1.9.0"
 authors = ["Vitaly \"_Vi\" Shukela <vi0oss@gmail.com>"]
 license = "MIT"
 repository = "https://github.com/vi/websocat"
@@ -9,7 +9,7 @@ keywords = ["WebSocket", "socat", "rfc6455", "netcat", "cli"]
 exclude = ["autorelease.sh","test.sh","test.pkcs12"]
 readme = "README.md"
 edition = "2018"
-#msrv = "1.34.2"
+#msrv = "1.48.0"
 
 [package.metadata.deb]
 section = "utility"
