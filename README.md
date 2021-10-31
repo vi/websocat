@@ -1,7 +1,6 @@
 # websocat
 Netcat, curl and socat for [WebSockets](https://en.wikipedia.org/wiki/WebSocket).
 
-[![Build Status](https://travis-ci.org/vi/websocat.svg?branch=master)](https://travis-ci.org/vi/websocat)
 [![Gitter](https://badges.gitter.im/websocat.svg)](https://gitter.im/websocat/Lobby?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=body_badge)
 
 ## Examples
