@@ -1,7 +1,7 @@
 #![allow(unused)]
 
 use std::{borrow::Cow, collections::{BTreeMap, HashMap}};
-use websocat_api::{ClassRegistrar, PropertyValueType};
+use websocat_api::{ClassRegistrar, DMacro, DNodeClass, PropertyValueType};
 pub enum HelpMode {
     Full,
     Short,
@@ -127,8 +127,13 @@ Options and flags:
 
     println!("\nList of all nodes and with their properties:");
 
+    // BTreeMap for sorting
+    let mut classes : BTreeMap<String, &DNodeClass> = BTreeMap::new();
     for cls in reg.classes() {
-        println!("  node `{}`", cls.official_name());
+        classes.insert(cls.official_name(), cls);
+    }
+    for (official_name, cls) in classes.iter() {
+        println!("  node `{}`", official_name);
         if let Some(at) = cls.array_type() {
             println!("    accepts array of elements of type {}", format_pvt(&at));
         }
@@ -148,13 +153,19 @@ Options and flags:
         }
         println!("  end of node `{}`", cls.official_name());
     }
+    drop(classes);
 
     println!("\nList of all macros:");
 
+    let mut macros : BTreeMap<String, &DMacro> = BTreeMap::new();
     for r#macro in reg.macros() {
-        println!("  macro `{}`", r#macro.official_name());
+        macros.insert(r#macro.official_name(), r#macro);
+    }
+    for (official_name, r#macro) in macros.iter() {
+        println!("  macro `{}`", official_name);
         println!("  end macro `{}`", r#macro.official_name());
     }
+    drop(macros);
 
     println!("\nUse --help=short to get shorter help message");
 }
