@@ -44,7 +44,7 @@ struct Field1 {
 #[derive(Debug, darling::FromDeriveInput)]
 #[darling(attributes(websocat_node, debug_derive), forward_attrs(doc, official_name, validate))]
 struct Class1 {
-    ident: syn::Ident,
+    //ident: syn::Ident,
     data: darling::ast::Data<(),Field1>,
     official_name: String,
 

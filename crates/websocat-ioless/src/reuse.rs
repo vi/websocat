@@ -10,6 +10,7 @@ use websocat_derive::{WebsocatEnum, WebsocatNode};
 struct ReuserData {
     tx: Option<tokio::sync::mpsc::Sender<bytes::Bytes>>,
     rx: Option<tokio::sync::broadcast::Sender<bytes::Bytes>>,
+    #[allow(dead_code)] // FIXME
     cl: Option<tokio::sync::watch::Receiver<()>>,
 }
 
