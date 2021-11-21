@@ -1,6 +1,8 @@
 #![allow(clippy::option_if_let_else)]
 pub mod copy;
 
+use std::sync::{Arc, atomic::{AtomicUsize}};
+
 use tracing::Instrument;
 use websocat_api::{anyhow::{self, Context}, futures};
 
@@ -47,11 +49,24 @@ async fn half_session(dir:&'static str, r: websocat_api::Source, w : websocat_ap
         (websocat_api::Source::Datagrams(r), websocat_api::Sink::Datagrams(w)) => {
             use futures::stream::StreamExt;
             tracing::debug!("A datagram session");
-            r.forward(w).await?;
-            tracing::info!(
-                "Finished Websocat datagram transfer session. Processed {} datagrams",
-                '?'
-            );
+            let counter = Arc::new(AtomicUsize::new(0));
+            let counter_ = counter.clone();
+            let r = r.inspect(|_|{counter_.fetch_add(1, std::sync::atomic::Ordering::Relaxed);});
+            match r.forward(w).await {
+                Ok(()) => {
+                    tracing::info!(
+                        "Finished Websocat datagram transfer session. Processed {} datagrams",
+                        counter.load(std::sync::atomic::Ordering::SeqCst)
+                    );
+                }
+                Err(e) => {
+                    tracing::info!(
+                        "Finished Websocat datagram transfer session with error. Source emitted {} datagrams",
+                        counter.load(std::sync::atomic::Ordering::SeqCst)
+                    );
+                    return Err(e);
+                }
+            }
         }
         (websocat_api::Source::None, websocat_api::Sink::None) => {
             tracing::info!(
