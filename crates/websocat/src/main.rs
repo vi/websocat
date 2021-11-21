@@ -14,13 +14,14 @@ static SHORT_OPTS : [(char, &str); 3] = [
 ];
 
 /// Options that do not come from a Websocat classes
-static CORE_OPTS : [(&str, &str, &str); 6] = [
+static CORE_OPTS : [(&str, &str, &str); 7] = [
     ("unidirectional", "", "Inhibit copying data from right to left node"),
     ("unidirectional-reverse",  "", "Inhibit copying data from left to right node"),
     ("version", "", "Show Websocat version"),
     ("help", "[mode]",  "Show Websocat help message. There are four help modes, use --help=help for list them."),
     ("str", "", "???"),
     ("dryrun", "", "???"),
+    ("dump-spec", "", "Instead of executing the session, describe its tree to stdout")
 ];
 
 #[tokio::main(flavor = "current_thread")]
@@ -68,6 +69,7 @@ async fn main() -> anyhow::Result<()> {
         match optname {
             "str" => from_str_mode = true,
             "dryrun" => dryrun = true,
+            "dump-spec" => dryrun = true,
             "version" => return Ok(version()),
             "unidirectional" => enable_backward = false,
             "unidirectional-reverse" => enable_forward = false,
@@ -80,10 +82,9 @@ async fn main() -> anyhow::Result<()> {
                         "full" => HelpMode::Full,
                         "manpage" => HelpMode::Man,
                         "markdown" => HelpMode::Markdown,
-                        "help" => return Ok(println!("--help modes: short, full, manpage, markdown")),
-                         x => return Ok(println!("Unkonwn --help mode `{}`. \
-                         Valid values are short, long (full), manpage and markdown. \
-                         Or just no value at all. `-?` also implies short mode.", x)),
+                        "list" => HelpMode::JustListThings,
+                        "help" => return Ok(println!("--help modes: short, full, manpage, markdown, list or some node name")),
+                         x => HelpMode::SpecificThing(x.to_owned()),
                     }
                 } else {
                     HelpMode::Full
@@ -122,8 +123,10 @@ async fn main() -> anyhow::Result<()> {
         &treestrings[1],
     )?;
 
-    println!("{}", websocat_api::StrNode::reverse(c.left, &c.nodes)?);
-    println!("{}", websocat_api::StrNode::reverse(c.right, &c.nodes)?);
+    if dryrun {
+        println!("{}", websocat_api::StrNode::reverse(c.left, &c.nodes)?);
+        println!("{}", websocat_api::StrNode::reverse(c.right, &c.nodes)?);
+    }
 
     let opts = websocat_session::Opts {
         enable_forward,

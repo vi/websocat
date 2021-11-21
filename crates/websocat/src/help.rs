@@ -7,6 +7,8 @@ pub enum HelpMode {
     Short,
     Man,
     Markdown,
+    JustListThings,
+    SpecificThing(String),
 }
 
 fn format_pvt(t: &PropertyValueType) -> Cow<'static, str> {
@@ -36,24 +38,26 @@ fn format_pvt(t: &PropertyValueType) -> Cow<'static, str> {
 } 
 
 pub fn help(mode: HelpMode, reg: &ClassRegistrar, allopts: &HashMap<String, PropertyValueType>) {
-    crate::version();
-    println!("Command line client for WebSockets (RFC 6455), also general socat-like interconnector with web features.");
-    println!("Created by Vitaly \"_Vi\" Shukela. Questions and problems: https://github.com/vi/websocat/issues/");
-    println!();
-    print!(
-        r#"Usage:
-    websocat ws://URL wss://URL     (simple client)
-    websocat -s port                (simple server)
-    websocat [OPTIONS] arg1:...  arg2:... (advanced mode)
+    if matches!(mode, HelpMode::Full | HelpMode::Short) {
+        crate::version();
+        println!("Command line client for WebSockets (RFC 6455), also general socat-like interconnector with web features.");
+        println!("Created by Vitaly \"_Vi\" Shukela. Questions and problems: https://github.com/vi/websocat/issues/");
+        println!();
+        print!(
+            r#"Usage:
+        websocat ws://URL wss://URL     (simple client)
+        websocat -s port                (simple server)
+        websocat [OPTIONS] arg1:...  arg2:... (advanced mode)
 
-Some advanced mode examples:
-  WebSocket-to-TCP proxy: websocat --binary ws-l:127.0.0.1:8080 tcp:127.0.0.1:5678
-  TCP-to-WebSocket proxy: websocat --binary tcp-l:127.0.0.1:5678 ws://127.0.0.1:8080
-See README and other pages in Github repository for more examples.
+    Some advanced mode examples:
+    WebSocket-to-TCP proxy: websocat --binary ws-l:127.0.0.1:8080 tcp:127.0.0.1:5678
+    TCP-to-WebSocket proxy: websocat --binary tcp-l:127.0.0.1:5678 ws://127.0.0.1:8080
+    See README and other pages in Github repository for more examples.
 
-Options and flags:
-"#
-    );
+    Options and flags:
+    "#
+        );
+    }
 
     enum OptionType {
         Core,
@@ -67,6 +71,7 @@ Options and flags:
     }
 
     let mut all_long_opts: BTreeMap<String, OptionInfo> = BTreeMap::new();
+    let mut printed_entries = 0;
 
     for (prop, arginfo, help) in crate::CORE_OPTS {
         all_long_opts.insert(
@@ -91,81 +96,118 @@ Options and flags:
             },
         );
     }
+    if matches!(mode, HelpMode::Full | HelpMode::Short) {
+        for (short, long) in crate::SHORT_OPTS {
+            if let Some(op) = all_long_opts.get_mut(long) {
+                op.short = Some(short);
+            } else {
+                eprintln!(
+                    "ERROR: short option `{}` refers non-existant long option `{}`",
+                    short, long
+                );
+            }
+        }
 
-    for (short, long) in crate::SHORT_OPTS {
-        if let Some(op) = all_long_opts.get_mut(long) {
-            op.short = Some(short);
-        } else {
-            eprintln!(
-                "ERROR: short option `{}` refers non-existant long option `{}`",
-                short, long
-            );
+        for (opt, info) in all_long_opts {
+            if let Some(short) = info.short {
+                print!(" -{}, ", short);
+            } else {
+                print!("     ");
+            }
+            let opt_n_arg = format!("{} {}", opt, info.arg);
+            print!("--{:30}", opt_n_arg);
+
+            let longhelp = info.help.len() > 60;
+            if matches!(info.typ, OptionType::Core) && !longhelp {
+                println!("{}", info.help);
+                continue;
+            }
+
+            println!();
+
+            for helpline in textwrap::wrap(&info.help, 100) {
+                println!("        {}", helpline.as_ref());
+            }
         }
     }
 
-    for (opt, info) in all_long_opts {
-        if let Some(short) = info.short {
-            print!(" -{}, ", short);
-        } else {
-            print!("     ");
-        }
-        let opt_n_arg = format!("{} {}", opt, info.arg);
-        print!("--{:30}", opt_n_arg);
-
-        let longhelp = info.help.len() > 60;
-        if matches!(info.typ, OptionType::Core) && !longhelp {
-            println!("{}", info.help);
-            continue;
-        }
-
-        println!();
-
-        for helpline in textwrap::wrap(&info.help, 100) {
-            println!("        {}", helpline.as_ref());
-        }
+    if matches!(mode, HelpMode::Full ) {
+        println!("\nList of all nodes and with their properties:");
     }
-
-    println!("\nList of all nodes and with their properties:");
+    if matches!(mode, HelpMode::Short) {
+        println!("\nList of all nodes:");
+    }
 
     // BTreeMap for sorting
     let mut classes : BTreeMap<String, &DNodeClass> = BTreeMap::new();
     for cls in reg.classes() {
-        classes.insert(cls.official_name(), cls);
+        let name = cls.official_name();
+        if let HelpMode::SpecificThing(ref x) = mode {
+            if ! x.eq_ignore_ascii_case(&name) {
+                continue;
+            }
+        }
+        classes.insert(name, cls);
     }
     for (official_name, cls) in classes.iter() {
         println!("  node `{}`", official_name);
-        if let Some(at) = cls.array_type() {
-            println!("    accepts array of elements of type {}", format_pvt(&at));
-        }
-        if let Some(ah) = cls.array_help() {
-            for helpline in textwrap::wrap(&ah, 100) {
-                println!("        {}", helpline.as_ref());
+
+        if ! matches!(mode, HelpMode::Short | HelpMode::JustListThings) {
+            if let Some(at) = cls.array_type() {
+                println!("    accepts array of elements of type {}", format_pvt(&at));
             }
-        }
-        for p in cls.properties() {
-            println!("    prop `{}` of type {}", p.name, format_pvt(&p.r#type));
-            if let Some(lo) = p.inject_cli_long_option {
-                println!("        Can be set by `--{}`", lo);
+            if let Some(ah) = cls.array_help() {
+                for helpline in textwrap::wrap(&ah, 100) {
+                    println!("        {}", helpline.as_ref());
+                }
             }
-            for helpline in textwrap::wrap(&(*p.help)(), 100) {
-                println!("        {}", helpline.as_ref());
+            for p in cls.properties() {
+                println!("    prop `{}` of type {}", p.name, format_pvt(&p.r#type));
+                if let Some(lo) = p.inject_cli_long_option {
+                    println!("        Can be set by `--{}`", lo);
+                }
+                for helpline in textwrap::wrap(&(*p.help)(), 100) {
+                    println!("        {}", helpline.as_ref());
+                }
             }
+            println!("  end of node `{}`", cls.official_name());
         }
-        println!("  end of node `{}`", cls.official_name());
+        printed_entries+=1;
     }
     drop(classes);
 
-    println!("\nList of all macros:");
+    if matches!(mode, HelpMode::Full | HelpMode::Short) {
+        println!("\nList of all macros:");
+    }
 
     let mut macros : BTreeMap<String, &DMacro> = BTreeMap::new();
     for r#macro in reg.macros() {
-        macros.insert(r#macro.official_name(), r#macro);
+        let name = r#macro.official_name();
+        if let HelpMode::SpecificThing(ref x) = mode {
+            if ! x.eq_ignore_ascii_case(&name) {
+                continue;
+            }
+        }
+        macros.insert(name, r#macro);
     }
     for (official_name, r#macro) in macros.iter() {
         println!("  macro `{}`", official_name);
-        println!("  end macro `{}`", r#macro.official_name());
+        if ! matches!(mode, HelpMode::Short | HelpMode::JustListThings) {
+            println!("  end macro `{}`", r#macro.official_name());
+        }
+        printed_entries+=1;
     }
     drop(macros);
 
-    println!("\nUse --help=short to get shorter help message");
+    if matches!(mode, HelpMode::Full) {
+        println!("\nUse --help=short to get shorter help message");
+    }
+
+    if printed_entries == 0 {
+        if let HelpMode::SpecificThing(ref x) = mode {
+            println!("Unkonwn --help mode `{}`. \
+                      Valid values are short, long (full), manpage, markdown, list, \
+                      Or just no value at all. `-?` also implies short mode.", x);
+        }
+    }
 }
