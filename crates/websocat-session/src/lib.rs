@@ -122,20 +122,24 @@ async fn run_impl(
 
     let i = ball.i;
     let ctr2 = ball.ctr.clone();
-    let multiconn = websocat_api::ServerModeContext {
-        you_are_called_not_the_first_time: continuation,
-        call_me_again_with_this: Box::new(move |cont| {
-            rerun(
-                opts,
-                c2,
-                Some(cont),
-                Ball {
-                    i: i + 1,
-                    vigilance_tx: Some(vigilance_tx),
-                    ctr: ctr2,
-                },
-            );
-        }),
+    let multiconn = if opts.enable_multiple_connections {
+        Some(websocat_api::ServerModeContext {
+            you_are_called_not_the_first_time: continuation,
+            call_me_again_with_this: Box::new(move |cont| {
+                rerun(
+                    opts,
+                    c2,
+                    Some(cont),
+                    Ball {
+                        i: i + 1,
+                        vigilance_tx: Some(vigilance_tx),
+                        ctr: ctr2,
+                    },
+                );
+            }),
+        })
+    } else {
+        None
     };
 
     let readlock = ball.ctr.read().await;
@@ -144,7 +148,7 @@ async fn run_impl(
 
     let try_block = async move {
         let n1 = c.nodes[c.left].clone().upgrade().with_context(||format!("Trying to run the left node"))?;
-        let p1: websocat_api::Bipipe = websocat_api::RunnableNode::run(n1,rc1, Some(multiconn)).await?;
+        let p1: websocat_api::Bipipe = websocat_api::RunnableNode::run(n1,rc1, multiconn).await?;
     
         let rc2 = websocat_api::RunContext {
             nodes: c.nodes.clone(),
@@ -206,6 +210,7 @@ async fn run_impl(
             tracing::error!(
                 "Somehow obtained a write lock while there are also parallel sessions running?"
             );
+            // hang and wait endlessly - better than mistakingly interrupting sessions
             futures::future::pending::<()>().await;
         }
 
@@ -219,6 +224,7 @@ async fn run_impl(
 pub struct Opts {
     pub enable_forward: bool,
     pub enable_backward: bool,
+    pub enable_multiple_connections: bool,
 }
 
 pub fn run(

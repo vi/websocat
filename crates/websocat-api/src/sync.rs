@@ -572,7 +572,7 @@ mod syncimpl {
                     if ! nonfirst_connection {
                         anyhow::anyhow!("Failed to receive a bipipe from sync")
                     } else {
-                        anyhow::anyhow!("No more connections from this sync node")
+                        anyhow::anyhow!("No more connections from this sync node. Use --oneshot option to inhibit this error.")
                     }
             )?;
     

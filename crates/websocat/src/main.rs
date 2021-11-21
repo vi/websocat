@@ -14,9 +14,10 @@ static SHORT_OPTS : [(char, &str); 3] = [
 ];
 
 /// Options that do not come from a Websocat classes
-static CORE_OPTS : [(&str, &str, &str); 7] = [
+static CORE_OPTS : [(&str, &str, &str); 8] = [
     ("unidirectional", "", "Inhibit copying data from right to left node"),
     ("unidirectional-reverse",  "", "Inhibit copying data from left to right node"),
+    ("oneshot", "", "Serve only one connection"),
     ("version", "", "Show Websocat version"),
     ("help", "[mode]",  "Show Websocat help message. There are four help modes, use --help=help for list them."),
     ("str", "", "???"),
@@ -31,6 +32,7 @@ async fn main() -> anyhow::Result<()> {
     let mut treestrings = vec![];
     let mut enable_forward = true;
     let mut enable_backward = true;
+    let mut enable_multiple_connections = true;
     let mut dryrun = false;
 
     tracing_subscriber::fmt::init();
@@ -73,6 +75,7 @@ async fn main() -> anyhow::Result<()> {
             "version" => return Ok(version()),
             "unidirectional" => enable_backward = false,
             "unidirectional-reverse" => enable_forward = false,
+            "oneshot" => enable_multiple_connections = false,
             "help" => {
                 let mode = parser.value();
                 let hm = if let Ok(m) = mode {
@@ -131,6 +134,7 @@ async fn main() -> anyhow::Result<()> {
     let opts = websocat_session::Opts {
         enable_forward,
         enable_backward,
+        enable_multiple_connections,
     };
 
     if dryrun {
