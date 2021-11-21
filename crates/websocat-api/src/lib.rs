@@ -478,6 +478,8 @@ impl ClassRegistrar {
     pub fn macros(&self) -> impl Iterator<Item=&DMacro> {
         self.macros.iter().map(|(_,cls)|cls)
     }
+    pub fn classes_count(&self) -> usize { self.classes.len() }
+    pub fn macros_count(&self) -> usize { self.macros.len() }
 }
 
 impl std::fmt::Debug for ClassRegistrar {
