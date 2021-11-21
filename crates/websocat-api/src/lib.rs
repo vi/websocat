@@ -69,6 +69,7 @@ pub enum PropertyValue {
     PortNumber(u16),
 
     /// Some file or directory name
+    /// Also used for command-line arguments array
     Path(PathBuf),
 
     /// Some URI or it's part
