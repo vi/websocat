@@ -52,7 +52,7 @@ impl SockAddr {
             websocat_api::anyhow::bail!("No socket address specified");
         }
         if specifiers > 1 {
-            websocat_api::anyhow::bail!("Specify exactly one of {array of explicit addresses}, {`hostport` property} or {`host`+`port` properties}.");
+            websocat_api::anyhow::bail!("Specify exactly one of {{array of explicit addresses}}, {{`hostport` property}} or {{`host`+`port` properties}}.");
         }
 
         if only_one_address && self.addrs.len() > 1 {
