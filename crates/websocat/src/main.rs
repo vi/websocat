@@ -35,7 +35,9 @@ async fn main() -> anyhow::Result<()> {
     let mut enable_multiple_connections = true;
     let mut dryrun = false;
 
-    tracing_subscriber::fmt::init();
+    tracing_subscriber::fmt()
+        .with_env_filter(tracing_subscriber::filter::EnvFilter::from_default_env())
+        .init();
 
     let reg = websocat_allnodes::all_node_classes();
 

@@ -17,7 +17,7 @@ tinyvec = "1.1.1"
 static_assertions = "1.1.0"
 bytes = "1.0.1"
 tracing = "0.1.25"
-string-interner = "0.12.2"
+string-interner = "0.14"
 pin-project = "1"
 thiserror = "1.0.24"
 

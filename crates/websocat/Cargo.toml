@@ -8,9 +8,9 @@ edition = "2018"
 websocat-api = {path="../websocat-api"}
 websocat-session = {path="../websocat-session"}
 websocat-allnodes = {path = "../websocat-allnodes"}
-tracing-subscriber = "0.2.16"
+tracing-subscriber = {version="0.3", features=["env-filter"]}
 tokio = {version = "1", features=["macros", "rt"]}
-lexopt = "0.1.0"
-os_str_bytes = "3.1.0"
+lexopt = "0.2.0"
+os_str_bytes = "5.0.0"
 textwrap = { version = "0.14.2", default-features = false }
 
