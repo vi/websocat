@@ -110,11 +110,15 @@ async fn run_impl(
     };
 
     let c2 = c.clone();
-    let (vigilance_tx, vigilance_rx) = if let Some(tx) = ball.vigilance_tx {
-        (tx, None)
+    let enable_multiple_connections = opts.enable_multiple_connections;
+    let (vigilance_tx, vigilance_rx) = if !enable_multiple_connections {
+        (None, None)
+    } else 
+    if let Some(tx) = ball.vigilance_tx {
+        (Some(tx), None)
     } else {
         let (tx, rx) = tokio::sync::oneshot::channel::<()>();
-        (tx, Some(rx))
+        (Some(tx), Some(rx))
     };
 
     let enable_forward = opts.enable_forward;
@@ -122,7 +126,7 @@ async fn run_impl(
 
     let i = ball.i;
     let ctr2 = ball.ctr.clone();
-    let multiconn = if opts.enable_multiple_connections {
+    let multiconn = if let Some(vigilance_tx) = vigilance_tx {
         Some(websocat_api::ServerModeContext {
             you_are_called_not_the_first_time: continuation,
             call_me_again_with_this: Box::new(move |cont| {
@@ -216,7 +220,11 @@ async fn run_impl(
 
         tracing::debug!("No more parallel sessions. Should be safe to exit now.");
     } else {
-        tracing::debug!("Safe to just exit this session, as it is not the first one");
+        if enable_multiple_connections {
+            tracing::debug!("Safe to just exit this session, as it is not the first one");
+        } else {
+            tracing::debug!("Safe to just exit this session, as we in --oneshot mode");
+        }
     }
     Ok(())
 }
