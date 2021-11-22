@@ -1,7 +1,7 @@
 use websocat_derive::{WebsocatNode};
-use websocat_api::Result;
+use websocat_api::{Result, tracing};
 use websocat_api::sync::{Bipipe, Node, Source, Sink};
-use websocat_api::{bytes, anyhow};
+use websocat_api::{anyhow};
 
 
 #[derive(Debug, Clone, WebsocatNode)]
@@ -19,7 +19,7 @@ impl Node for Readline {
     ) -> Result<()> {
         let ed = linefeed::Interface::new("websocat")?;
         //ed.lock_reader().set_catch_signals(true);
-        ed.set_prompt("|| ")?;
+        ed.set_prompt("websocat> ")?;
         //ed.set_report_signal(linefeed::terminal::Signal::Interrupt, true);
         //ed.set_ignore_signal(linefeed::terminal::Signal::Interrupt, false);
         //ed.set_ignore_signal(linefeed::terminal::Signal::Interrupt, true);
@@ -30,11 +30,12 @@ impl Node for Readline {
                 r: Source::Datagrams(Box::new(move || {
                     match ed.read_line()? {
                         linefeed::ReadResult::Eof => {
-                            Ok(bytes::Bytes::new())
+                            tracing::info!("EOF");
+                            Ok(None)
                         }
                         linefeed::ReadResult::Input(x) => {
                             ed.add_history_unique(x.clone());
-                            Ok(x.into())
+                            Ok(Some(x.into()))
                         }
                         linefeed::ReadResult::Signal(e) => {
                             Err(anyhow::anyhow!("Signal arrived: {:?}", e))

@@ -103,13 +103,13 @@ impl websocat_api::SyncNode for UdpConnect {
 
         std::thread::spawn(move|| -> websocat_api::Result<()> {
             closure(websocat_api::sync::Bipipe {
-                r: websocat_api::sync::Source::Datagrams(Box::new(move || -> websocat_api::Result<websocat_api::bytes::Bytes> {
+                r: websocat_api::sync::Source::Datagrams(Box::new(move || -> websocat_api::Result<Option<websocat_api::bytes::Bytes>> {
                     let mut buf = websocat_api::bytes::BytesMut::with_capacity(2048);
                     buf.resize(buf.capacity(), 0);
                     let (rcv, from) = u.recv_from(&mut buf)?;
                     tracing::debug!("Received datagram of length {} from {}", rcv, from);
                     buf.resize(rcv, 0);
-                    Ok(buf.freeze())
+                    Ok(Some(buf.freeze()))
                 })),
                 w: websocat_api::sync::Sink::Datagrams(Box::new(move |buf| -> websocat_api::Result<()>{
                     u2.send(&buf)?;
@@ -178,7 +178,7 @@ impl websocat_api::SyncNode for UdpListen {
             let span = tracing::info_span!("SyncUdpRecv");
             let span2 = tracing::info_span!("SyncUdpSend");
             closure(websocat_api::sync::Bipipe {
-                r: websocat_api::sync::Source::Datagrams(Box::new(move || -> websocat_api::Result<websocat_api::bytes::Bytes> {
+                r: websocat_api::sync::Source::Datagrams(Box::new(move || -> websocat_api::Result<Option<websocat_api::bytes::Bytes>> {
                     let mut buf = websocat_api::bytes::BytesMut::with_capacity(2048);
                     buf.resize(buf.capacity(), 0);
                     let (rcv, from) = i.u.recv_from(&mut buf)?;
@@ -196,7 +196,7 @@ impl websocat_api::SyncNode for UdpListen {
                         }
                     }
                     buf.resize(rcv, 0);
-                    Ok(buf.freeze())
+                    Ok(Some(buf.freeze()))
                 })),
                 w: websocat_api::sync::Sink::Datagrams(Box::new(move |buf| -> websocat_api::Result<()>{
                     let addr = loop {

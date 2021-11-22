@@ -2,7 +2,7 @@ use super::{DataNode, Result, RunContext};
 
 pub enum Source {
     ByteStream(Box<dyn std::io::Read + Send + 'static>),
-    Datagrams(Box<dyn FnMut() -> Result<bytes::Bytes> + Send + 'static>),
+    Datagrams(Box<dyn FnMut() -> Result<Option<bytes::Bytes>> + Send + 'static>),
     None,
 }
 
@@ -448,10 +448,36 @@ mod syncimpl {
     
     impl SyncStreamGateway {
         fn run(
-            rr: Box<dyn FnMut() -> Result<bytes::Bytes> + Send + 'static>,
+            rr: Box<dyn FnMut() -> Result<Option<bytes::Bytes>> + Send + 'static>,
         ) -> impl futures::stream::Stream<Item = Result<bytes::Bytes>> {
-            use futures::stream::StreamExt;
-            let r = std::sync::Arc::new(std::sync::Mutex::new(rr));
+            //use futures::stream::StreamExt;
+            //let r = std::sync::Arc::new(std::sync::Mutex::new(rr));
+            futures::stream::unfold(rr, move |mut r| {
+                async move {
+                    let (r, ret) = match tokio::task::spawn_blocking(move || {
+                        let ret = r();
+                        (r,ret)
+                    } ).await {
+                        Ok(x) => x,
+                        Err(e) => {
+                            tracing::error!("Joing error: {}", e);
+                            return None;
+                        }
+                    };
+                    match ret {
+                        Ok(Some(x)) => Some((Ok(x), r)),
+                        Ok(None) => {
+                            tracing::debug!("End of sync datagram stream");
+                            None
+                        }
+                        Err(e) => {
+                            tracing::error!("{}", e);
+                            Some((Err(e), r))
+                        }
+                    }
+                }
+            })
+            /*
             futures::stream::repeat(()).then(move |()| {
                 let r = r.clone();
                 async move {
@@ -462,6 +488,7 @@ mod syncimpl {
                     }
                 }
             })
+            */
         }
     }
     
