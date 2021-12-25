@@ -14,10 +14,7 @@ static SHORT_OPTS : [(char, &str); 3] = [
 ];
 
 /// Options that do not come from a Websocat classes
-static CORE_OPTS : [(&str, &str, &str); 8] = [
-    ("unidirectional", "", "Inhibit copying data from right to left node"),
-    ("unidirectional-reverse",  "", "Inhibit copying data from left to right node"),
-    ("oneshot", "", "Serve only one connection"),
+static CORE_OPTS : [(&str, &str, &str); 5] = [
     ("version", "", "Show Websocat version"),
     ("help", "[mode]",  "Show Websocat help message. There are four help modes, use --help=help for list them."),
     ("str", "", "???"),
@@ -30,9 +27,6 @@ async fn main() -> anyhow::Result<()> {
     let mut from_str_mode = false;
 
     let mut treestrings = vec![];
-    let mut enable_forward = true;
-    let mut enable_backward = true;
-    let mut enable_multiple_connections = true;
     let mut dryrun = false;
 
     tracing_subscriber::fmt()
@@ -75,9 +69,6 @@ async fn main() -> anyhow::Result<()> {
             "dryrun" => dryrun = true,
             "dump-spec" => dryrun = true,
             "version" => return Ok(version()),
-            "unidirectional" => enable_backward = false,
-            "unidirectional-reverse" => enable_forward = false,
-            "oneshot" => enable_multiple_connections = false,
             "help" => {
                 let mode = parser.value();
                 let hm = if let Ok(m) = mode {
@@ -117,33 +108,25 @@ async fn main() -> anyhow::Result<()> {
         return Ok(());
     }
 
-    if treestrings.len() != 2 {
-        anyhow::bail!("Exactly two positional arguments required");
+    if treestrings.len() != 1 {
+        anyhow::bail!("Exactly one positional argument required");
     }
 
-    let c = websocat_api::Session::build_from_two_tree_bytes(
+    let c = websocat_api::Circuit::build_from_tree_bytes(
         &reg,
         &class_induced_cli_opts,
         &treestrings[0],
-        &treestrings[1],
     )?;
 
     if dryrun {
-        println!("{}", websocat_api::StrNode::reverse(c.left, &c.nodes)?);
-        println!("{}", websocat_api::StrNode::reverse(c.right, &c.nodes)?);
+        println!("{}", websocat_api::StrNode::reverse(c.root, &c.nodes)?);
     }
-
-    let opts = websocat_session::Opts {
-        enable_forward,
-        enable_backward,
-        enable_multiple_connections,
-    };
 
     if dryrun {
         return Ok(());
     }
 
-    if let Err(e) = websocat_session::run(opts, c).await {
+    if let Err(e) = c.run_root_node().await {
         eprintln!("Error: {:#}", e);
     }
     Ok(())

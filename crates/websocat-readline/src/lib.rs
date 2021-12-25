@@ -20,7 +20,7 @@ impl Node for Readline {
         let ed = linefeed::Interface::new("websocat")?;
         //ed.lock_reader().set_catch_signals(true);
         ed.set_prompt("websocat> ")?;
-        //ed.set_report_signal(linefeed::terminal::Signal::Interrupt, true);
+        ed.set_report_signal(linefeed::terminal::Signal::Interrupt, true);
         //ed.set_ignore_signal(linefeed::terminal::Signal::Interrupt, false);
         //ed.set_ignore_signal(linefeed::terminal::Signal::Interrupt, true);
         let ed = std::sync::Arc::new(ed);

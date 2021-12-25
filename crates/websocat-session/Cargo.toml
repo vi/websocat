@@ -8,6 +8,7 @@ edition = "2018"
 
 [dependencies]
 websocat-api = {path = "../websocat-api"}
+websocat-derive = {path = "../websocat-derive"}
 
 tokio = {version = "1", features=["rt", "io-util", "sync"]}
 futures={version="0.3", default_features=false}

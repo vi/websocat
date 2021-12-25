@@ -1749,6 +1749,7 @@ dependencies = [
  "tokio",
  "tracing",
  "websocat-api",
+ "websocat-derive",
 ]
 
 [[package]]

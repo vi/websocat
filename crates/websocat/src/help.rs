@@ -49,13 +49,13 @@ pub fn help(mode: HelpMode, reg: &ClassRegistrar, allopts: &HashMap<String, Prop
         websocat -s port                (simple server)
         websocat [OPTIONS] arg1:...  arg2:... (advanced mode)
 
-    Some advanced mode examples:
+Some advanced mode examples:
     WebSocket-to-TCP proxy: websocat --binary ws-l:127.0.0.1:8080 tcp:127.0.0.1:5678
     TCP-to-WebSocket proxy: websocat --binary tcp-l:127.0.0.1:5678 ws://127.0.0.1:8080
     See README and other pages in Github repository for more examples.
 
-    Options and flags:
-    "#
+Options and flags:
+"#
         );
     }
 

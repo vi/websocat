@@ -285,55 +285,61 @@ pub enum NodePlacement {
 pub type Tree = Slab<NodeId, DDataNode>;
 
 #[derive(Clone)]
-pub struct Session {
+pub struct Circuit {
     pub nodes: Arc<Tree>,
-
-    pub left : NodeId,
-    pub right : NodeId,
-
-    /// Command-line options that do not belong to specific nodes
-    pub global_parameters : Arc<Mutex<Properties>>,
+    pub root : NodeId,
 }
 
-impl Session {
+impl Circuit {
     /// Helper function, can be implemented using other low-level functions exposed by this crate
-    pub fn build_from_two_tree_strings(reg: &ClassRegistrar, cli_opts: &std::collections::HashMap<String,PropertyValue>,  left: &str, right: &str) -> Result<Session> {
-        let mut t = Tree::new();
+    pub fn build_from_tree_string(reg: &ClassRegistrar, cli_opts: &std::collections::HashMap<String,PropertyValue>,  x: &str) -> Result<Circuit> {
+        let mut nodes = Tree::new();
     
-        let q = StrNode::from_str(left).context("Parsing the left tree")?;
-        let w = q.build(&reg, cli_opts, &mut t).context("Building the left tree")?;
-    
-        let q2 = StrNode::from_str(right).context("Parsing the right tree")?;
-        let w2 = q2.build(&reg, cli_opts, &mut t).context("Building the right tree")?;
+        let q = StrNode::from_str(x).context("Parsing the tree")?;
+        let root = q.build(&reg, cli_opts, &mut nodes).context("Building the tree")?;
 
-        let c = Session::new(t, w, w2);
+        let c = Circuit::new(nodes, root);
         Ok(c)
     }
 
 
     /// Helper function, can be implemented using other low-level functions exposed by this crate
-    pub fn build_from_two_tree_bytes(reg: &ClassRegistrar, cli_opts: &std::collections::HashMap<String,PropertyValue>,  left: &[u8], right: &[u8]) -> Result<Session> {
-        let mut t = Tree::new();
+    pub fn build_from_tree_bytes(reg: &ClassRegistrar, cli_opts: &std::collections::HashMap<String,PropertyValue>,  x: &[u8]) -> Result<Circuit> {
+        let mut nodes = Tree::new();
     
-        let q = StrNode::from_bytes(left).context("Parsing the left tree")?;
-        let w = q.build(&reg, cli_opts, &mut t).context("Building the left tree")?;
-    
-        let q2 = StrNode::from_bytes(right).context("Parsing the right tree")?;
-        let w2 = q2.build(&reg, cli_opts, &mut t).context("Building the right tree")?;
+        let q = StrNode::from_bytes(x).context("Parsing the tree")?;
+        let root = q.build(&reg, cli_opts, &mut nodes).context("Building the tree")?;
 
-        let c = Session::new(t, w, w2);
+        let c = Circuit::new(nodes, root);
         Ok(c)
     }
-}
 
-impl Session {
+    pub fn new_run_context(&self) -> RunContext {
+        RunContext {
+            nodes: self.nodes.clone(),
+            left_to_right_things_to_be_filled_in: None,
+            left_to_right_things_to_read_from: None,
+        }
+    }
+
+    pub async fn run_root_node(&self) -> anyhow::Result<()> {
+        let ctx = self.new_run_context();
+        let dn = self.nodes[self.root].clone().upgrade()?;
+        let ret = dn.run(ctx, None).await?;
+        if ! matches!(ret.r, Source::None) {
+            anyhow::bail!("Trying a node that returns a non-trivial source.")
+        }
+        if ! matches!(ret.w, Sink::None) {
+            anyhow::bail!("Trying a node that returns a non-trivial sink")
+        }
+        Ok(())
+    }
+
     #[must_use]
-    pub fn new(nodes: Tree, left : NodeId, right : NodeId) -> Session {
-        Session {
+    pub fn new(nodes: Tree, root : NodeId) -> Circuit {
+        Circuit {
             nodes: Arc::new(nodes),
-            left,
-            right,
-            global_parameters: Arc::new(Mutex::new(Properties::new())),
+            root,
         }
     }
 }
@@ -363,7 +369,7 @@ pub trait NodeClass : Debug {
     ///
     /// Linter is expected to access `WebsocatContext::left` or `...::right` based on `placement`, then look up the parsed node by `nodeid`,
     /// then use `NodeProperyAccess` methods to check state of the nodes
-    fn run_lints(&self, nodeid: NodeId, placement: NodePlacement, context: &Session) -> Result<Vec<String>>;
+    fn run_lints(&self, nodeid: NodeId, placement: NodePlacement, context: &Circuit) -> Result<Vec<String>>;
 }
 
 /// Typical propery name for child nodes
