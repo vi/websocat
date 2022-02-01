@@ -71,7 +71,7 @@ where
 
 #[cfg(not(feature="sync_impl"))]
 #[async_trait::async_trait]
-impl<T: Node + Send + Sync + 'static> crate::Node for T {
+impl<T: Node + Send + Sync + 'static> crate::RunnableNode for T {
     async fn run(
         self: std::pin::Pin<std::sync::Arc<Self>>,
         _ctx: RunContext,
