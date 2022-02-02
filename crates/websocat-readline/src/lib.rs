@@ -6,6 +6,7 @@ use websocat_api::{anyhow};
 
 #[derive(Debug, Clone, WebsocatNode)]
 #[websocat_node(official_name = "readline")]
+#[auto_populate_in_allclasslist]
 pub struct Readline {
   
 }

@@ -890,7 +890,8 @@ impl ClassInfo {
     }
 }
 
-#[proc_macro_derive(WebsocatNode, attributes(websocat_node,websocat_prop,cli))]
+// Note: auto_populate_in_allclasslist attribute is handled in a Perl script, not in this derive macro
+#[proc_macro_derive(WebsocatNode, attributes(websocat_node,websocat_prop,cli,auto_populate_in_allclasslist))]
 pub fn derive_websocat_node(input: TokenStream) -> TokenStream {
     let x = parse_macro_input!(input as DeriveInput);
     let ci = ClassInfo::parse(&x);

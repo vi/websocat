@@ -12,6 +12,7 @@ use websocat_api::tokio::io::{AsyncRead,AsyncWrite};
     official_name = "wsc",
     prefix="wsc",
 )]
+#[auto_populate_in_allclasslist]
 pub struct WebsocketClient {
     /// URL that specifies where to connect to
     uri: Uri,
@@ -94,6 +95,7 @@ pub enum WebsocketLlRole {
     official_name = "wsll",
     prefix="wsll",
 )]
+#[auto_populate_in_allclasslist]
 pub struct WebsocketLowlevel {
     /// Underlying node to use for raw I/O instead of usual TCP or TLS connection 
     inner: NodeId,

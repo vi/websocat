@@ -5,6 +5,7 @@ use websocat_api::{
 use websocat_derive::WebsocatNode;
 #[derive(Debug, derivative::Derivative, WebsocatNode)]
 #[websocat_node(official_name = "http-server", validate)]
+#[auto_populate_in_allclasslist]
 #[derivative(Clone)]
 pub struct HttpServer {
     /// IO bytestream node to use

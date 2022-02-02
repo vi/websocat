@@ -265,6 +265,7 @@ pub fn run(
 
 #[derive(Debug, Clone, WebsocatNode)]
 #[websocat_node(official_name = "session")]
+#[auto_populate_in_allclasslist]
 pub struct SessionClass {
     /// Left or listerer part of the session specifier
     pub left: NodeId,

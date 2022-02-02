@@ -16,6 +16,7 @@ struct ReuserData {
 
 #[derive(Debug, WebsocatNode)]
 #[websocat_node(official_name = "reuse-broadcast")]
+#[auto_populate_in_allclasslist]
 pub struct ReuseBroadcast {
     /// The node, whose connection is kept persistent and is reused when `reuse` node is reinvoked
     pub inner: NodeId,

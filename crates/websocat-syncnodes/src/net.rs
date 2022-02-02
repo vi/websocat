@@ -3,6 +3,7 @@
 #[websocat_node(
     official_name="sync-tcp",
 )]
+#[auto_populate_in_allclasslist]
 pub struct TcpConnect {
     /// Address to connect to
     addr: std::net::SocketAddr,
@@ -35,6 +36,7 @@ impl websocat_api::SyncNode for TcpConnect {
 #[websocat_node(
     official_name="sync-tcp-listen",
 )]
+#[auto_populate_in_allclasslist]
 pub struct TcpListen {
     /// Address bind TCP port to
     addr: std::net::SocketAddr,
@@ -73,6 +75,7 @@ impl websocat_api::SyncNode for TcpListen {
 #[websocat_node(
     official_name="sync-udp-connect",
 )]
+#[auto_populate_in_allclasslist]
 pub struct UdpConnect {
     /// Address and port to bind UDP socket to
     bind: Option<std::net::SocketAddr>,
@@ -128,6 +131,7 @@ impl websocat_api::SyncNode for UdpConnect {
     official_name="sync-udp-listen",
     validate,
 )]
+#[auto_populate_in_allclasslist]
 pub struct UdpListen {
     /// Address and port to bind UDP socket to
     bind: std::net::SocketAddr,

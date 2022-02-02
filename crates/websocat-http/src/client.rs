@@ -4,6 +4,7 @@ use websocat_api::{
 use websocat_derive::WebsocatNode;
 #[derive(Debug, derivative::Derivative, WebsocatNode)]
 #[websocat_node(official_name = "http-client", validate)]
+#[auto_populate_in_allclasslist]
 #[derivative(Clone)]
 pub struct HttpClient {
     /// Low-level mode: IO object to use for HTTP1 handshake
@@ -541,6 +542,7 @@ impl websocat_api::RunnableNode for HttpClient {
 }
 
 #[derive(Default)]
+/// #[auto_populate_macro_in_allclasslist]
 pub struct AutoLowlevelHttpClient;
 impl websocat_api::Macro for AutoLowlevelHttpClient {
     fn official_name(&self) -> String {

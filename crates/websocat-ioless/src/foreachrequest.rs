@@ -7,6 +7,7 @@ use websocat_derive::{WebsocatEnum, WebsocatNode};
 
 #[derive(Debug, Clone, WebsocatNode)]
 #[websocat_node(official_name = "spawner")]
+#[auto_populate_in_allclasslist]
 pub struct Spawner {
     /// The node which should be recreated each time a new datagram comes
     pub inner: NodeId,

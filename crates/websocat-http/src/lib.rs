@@ -12,6 +12,7 @@ pub use server::HttpServer;
 
 #[derive(Debug, Clone, WebsocatNode)]
 #[websocat_node(official_name = "header", data_only)]
+#[auto_populate_in_allclasslist]
 pub struct Header {
     /// HTTP header name
     n: String,

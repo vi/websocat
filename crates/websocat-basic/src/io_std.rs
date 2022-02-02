@@ -4,6 +4,7 @@
     official_name = "stdio",
     prefix="stdio",
 )]
+#[auto_populate_in_allclasslist]
 pub struct Stdio {
 }
 

@@ -26,6 +26,8 @@ struct SockAddr {
 
 #[derive(Debug, Clone, websocat_derive::WebsocatNode)]
 #[websocat_node(official_name = "tcp", prefix = "tcp", validate)]
+
+#[auto_populate_in_allclasslist]
 pub struct Tcp {
     #[websocat_prop(flatten, delegate_array)]
     sockaddr: SockAddr,
@@ -233,6 +235,8 @@ impl websocat_api::RunnableNode for Tcp {
 
 #[derive(Debug, Clone, websocat_derive::WebsocatNode)]
 #[websocat_node(official_name = "tcp-listen", prefix = "tcp-listen", validate)]
+
+#[auto_populate_in_allclasslist]
 pub struct TcpListen {
     #[websocat_prop(flatten, delegate_array)]
     sockaddr: SockAddr,

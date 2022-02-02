@@ -7,6 +7,7 @@ use websocat_derive::{WebsocatEnum, WebsocatNode};
 
 #[derive(Debug, Clone, WebsocatNode)]
 #[websocat_node(official_name = "identity")]
+#[auto_populate_in_allclasslist]
 pub struct Identity {
     /// inner node to be identical to
     inner: NodeId,
@@ -34,6 +35,7 @@ pub enum NodeMode {
 }
 #[derive(Debug, Clone, WebsocatNode)]
 #[websocat_node(official_name = "mirror")]
+#[auto_populate_in_allclasslist]
 pub struct Mirror {
     /// bytestream mirror of datagram mirror
     #[websocat_prop(enum)]
@@ -83,6 +85,7 @@ impl RunnableNode for Mirror {
 
 #[derive(Debug, Clone, WebsocatNode)]
 #[websocat_node(official_name = "devnull")]
+#[auto_populate_in_allclasslist]
 pub struct DevNull {
     /// bytestream void of datagram void
     #[websocat_prop(enum)]
@@ -116,6 +119,7 @@ impl RunnableNode for DevNull {
 
 #[derive(Debug, Clone, WebsocatNode)]
 #[websocat_node(official_name = "split")]
+#[auto_populate_in_allclasslist]
 pub struct Split {
     /// Subnode to use for receiving data
     pub r: Option<NodeId>,
@@ -201,6 +205,7 @@ impl RunnableNode for Split {
 
 #[derive(Debug, Clone, WebsocatNode)]
 #[websocat_node(official_name = "literal")]
+#[auto_populate_in_allclasslist]
 pub struct Literal {
     /// List of explicit datagrams to provide as a datagram source
     pub bufs: Vec<bytes::Bytes>,
@@ -225,6 +230,7 @@ impl RunnableNode for Literal {
 
 #[derive(Debug, Clone, WebsocatNode)]
 #[websocat_node(official_name = "stream")]
+#[auto_populate_in_allclasslist]
 pub struct Stream {
     /// The node whose datagram sequences are to be converted to bytestreams
     pub inner: NodeId,
@@ -301,6 +307,7 @@ impl RunnableNode for Stream {
 
 #[derive(Debug, Clone, WebsocatNode)]
 #[websocat_node(official_name = "datagrams")]
+#[auto_populate_in_allclasslist]
 pub struct Datagrams {
     /// The node whose datagram sequences are to be converted to bytestreams
     pub inner: NodeId,
