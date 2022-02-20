@@ -20,6 +20,19 @@ pub struct Ident(
     #[cfg_attr(test, proptest(regex = "[a-z0-9._]+"))]
     pub String
 );
+
+impl From<String> for Ident {
+    fn from(x: String) -> Self {
+        Ident(x)
+    }
+}
+
+impl From<&'static str> for Ident {
+    fn from(x: &'static str) -> Self {
+        Ident(x.to_owned())
+    }
+}
+
 /// A part of parsed command line before looking up the `NodeClass`es.
 
 #[derive(Eq, PartialEq, Debug, Clone, Default)]
