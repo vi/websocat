@@ -618,7 +618,7 @@ impl StrNode {
         if let Some(r#macro) = registry.macros.get(&self.name.0) {
             tracing::trace!("Using macro {}", &self.name.0);
 
-            let newstrnode = r#macro.run(self)?;
+            let newstrnode = r#macro.run(self, cli_opts)?;
             newstrnode.process_macros(registry, cli_opts)
         } else {
             Ok(self)

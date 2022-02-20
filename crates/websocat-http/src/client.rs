@@ -548,8 +548,11 @@ impl websocat_api::Macro for AutoLowlevelHttpClient {
     fn official_name(&self) -> String {
         "http".to_owned()
     }
+    fn injected_cli_opts(&self) -> Vec<(String, websocat_api::CliOptionDescription)> {
+        vec![]
+    }
 
-    fn run(&self, strnode: websocat_api::StrNode) -> Result<websocat_api::StrNode> {
+    fn run(&self, strnode: websocat_api::StrNode, _opts: &websocat_api::CliOpts) -> Result<websocat_api::StrNode> {
         let mut uri = Vec::with_capacity(1);
 
         use websocat_api::stringy::{Ident,StringOrSubnode};

@@ -401,8 +401,11 @@ pub trait Macro {
     /// The name that should trigger the conversion
     fn official_name(&self) -> String;
 
+    /// Register CLI long options for this macro 
+    fn injected_cli_opts(&self) -> Vec<(String, CliOptionDescription)>;
+
     /// do the conversion
-    fn run(&self, strnode: StrNode) -> Result<StrNode>;
+    fn run(&self, strnode: StrNode, cli_opts: &CliOpts) -> Result<StrNode>;
 }
 pub type DMacro = Box<dyn Macro + Send + 'static>;
 
@@ -418,6 +421,8 @@ pub struct CliOptionDescription {
     pub typ: PropertyValueType,
     pub for_array: bool,
 }
+
+pub mod get_all_cli_options;
 
 impl ClassRegistrar {
     pub fn register<N: GetClassOfNode>(&mut self) {
@@ -442,127 +447,6 @@ impl ClassRegistrar {
             tracing::error!("Clashing websocat macro for official name `{}`", name);
         }
         self.macros.insert(name, r#macro);
-    }
-
-    /// Get all class-injected long CLI options with their types
-    pub fn get_all_cli_options(&self) -> Result<HashMap<String, CliOptionDescription>> {
-        let mut v: HashMap<String, CliOptionDescription> = HashMap::with_capacity(32);
-        // for error reporintg
-        let mut provenance = <HashMap<String,String>>::with_capacity(32);
-
-        for k in self.classes.values() {
-            for ref p in k.properties() {
-                if let Some(ref clin) = p.inject_cli_long_option {
-                    let prov = format!("{}::{}",  k.official_name(), p.name);
-                    if p.r#type.tag() == PropertyValueTypeTag::ChildNode {
-                        anyhow::bail!(
-                            "Internal error: attempt to create CLI option `{}` that maps to subnode-typed property `{}`.",
-                            clin,
-                            prov,
-                        );
-                    }
-                    match v.entry(clin.clone()) {
-                        std::collections::hash_map::Entry::Occupied(x) => {
-                            if x.get().for_array {
-                                anyhow::bail!(
-                                    "Internal error: conflicting usages of long CLI option `{}`. Accorting to `{}` it should be used for an array, but according to `{}` it should be used for a property.",
-                                    clin,
-                                    provenance[&**clin],
-                                    prov,
-                                );
-                            }
-                            if &x.get().typ == &p.r#type {
-                                tracing::debug!(
-                                    "CLI long option `{}` of type `{}` also maps to `{}`",
-                                    clin,
-                                    p.r#type,
-                                    prov,
-                                );
-                            } else {
-                                anyhow::bail!(
-                                    "Internal error: conflicting types of long CLI option `{}`. Accorting to `{}` it should be `{}`, but according to `{}` it should be `{}`.",
-                                    clin,
-                                    provenance[&**clin],
-                                    x.get().typ,
-                                    prov,
-                                    p.r#type,
-                                );
-                            }
-                        }
-                        std::collections::hash_map::Entry::Vacant(x) => {
-                            tracing::debug!(
-                                "Inserting global CLI long option: `{}` of type `{}`, mapping to `{}`",
-                                clin,
-                                p.r#type,
-                                prov,
-                            );
-                            provenance.insert(clin.clone(), prov);
-                            x.insert(CliOptionDescription{typ: p.r#type.clone(), for_array: false});
-                        }
-                    }
-                }
-            }
-            if let Some(ref clin) = k.array_inject_cli_long_opt() {
-                let prov = format!("{}::<array>",  k.official_name());
-                let arrtyp = k.array_type();
-                if arrtyp.is_none() {
-                    anyhow::bail!(
-                        "Internal error: attempt to create CLI option `{}` for a node class that does not accept array: `{}`.",
-                        clin,
-                        prov,
-                    );
-                }
-                let arrtyp = arrtyp.unwrap();
-                if arrtyp.tag() == PropertyValueTypeTag::ChildNode {
-                    anyhow::bail!(
-                        "Internal error: attempt to create CLI option `{}` that maps to subnode-typed array `{}`.",
-                        clin,
-                        prov,
-                    );
-                }
-                match v.entry(clin.clone()) {
-                    std::collections::hash_map::Entry::Occupied(x) => {
-                        if ! x.get().for_array {
-                            anyhow::bail!(
-                                "Internal error: conflicting usages of long CLI option `{}`. Accorting to `{}` it should be used for a property, but according to `{}` it should be used for an array.",
-                                clin,
-                                provenance[&**clin],
-                                prov,
-                            );
-                        }
-                        if &x.get().typ == &arrtyp {
-                            tracing::debug!(
-                                "CLI long option `{}` of type `{}` also maps to `{}`",
-                                clin,
-                                arrtyp,
-                                prov,
-                            );
-                        } else {
-                            anyhow::bail!(
-                                "Internal error: conflicting types of long CLI option `{}`. Accorting to `{}` it should be `{}`, but according to `{}` it should be `{}`.",
-                                clin,
-                                provenance[&**clin],
-                                x.get().typ,
-                                prov,
-                                arrtyp,
-                            );
-                        }
-                    }
-                    std::collections::hash_map::Entry::Vacant(x) => {
-                        tracing::debug!(
-                            "Inserting global CLI long option: `{}` of type `{}`, mapping to `{}`",
-                            clin,
-                            arrtyp,
-                            prov,
-                        );
-                        provenance.insert(clin.clone(), prov);
-                        x.insert(CliOptionDescription{typ: arrtyp, for_array: true});
-                    }
-                }
-            }
-        }
-
-        Ok(v)
     }
 
     pub fn classes(&self) -> impl Iterator<Item=&DNodeClass> {
