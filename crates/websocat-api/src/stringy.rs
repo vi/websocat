@@ -1,5 +1,5 @@
 #![allow(clippy::unit_arg)]
-use anyhow::Context;
+use anyhow::{Context, bail};
 use string_interner::Symbol;
 use std::collections::HashMap;
 
@@ -117,10 +117,23 @@ fn identchar(b: u8) -> bool {
         | b'\x80' ..= b'\xFF')
 }
 
+pub enum UnquoteResult {
+    String(String),
+    Bytes(Bytes),
+    Subnode(StrNode),
+    /// Ignore tree name, but append all the properties and array elements to this tree
+    Splice(StrNode),
+}
+
+pub type QuasiquoteCallbacks<'a> = dyn Fn(u8) -> anyhow::Result<UnquoteResult> + 'a;
+
+#[allow(type_alias_bounds)]
+type ReadInput<I:Iterator<Item=u8>> = std::iter::Peekable<I>;
+
 #[rustfmt::skip] // tends to collapse character ranges into one line and to remove trailing `|`s.
 impl StrNode {
-    #[tracing::instrument(name="StringyNode::read", level="trace", skip(r,require_opening_bracket), err)]
-    fn read(r: &mut std::iter::Peekable<impl Iterator<Item=u8>>, require_opening_bracket: bool) -> Result<StrNode> {
+    #[tracing::instrument(name="StringyNode::read", level="trace", skip(r,require_opening_bracket, quasiquote_handler), err)]
+    fn read<I:Iterator<Item=u8>>(mut r: &mut ReadInput<I>, require_opening_bracket: bool, quasiquote_handler: Option<&QuasiquoteCallbacks>) -> Result<StrNode> {
         #[derive(Clone,Copy, Eq, PartialEq, Debug)]
         enum S {
             BeforeName,
@@ -134,13 +147,16 @@ impl StrNode {
             Finish,
         }
         
-        tracing::trace!("Reading from string to a stringy node");
+        if quasiquote_handler.is_none() {
+            tracing::trace!("Reading from string to a stringy node");
+        } else {
+            tracing::trace!("Reading from string to a stringy node (quasiquote mode enabled)");
+        }
         let mut chunk = BytesMut::with_capacity(20);
 
         if require_opening_bracket {
-            if r.next() != Some(b'[') { anyhow::bail!("Tree node must begin with `[` character"); }
+            if r.next() != Some(b'[') { bail!("Tree node must begin with `[` character"); }
         }
-
 
         let mut state = S::BeforeName;
 
@@ -153,6 +169,23 @@ impl StrNode {
         let mut hex  = tinyvec::ArrayVec::<[u8; 2]>::default();
         
         let mut enable_autopopulate = false;
+
+        let unquote_reader = |r: &mut ReadInput<I>| {
+            if quasiquote_handler.is_none() {
+                bail!("Unquote character `,` is not allowed in this mode");
+            }
+            r.next();
+            let q = r.peek();
+            if q.is_none() {
+                bail!("Unquote character `,` should be followed by a letter, not finish the line");
+            }
+            let q = *q.unwrap();
+            if !identchar(q) {
+                bail!("Unquote character `,` should be followed by an ident character, not `{}`", std::ascii::escape_default(q));
+            }
+            let u : UnquoteResult = quasiquote_handler.unwrap()(q)?;
+            Ok(u)
+        };
 
         while let Some(c) = r.peek() {
             tracing::trace!("Peeked byte {} in state {:?}", std::ascii::escape_default(*c), state);
@@ -182,7 +215,21 @@ impl StrNode {
                             r.next();
                             break;
                         }
-                        _ => anyhow::bail!("Invalid character {} while reading tree node name", std::ascii::escape_default(*c)),
+                        b',' => {
+                            if state == S::Name {
+                                bail!("Unquote character `,` is not allowed inside tree names");
+                            }
+                            match unquote_reader(&mut r)? {
+                                UnquoteResult::String(n) => {
+                                    tracing::trace!("Unquoted into tree name position");
+                                    state = S::ForcedSpace;
+                                    chunk = BytesMut::with_capacity(20);
+                                    name = Some(n);
+                                }
+                                _ => bail!("Only one string is allowed to be in unquote position for tree name"),
+                            }
+                        }
+                        _ => bail!("Invalid character {} while reading tree node name", std::ascii::escape_default(*c)),
                     }
                 }
                 S::ForcedSpace => {
@@ -195,7 +242,7 @@ impl StrNode {
                             r.next();
                             break;
                         }
-                        _ => anyhow::bail!(
+                        _ => bail!(
                             "Expected a space character or `]` after `\"` or `]` or `+`, not {} when parsing node named {}",
                             std::ascii::escape_default(*c),
                             name.as_deref().unwrap_or("???"),
@@ -206,7 +253,7 @@ impl StrNode {
                     match c {
                         b'+' => {
                             if enable_autopopulate {
-                                anyhow::bail!("Invalid `+` character: CLI auto-populate is already enabled for this node");
+                                bail!("Invalid `+` character: CLI auto-populate is already enabled for this node");
                             }
                             enable_autopopulate = true;
                             state = S::ForcedSpace;
@@ -225,7 +272,7 @@ impl StrNode {
                             break;
                         }
                         b'[' => {
-                            let subnode = StrNode::read(r, true).with_context(||format!(
+                            let subnode = StrNode::read(r, true, quasiquote_handler).with_context(||format!(
                                 "Failed to read subnode array element {} of node {}",
                                 array.len()+1,
                                 name.as_deref().unwrap_or("???"),
@@ -237,7 +284,29 @@ impl StrNode {
                         b' ' => {
                             // no-op
                         }
-                        _ => anyhow::bail!(
+                        b',' => {
+                            state = S::ForcedSpace;
+                            match unquote_reader(&mut r)? {
+                                UnquoteResult::String(x) => {
+                                    tracing::trace!("Unquoted a string into array element position");
+                                    array.push(StringOrSubnode::Str(Bytes::from(x)));
+                                }
+                                UnquoteResult::Bytes(x) => {
+                                    tracing::trace!("Unquoted a string into array element position");
+                                    array.push(StringOrSubnode::Str(x));
+                                }
+                                UnquoteResult::Subnode(x) => {
+                                    tracing::trace!("Unquoted a subnode into array element position");
+                                    array.push(StringOrSubnode::Subnode(x));
+                                }
+                                UnquoteResult::Splice(mut x) => {
+                                    tracing::trace!("Splice-unquoted a subnode into this tree");
+                                    array.extend(x.array.drain(..));
+                                    properties.extend(x.properties.drain(..));
+                                }
+                            }
+                        }
+                        _ => bail!(
                             "Invalid character {} in tree node named {}",
                             std::ascii::escape_default(*c),
                             name.as_deref().unwrap_or("???"),
@@ -252,7 +321,7 @@ impl StrNode {
                         }
                         b' ' | b']' => {
                             if chunk.is_empty() {
-                                anyhow::bail!(
+                                bail!(
                                     "Unescaped empty propery {} value of tree node {}",
                                     property_name.as_deref().unwrap_or("???"),
                                     name.as_deref().unwrap_or("???"),
@@ -260,12 +329,12 @@ impl StrNode {
                             }
                             if chunk == b"@"[..] && property_name.is_none() {
                                 if *c == b']' {
-                                    anyhow::bail!(
+                                    bail!(
                                         "Invalid `@ ]` combination at the end of node {}",
                                         name.as_deref().unwrap_or("???"),
                                     ); 
                                 }
-                                let subnode = StrNode::read(r, false).with_context(||format!(
+                                let subnode = StrNode::read(r, false, quasiquote_handler).with_context(||format!(
                                     "Failed to read trailing inner subnode element {} of node {}",
                                     array.len()+1,
                                     name.as_deref().unwrap_or("???"),
@@ -292,7 +361,7 @@ impl StrNode {
                         }
                         b'=' => {
                             if property_name.is_some() {
-                                anyhow::bail!(
+                                bail!(
                                     "Duplicate unescaped = character when paring property {} of a tree node {}",
                                     property_name.unwrap(),
                                     name.as_deref().unwrap_or("???"),
@@ -304,7 +373,7 @@ impl StrNode {
                         }
                         b'"' => {
                             if property_name.is_none() || ! chunk.is_empty() {
-                                anyhow::bail!(
+                                bail!(
                                     "Property value `\"` escape character in a tree node named {} must come immediately after `=`",
                                     name.as_deref().unwrap_or("???"),
                                 );
@@ -314,12 +383,12 @@ impl StrNode {
                         b'[' => {
                             if let Some(pn) = property_name {
                                 if ! chunk.is_empty() {
-                                    anyhow::bail!(
+                                    bail!(
                                         "Wrong `[` character position when parsing a tree node named {}",
                                         name.as_deref().unwrap_or("???"),
                                     );
                                 }
-                                let subnode = StrNode::read(r, true).with_context(||format!(
+                                let subnode = StrNode::read(r, true, quasiquote_handler).with_context(||format!(
                                     "Failed to read property {} value of node {}",
                                     pn,
                                     name.as_deref().unwrap_or("???"),
@@ -329,13 +398,37 @@ impl StrNode {
                                 property_name = None;
                                 continue;
                             } else {
-                                anyhow::bail!(
+                                bail!(
                                     "Wrong `[` character position when parsing a tree node named {}",
                                     name.as_deref().unwrap_or("???"),
                                 );
                             }
                         }
-                        _ => anyhow::bail!(
+                        b',' => {
+                            if ! chunk.is_empty() || property_name.is_none() {
+                                bail!("Unquote character `,` is not allowed in this position");
+                            }
+                            let pn = property_name.take().unwrap();
+                            state = S::ForcedSpace;
+                            match unquote_reader(&mut r)? {
+                                UnquoteResult::String(x) => {
+                                    tracing::trace!("Unquoted a string into property value");
+                                    properties.push((pn.into(), StringOrSubnode::Str(Bytes::from(x))));
+                                }
+                                UnquoteResult::Bytes(x) => {
+                                    tracing::trace!("Unquoted a string into property value");
+                                    properties.push((pn.into(), StringOrSubnode::Str(x)));
+                                }
+                                UnquoteResult::Subnode(x) => {
+                                    tracing::trace!("Unquoted a subnode into property value");
+                                    properties.push((pn.into(), StringOrSubnode::Subnode(x)));
+                                }
+                                UnquoteResult::Splice(..) => {
+                                    bail!("Splice-unquote is not allowed in property value position")
+                                }
+                            }
+                        }
+                        _ => bail!(
                             "Invalid character {} in tree node named {} when a parsing potential property or array element",
                             std::ascii::escape_default(*c),
                             name.as_deref().unwrap_or("???"),
@@ -371,7 +464,7 @@ impl StrNode {
                         b'"' => chunk.put_u8(b'"'),
                         b'\\' => chunk.put_u8(b'\\'),
                         b'x' => (),
-                        _ => anyhow::bail!(
+                        _ => bail!(
                             "Invalid escape sequence character {} when parsing tree node {}",
                             std::ascii::escape_default(*c),
                             name.as_deref().unwrap_or("???"),
@@ -385,7 +478,7 @@ impl StrNode {
                         b'0' ..= b'9' => hex.push(*c - b'0'),
                         b'a' ..= b'f' => hex.push(*c + 10 - b'a'),
                         b'A' ..= b'F' => hex.push(*c + 10 - b'A'),
-                        _ => anyhow::bail!(
+                        _ => bail!(
                             "Invalid hex escape sequence character {} when parsing tree node {}",
                             std::ascii::escape_default(*c),
                             name.as_deref().unwrap_or("???"),
@@ -402,13 +495,13 @@ impl StrNode {
             r.next();
         }
         if state != S::Finish {
-            anyhow::bail!(
+            bail!(
                 "Trimmed input when parsing the tree node named {}",
                 name.as_deref().unwrap_or("???"),
             );
         }
         if name.is_none() {
-            anyhow::bail!(
+            bail!(
                 "Empty tree nodes are not allowed",
             );
         }
@@ -426,13 +519,17 @@ impl std::str::FromStr for StrNode {
     type Err = anyhow::Error;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        StrNode::read(&mut s.bytes().peekable(), true)
+        StrNode::read(&mut s.bytes().peekable(), true, None)
     }
 }
 
 impl StrNode {
     pub fn from_bytes(b: &[u8]) -> Result<Self, anyhow::Error> {
-        StrNode::read(&mut b.into_iter().copied().peekable(), true)
+        StrNode::read(&mut b.into_iter().copied().peekable(), true, None)
+    }
+
+    pub fn quasiquote(b: &[u8], quasiquote_handler: &QuasiquoteCallbacks) -> Result<Self, anyhow::Error> {
+        StrNode::read(&mut b.into_iter().copied().peekable(), true, Some(quasiquote_handler))
     }
 }
 
@@ -455,12 +552,12 @@ impl super::PropertyValueType {
                     let mut valids = String::with_capacity(totallen);
                     for (_, v) in si {
                         if x.to_lowercase() == v.to_lowercase() {
-                            anyhow::bail!("Invalid enum property value `{}`. Maybe you meant `{}`?", x, v);
+                            bail!("Invalid enum property value `{}`. Maybe you meant `{}`?", x, v);
                         }
                         valids += v;
                         valids += " ";
                     }
-                    anyhow::bail!("Invalid enum property value `{}`. Valid values are: {}", x, valids);
+                    bail!("Invalid enum property value `{}`. Valid values are: {}", x, valids);
                 }
             },
             PVT::Numbery => Ok(PV::Numbery(x.parse()?)),
@@ -504,7 +601,7 @@ impl StrNode {
                     if let Some(ref clip) = prop.inject_cli_long_option {
                         if let Some(vv) = cli_opts.get(clip) {
                             if vv.len() != 1 {
-                                anyhow::bail!("Multiple instances of {} specified where only should should be", clip);
+                                bail!("Multiple instances of {} specified where only should should be", clip);
                             }
                             tracing::trace!("Setting property {} from CLI option {}", prop.name, clip);
                             b.set_property(&prop.name, vv[0].clone()).with_context(|| {
@@ -542,8 +639,8 @@ impl StrNode {
                                 k, self.name.0,
                             ))?,
                         ),
-                        (_, Subnode(_)) => anyhow::bail!("A subnode is not expected as a property value {} of node {}", k, self.name.0),
-                        (PVT::ChildNode, _) => anyhow::bail!("Subnode (`[...]`) expected as a property value {} of node {}", k, self.name.0),
+                        (_, Subnode(_)) => bail!("A subnode is not expected as a property value {} of node {}", k, self.name.0),
+                        (PVT::ChildNode, _) => bail!("Subnode (`[...]`) expected as a property value {} of node {}", k, self.name.0),
                         (ty, Str(x)) => ty.interpret(x).with_context(|| {
                             format!(
                                 "Failed to parse property {} in node {} that has value `{}`",
@@ -555,7 +652,7 @@ impl StrNode {
                         format!("Failed to set property {} in node {}", k, self.name.0)
                     })?;
                 } else {
-                    anyhow::bail!("Property {} of node type {} not found", k, self.name.0);
+                    bail!("Property {} of node type {} not found", k, self.name.0);
                 }
             }
 
@@ -571,14 +668,14 @@ impl StrNode {
                                 n, self.name.0,
                             ))?,
                         ),
-                        (PVT::ChildNode, _) => anyhow::bail!("Subnode (`[...]`) expected as an array element number {} of node {}", n, self.name.0),
+                        (PVT::ChildNode, _) => bail!("Subnode (`[...]`) expected as an array element number {} of node {}", n, self.name.0),
                         (ty, Str(x)) => ty.interpret(x).with_context(|| {
                             format!(
                                 "Failed to array element number {} in node {} that has value `{}`",
                                 n, self.name.0, ValueForPrinting(x.clone()),
                             )
                         })?,
-                        (_, Subnode(_)) => anyhow::bail!("A subnode is not expected as an array element number {} of node {}", n, self.name.0),
+                        (_, Subnode(_)) => bail!("A subnode is not expected as an array element number {} of node {}", n, self.name.0),
                     };
 
                     b.push_array_element(vv)
@@ -586,7 +683,7 @@ impl StrNode {
                         format!("Failed to push array element number `{}` to node {}", n, self.name.0)
                     })?;
                 } else {
-                    anyhow::bail!("Node type {} does not support array elements", self.name.0);
+                    bail!("Node type {} does not support array elements", self.name.0);
                 }
             }
 
@@ -594,7 +691,7 @@ impl StrNode {
 
             Ok(tree.insert(b.finish()?))
         } else {
-            anyhow::bail!("Node type {} not found", self.name.0)
+            bail!("Node type {} not found", self.name.0)
         }
     }
 
@@ -669,17 +766,17 @@ impl StrNode {
                         StringOrSubnode::Subnode(StrNode::reverse(q, tree)?)
                     },
                     (_, super::PropertyValueType::ChildNode) => {
-                        anyhow::bail!("Inconsistent property value for {} in node type {}", pn, name.0)
+                        bail!("Inconsistent property value for {} in node type {}", pn, name.0)
                     }
                     (super::PropertyValue::ChildNode(_), _) => {
-                        anyhow::bail!("Inconsistent property value for {} in node type {}", pn, name.0)
+                        bail!("Inconsistent property value for {} in node type {}", pn, name.0)
                     }
                     (super::PropertyValue::Enummy(sym), super::PropertyValueType::Enummy(symtab)) => {
                         if let Some(s) = symtab.resolve(sym) {
                             let ss : Bytes = (s.to_owned()).into();
                             StringOrSubnode::Str(ss)
                         } else {
-                            anyhow::bail!(
+                            bail!(
                                 "Failed to resolve enum value {} for property {} in node type {}",
                                 sym.to_usize(),
                                 pn,
@@ -688,7 +785,7 @@ impl StrNode {
                         }
                     }
                     (super::PropertyValue::Enummy(_), _) => {
-                        anyhow::bail!("Inconsistent property value for {} in node type {}", pn, name.0)
+                        bail!("Inconsistent property value for {} in node type {}", pn, name.0)
                     }
                     (opv, _) => {
                         StringOrSubnode::Str(format!("{}", opv).into())
@@ -702,17 +799,17 @@ impl StrNode {
             tracing::trace!("Processing array element {}", n);
             let sn = match (el, c.array_type()) {
                 (_, None) => {
-                    anyhow::bail!("No array elements expected in node type {}", name.0)
+                    bail!("No array elements expected in node type {}", name.0)
                 }
                 (super::PropertyValue::ChildNode(q), Some(super::PropertyValueType::ChildNode)) => {
                     tracing::trace!("Descending into subnode {}", q.0);
                     StringOrSubnode::Subnode(StrNode::reverse(q, tree)?)
                 },
                 (_, Some(super::PropertyValueType::ChildNode)) => {
-                    anyhow::bail!("Inconsistent array elment value in node type {}", name.0)
+                    bail!("Inconsistent array elment value in node type {}", name.0)
                 }
                 (super::PropertyValue::ChildNode(_), _) => {
-                    anyhow::bail!("Inconsistent array element value in node type {}", name.0)
+                    bail!("Inconsistent array element value in node type {}", name.0)
                 }
                 (opv, Some(_)) => {
                     StringOrSubnode::Str(format!("{}", opv).into())

@@ -1,4 +1,8 @@
-use websocat_api::{anyhow::bail, stringy::StringOrSubnode, StrNode};
+use websocat_api::{
+    anyhow::bail,
+    stringy::{StringOrSubnode, UnquoteResult},
+    StrNode,
+};
 
 #[derive(Default)]
 /// #[auto_populate_macro_in_allclasslist]
@@ -18,7 +22,7 @@ impl websocat_api::Macro for SimpleClientSession {
     ) -> websocat_api::Result<StrNode> {
         use StringOrSubnode::{Str, Subnode};
 
-        if ! input.properties.is_empty() {
+        if !input.properties.is_empty() {
             bail!("No properties expected");
         }
 
@@ -31,42 +35,9 @@ impl websocat_api::Macro for SimpleClientSession {
             Subnode(_) => bail!("Array element must be string, not a subnode"),
         };
 
-        let ret = StrNode {
-            name: "session".into(),
-            array: vec![],
-            enable_autopopulate: true,
-            properties: vec![
-                (
-                    "left".into(),
-                    Subnode(StrNode {
-                        name: "datagrams".into(),
-                        array: vec![],
-                        enable_autopopulate: true,
-                        properties: vec![(
-                            "inner".into(),
-                            Subnode(StrNode {
-                                name: "stdio".into(),
-                                properties: vec![],
-                                array: vec![],
-                                enable_autopopulate: true,
-                            }),
-                        )],
-                    }),
-                ),
-                (
-                    "right".into(),
-                    Subnode(StrNode {
-                        name: "wsc".into(),
-                        array: vec![],
-                        enable_autopopulate: true,
-                        properties: vec![(
-                            "uri".into(),
-                            Str(uri),
-                        )],
-                    }),
-                ),
-            ],
-        };
-        Ok(ret)
+        StrNode::quasiquote(
+            b"[session left=[datagrams @ stdio] right=[wsc uri=,u +] +]",
+            &|_| Ok(UnquoteResult::Bytes(uri.clone())),
+        )
     }
 }
