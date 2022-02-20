@@ -78,6 +78,9 @@ pub enum PropertyValue {
     /// Some interval of time
     Duration(Duration),
 
+    /// Special string that originates from CLI arguments and may have values unrepresentable by `stringy::StrNode`.
+    OsString(std::ffi::OsString),
+
     /// Some source and sink of byte blocks
     ChildNode(NodeId),
 }
@@ -96,6 +99,7 @@ pub enum PropertyValueType {
     Path,
     Uri,
     Duration,
+    OsString,
     ChildNode,
 
     // pub fn interpret(&self, x: &str) -> Result<PropertyValue>;
@@ -124,6 +128,7 @@ impl std::fmt::Display for PropertyValueType {
             PropertyValueType::Path       => write!(f,"path"),
             PropertyValueType::Uri        => write!(f,"uri"),
             PropertyValueType::Duration   => write!(f,"duration"),
+            PropertyValueType::OsString   => write!(f,"osstring"),
             PropertyValueType::ChildNode  => write!(f,"subnode"),
         }
     }
@@ -144,6 +149,7 @@ impl PropertyValueType {
             PropertyValueType::Path       => PropertyValueTypeTag::Path      ,
             PropertyValueType::Uri        => PropertyValueTypeTag::Uri       ,
             PropertyValueType::Duration   => PropertyValueTypeTag::Duration  ,
+            PropertyValueType::OsString   => PropertyValueTypeTag::OsString  ,
             PropertyValueType::ChildNode  => PropertyValueTypeTag::ChildNode ,
         }
     }
@@ -163,6 +169,7 @@ pub enum PropertyValueTypeTag {
     Path,
     Uri,
     Duration,
+    OsString,
     ChildNode,
 }
 

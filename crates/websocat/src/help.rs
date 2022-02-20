@@ -25,6 +25,7 @@ fn format_pvt(t: &PropertyValueType) -> Cow<'static, str> {
         PropertyValueType::Uri => Cow::Borrowed("URI"),
         PropertyValueType::Duration => Cow::Borrowed("time_duration"),
         PropertyValueType::ChildNode => Cow::Borrowed("subnode"),
+        PropertyValueType::OsString => Cow::Borrowed("osstring"),
         PropertyValueType::Enummy(v) => {
             let mut s = String::with_capacity(40);
             s.push_str("enum with values:");

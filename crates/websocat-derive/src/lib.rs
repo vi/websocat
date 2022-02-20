@@ -113,6 +113,7 @@ fn proptype(x: &websocat_api::PropertyValueTypeTag, enbt: &Option<syn::TypePath>
         websocat_api::PropertyValueTypeTag::Uri => q!{::websocat_api::http::Uri},
         websocat_api::PropertyValueTypeTag::Duration => q!{::std::time::Duration},
         websocat_api::PropertyValueTypeTag::ChildNode => q!{::websocat_api::NodeId},
+        websocat_api::PropertyValueTypeTag::OsString => q!{::std::ffi::OsString},
         websocat_api::PropertyValueTypeTag::BytesBuffer => q!{::websocat_api::bytes::Bytes},
     }
 }
@@ -173,6 +174,7 @@ impl PVTHelper for websocat_api::PropertyValueTypeTag {
             Uri,
             Duration,
             ChildNode,
+            OsString,
             BytesBuffer,
         )
     }

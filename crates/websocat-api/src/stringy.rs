@@ -432,6 +432,7 @@ impl super::PropertyValueType {
         let x = String::from_utf8(b.to_vec())?;
         match self {
             PVT::Stringy => Ok(PV::Stringy(x)),
+            PVT::OsString => Ok(PV::OsString(x.into())),
             PVT::BytesBuffer => unreachable!(),
             PVT::Enummy(si) => {
                 if let Some(sym) = si.get(&x) {
@@ -724,6 +725,7 @@ impl std::fmt::Display for super::PropertyValue {
             crate::PropertyValue::Duration(_) => todo!(),
             crate::PropertyValue::ChildNode(_) => write!(f, "[???]"),
             crate::PropertyValue::BytesBuffer(x) => write!(f, "[len={}]", x.len()),
+            crate::PropertyValue::OsString(x) => write!(f, "{:?}", x),
         }
     }
 }
