@@ -191,7 +191,7 @@ pub struct PropertyInfo {
     pub help: Box<dyn Fn()->String + Send + 'static>,
     pub r#type: PropertyValueType,
     
-    /// Auto-add this option to CLI API. Specify the name without trailing `--`.
+    /// Auto-add this option to CLI API. Specify the name without the leading `--`.
     /// Short options are privileged and cannot be auto-populated: there is explicit table of them in CLI crate. 
     pub inject_cli_long_option: Option<String>,
 }
@@ -365,6 +365,10 @@ pub trait NodeClass : Debug {
 
     /// Obtain documentation string for the node's array, if any
     fn array_help(&self) -> Option<String>;
+
+    /// Auto-add this option to CLI API for popularing array of nodes of this class.
+    /// Specify the name without the leading `--`.
+    fn array_inject_cli_long_opt(&self) -> Option<String>;
 
     /// Begin creating a new node
     fn new_node(&self) -> DNodeInProgressOfParsing;

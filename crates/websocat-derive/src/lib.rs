@@ -774,6 +774,7 @@ impl ClassInfo {
 
         let mut array_type =  proc_macro2::TokenStream::new();
         let mut array_help =  proc_macro2::TokenStream::new();
+        let mut array_inject_cli_long_opt = proc_macro2::TokenStream::new();
         
         for p in &self.properties {
             let pn = &p.ident;
@@ -823,14 +824,19 @@ impl ClassInfo {
             }
             array_help.extend(q!{
                 Some(#help.to_owned())
-            })
+            });
+            array_inject_cli_long_opt.extend(q!{
+                None // TODO
+            });
         } else if let Some((_dai, dat)) = &self.delegate_array {
             let dat_c = type_append(dat, "Class");
             array_type.extend(q!{ ::websocat_api::NodeClass::array_type(&#dat_c::default()) });
             array_help.extend(q!{ ::websocat_api::NodeClass::array_help(&#dat_c::default()) });
+            array_inject_cli_long_opt.extend(q!{::websocat_api::NodeClass::array_inject_cli_long_opt(&#dat_c::default()) });
         } else {
             array_type.extend(q!{ None });
             array_help.extend(q!{ None });
+            array_inject_cli_long_opt.extend(q!{None});
         }
 
         for (_flf, flt) in &self.flattened_fields {
@@ -873,6 +879,9 @@ impl ClassInfo {
                 }
                 fn array_help(&self) -> ::std::option::Option<::std::string::String> {
                     #array_help
+                }
+                fn array_inject_cli_long_opt(&self) -> Option<String> {
+                    #array_inject_cli_long_opt
                 }
             
                 fn new_node(&self) -> ::websocat_api::DNodeInProgressOfParsing {
