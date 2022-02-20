@@ -3,7 +3,7 @@ use anyhow::Context;
 use string_interner::Symbol;
 use std::collections::HashMap;
 
-use crate::PropertyValue;
+use crate::{CliOpts};
 
 use super::Result;
 
@@ -471,7 +471,7 @@ impl StrNode {
     fn build_impl(
         &self,
         registry: &super::ClassRegistrar,
-        cli_opts: &std::collections::HashMap<String, PropertyValue>,
+        cli_opts: &CliOpts,
         tree: &mut super::Slab<super::NodeId, super::DDataNode>,
     ) -> Result<super::NodeId> {
         tracing::debug!("Building parsed node");
@@ -490,10 +490,23 @@ impl StrNode {
                 for prop in &props {
                     if let Some(ref clip) = prop.inject_cli_long_option {
                         if let Some(vv) = cli_opts.get(clip) {
+                            if vv.len() != 1 {
+                                anyhow::bail!("Multiple instances of {} specified where only should should be", clip);
+                            }
                             tracing::trace!("Setting property {} from CLI option {}", prop.name, clip);
-                            b.set_property(&prop.name, vv.clone()).with_context(|| {
+                            b.set_property(&prop.name, vv[0].clone()).with_context(|| {
                                 format!("Failed to set property {} in node {} from CLI options", prop.name, self.name.0)
                             })?;
+                        }
+                    }
+                    if let Some(ref clip) = cls.array_inject_cli_long_opt() {
+                        if let Some(vv) = cli_opts.get(clip) {
+                            tracing::trace!("Setting the array from CLI option {}", clip);
+                            for v in vv {
+                                b.push_array_element(v.clone()).with_context(|| {
+                                    format!("Failed to push array element to node {} from CLI options", self.name.0)
+                                })?;
+                            }
                         }
                     }
                 }
@@ -579,7 +592,7 @@ impl StrNode {
     fn process_macros(
         mut self,
         registry: &super::ClassRegistrar,
-        cli_opts: &std::collections::HashMap<String, PropertyValue>,
+        cli_opts: &CliOpts,
     ) -> Result<StrNode> {
 
         for (_ident, content) in &mut self.properties {
@@ -615,7 +628,7 @@ impl StrNode {
     pub fn build(
         self,
         classes: &super::ClassRegistrar,
-        cli_opts: &std::collections::HashMap<String, PropertyValue>,
+        cli_opts: &CliOpts,
         tree: &mut super::Tree,
     ) -> Result<super::NodeId> {
         self.process_macros(classes, cli_opts)?.build_impl(classes, cli_opts, tree)

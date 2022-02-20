@@ -1,7 +1,7 @@
 #![allow(unused)]
 
 use std::{borrow::Cow, collections::{BTreeMap, HashMap}};
-use websocat_api::{ClassRegistrar, DMacro, DNodeClass, PropertyValueType};
+use websocat_api::{ClassRegistrar, DMacro, DNodeClass, PropertyValueType, CliOptionDescription};
 pub enum HelpMode {
     Full,
     Short,
@@ -38,7 +38,7 @@ fn format_pvt(t: &PropertyValueType) -> Cow<'static, str> {
     }
 } 
 
-pub fn help(mode: HelpMode, reg: &ClassRegistrar, allopts: &HashMap<String, PropertyValueType>) {
+pub fn help(mode: HelpMode, reg: &ClassRegistrar, allopts: &HashMap<String, CliOptionDescription>) {
     if matches!(mode, HelpMode::Full | HelpMode::Short) {
         crate::version();
         println!("Command line client for WebSockets (RFC 6455), also general socat-like interconnector with web features.");

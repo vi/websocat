@@ -29,6 +29,7 @@ pub extern crate bytes;
 pub extern crate futures;
 pub extern crate http;
 pub extern crate tracing;
+pub extern crate smallvec;
 
 declare_slab_token!(pub NodeId);
 
@@ -297,9 +298,12 @@ pub struct Circuit {
     pub root : NodeId,
 }
 
+/// Set of auto-populated CLI options
+pub type CliOpts = std::collections::HashMap<String, smallvec::SmallVec<[PropertyValue; 1]>>;
+
 impl Circuit {
     /// Helper function, can be implemented using other low-level functions exposed by this crate
-    pub fn build_from_tree_string(reg: &ClassRegistrar, cli_opts: &std::collections::HashMap<String,PropertyValue>,  x: &str) -> Result<Circuit> {
+    pub fn build_from_tree_string(reg: &ClassRegistrar, cli_opts: &CliOpts,  x: &str) -> Result<Circuit> {
         let mut nodes = Tree::new();
     
         let q = StrNode::from_str(x).context("Parsing the tree")?;
@@ -311,7 +315,7 @@ impl Circuit {
 
 
     /// Helper function, can be implemented using other low-level functions exposed by this crate
-    pub fn build_from_tree_bytes(reg: &ClassRegistrar, cli_opts: &std::collections::HashMap<String,PropertyValue>,  x: &[u8]) -> Result<Circuit> {
+    pub fn build_from_tree_bytes(reg: &ClassRegistrar, cli_opts: &CliOpts,  x: &[u8]) -> Result<Circuit> {
         let mut nodes = Tree::new();
     
         let q = StrNode::from_bytes(x).context("Parsing the tree")?;
@@ -409,6 +413,12 @@ pub struct ClassRegistrar {
     pub(crate) macros: HashMap<String, DMacro>,
 }
 
+#[derive(Clone,Eq,PartialEq)]
+pub struct CliOptionDescription {
+    pub typ: PropertyValueType,
+    pub for_array: bool,
+}
+
 impl ClassRegistrar {
     pub fn register<N: GetClassOfNode>(&mut self) {
         self.register_impl(Box::new(N::Class::default()));
@@ -435,8 +445,8 @@ impl ClassRegistrar {
     }
 
     /// Get all class-injected long CLI options with their types
-    pub fn get_all_cli_options(&self) -> Result<HashMap<String, PropertyValueType>> {
-        let mut v = HashMap::with_capacity(32);
+    pub fn get_all_cli_options(&self) -> Result<HashMap<String, CliOptionDescription>> {
+        let mut v: HashMap<String, CliOptionDescription> = HashMap::with_capacity(32);
         // for error reporintg
         let mut provenance = <HashMap<String,String>>::with_capacity(32);
 
@@ -453,7 +463,15 @@ impl ClassRegistrar {
                     }
                     match v.entry(clin.clone()) {
                         std::collections::hash_map::Entry::Occupied(x) => {
-                            if x.get() == &p.r#type {
+                            if x.get().for_array {
+                                anyhow::bail!(
+                                    "Internal error: conflicting usages of long CLI option `{}`. Accorting to `{}` it should be used for an array, but according to `{}` it should be used for a property.",
+                                    clin,
+                                    provenance[&**clin],
+                                    prov,
+                                );
+                            }
+                            if &x.get().typ == &p.r#type {
                                 tracing::debug!(
                                     "CLI long option `{}` of type `{}` also maps to `{}`",
                                     clin,
@@ -465,7 +483,7 @@ impl ClassRegistrar {
                                     "Internal error: conflicting types of long CLI option `{}`. Accorting to `{}` it should be `{}`, but according to `{}` it should be `{}`.",
                                     clin,
                                     provenance[&**clin],
-                                    x.get(),
+                                    x.get().typ,
                                     prov,
                                     p.r#type,
                                 );
@@ -479,8 +497,66 @@ impl ClassRegistrar {
                                 prov,
                             );
                             provenance.insert(clin.clone(), prov);
-                            x.insert(p.r#type.clone());
+                            x.insert(CliOptionDescription{typ: p.r#type.clone(), for_array: false});
                         }
+                    }
+                }
+            }
+            if let Some(ref clin) = k.array_inject_cli_long_opt() {
+                let prov = format!("{}::<array>",  k.official_name());
+                let arrtyp = k.array_type();
+                if arrtyp.is_none() {
+                    anyhow::bail!(
+                        "Internal error: attempt to create CLI option `{}` for a node class that does not accept array: `{}`.",
+                        clin,
+                        prov,
+                    );
+                }
+                let arrtyp = arrtyp.unwrap();
+                if arrtyp.tag() == PropertyValueTypeTag::ChildNode {
+                    anyhow::bail!(
+                        "Internal error: attempt to create CLI option `{}` that maps to subnode-typed array `{}`.",
+                        clin,
+                        prov,
+                    );
+                }
+                match v.entry(clin.clone()) {
+                    std::collections::hash_map::Entry::Occupied(x) => {
+                        if ! x.get().for_array {
+                            anyhow::bail!(
+                                "Internal error: conflicting usages of long CLI option `{}`. Accorting to `{}` it should be used for a property, but according to `{}` it should be used for an array.",
+                                clin,
+                                provenance[&**clin],
+                                prov,
+                            );
+                        }
+                        if &x.get().typ == &arrtyp {
+                            tracing::debug!(
+                                "CLI long option `{}` of type `{}` also maps to `{}`",
+                                clin,
+                                arrtyp,
+                                prov,
+                            );
+                        } else {
+                            anyhow::bail!(
+                                "Internal error: conflicting types of long CLI option `{}`. Accorting to `{}` it should be `{}`, but according to `{}` it should be `{}`.",
+                                clin,
+                                provenance[&**clin],
+                                x.get().typ,
+                                prov,
+                                arrtyp,
+                            );
+                        }
+                    }
+                    std::collections::hash_map::Entry::Vacant(x) => {
+                        tracing::debug!(
+                            "Inserting global CLI long option: `{}` of type `{}`, mapping to `{}`",
+                            clin,
+                            arrtyp,
+                            prov,
+                        );
+                        provenance.insert(clin.clone(), prov);
+                        x.insert(CliOptionDescription{typ: arrtyp, for_array: true});
                     }
                 }
             }

@@ -90,10 +90,10 @@ async fn main() -> anyhow::Result<()> {
             x => {
                 //let b = parser.value()?;
                 if let Some(t) = allopts.get(x) {
-                    match t {
-                        websocat_api::PropertyValueType::Booly => {
+                    match (&t.typ, t.for_array) {
+                        (websocat_api::PropertyValueType::Booly, false) => {
                             class_induced_cli_opts
-                                .insert(x.to_owned(), websocat_api::PropertyValue::Booly(true));
+                                .insert(x.to_owned(), websocat_api::smallvec::smallvec![websocat_api::PropertyValue::Booly(true)]);
                         }
                         _ => todo!(),
                     }
