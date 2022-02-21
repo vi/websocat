@@ -5,6 +5,14 @@ use warnings;
 use utf8;
 use open qw(:std :utf8);
 
+
+# A script to scan Websocat3's source code and find all classes and macroses, writing the `websocat-allnodes` crate using code generation.
+# `websocat-allnodes` is intended to be tracked in Git, to avoid having this hacky script as a build step
+# This script does not use `syn` crate or something like that, it just parses `-Zunpretty=expanded` output using regexes and
+# relies on display details like indentation to track when we are entering and leaving modules
+# Now the script works with rustc 1.60.0.
+# Classes and macros are found by scanning for a special attribute. For macros the "attribute" is placed in a doccomment though, as they don't use derive macro for now.
+
 $_=`rg -l auto_populate_in_allclasslist | rg crates | rg -v 'allnodes|derive' | cut -f 2-2 -d/ | sort -u`;
 our @crates_to_scan = split '\n';
 
