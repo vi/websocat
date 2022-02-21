@@ -1,0 +1,6 @@
+[book]
+authors = ["Vitaly _Vi Shukela"]
+language = "en"
+multilingual = false
+src = "src"
+title = "Websocat"
