@@ -3,6 +3,7 @@
 /// Get `ClassRegistrar` with all WebSocat's nodes registered
 pub fn all_node_classes() -> websocat_api::ClassRegistrar {
     let mut reg = websocat_api::ClassRegistrar::default();
+
     reg.register::<websocat_basic::net::Tcp>();
     reg.register::<websocat_basic::net::TcpListen>();
     reg.register::<websocat_basic::io_std::Stdio>();

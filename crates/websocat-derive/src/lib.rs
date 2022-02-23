@@ -1042,3 +1042,9 @@ pub fn derive_websocat_enum(input: TokenStream) -> TokenStream {
 
     code.into()
 }
+
+
+#[proc_macro_derive(WebsocatMacro, attributes(auto_populate_macro_in_allclasslist))]
+pub fn derive_websocat_macro(_input: TokenStream) -> TokenStream {
+    TokenStream::new()
+}

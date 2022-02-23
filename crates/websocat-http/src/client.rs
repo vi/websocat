@@ -1,7 +1,7 @@
 use websocat_api::{
     anyhow, async_trait::async_trait, bytes, futures::TryStreamExt, tokio, NodeId, Result, http,
 };
-use websocat_derive::WebsocatNode;
+use websocat_derive::{WebsocatNode, WebsocatMacro};
 #[derive(Debug, derivative::Derivative, WebsocatNode)]
 #[websocat_node(official_name = "http-client", validate)]
 #[auto_populate_in_allclasslist]
@@ -542,7 +542,8 @@ impl websocat_api::RunnableNode for HttpClient {
 }
 
 #[derive(Default)]
-/// #[auto_populate_macro_in_allclasslist]
+#[derive(WebsocatMacro)]
+#[auto_populate_macro_in_allclasslist]
 pub struct AutoLowlevelHttpClient;
 impl websocat_api::Macro for AutoLowlevelHttpClient {
     fn official_name(&self) -> String {

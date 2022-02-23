@@ -3,9 +3,10 @@ use websocat_api::{
     stringy::{StringOrSubnode, UnquoteResult},
     StrNode,
 };
+use websocat_derive::WebsocatMacro;
 
-#[derive(Default)]
-/// #[auto_populate_macro_in_allclasslist]
+#[derive(Default, WebsocatMacro)]
+#[auto_populate_macro_in_allclasslist]
 pub struct SimpleClientSession;
 impl websocat_api::Macro for SimpleClientSession {
     fn official_name(&self) -> String {
