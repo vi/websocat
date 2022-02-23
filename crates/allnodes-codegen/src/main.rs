@@ -86,6 +86,11 @@ fn walk(
 
 fn main() -> Result<(), Error> {
     tracing_subscriber::fmt::init();
+
+    if ! std::process::Command::new("cargo").arg("expand").arg("--version").status()?.success() {
+        Err("Failed to run `cargo expand` command. Make sure it is installed.")?;
+    }
+
     let mainman = cargo_toml::Manifest::from_path("Cargo.toml");
     let check = mainman
         .map(|x| match (x.package, x.workspace) {
@@ -146,12 +151,10 @@ fn main() -> Result<(), Error> {
         log::info!("Scanning crate {}", cr);
         let mut cmd = std::process::Command::new("cargo");
         let cmd = cmd.args([
-            "rustc",
-            "--profile=check",
+            "expand",
             "-p",
             cr.as_ref(),
-            "--",
-            "-Zunpretty=expanded",
+            "--ugly",
         ]);
         let output = cmd.stdout(std::process::Stdio::piped()).output()?;
         if !output.status.success() {
