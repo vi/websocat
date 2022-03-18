@@ -1,5 +1,6 @@
 use std::collections::BTreeSet;
 use std::io::Write;
+use std::process::Command;
 
 use log::debug;
 
@@ -99,12 +100,11 @@ fn walk(
 fn main() -> Result<(), Error> {
     tracing_subscriber::fmt::init();
 
-    if !std::process::Command::new("cargo")
-        .arg("expand")
-        .arg("--version")
-        .status()?
-        .success()
-    {
+    let mut cargo_bin = std::env::var_os("CARGO")
+        .map(Command::new)
+        .unwrap_or_else(|| Command::new("cargo"));
+
+    if !cargo_bin.arg("expand").arg("--version").status()?.success() {
         Err("Failed to run `cargo expand` command. Make sure it is installed.")?;
     }
 
@@ -166,7 +166,7 @@ fn main() -> Result<(), Error> {
 
     for cr in crates {
         log::info!("Scanning crate {}", cr);
-        let mut cmd = std::process::Command::new("cargo");
+        let mut cmd = Command::new("cargo");
         let cmd = cmd.args(["expand", "-p", cr.as_ref(), "--ugly"]);
         let output = cmd.stdout(std::process::Stdio::piped()).output()?;
         if !output.status.success() {
@@ -206,7 +206,7 @@ fn main() -> Result<(), Error> {
             _ => unreachable!(),
         };
     }
-    config.entry("default").or_insert_with(||{
+    config.entry("default").or_insert_with(|| {
         modified_config = true;
         Value::String("builtin-default".to_owned())
     });
@@ -222,10 +222,20 @@ fn main() -> Result<(), Error> {
             Value::String(x) if x == "default" => match &config["default"] {
                 Value::Boolean(x) => *x,
                 Value::String(x) if x == "builtin-default" => true,
-                _ => {log::error!("Invalid setting `default` in the config file"); false},
-            }
+                _ => {
+                    log::error!("Invalid setting `default` in the config file");
+                    false
+                }
+            },
             Value::Boolean(x) => *x,
-            _ => {log::error!("Invalid setting for {}::{} in the config file", e.krate, e.path); false},
+            _ => {
+                log::error!(
+                    "Invalid setting for {}::{} in the config file",
+                    e.krate,
+                    e.path
+                );
+                false
+            }
         }
     });
 
