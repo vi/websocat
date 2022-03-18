@@ -2,3 +2,11 @@
 members = [
     "crates/*",
 ]
+
+[profile.release]
+opt-level = 2
+debug = 1
+lto = true
+codegen-units = 1
+incremental = false
+panic = 'abort'
