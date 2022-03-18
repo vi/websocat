@@ -28,3 +28,18 @@ pub(crate) fn body_source(body_response_rx: tokio::sync::mpsc::Receiver<bytes::B
     });
     rx
 }
+
+/// Derive the `Sec-WebSocket-Accept` response header from a `Sec-WebSocket-Key` request header.
+///
+/// This function can be used to perform a handshake before passing a raw TCP stream to
+/// [`WebSocket::from_raw_socket`][crate::protocol::WebSocket::from_raw_socket].
+///
+/// Based on https://github.com/snapview/tungstenite-rs/blob/985d6571923c2eac3310d8a9981a2306ae675214/src/handshake/mod.rs#L113
+pub(crate) fn derive_websocket_accept_key(request_key: &[u8]) -> String {
+    use sha1::{Digest, Sha1};
+    const WS_GUID: &[u8] = b"258EAFA5-E914-47DA-95CA-C5AB0DC85B11";
+    let mut sha1 = Sha1::default();
+    sha1.update(request_key);
+    sha1.update(WS_GUID);
+    base64::encode(&sha1.finalize())
+}

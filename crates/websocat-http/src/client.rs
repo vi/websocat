@@ -142,20 +142,7 @@ impl HttpClient {
     }
 }
 
-/// Derive the `Sec-WebSocket-Accept` response header from a `Sec-WebSocket-Key` request header.
-///
-/// This function can be used to perform a handshake before passing a raw TCP stream to
-/// [`WebSocket::from_raw_socket`][crate::protocol::WebSocket::from_raw_socket].
-///
-/// Based on https://github.com/snapview/tungstenite-rs/blob/985d6571923c2eac3310d8a9981a2306ae675214/src/handshake/mod.rs#L113
-fn derive_accept_key(request_key: &[u8]) -> String {
-    use sha1::{Digest, Sha1};
-    const WS_GUID: &[u8] = b"258EAFA5-E914-47DA-95CA-C5AB0DC85B11";
-    let mut sha1 = Sha1::default();
-    sha1.update(request_key);
-    sha1.update(WS_GUID);
-    base64::encode(&sha1.finalize())
-}
+
 
 impl HttpClient {
     fn get_request(&self, body: hyper::Body, ctx: &websocat_api::RunContext) -> Result<(hyper::Request<hyper::Body>, Option<[u8;16]>)> {
@@ -219,12 +206,12 @@ impl HttpClient {
                 if ! u.as_bytes().eq_ignore_ascii_case(b"websocket") {
                     anyhow::bail!("http-client is in websocket mode `Upgrade:` is not `websocket`");
                 }
-                let accept = derive_accept_key(base64::encode(key).as_bytes());
+                let accept = crate::util::derive_websocket_accept_key(base64::encode(key).as_bytes());
                 if accept != String::from_utf8_lossy(a.as_bytes()) {
                     anyhow::bail!("Sec-Websocket-Accept key mismatch: expected {}, got {:?}", accept, a);
                 }
             } else {
-                anyhow::bail!("http-client is in websocket mode and some of the three websocekt response headers are not found");
+                anyhow::bail!("http-client is in websocket mode and some of the three WebSocket response headers are not found");
             }
             tracing::debug!("WebSocket client response verification finished");
         }

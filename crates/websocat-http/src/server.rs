@@ -15,10 +15,17 @@ pub struct HttpServer {
     /// Expect and handle upgrades
     #[websocat_prop(default = false)]
     upgrade: bool,
+
+    /// Expect and handle specifically WebSocket upgrades
+    #[websocat_prop(default = false)]
+    websocket: bool,
 }
 
 impl HttpServer {
     fn validate(&mut self) -> Result<()> {
+        if self.websocket {
+            self.upgrade = true;
+        }
         Ok(())
     }
 }
@@ -54,8 +61,36 @@ async fn handle_request(
 async fn handle_request_for_upgrade(
     rq: hyper::Request<hyper::Body>,
     tx: Option<tokio::sync::oneshot::Sender<(websocat_api::Source, websocat_api::Sink)>>,
+    websocket_mode: bool,
 ) -> Result<hyper::Response<hyper::Body>> {
     tracing::info!("rq: {:?}", rq);
+
+    let wskey = if websocket_mode {
+        let hh = rq.headers();
+        if let (Some(c), Some(u), Some(v), Some(k)) = (
+            hh.get(hyper::header::CONNECTION),
+            hh.get(hyper::header::UPGRADE),
+            hh.get(hyper::header::SEC_WEBSOCKET_VERSION),
+            hh.get(hyper::header::SEC_WEBSOCKET_KEY),
+        ) {
+            if !c.as_bytes().eq_ignore_ascii_case(b"upgrade") {
+                anyhow::bail!("http-server is in websocket mode `Connection:` is not `upgrade`");
+            }
+            if !u.as_bytes().eq_ignore_ascii_case(b"websocket") {
+                anyhow::bail!("http-server is in websocket mode `Upgrade:` is not `websocket`");
+            }
+            if !v.as_bytes().eq_ignore_ascii_case(b"13") {
+                anyhow::bail!("http-server is in websocket mode `Sec-WebSocket-Version` is not `13`");
+            }
+            let accept = crate::util::derive_websocket_accept_key(k.as_bytes());
+            Some(accept)
+        } else {
+            anyhow::bail!("http-server is in websocket mode and some of the four websocekt response headers are not found")
+        }
+    } else {
+        None
+    };
+
     if let (Some(tx)) = tx {
         let upg = hyper::upgrade::on(rq);
         tokio::spawn(async {
@@ -75,8 +110,28 @@ async fn handle_request_for_upgrade(
             }
         });
         let mut resp = hyper::Response::new(hyper::Body::empty());
-        resp.headers_mut().append(http::header::CONNECTION, http::HeaderValue::from_static("upgrade"));
+        resp.headers_mut().append(
+            http::header::CONNECTION,
+            http::HeaderValue::from_static("upgrade"),
+        );
+
+        if let Some(wskey) = wskey {
+            resp.headers_mut().append(
+                http::header::UPGRADE,
+                http::HeaderValue::from_static("websocket"),
+            );
+            resp.headers_mut().append(
+                http::header::SEC_WEBSOCKET_VERSION,
+                http::HeaderValue::from_static("13"),
+            );
+            resp.headers_mut().append(
+                http::header::SEC_WEBSOCKET_ACCEPT,
+                http::HeaderValue::from_str(&wskey).unwrap(),
+            );
+        }
+
         *resp.status_mut() = hyper::StatusCode::SWITCHING_PROTOCOLS;
+        tracing::debug!("resp: {:?}", resp);
         Ok(resp)
     } else {
         anyhow::bail!("Trying to reuse HTTP connection for second request to Websocat, which is not supported in this mode")
@@ -129,7 +184,7 @@ impl websocat_api::RunnableNode for HttpServer {
         } else {
             let service = hyper::service::service_fn(move |rq| {
                 let tx = tx.clone().lock().unwrap().take();
-                handle_request_for_upgrade(rq, tx)
+                handle_request_for_upgrade(rq, tx, self.websocket)
             });
             let conn = http.serve_connection(io.unwrap(), service);
 
@@ -143,7 +198,7 @@ impl websocat_api::RunnableNode for HttpServer {
         }
 
         let (r, w) = rx.await?;
-    
+
         Ok(websocat_api::Bipipe {
             r,
             w,
