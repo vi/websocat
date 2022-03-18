@@ -261,6 +261,7 @@ pub trait DataNode : Debug  {
     fn get_property(&self, name:&str) -> Option<PropertyValue>;
     fn get_array(&self) -> Vec<PropertyValue>;
 
+    /// Cast this Websocat node as runnable node, if possible
     fn upgrade(self: Pin<Arc<Self>>) -> ::std::result::Result<DRunnableNode, PurelyDataNodeError>;
 
     // Inherent method that is called after `NodeInProgressOfParsing::finish` if `validate` attribute is passed to the derive macro.

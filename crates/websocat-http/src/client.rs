@@ -11,7 +11,7 @@ pub struct HttpClient {
     /// If unset, use high-level mode and expect `uri` to be set and be a full URI
     inner: Option<NodeId>,
 
-    /// Expect and work upon upgrades
+    /// Expect and handle upgrades
     #[websocat_prop(default=false)]
     upgrade: bool,
 
@@ -300,17 +300,7 @@ impl websocat_api::RunnableNode for HttpClient {
             let w: websocat_api::Sink = if !self.buffer_request_body {
                 // Chunked request body
                 let (sender, request_body) = hyper::Body::channel();
-                let sink = futures::sink::unfold(
-                    sender,
-                    move |mut sender, buf: bytes::Bytes| async move {
-                        tracing::trace!("Sending {} bytes chunk as HTTP request body", buf.len());
-                        sender.send_data(buf).await.map_err(|e| {
-                            tracing::error!("Failed sending more HTTP request body: {}", e);
-                            e
-                        })?;
-                        Ok(sender)
-                    },
-                );
+                let sink = crate::util::body_sink(sender);
 
                 tokio::spawn(async move {
                     let try_block = async move {
@@ -390,16 +380,7 @@ impl websocat_api::RunnableNode for HttpClient {
                 websocat_api::Sink::Datagrams(Box::pin(sink))
             };
 
-            let rx = futures::stream::unfold(response_rx, move |mut response_rx| async move {
-                let maybe_buf: Option<bytes::Bytes> = response_rx.recv().await;
-                if maybe_buf.is_none() {
-                    tracing::debug!("HTTP response body finished");
-                }
-                maybe_buf.map(move |buf| {
-                    tracing::trace!("Sending {} bytes chunk as HTTP response body", buf.len());
-                    (Ok(buf), response_rx)
-                })
-            });
+            let rx = crate::util::body_source(response_rx);
             Ok(websocat_api::Bipipe {
                 r: websocat_api::Source::Datagrams(Box::pin(rx)),
                 w,

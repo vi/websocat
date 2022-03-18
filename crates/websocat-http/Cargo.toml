@@ -15,7 +15,7 @@ tracing = "0.1.25"
 
 hyper = { version = "0.14.4", default_features=false, features = ["client","http1","server","stream"] }
 readwrite = {version = "0.2", features=["tokio"]}
-tokio = {version = "1", features=[]}
+tokio = {version = "1", features=["sync"]}
 futures = "0.3.13"
 rand = "0.8.3"
 base64 = "0.13.0"

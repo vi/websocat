@@ -10,6 +10,8 @@ pub use client::{HttpClient,AutoLowlevelHttpClient};
 pub mod server;
 pub use server::HttpServer;
 
+mod util;
+
 #[derive(Debug, Clone, WebsocatNode)]
 #[websocat_node(official_name = "header", data_only)]
 #[auto_populate_in_allclasslist]
@@ -19,4 +21,5 @@ pub struct Header {
     /// HTTP header value
     v: String,
 }
+
 
