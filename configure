@@ -1,0 +1,18 @@
+#!/bin/sh
+
+if [ -z "$CARGO" ]; then CARGO=cargo; fi
+
+REGEN=0
+
+if [ "$1" = "--regen" ]; then
+    REGEN=1
+fi
+
+if [ "$REGEN" = 1 ]; then
+    $CARGO run -p allnodes-codegen
+else 
+    echo 'Use `cargo build --release` to build Websocat. Expect output file in `target/release/websocat`.'
+    echo '  You may want to use `./configure --regen`,'
+    echo '  then tweak `classes.toml`, then use `./configure --regen`'
+    echo '  again to choose which Websocat modules to include in the build.' 
+fi
