@@ -129,3 +129,36 @@ impl websocat_api::RunnableNode for WebsocketLowlevel {
         wss_to_node(wss, closing_notification)
     }
 }
+
+
+#[derive(Debug, Clone, websocat_derive::WebsocatNode)]
+#[websocat_node(
+    official_name = "wsl",
+    prefix="wsl",
+)]
+#[auto_populate_in_allclasslist]
+pub struct WebsocketServer {
+    /// Inner socket to upgrade and connect
+    inner: NodeId,
+}
+
+
+
+#[websocat_api::async_trait::async_trait]
+impl websocat_api::RunnableNode for WebsocketServer {
+    #[tracing::instrument(level="debug", name="WebsocketServer", err, skip(ctx, multiconn))]
+    async fn run(self: std::pin::Pin<std::sync::Arc<Self>>, ctx: websocat_api::RunContext, multiconn: Option<websocat_api::ServerModeContext>) -> websocat_api::Result<websocat_api::Bipipe> {
+        let io = ctx.nodes[self.inner].clone().upgrade()?.run(ctx, multiconn).await?;
+        let closing_notification = io.closing_notification;
+        let io = match (io.r, io.w) {
+            (websocat_api::Source::ByteStream(r), websocat_api::Sink::ByteStream(w)) => {
+                readwrite::ReadWriteTokio::new(r, w)
+            }
+            _ => {
+                anyhow::bail!("Websocket requires bytestream-based inner node");
+            }
+        };
+        let wss = tokio_tungstenite::accept_async(io).await?;
+        wss_to_node(wss, closing_notification)
+    }
+}

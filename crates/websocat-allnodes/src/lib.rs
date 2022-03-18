@@ -29,5 +29,6 @@ pub fn all_node_classes() -> websocat_api::ClassRegistrar {
     reg.register::<websocat_syncnodes::net::UdpListen>();
     reg.register::<websocat_tungstenite::WebsocketClient>();
     reg.register::<websocat_tungstenite::WebsocketLowlevel>();
+    reg.register::<websocat_tungstenite::WebsocketServer>();
     reg
 }
