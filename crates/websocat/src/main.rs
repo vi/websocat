@@ -7,27 +7,28 @@ fn version() {
 mod help;
 use help::{help, HelpMode};
 
-static SHORT_OPTS : [(char, &str); 3] = [
+static SHORT_OPTS : [(char, &str); 4] = [
     ('u', "unidirectional"),
     ('U', "unidirectional-reverse"),
     ('V', "version"),
+    ('s', "server-mode"),
 ];
 
 /// Options that do not come from a Websocat classes
 static CORE_OPTS : [(&str, &str, &str); 5] = [
     ("version", "", "Show Websocat version"),
     ("help", "[mode]",  "Show Websocat help message. There are four help modes, use --help=help for list them."),
-    ("str", "", "???"),
-    ("dryrun", "", "???"),
-    ("dump-spec", "", "Instead of executing the session, describe its tree to stdout")
+    ("dry-run", "", "Skip actual execution of the constructed node"),
+    ("dump-spec", "", "Instead of executing the session, describe its tree to stdout"),
+    ("server-mode", "", "Run simple WebSocket server for development on a specified port"),
 ];
 
 #[tokio::main(flavor = "current_thread")]
 async fn main() -> anyhow::Result<()> {
-    let mut from_str_mode = false;
-
     let mut treestrings = vec![];
     let mut dryrun = false;
+    let mut dumpspec = false;
+    let mut servermode = false;
 
     tracing_subscriber::fmt()
         .with_env_filter(tracing_subscriber::filter::EnvFilter::from_default_env())
@@ -65,9 +66,8 @@ async fn main() -> anyhow::Result<()> {
             }
         };
         match optname {
-            "str" => from_str_mode = true,
             "dryrun" => dryrun = true,
-            "dump-spec" => dryrun = true,
+            "dump-spec" => {dryrun = true; dumpspec = true; }
             "version" => return Ok(version()),
             "help" => {
                 let mode = parser.value();
@@ -87,6 +87,7 @@ async fn main() -> anyhow::Result<()> {
                 };
                 return Ok(help(hm, &reg, &allopts));
             }
+            "server-mode" => servermode = true,
             x => {
                 //let b = parser.value()?;
                 if let Some(t) = allopts.get(x) {
@@ -104,21 +105,40 @@ async fn main() -> anyhow::Result<()> {
         }
     }
 
-    if from_str_mode {
-        return Ok(());
+    if treestrings.len() == 2 {
+        anyhow::bail!("Two-argument Websocat1-style mode is not yet supported. 
+            Use single argument with a special value like `[session left=... right=...]` instead ");
     }
-
     if treestrings.len() != 1 {
         anyhow::bail!("Exactly one positional argument required");
     }
 
+    let mut main_arg = &treestrings[0];
+    let mut complex_arg;
+
+    if servermode {
+        complex_arg = Vec::with_capacity(32);
+        complex_arg.extend_from_slice(b"[server ");
+        complex_arg.extend(main_arg);
+        complex_arg.extend_from_slice(b"]");
+        main_arg = &complex_arg;
+    } else if main_arg.starts_with(b"[") {
+        // leave `main_arg` as is
+    } else if main_arg.starts_with(b"ws://") || main_arg.starts_with(b"wss://") {
+        complex_arg = Vec::with_capacity(32);
+        complex_arg.extend_from_slice(b"[client ");
+        complex_arg.extend(main_arg);
+        complex_arg.extend_from_slice(b"]");
+        main_arg = &complex_arg;
+    };
+
     let c = websocat_api::Circuit::build_from_tree_bytes(
         &reg,
         &class_induced_cli_opts,
-        &treestrings[0],
+        main_arg,
     )?;
 
-    if dryrun {
+    if dumpspec {
         println!("{}", websocat_api::StrNode::reverse(c.root, &c.nodes)?);
     }
 
