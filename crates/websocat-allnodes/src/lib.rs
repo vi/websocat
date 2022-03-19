@@ -21,6 +21,7 @@ pub fn all_node_classes() -> websocat_api::ClassRegistrar {
     reg.register::<websocat_ioless::foreachrequest::Spawner>();
     reg.register::<websocat_ioless::reuse::ReuseBroadcast>();
     reg.register_macro::<websocat_ioless::simple::SimpleClientSession>();
+    reg.register_macro::<websocat_ioless::simple::SimpleServerSession>();
     reg.register::<websocat_readline::Readline>();
     reg.register::<websocat_session::SessionClass>();
     reg.register::<websocat_syncnodes::net::TcpConnect>();
