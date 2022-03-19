@@ -1,6 +1,6 @@
 [package]
 name = "websocat"
-version = "3.0.0"
+version = "3.0.0-prealpha0"
 authors = ["Vitaly _Vi Shukela <vi0oss@gmail.com>"]
 edition = "2018"
 
