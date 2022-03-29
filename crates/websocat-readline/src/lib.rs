@@ -1,6 +1,6 @@
 use websocat_derive::{WebsocatNode};
 use websocat_api::{Result, tracing};
-use websocat_api::sync::{Bipipe, Node, Source, Sink};
+use websocat_api::{Bipipe, RunnableNode, Source, Sink};
 use websocat_api::{anyhow};
 
 
@@ -11,46 +11,46 @@ pub struct Readline {
   
 }
 
-impl Node for Readline {
-    fn run(
-        self: std::pin::Pin<std::sync::Arc<Self>>,
-        _ctx: websocat_api::RunContext,
-        _allow_multiconnect: bool,
-        mut closure: impl FnMut(Bipipe) -> Result<()> + Send + 'static,
-    ) -> Result<()> {
-        let ed = linefeed::Interface::new("websocat")?;
-        //ed.lock_reader().set_catch_signals(true);
-        ed.set_prompt("websocat> ")?;
-        ed.set_report_signal(linefeed::terminal::Signal::Interrupt, true);
-        //ed.set_ignore_signal(linefeed::terminal::Signal::Interrupt, false);
-        //ed.set_ignore_signal(linefeed::terminal::Signal::Interrupt, true);
-        let ed = std::sync::Arc::new(ed);
-        std::thread::spawn(move || {
-            let ed2 = ed.clone();
-            let p = Bipipe {
-                r: Source::Datagrams(Box::new(move || {
-                    match ed.read_line()? {
-                        linefeed::ReadResult::Eof => {
-                            tracing::info!("EOF");
-                            Ok(None)
-                        }
-                        linefeed::ReadResult::Input(x) => {
-                            ed.add_history_unique(x.clone());
-                            Ok(Some(x.into()))
-                        }
-                        linefeed::ReadResult::Signal(e) => {
-                            Err(anyhow::anyhow!("Signal arrived: {:?}", e))
-                        }
+#[websocat_api::async_trait::async_trait]
+impl websocat_api::RunnableNode for Readline {
+    #[tracing::instrument(level="debug", name="Readline", err, skip(_q, _w))]
+    async fn run(self: std::pin::Pin<std::sync::Arc<Self>>, _q: websocat_api::RunContext, _w: Option<websocat_api::ServerModeContext>) -> websocat_api::Result<websocat_api::Bipipe> {
+        let (rl, wr) = rustyline_async::Readline::new("W% ".to_owned())?;
+        tracing::debug!("Created rustyline_async");
+
+        let sink = futures::sink::unfold(
+            wr,
+            move |mut wr, buf: websocat_api::bytes::Bytes| async move {
+                tracing::trace!("Sending {} bytes chunk to rustyline_async", buf.len());
+                use futures::io::AsyncWriteExt;
+                wr.write_all(&buf).await?;
+                Ok(wr)
+            },
+        );
+
+        let rx = futures::stream::unfold(rl, move |mut rl| async move {
+            loop {
+                match rl.readline().await {
+                    Some(Ok(x)) => {
+                        tracing::debug!("Data from rustyline_async: `{}`", x);
+                        return Some((Ok(x.into()), rl));
                     }
-                })),
-                w: Sink::Datagrams(Box::new(move |buf| {
-                    writeln!(ed2, "{}", String::from_utf8_lossy(&buf[..]))?;
-                    Ok(())
-                })),
-                closing_notification: None,
-            };
-            let _ = closure(p);
+                    Some(Err(e)) => {
+                        tracing::debug!("Error from rustyline_async: {}", e);
+                        return Some((Err(e.into()), rl));
+                    }
+                    None => {
+                        tracing::trace!("None from rustyline_async");
+                        continue;
+                    },
+                }
+            }
         });
-        Ok(())
+        Ok(websocat_api::Bipipe {
+            r : websocat_api::Source::Datagrams(Box::pin(rx)),
+            w : websocat_api::Sink::Datagrams(Box::pin(sink)),
+            closing_notification: None,
+        })
     }
 }
+
