@@ -14,3 +14,4 @@ syn = {version="1.0.86",features=["parsing","extra-traits", "full"]}
 toml = "0.5.8"
 tracing-subscriber = "0.3.9"
 walkdir = "2.3.2"
+syn-file-expand = "0.1.0"

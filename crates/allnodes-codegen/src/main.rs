@@ -1,6 +1,5 @@
 use std::collections::BTreeSet;
 use std::io::Write;
-use std::process::Command;
 
 use log::debug;
 
@@ -100,14 +99,6 @@ fn walk(
 fn main() -> Result<(), Error> {
     tracing_subscriber::fmt::init();
 
-    let mut cargo_bin = std::env::var_os("CARGO")
-        .map(Command::new)
-        .unwrap_or_else(|| Command::new("cargo"));
-
-    if !cargo_bin.arg("expand").arg("--version").status()?.success() {
-        Err("Failed to run `cargo expand` command. Make sure it is installed.")?;
-    }
-
     let mainman = cargo_toml::Manifest::from_path("Cargo.toml");
     let check = mainman
         .map(|x| match (x.package, x.workspace) {
@@ -166,16 +157,8 @@ fn main() -> Result<(), Error> {
 
     for cr in crates {
         log::info!("Scanning crate {}", cr);
-        let mut cmd = Command::new("cargo");
-        let cmd = cmd.args(["expand", "-p", cr.as_ref(), "--ugly"]);
-        let output = cmd.stdout(std::process::Stdio::piped()).output()?;
-        if !output.status.success() {
-            log::error!("Failed to obtain expanded source code of crate {}", cr);
-            std::io::stderr().write_all(&output.stderr[..])?;
-        }
-        let content = String::from_utf8(output.stdout)?;
-        let s: proc_macro2::TokenStream = content.parse()?;
-        let t: syn::File = syn::parse2(s)?;
+        let path = format!("crates/{}/src/lib.rs", cr);
+        let t: syn::File = syn_file_expand::read_full_crate_source_code(path, |_|Ok(true))?;
         //println!("{:#?}", t);
         walk(&cr, "", &t.items[..], &mut entries)?;
     }
