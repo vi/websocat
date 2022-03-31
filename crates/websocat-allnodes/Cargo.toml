@@ -11,7 +11,6 @@ websocat-api = {path = "../websocat-api", features=["sync_impl"]}
 websocat-basic = {path = "../websocat-basic"}
 websocat-http = {path = "../websocat-http"}
 websocat-ioless = {path = "../websocat-ioless"}
-websocat-readline = {path = "../websocat-readline"}
 websocat-session = {path = "../websocat-session"}
 websocat-syncnodes = {path = "../websocat-syncnodes"}
 websocat-tungstenite = {path = "../websocat-tungstenite"}
