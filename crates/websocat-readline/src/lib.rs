@@ -1,20 +1,19 @@
-use websocat_derive::{WebsocatNode};
-use websocat_api::{Result, tracing};
-use websocat_api::{Bipipe, RunnableNode, Source, Sink};
-use websocat_api::{anyhow};
-
+use websocat_api::{tracing};
+use websocat_derive::WebsocatNode;
 
 #[derive(Debug, Clone, WebsocatNode)]
 #[websocat_node(official_name = "readline")]
 #[auto_populate_in_allclasslist]
-pub struct Readline {
-  
-}
+pub struct Readline {}
 
 #[websocat_api::async_trait::async_trait]
 impl websocat_api::RunnableNode for Readline {
-    #[tracing::instrument(level="debug", name="Readline", err, skip(_q, _w))]
-    async fn run(self: std::pin::Pin<std::sync::Arc<Self>>, _q: websocat_api::RunContext, _w: Option<websocat_api::ServerModeContext>) -> websocat_api::Result<websocat_api::Bipipe> {
+    #[tracing::instrument(level = "debug", name = "Readline", err, skip(_q, _w))]
+    async fn run(
+        self: std::pin::Pin<std::sync::Arc<Self>>,
+        _q: websocat_api::RunContext,
+        _w: Option<websocat_api::ServerModeContext>,
+    ) -> websocat_api::Result<websocat_api::Bipipe> {
         let (rl, wr) = rustyline_async::Readline::new("W% ".to_owned())?;
         tracing::debug!("Created rustyline_async");
 
@@ -29,22 +28,21 @@ impl websocat_api::RunnableNode for Readline {
         );
 
         let rx = futures::stream::unfold(rl, move |mut rl| async move {
-                match rl.readline().await {
-                    Ok(x) => {
-                        tracing::debug!("Data from rustyline_async: `{}`", x);
-                        return Some((Ok(x.into()), rl));
-                    }
-                    Err(e) => {
-                        tracing::debug!("Error from rustyline_async: {}", e);
-                        return Some((Err(e.into()), rl));
-                    }
+            match rl.readline().await {
+                Ok(x) => {
+                    tracing::debug!("Data from rustyline_async: `{}`", x);
+                    return Some((Ok(x.into()), rl));
                 }
+                Err(e) => {
+                    tracing::debug!("Error from rustyline_async: {}", e);
+                    return Some((Err(e.into()), rl));
+                }
+            }
         });
         Ok(websocat_api::Bipipe {
-            r : websocat_api::Source::Datagrams(Box::pin(rx)),
-            w : websocat_api::Sink::Datagrams(Box::pin(sink)),
+            r: websocat_api::Source::Datagrams(Box::pin(rx)),
+            w: websocat_api::Sink::Datagrams(Box::pin(sink)),
             closing_notification: None,
         })
     }
 }
-

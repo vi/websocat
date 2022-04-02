@@ -21,6 +21,7 @@ string-interner = "0.14"
 pin-project = "1"
 thiserror = "1.0.24"
 smallvec = "1.8.0"
+hyper = { version = "0.14.4", default_features=false, features = [] }
 
 [dev-dependencies]
 proptest = "1.0.0"

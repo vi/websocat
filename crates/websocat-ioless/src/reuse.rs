@@ -66,7 +66,7 @@ impl RunnableNode for ReuseBroadcast {
                 let p = ctx.nodes[self.inner].clone().upgrade()?.run(ctx, multiconn).await?;
 
                 let rpart = match p.r {
-                    Source::ByteStream(_) => {anyhow::bail!("reuser works only on datagram-based data. Use `datagrams` node to convert.")}
+                    Source::ByteStream(_) => {anyhow::bail!("reuser works only on datagram-, requests- or responses-based nodes. Use `datagrams` node or other sort of adapter to convert.")}
                     Source::Datagrams(mut dsrc) => {
                         let (tx2, _rx2) = tokio::sync::broadcast::channel::<bytes::Bytes>(self.buffer_replies as usize);
                         
@@ -95,11 +95,13 @@ impl RunnableNode for ReuseBroadcast {
                         
                         Some(tx2)
                     }
+                    Source::Requests(_x) => todo!(),
+                    Source::Responses(_x) => todo!(),
                     Source::None => {None}
                 };
 
                 let wpart = match p.w {
-                    Sink::ByteStream(_) => {anyhow::bail!("reuser works only on datagram-based data. Use `datagram` node to convert.")}
+                    Sink::ByteStream(_) => {anyhow::bail!("reuser works only on datagram-, request- and responses-based data. Use `datagram` node  or other sort of adapter to convert.")}
                     Sink::Datagrams(mut dsink) => {
                         let (tx1, mut rx1) = tokio::sync::mpsc::channel::<bytes::Bytes>(self.buffer_requests as usize);
                         
@@ -128,6 +130,8 @@ impl RunnableNode for ReuseBroadcast {
                         
                         Some(tx1)
                     }
+                    Sink::Requests(_x) => todo!(),
+                    Sink::Responses(_x) => todo!(),
                     Sink::None => {None}
                 };
 

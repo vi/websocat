@@ -409,6 +409,9 @@ impl websocat_api::RunnableNode for HttpClient {
                             tracing::debug!("Finished buffering up HTTP request body");
                             bufbuf.freeze().into()
                         }
+                        websocat_api::Source::Requests(_) | websocat_api::Source::Responses(_) => {
+                            todo!()
+                        }
                         websocat_api::Source::None => {
                             tracing::warn!("Unusable http-client's request_body subnode specifier: null source");
                             hyper::Body::empty() 
@@ -443,6 +446,7 @@ impl websocat_api::RunnableNode for HttpClient {
                             });
                             body
                         }
+                        websocat_api::Source::Requests(_) | websocat_api::Source::Responses(_) => todo!(),
                         websocat_api::Source::None => {
                             tracing::warn!("Unusable http-client's request_body subnode specifier: null source");
                             hyper::Body::empty() 

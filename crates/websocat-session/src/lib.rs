@@ -74,14 +74,86 @@ async fn half_session(
                 }
             }
         }
+        (websocat_api::Source::Requests(r), websocat_api::Sink::Requests(w)) => {
+            use futures::stream::StreamExt;
+            tracing::debug!("An HTTP request handling session");
+            let counter = Arc::new(AtomicUsize::new(0));
+            let counter_ = counter.clone();
+            let r = r.inspect(|_| {
+                counter_.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+            });
+            match r.forward(w).await {
+                Ok(()) => {
+                    tracing::info!(
+                        "Finished Websocat request handling session. Processed {} requests",
+                        counter.load(std::sync::atomic::Ordering::SeqCst)
+                    );
+                }
+                Err(e) => {
+                    tracing::info!(
+                        "Finished Websocat HTTP request handling session with error. Source emitted {} requests",
+                        counter.load(std::sync::atomic::Ordering::SeqCst)
+                    );
+                    return Err(e);
+                }
+            }
+        }
+        (websocat_api::Source::Responses(r), websocat_api::Sink::Responses(w)) => {
+            use futures::stream::StreamExt;
+            tracing::debug!("An HTTP response handling session");
+            let counter = Arc::new(AtomicUsize::new(0));
+            let counter_ = counter.clone();
+            let r = r.inspect(|_| {
+                counter_.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+            });
+            match r.forward(w).await {
+                Ok(()) => {
+                    tracing::info!(
+                        "Finished Websocat response handling session. Processed {} responses",
+                        counter.load(std::sync::atomic::Ordering::SeqCst)
+                    );
+                }
+                Err(e) => {
+                    tracing::info!(
+                        "Finished Websocat HTTP response handling session with error. Source emitted {} responses",
+                        counter.load(std::sync::atomic::Ordering::SeqCst)
+                    );
+                    return Err(e);
+                }
+            }
+        }
         (websocat_api::Source::None, websocat_api::Sink::None) => {
             tracing::info!("Finished Websocat dummy transfer session.",);
         }
         (websocat_api::Source::Datagrams(_), websocat_api::Sink::ByteStream(_)) => {
-            anyhow::bail!("Failed to connect datagram-based node to a bytestream-based node")
+            anyhow::bail!("Failed to connect a datagram-based node to an bytestream-based node")
+        }
+        (websocat_api::Source::Datagrams(_), websocat_api::Sink::Requests(_)) => {
+            anyhow::bail!("Failed to connect a datagram-based node to an HTTP requests sink node")
+        }
+        (websocat_api::Source::Datagrams(_), websocat_api::Sink::Responses(_)) => {
+            anyhow::bail!("Failed to connect a datagram-based node to an HTTP responses sink node")
         }
         (websocat_api::Source::ByteStream(_), websocat_api::Sink::Datagrams(_)) => {
-            anyhow::bail!("Failed to connect bytestream-based node to a datagram-based node")
+            anyhow::bail!("Failed to connect a bytestream-based node to a datagram-based node")
+        }
+        (websocat_api::Source::ByteStream(_), websocat_api::Sink::Requests(_)) => {
+            anyhow::bail!("Failed to connect a bytestream-based node to an HTTP requests sink node")
+        }
+        (websocat_api::Source::ByteStream(_), websocat_api::Sink::Responses(_)) => {
+            anyhow::bail!("Failed to connect a bytestream-based node to an HTTP responses sink node")
+        }
+        (websocat_api::Source::Requests(_), websocat_api::Sink::ByteStream(_) | websocat_api::Sink::Datagrams(_)) => {
+            anyhow::bail!("Failed to connect an HTTP requests source node to a socket-like node")
+        }
+        (websocat_api::Source::Responses(_), websocat_api::Sink::ByteStream(_) | websocat_api::Sink::Datagrams(_)) => {
+            anyhow::bail!("Failed to connect an HTTP responses source node to a socket-like node")
+        }
+        (websocat_api::Source::Requests(_), websocat_api::Sink::Responses(_)) => {
+            anyhow::bail!("Failed to connect an HTTP requests source node to an HTTP responses sink node")
+        }
+        (websocat_api::Source::Responses(_), websocat_api::Sink::Requests(_)) => {
+            anyhow::bail!("Failed to connect an HTTP responses source node to an HTTP requests sink node")
         }
         (websocat_api::Source::None, _) => {
             anyhow::bail!(
