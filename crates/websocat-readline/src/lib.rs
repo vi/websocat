@@ -29,22 +29,16 @@ impl websocat_api::RunnableNode for Readline {
         );
 
         let rx = futures::stream::unfold(rl, move |mut rl| async move {
-            loop {
                 match rl.readline().await {
-                    Some(Ok(x)) => {
+                    Ok(x) => {
                         tracing::debug!("Data from rustyline_async: `{}`", x);
                         return Some((Ok(x.into()), rl));
                     }
-                    Some(Err(e)) => {
+                    Err(e) => {
                         tracing::debug!("Error from rustyline_async: {}", e);
                         return Some((Err(e.into()), rl));
                     }
-                    None => {
-                        tracing::trace!("None from rustyline_async");
-                        continue;
-                    },
                 }
-            }
         });
         Ok(websocat_api::Bipipe {
             r : websocat_api::Source::Datagrams(Box::pin(rx)),

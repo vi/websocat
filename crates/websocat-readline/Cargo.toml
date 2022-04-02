@@ -12,5 +12,5 @@ websocat-api = {path = "../websocat-api"}
 
 # rustyline = "8.0.0"
 # linefeed = "0.6.0"
-rustyline-async = "0.1.2"
+rustyline-async = "0.2.1"
 futures = "0.3.21"
