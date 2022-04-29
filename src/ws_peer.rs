@@ -203,6 +203,8 @@ pub struct WsWriteWrapper<T: WsStream + 'static> {
     pub binary_prefix: Option<String>,
     pub binary_base64: bool,
     pub text_base64: bool,
+    pub close_status_code: Option<u16>,
+    pub close_reason: Option<String>,
 }
 
 impl<T: WsStream + 'static> AsyncWrite for WsWriteWrapper<T> {
@@ -210,9 +212,15 @@ impl<T: WsStream + 'static> AsyncWrite for WsWriteWrapper<T> {
         if !self.close_on_shutdown {
             return Ok(Ready(()));
         }
+        let close_data = self.close_status_code.map(|code|
+            websocket::CloseData{
+                status_code: code,
+                reason: self.close_reason.clone().unwrap_or_default()
+            }
+        );
         let mut sink = self.sink.borrow_mut();
         match sink
-            .start_send(OwnedMessage::Close(None))
+            .start_send(OwnedMessage::Close(close_data))
             .map_err(io_other_error)?
         {
             futures::AsyncSink::NotReady(_) => wouldblock(),
@@ -495,6 +503,8 @@ pub fn finish_building_ws_peer<S>(opts: &super::Options, duplex: Duplex<S>, clos
         binary_prefix: opts.ws_binary_prefix.clone(),
         binary_base64: opts.ws_binary_base64,
         text_base64: opts.ws_text_base64,
+        close_status_code: opts.close_status_code,
+        close_reason: opts.close_reason.clone(),
     };
 
     Peer::new(ws_str, ws_sin, hup)

@@ -89,6 +89,8 @@ pub struct Options {
     pub ws_binary_prefix: Option<String>,
     pub ws_binary_base64: bool,
     pub ws_text_base64: bool,
+    pub close_status_code: Option<u16>,
+    pub close_reason: Option<String>,
 
     /// Only affects linter
     pub asyncstdio: bool,

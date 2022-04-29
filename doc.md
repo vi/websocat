@@ -123,6 +123,10 @@ OPTIONS:
             [A] Number of pending queued messages for broadcast reuser [default: 16]
 
     -B, --buffer-size <buffer_size>                                  Maximum message size, in bytes [default: 65536]
+        --close-reason <close_reason>
+            Close connection with a reason message. This option only takes effect if --close-status-code option is
+            provided as well.
+        --close-status-code <close_status_code>                      Close connection with a status code.
     -H, --header <custom_headers>...
             Add custom HTTP header to websocket client request. Separate header name and value with a colon and
             optionally a single space. Can be used multiple times. Note that single -H may eat multiple further

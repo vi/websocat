@@ -483,6 +483,15 @@ struct Opt {
     #[structopt(long = "--base64-text")]
     pub ws_text_base64: bool,
 
+    /// Close connection with a status code.
+    #[structopt(long = "--close-status-code")]
+    pub close_status_code: Option<u16>,
+
+    /// Close connection with a reason message. This option only takes effect if
+    /// --close-status-code option is provided as well.
+    #[structopt(long = "--close-reason")]
+    pub close_reason: Option<String>,
+
     /// [A] On UNIX, set stdin and stdout to nonblocking mode instead of spawning a thread.
     /// This should improve performance, but may break other programs running on the same console.
     #[structopt(long = "--async-stdio")]
@@ -768,6 +777,8 @@ fn run() -> Result<()> {
             ws_binary_prefix
             ws_binary_base64
             ws_text_base64
+            close_status_code
+            close_reason
             asyncstdio
             foreachmsg_wait_reads
             announce_listens
