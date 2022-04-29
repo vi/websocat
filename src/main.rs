@@ -752,6 +752,7 @@ fn run() -> Result<()> {
             no_auto_linemode
             buffer_size
             linemode_zero_terminated
+            broadcast_queue_len
             restrict_uri
             serve_static_files
             exec_set_env
