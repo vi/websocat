@@ -216,12 +216,29 @@ pub fn tcp_connect_peer(addrs: &[SocketAddr]) -> BoxedNewPeerFuture {
             .map_err(box_up_err)
         );
     }
-    let p = fu.into_future().and_then(|(x, _losers)| {
+    // reverse Ok and Err variants so that `fold` would exit early on a successful connection, but accumulate errors.
+    let p = fu.then(|x| {
+        let reversed = match x {
+            Ok(a) => Err(a),
+            Err(a) => Ok(a),
+        };
+        futures::future::done(reversed)
+    }).fold(None, |_accum, e|{
+        log::info!("Failure during connecting TCP: {}", e);
+        futures::future::ok(Some(e))
+    }).then(|x| {
+        match x {
+            Ok(a) => Err(a),
+            Err(a) => Ok(a),
+        }
+    }).map_err(|e : Option<_>| e.unwrap());
+    /*let p = fu.into_future().and_then(|(x, _losers)| {
         let peer = x.unwrap();
         debug!("We have a winner. Disconnecting losers.");
         futures::future::ok(peer)       
-    });
-    Box::new(p.map_err(|(e,_)|e)) as BoxedNewPeerFuture
+    });*/
+    //Box::new(p.map_err(|(e,_)|e)) as BoxedNewPeerFuture
+    Box::new(p) as BoxedNewPeerFuture
 }
 
 pub fn tcp_listen_peer(addr: &SocketAddr, l2r: L2rUser, announce: bool) -> BoxedNewPeerStream {
