@@ -1142,9 +1142,11 @@ See an example in moreexamples.md for more thorough example.
 Internal name for --dump-spec: Crypto
 
 
-[A] Encrypts written messages and decryptes (and verifies) read messages with a static key, using ChaCha20-Poly1305 algorithm.
+[A] Encrypts written messages and decryptes (and authenticates) read messages with a static key, using ChaCha20-Poly1305 algorithm.
 
 Do not not use in stream mode - packet boundaries are significant.
+
+Note that attacker may duplicate messages. Each encrypted message is 12 bytes bigger than original message.
 
 Assocated --crypto-key option accepts the following prefixes:
 

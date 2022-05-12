@@ -47,6 +47,8 @@ specifier_class!(
 
 Do not not use in stream mode - packet boundaries are significant.
 
+Note that attacker may duplicate messages. Each encrypted message is 12 bytes bigger than original message.
+
 Assocated --crypto-key option accepts the following prefixes:
 
 - `file:` prefix means that Websocat should read 32-byte file and use it as a key.
