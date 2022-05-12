@@ -1,6 +1,7 @@
 use super::{BoxedNewPeerFuture, Peer};
 
 use futures;
+use rand::RngCore;
 use std;
 use std::io::Result as IoResult;
 use std::io::{Read, Write};
@@ -389,5 +390,46 @@ impl Write for LogWrite {
     }
     fn flush(&mut self) -> IoResult<()> {
         self.0.flush()
+    }
+}
+
+
+#[derive(Debug)]
+pub struct Random;
+impl Specifier for Random {
+    fn construct(&self, _cp: ConstructParams) -> PeerConstructor {
+        let r = RandomReader();
+        let w = DevNull;
+        let p = Peer::new(r, w, None);
+        once(Box::new(futures::future::ok(p)) as BoxedNewPeerFuture)
+    }
+    specifier_boilerplate!(noglobalstate singleconnect no_subspec);
+}
+specifier_class!(
+    name = RandomClass,
+    target = Random,
+    prefixes = ["random:"],
+    arg_handling = noarg,
+    overlay = false,
+    MessageOriented,
+    SingleConnect,
+    help = r#"
+Generage random bytes when being read from, discard written bytes.
+
+    websocat -b random: ws://127.0.0.1/flood
+
+"#
+);
+
+
+pub struct RandomReader ();
+
+
+impl AsyncRead for RandomReader {}
+
+impl Read for RandomReader {
+    fn read(&mut self, buf: &mut [u8]) -> std::result::Result<usize, std::io::Error> {
+        rand::thread_rng().fill_bytes(buf);
+        Ok(buf.len())
     }
 }

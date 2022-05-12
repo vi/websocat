@@ -852,6 +852,14 @@ Example: forward connections from a UNIX seqpacket socket to a WebSocket
     websocat --unlink seqpacket-l:the_socket ws://127.0.0.1:8089
 
 
+### `random:`
+
+Internal name for --dump-spec: Random
+
+
+Generage random bytes when being read from, discard written bytes.
+
+    websocat -b random: ws://127.0.0.1/flood
 
 
 # Full list of overlays
