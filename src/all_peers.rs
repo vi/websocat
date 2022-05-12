@@ -104,5 +104,8 @@ macro_rules! list_of_all_specifier_classes {
 
         $your_macro!($crate::socks5_peer::SocksProxyClass);
         $your_macro!($crate::socks5_peer::SocksBindClass);
+
+        #[cfg(feature = "crypto_peer")]
+        $your_macro!($crate::crypto_peer::CryptoClass);
     };
 }
