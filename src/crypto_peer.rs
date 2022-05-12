@@ -1,3 +1,4 @@
+use argon2::Argon2;
 use futures::Async;
 use futures::future::ok;
 
@@ -22,7 +23,13 @@ pub struct Crypto<T: Specifier>(pub T);
 impl<T: Specifier> Specifier for Crypto<T> {
     fn construct(&self, cp: ConstructParams) -> PeerConstructor {
         let inner = self.0.construct(cp.clone());
-        inner.map(move |p, _| crypto_peer(p))
+        let mut key = [0u8; 32];
+        if let Some(k) = cp.program_options.crypto_key {
+            key = k;
+        } else {
+            log::error!("You are using `crypto:` without `--crypto-key`. This uses a hard coded key and is insecure.")
+        }
+        inner.map(move |p, _| crypto_peer(p, key, cp.program_options.crypto_reverse))
     }
     specifier_boilerplate!(noglobalstate has_subspec);
     self_0_is_subspecifier!(proxy_is_multiconnect);
@@ -48,11 +55,15 @@ enum Mode {
     Decrypt,
 }
 
-pub fn crypto_peer(inner_peer: Peer) -> BoxedNewPeerFuture {
-    let key = [0u8; 32];
+pub fn crypto_peer(inner_peer: Peer, key: [u8; 32], reverse: bool) -> BoxedNewPeerFuture {
+    let (mode_r, mode_w) = if reverse {
+        (Mode::Encrypt, Mode::Decrypt)
+    } else {
+        (Mode::Decrypt, Mode::Encrypt)
+    };
     let crypto = ChaCha20Poly1305::new(chacha20poly1305::Key::from_slice(&key));
-    let filtered_r = CryptoWrapperR(inner_peer.0, crypto.clone(), Mode::Decrypt);
-    let filtered_w = CryptoWrapperW(inner_peer.1, crypto, Mode::Encrypt);
+    let filtered_r = CryptoWrapperR(inner_peer.0, crypto.clone(), mode_r);
+    let filtered_w = CryptoWrapperW(inner_peer.1, crypto, mode_w);
     let thepeer = Peer::new(filtered_r, filtered_w, inner_peer.2);
     Box::new(ok(thepeer)) as BoxedNewPeerFuture
 }
@@ -143,4 +154,34 @@ fn process_data(buf: &[u8], crypto: &ChaCha20Poly1305, mode: Mode) -> Result<Vec
             }
         }
     }
+}
+
+pub fn interpret_opt(x: &str) -> crate::Result<[u8; 32]> {
+    let mut key = [0u8; 32];
+    if x.starts_with("base64:") {
+        let mut buf = Vec::with_capacity(32);
+        base64::decode_config_buf(&x[7..], base64::STANDARD, &mut buf)?;
+        if buf.len() != 32 {
+            log::error!("Expected 32 bytes, got {} bytes", buf.len());
+            return Err("Non 32-byte buffer specified".into());
+        }
+        key.copy_from_slice(&buf[..]);
+
+    } else if x.starts_with("file:") {
+        let buf = std::fs::read(&x[5..])?;
+        if buf.len() != 32 {
+            log::error!("Expected 32 bytes, got {} bytes", buf.len());
+            return Err("Non 32-byte buffer specified".into());
+        }
+        key.copy_from_slice(&buf[..])
+    } else if x.starts_with("pwd:") {
+        let argon2 = Argon2::default();
+        const SALT : &'static [u8] = &[0x81, 0x65, 0x0c, 0xc7, 0x09, 0x76, 0xc1, 0x12, 0x6b, 0x5b, 0x5f, 0x04,
+        0x08, 0x61, 0xf6, 0x1b, 0xd6, 0xab, 0x88, 0xa2, 0xee, 0x67, 0x47, 0xc1,
+        0xbe, 0x12, 0xd7, 0xd7, 0x2d, 0xb8, 0x39, 0xcf];
+        argon2.hash_password_into(x[4..].as_bytes(),SALT,&mut key[..]).unwrap();
+    } else {
+        return Err("--crypto-key's value must start with `base64:`, `file:` or `pwd:`".into());
+    }
+    Ok(key)
 }

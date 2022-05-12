@@ -520,6 +520,20 @@ struct Opt {
     /// Print measured round-trip-time to stderr after each received WebSocket pong.
     #[structopt(long = "print-ping-rtts")]
     pub print_ping_rtts: bool,
+
+    /// [A] Specify encryption/decryption key for `crypto:` specifier. Requires `base64:`, `file:` or `pwd:` prefix.
+    /// 
+    /// `file:` prefix means that Websocat should read 32-byte file and use it as a key.
+    /// `base64:` prefix means the rest of the value is base64-encoded 32-byte buffer
+    /// `pwd:` means Websocat should use argon2 derivation from the specified password as a key
+    #[cfg(feature = "crypto_peer")]
+    #[structopt(long = "crypto-key", parse(try_from_str = "websocat::crypto_peer::interpret_opt"))]
+    pub crypto_key: Option<[u8; 32]>,
+
+    /// [A] Swap encryption and decryption operations in `crypto:` specifier - encrypt on read, decrypto on write.
+    #[cfg(feature = "crypto_peer")]
+    #[structopt(long = "crypto-reverse")]
+    pub crypto_reverse: bool,
 }
 
 // TODO: make it byte-oriented/OsStr?
@@ -792,6 +806,13 @@ fn run() -> Result<()> {
                 pkcs12_der
                 pkcs12_passwd
                 tls_insecure
+            }
+        }
+        #[cfg(feature = "crypto_peer")]
+        {
+            opts! {
+                crypto_key
+                crypto_reverse
             }
         }
     };

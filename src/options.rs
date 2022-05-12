@@ -99,4 +99,9 @@ pub struct Options {
     pub announce_listens: bool,
     pub timestamp_monotonic: bool,
     pub print_ping_rtts: bool,
+
+    #[cfg(feature = "crypto_peer")]
+    pub crypto_key: Option<[u8; 32]>,
+    #[cfg(feature = "crypto_peer")]
+    pub crypto_reverse: bool,
 }
