@@ -47,7 +47,9 @@ specifier_class!(
 
 Do not not use in stream mode - packet boundaries are significant.
 
-Note that attacker may duplicate messages. Each encrypted message is 12 bytes bigger than original message.
+Note that attacker may duplicate, drop or reorder messages, including between different Websocat sessions with the same key.
+
+Each encrypted message is 12 bytes bigger than original message.
 
 Assocated --crypto-key option accepts the following prefixes:
 
