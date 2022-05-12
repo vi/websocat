@@ -46,6 +46,17 @@ specifier_class!(
 [A] Encrypts written messages and decryptes (and verifies) read messages with a static key, using ChaCha20-Poly1305 algorithm.
 
 Do not not use in stream mode - packet boundaries are significant.
+
+Assocated --crypto-key option accepts the following prefixes:
+
+- `file:` prefix means that Websocat should read 32-byte file and use it as a key.
+- `base64:` prefix means the rest of the value is base64-encoded 32-byte buffer
+- `pwd:` means Websocat should use argon2 derivation from the specified password as a key
+
+Use `--crypto-reverse` option to swap encryption and decryption.
+
+Note that `crypto:` specifier is absent in usual Websocat builds.
+You may need to build Websocat from source code with `--features=crypto_peer` for it to be available.
 "#
 );
 

@@ -43,6 +43,8 @@ FLAGS:
         --async-stdio                           [A] On UNIX, set stdin and stdout to nonblocking mode instead of
                                                 spawning a thread. This should improve performance, but may break other
                                                 programs running on the same console.
+        --crypto-reverse                        [A] Swap encryption and decryption operations in `crypto:` specifier -
+                                                encrypt on read, decrypto on write.
         --dump-spec                             [A] Instead of running, dump the specifiers representation to stdout
     -e, --set-environment                       Set WEBSOCAT_* environment variables when doing exec:/cmd:/sh-c:
                                                 Currently it's WEBSOCAT_URI and WEBSOCAT_CLIENT for
@@ -127,6 +129,8 @@ OPTIONS:
             Close connection with a reason message. This option only takes effect if --close-status-code option is
             provided as well.
         --close-status-code <close_status_code>                      Close connection with a status code.
+        --crypto-key <crypto_key>
+            [A] Specify encryption/decryption key for `crypto:` specifier. Requires `base64:`, `file:` or `pwd:` prefix.
     -H, --header <custom_headers>...
             Add custom HTTP header to websocket client request. Separate header name and value with a colon and
             optionally a single space. Can be used multiple times. Note that single -H may eat multiple further
@@ -1132,6 +1136,26 @@ Example: bind to a websocket using some remote SOCKS server
 Note that port is typically unpredictable. Use --socks5-bind-script option to know the port.
 See an example in moreexamples.md for more thorough example.
 
+
+### `crypto:`
+
+Internal name for --dump-spec: Crypto
+
+
+[A] Encrypts written messages and decryptes (and verifies) read messages with a static key, using ChaCha20-Poly1305 algorithm.
+
+Do not not use in stream mode - packet boundaries are significant.
+
+Assocated --crypto-key option accepts the following prefixes:
+
+- `file:` prefix means that Websocat should read 32-byte file and use it as a key.
+- `base64:` prefix means the rest of the value is base64-encoded 32-byte buffer
+- `pwd:` means Websocat should use argon2 derivation from the specified password as a key
+
+Use `--crypto-reverse` option to swap encryption and decryption.
+
+Note that `crypto:` specifier is absent in usual Websocat builds.
+You may need to build Websocat from source code with `--features=crypto_peer` for it to be available.
 
 
   
