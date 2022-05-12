@@ -75,7 +75,7 @@ libc = { version = "0.2" }
 tokio-named-pipes = {version="0.1.0", optional=true}
 
 [features]
-default = ["signal_handler", "tokio-process", "unix_stdio", "windows_named_pipes", "ssl"]
+default = ["signal_handler", "tokio-process", "unix_stdio", "windows_named_pipes", "ssl", "crypto_peer"]
 unix_stdio = []
 ssl = ["websocket/async-ssl", "tokio-tls", "native-tls", "readwrite", "openssl-sys"]
 signal_handler = ["tokio-signal"]
@@ -83,6 +83,7 @@ workaround1=[]
 seqpacket=[]
 windows_named_pipes=["tokio-named-pipes"]
 vendored_openssl = ["openssl-sys/vendored"]
+crypto_peer = []
 
 [target.'arm-linux-androideabi'.dependencies]
 openssl-sys = { version="0.9", features=[], optional=true }
