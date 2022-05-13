@@ -1171,9 +1171,9 @@ You may need to build Websocat from source code with `--features=crypto_peer` fo
 
 
   
-### Address types to be done:
+### Address types or specifiers to be implemeted later:
 
-`sctp:` and `ssl:`
+`sctp:`, `speedlimit:`, `quic:`
 
 ### Final example
 

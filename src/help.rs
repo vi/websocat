@@ -231,9 +231,9 @@ Some address types may be "aliases" to other address types or combinations of ov
     println!(
         r#"
   
-### Address types to be done:
+### Address types or specifiers to be implemeted later:
 
-`sctp:` and `ssl:`
+`sctp:`, `speedlimit:`, `quic:`
 
 ### Final example
 
