@@ -42,6 +42,13 @@ fn some_checks(s: &str) -> Result<()> {
         }
     }
 
+    #[cfg(not(feature = "crypto_peer"))]
+    {
+        if s.starts_with("crypto:") {
+            Err("`crypto:` support is not compiled in")?
+        }
+    }
+
     Ok(())
 }
 

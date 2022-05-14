@@ -580,6 +580,15 @@ impl WebsocatConfiguration2 {
         }
         Ok(())
     }
+    fn l_crypto(&mut self, _on_warning: &OnWarning) -> Result<()> {
+        #[cfg(feature="crypto_peer")]
+        if self.opts.crypto_key.is_some() {
+            if !self.contains_class("CryptoCLass") {
+                _on_warning("--crypto-key option is meaningless without a `crypto:` overlay");
+            }
+        }
+        Ok(())
+    }
 
     pub fn lint_and_fixup(&mut self, on_warning: OnWarning) -> Result<()> {
         let multiconnect = !self.opts.oneshot && self.s1.is_multiconnect();
@@ -601,6 +610,7 @@ impl WebsocatConfiguration2 {
         self.l_proto(&on_warning)?;
         self.l_eeof_unidir(&on_warning)?;
         self.l_udp(&on_warning)?;
+        self.l_crypto(&on_warning)?;
 
         // TODO: UDP connect oneshot mode
         // TODO: tests for the linter
