@@ -821,7 +821,6 @@ fn run() -> Result<()> {
             opts! {
                 prometheus
             }
-
         }
     };
 

@@ -49,6 +49,13 @@ fn some_checks(s: &str) -> Result<()> {
         }
     }
 
+    #[cfg(not(feature = "prometheus_peer"))]
+    {
+        if s.starts_with("metrics:") || s.starts_with("prometheus:") {
+            Err("`prometheus:` support is not compiled in")?
+        }
+    }
+
     Ok(())
 }
 

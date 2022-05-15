@@ -589,11 +589,26 @@ impl WebsocatConfiguration2 {
         }
         Ok(())
     }
+    fn l_prometheus(&mut self, _on_warning: &OnWarning) -> Result<()> {
+        #[cfg(feature="prometheus_peer")]
+        if self.opts.prometheus.is_some() {
+            if !self.contains_class("PrometheusClass") {
+                self.s2.overlays.insert(0, SpecifierNode { cls: Rc::new(crate::prometheus_peer::PrometheusClass) });
+            }
+        } else {
+            if self.contains_class("PrometheusClass") {
+                _on_warning("Using `prometheus:` overlay without `--prometheus` option is meaningless");
+            }
+        }
+        Ok(())
+    }
+
 
     pub fn lint_and_fixup(&mut self, on_warning: OnWarning) -> Result<()> {
         let multiconnect = !self.opts.oneshot && self.s1.is_multiconnect();
         let mut reuser_has_been_inserted = false;
 
+        self.l_prometheus(&on_warning)?;
         self.l_stdio(multiconnect, &mut reuser_has_been_inserted, self.opts.asyncstdio)?;
         self.l_reuser(reuser_has_been_inserted)?;
         self.l_linemode()?;
