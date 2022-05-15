@@ -77,7 +77,7 @@ See [moreexamples.md](./moreexamples.md) for further examples.
 
 |Websocat versions|Minimal Rust version|
 |----|----|
-| 1.9       | 1.48 |
+| 1.9 - 1.10| 1.46 |
 | 1.6 - 1.8 | 1.34 |
 | 1.3 - 1.5 | 1.31 |
 | 1.2       | 1.28 |
