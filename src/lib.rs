@@ -203,6 +203,9 @@ pub mod ssl_peer;
 #[cfg(feature = "crypto_peer")]
 pub mod crypto_peer;
 
+#[cfg(feature = "prometheus_peer")]
+pub mod prometheus_peer;
+
 pub mod specparse;
 
 pub type PeerOverlay = Rc<dyn Fn(Peer, L2rUser) -> BoxedNewPeerFuture>;

@@ -530,6 +530,11 @@ struct Opt {
     #[cfg(feature = "crypto_peer")]
     #[structopt(long = "crypto-reverse")]
     pub crypto_reverse: bool,
+
+    /// Expose Prometheus metrics on specified IP address and port in addition to running usual Websocat session
+    #[cfg(feature = "prometheus_peer")]
+    #[structopt(long = "prometheus")]
+    pub prometheus: Option<SocketAddr>,
 }
 
 // TODO: make it byte-oriented/OsStr?
@@ -810,6 +815,13 @@ fn run() -> Result<()> {
                 crypto_key
                 crypto_reverse
             }
+        }
+        #[cfg(feature = "prometheus_peer")]
+        {
+            opts! {
+                prometheus
+            }
+
         }
     };
 

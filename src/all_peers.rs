@@ -109,5 +109,8 @@ macro_rules! list_of_all_specifier_classes {
         $your_macro!($crate::crypto_peer::CryptoClass);
 
         $your_macro!($crate::trivial_peer::RandomClass);
+
+        #[cfg(feature = "prometheus_peer")]
+        $your_macro!($crate::prometheus_peer::PrometheusClass);
     };
 }

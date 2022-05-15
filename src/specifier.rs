@@ -237,7 +237,7 @@ impl ConstructParams {
         std::cell::RefMut::map(
             self.global_state.borrow_mut(),
             |x|{
-                x.0.entry().or_insert(def())
+                x.0.entry::<T>().or_insert_with(def)
             }
         )
     }

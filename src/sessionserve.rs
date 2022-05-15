@@ -147,6 +147,17 @@ where
         left_to_right: L2rUser::FillIn(l2r.clone()),
     }));
 
+
+    #[cfg(feature = "prometheus_peer")]
+    {
+        if let Some(psa) = opts1.prometheus {
+            let _ /*: crate::prometheus_peer::GlobalState*/ = cp.as_ref().borrow().global(crate::prometheus_peer::new_global_stats);
+            if let Err(e) = crate::prometheus_peer::serve(psa) {
+                error!("Error listening Prometheus exposer socket: {}", e);
+            }
+        }
+    }
+
     let mut left = s1.construct(cp.borrow().clone());
 
     if opts2.oneshot {

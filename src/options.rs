@@ -104,4 +104,7 @@ pub struct Options {
     pub crypto_key: Option<[u8; 32]>,
     #[cfg(feature = "crypto_peer")]
     pub crypto_reverse: bool,
+
+    #[cfg(feature = "prometheus_peer")]
+    pub prometheus: Option<SocketAddr>,
 }

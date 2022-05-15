@@ -24,7 +24,7 @@ const BAD_METHOD :&[u8] = b"HTTP/1.1 400 Bad Request\r\nServer: websocat\r\nCont
 
 const BAD_URI_FORMAT :&[u8] = b"HTTP/1.1 400 Bad Request\r\nServer: websocat\r\nContent-Type: text/plain\r\nConnection: close\r\n\r\nURI should be an absolute path\n";
 
-fn get_static_file_reply(len: Option<u64>, ct: &str) -> Vec<u8> {
+pub fn get_static_file_reply(len: Option<u64>, ct: &str) -> Vec<u8> {
     let mut q = Vec::with_capacity(256);
     q.extend_from_slice(b"HTTP/1.1 200 OK\r\nServer: websocat\r\nContent-Type: ");
     q.extend_from_slice(ct.as_bytes());
