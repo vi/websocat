@@ -29,7 +29,7 @@ Some address types may be "aliases" to other address types or combinations of ov
 
 ```
 
-websocat 1.9.0
+websocat 1.10.0
 Vitaly "_Vi" Shukela <vi0oss@gmail.com>
 Command-line client for web sockets, like netcat/curl/socat for ws://.
 
@@ -131,6 +131,7 @@ OPTIONS:
         --close-status-code <close_status_code>                      Close connection with a status code.
         --crypto-key <crypto_key>
             [A] Specify encryption/decryption key for `crypto:` specifier. Requires `base64:`, `file:` or `pwd:` prefix.
+
     -H, --header <custom_headers>...
             Add custom HTTP header to websocket client request. Separate header name and value with a colon and
             optionally a single space. Can be used multiple times. Note that single -H may eat multiple further
@@ -170,6 +171,9 @@ OPTIONS:
             See moreexamples.md for more info.
         --pkcs12-passwd <pkcs12_passwd>
             Password for --pkcs12-der pkcs12 archive. Required on Mac.
+
+        --prometheus <prometheus>
+            Expose Prometheus metrics on specified IP address and port in addition to running usual Websocat session
 
         --request-header <request_headers>...
             [A] Specify HTTP request headers for `http-request:` specifier.
@@ -862,6 +866,9 @@ Generage random bytes when being read from, discard written bytes.
     websocat -b random: ws://127.0.0.1/flood
 
 
+
+
+
 # Full list of overlays
 
 "Advanced" overlays denoted by `[A]` marker.
@@ -1150,7 +1157,7 @@ See an example in moreexamples.md for more thorough example.
 Internal name for --dump-spec: Crypto
 
 
-[A] Encrypts written messages and decryptes (and authenticates) read messages with a static key, using ChaCha20-Poly1305 algorithm.
+[A] Encrypts written messages and decryptes (and verifies) read messages with a static key, using ChaCha20-Poly1305 algorithm.
 
 Do not not use in stream mode - packet boundaries are significant.
 
@@ -1168,6 +1175,19 @@ Use `--crypto-reverse` option to swap encryption and decryption.
 
 Note that `crypto:` specifier is absent in usual Websocat builds.
 You may need to build Websocat from source code with `--features=crypto_peer` for it to be available.
+
+
+### `prometheus:`
+
+Aliases: `metrics:`  
+Internal name for --dump-spec: Prometheus
+
+
+[A] Account connections, messages, bytes and other data and expose Prometheus metrics on a separate port.
+
+Not included by default, build a crate with `--features=prometheus_peer` to have it.
+You can also use `--features=prometheus_peer,prometheus/process` to have additional metrics.
+
 
 
   
