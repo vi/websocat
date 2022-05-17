@@ -152,7 +152,8 @@ pub fn serve(psa: SocketAddr) -> crate::Result<()> {
 
     std::thread::spawn(move || {
         for s in tcp.incoming() {
-            if let Ok(mut s) = s {
+            if let Ok(s) = s {
+                let mut s = std::io::BufWriter::new(s); 
                 let stats = prometheus::default_registry().gather();
                 let header = get_static_file_reply(None, "text/plain; version=0.0.4");
                 let _ = s.write_all(&header[..]);
