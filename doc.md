@@ -1191,6 +1191,19 @@ Internal name for --dump-spec: Prometheus
 Not included by default, build a crate with `--features=prometheus_peer` to have it.
 You can also use `--features=prometheus_peer,prometheus/process` to have additional metrics.
 
+### `exit_on_specific_byte:`
+
+Internal name for --dump-spec: ExitOnSpecificByte
+
+[A] Turn specific byte into a EOF, allowing user to escape interactive Websocat session
+
+when terminal is set to raw mode. Works only bytes read from the overlay, not on the written bytes.
+
+
+Example: `(stty raw -echo; websocat -b exit_on_specific_byte:stdio:127.0.0.1:23; stty sane)`
+
+
+
 
 
   
@@ -1211,14 +1224,5 @@ then forward resulting connection to the TCP port.
 
 (Excercise to the reader: manage to make it actually connect to 5678).
 
-### `exit_on_specific_byte:`
-
-Internal name for --dump-spec: ExitOnSpecificByte
-
-
-[A] Turn specific byte into a EOF, allowing user to escape interactive Websocat session
-when terminal is set to raw mode. Works only bytes read from the overlay, not on the written bytes.
---
-Example: `(stty raw -echo; websocat -b exit_on_specific_byte:stdio:127.0.0.1:23; stty sane)`
 
 

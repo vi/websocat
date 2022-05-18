@@ -466,6 +466,7 @@ when terminal is set to raw mode. Works only bytes read from the overlay, not on
 Default byte is 1C which is typically triggered by Ctrl+\.
 
 Example: `(stty raw -echo; websocat -b exit_on_specific_byte:stdio:127.0.0.1:23; stty sane)`
+
 "#
 );
 
