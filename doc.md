@@ -125,6 +125,9 @@ OPTIONS:
             [A] Number of pending queued messages for broadcast reuser [default: 16]
 
     -B, --buffer-size <buffer_size>                                  Maximum message size, in bytes [default: 65536]
+        --byte-to-exit-on <byte_to_exit_on>
+            [A] Override the byte which byte_to_exit_on: overlay looks for [default: 28]
+
         --close-reason <close_reason>
             Close connection with a reason message. This option only takes effect if --close-status-code option is
             provided as well.
@@ -1207,4 +1210,15 @@ then connect to a websocket using previous step as a transport,
 then forward resulting connection to the TCP port.
 
 (Excercise to the reader: manage to make it actually connect to 5678).
+
+### `exit_on_specific_byte:`
+
+Internal name for --dump-spec: ExitOnSpecificByte
+
+
+[A] Turn specific byte into a EOF, allowing user to escape interactive Websocat session
+when terminal is set to raw mode. Works only bytes read from the overlay, not on the written bytes.
+--
+Example: `(stty raw -echo; websocat -b exit_on_specific_byte:stdio:127.0.0.1:23; stty sane)`
+
 

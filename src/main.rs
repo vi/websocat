@@ -535,6 +535,10 @@ struct Opt {
     #[cfg(feature = "prometheus_peer")]
     #[structopt(long = "prometheus")]
     pub prometheus: Option<SocketAddr>,
+
+    /// [A] Override the byte which byte_to_exit_on: overlay looks for
+    #[structopt(long = "byte-to-exit-on", default_value = "28")]
+    byte_to_exit_on: u8,
 }
 
 // TODO: make it byte-oriented/OsStr?
@@ -800,6 +804,7 @@ fn run() -> Result<()> {
             announce_listens
             timestamp_monotonic
             print_ping_rtts
+            byte_to_exit_on
         );
         #[cfg(feature = "ssl")]
         {

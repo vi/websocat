@@ -107,4 +107,7 @@ pub struct Options {
 
     #[cfg(feature = "prometheus_peer")]
     pub prometheus: Option<SocketAddr>,
+
+    #[default = 0x1c]
+    pub byte_to_exit_on: u8,
 }

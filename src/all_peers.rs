@@ -112,5 +112,7 @@ macro_rules! list_of_all_specifier_classes {
 
         #[cfg(feature = "prometheus_peer")]
         $your_macro!($crate::prometheus_peer::PrometheusClass);
+
+        $your_macro!($crate::trivial_peer::ExitOnSpecificByteClass);
     };
 }

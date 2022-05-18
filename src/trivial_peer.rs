@@ -433,3 +433,68 @@ impl Read for RandomReader {
         Ok(buf.len())
     }
 }
+
+
+#[derive(Debug)]
+pub struct ExitOnSpecificByte<T: Specifier>(pub T);
+impl<T: Specifier> Specifier for ExitOnSpecificByte<T> {
+    fn construct(&self, cp: ConstructParams) -> PeerConstructor {
+        let inner = self.0.construct(cp.clone());
+        inner.map(move |p, _l2r| {
+            Box::new(futures::future::ok(Peer(Box::new(ExitOnSpecificByteReader { 
+                inner: p.0,
+                the_byte: cp.program_options.byte_to_exit_on,
+                eof_triggered: false,
+            }), p.1, p.2)))
+        })
+    }
+    specifier_boilerplate!(noglobalstate has_subspec);
+    self_0_is_subspecifier!(proxy_is_multiconnect);
+}
+specifier_class!(
+    name = ExitOnSpecificByteClass,
+    target = ExitOnSpecificByte,
+    prefixes = ["exit_on_specific_byte:"],
+    arg_handling = subspec,
+    overlay = true,
+    StreamOriented,
+    MulticonnectnessDependsOnInnerType,
+    help = r#"
+[A] Turn specific byte into a EOF, allowing user to escape interactive Websocat session
+when terminal is set to raw mode. Works only bytes read from the overlay, not on the written bytes.
+
+Default byte is 1C which is typically triggered by Ctrl+\.
+
+Example: `(stty raw -echo; websocat -b exit_on_specific_byte:stdio:127.0.0.1:23; stty sane)`
+"#
+);
+
+pub struct ExitOnSpecificByteReader { 
+    inner: Box<dyn AsyncRead>,
+    the_byte: u8,
+    eof_triggered: bool,
+}
+
+
+impl AsyncRead for ExitOnSpecificByteReader {}
+
+impl Read for ExitOnSpecificByteReader {
+    fn read(&mut self, buf: &mut [u8]) -> std::result::Result<usize, std::io::Error> {
+        if self.eof_triggered {
+            return Ok(0);
+        }
+        let ret = self.inner.read(buf);
+
+        if let Ok(ref sz) = ret {
+            let buf = &buf[..*sz];
+            if let Some((pos,_)) = buf.iter().enumerate().find(|x|*x.1==self.the_byte) {
+                log::info!("Special byte detected. Triggering EOF.");
+                self.eof_triggered = true;
+                return Ok(pos);
+            }   
+        }
+
+        ret
+    }
+}
+
