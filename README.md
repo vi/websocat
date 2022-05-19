@@ -442,3 +442,4 @@ See also
 * [wscat](https://github.com/websockets/wscat)
 * [websocketd](https://github.com/joewalnes/websocketd)
 * [wsd](https://github.com/alexanderGugel/wsd)
+* [websocket.sh](https://github.com/meefik/websocket.sh) shell over WebSocket based on BusyBox tools for embedded devices
