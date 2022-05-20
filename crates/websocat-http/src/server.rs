@@ -80,7 +80,9 @@ async fn handle_request_for_upgrade(
                 anyhow::bail!("http-server is in websocket mode `Upgrade:` is not `websocket`");
             }
             if !v.as_bytes().eq_ignore_ascii_case(b"13") {
-                anyhow::bail!("http-server is in websocket mode `Sec-WebSocket-Version` is not `13`");
+                anyhow::bail!(
+                    "http-server is in websocket mode `Sec-WebSocket-Version` is not `13`"
+                );
             }
             let accept = crate::util::derive_websocket_accept_key(k.as_bytes());
             Some(accept)
@@ -202,6 +204,105 @@ impl websocat_api::RunnableNode for HttpServer {
         Ok(websocat_api::Bipipe {
             r,
             w,
+            closing_notification: cn,
+        })
+    }
+}
+
+#[derive(Debug, derivative::Derivative, WebsocatNode)]
+#[websocat_node(official_name = "http-server2")]
+#[auto_populate_in_allclasslist]
+#[derivative(Clone)]
+pub struct HttpServer2 {
+    /// IO bytestream node to use
+    inner: NodeId,
+}
+
+#[async_trait]
+impl websocat_api::RunnableNode for HttpServer2 {
+    async fn run(
+        self: std::pin::Pin<std::sync::Arc<Self>>,
+        ctx: websocat_api::RunContext,
+        multiconn: Option<websocat_api::ServerModeContext>,
+    ) -> Result<websocat_api::Bipipe> {
+        let mut io = None;
+        let mut cn = None;
+
+        let io_ = ctx.nodes[self.inner]
+            .clone()
+            .upgrade()?
+            .run(ctx.clone(), multiconn)
+            .await?;
+        cn = io_.closing_notification;
+        io = Some(match (io_.r, io_.w) {
+            (websocat_api::Source::ByteStream(r), websocat_api::Sink::ByteStream(w)) => {
+                readwrite::ReadWriteTokio::new(r, w)
+            }
+            _ => {
+                anyhow::bail!("HTTP server requires a bytestream-based inner node");
+            }
+        });
+
+        let (rq_tx, rq_rx) =
+            tokio::sync::mpsc::channel::<Result<websocat_api::HttpRequestWithResponseSlot>>(1);
+
+        let http = hyper::server::conn::Http::new();
+
+        let service = hyper::service::service_fn(move |rq| {
+            let rq_tx = rq_tx.clone();
+            async move {
+                let (rs_tx, rs_rx) = tokio::sync::oneshot::channel();
+                if let Err(e) = rq_tx.send(Ok((rq, rs_tx))).await {
+                    tracing::error!("Failed to send request to the outer node");
+                    return Ok::<_, anyhow::Error>(
+                        hyper::Response::builder()
+                            .status(500)
+                            .body(hyper::Body::empty())?,
+                    );
+                }
+                match rs_rx.await {
+                    Ok(x) => Ok(x),
+                    Err(_) => {
+                        tracing::error!(
+                            "Failed to receive any kind of response from the outer node"
+                        );
+                        Ok(hyper::Response::builder()
+                            .status(500)
+                            .body(hyper::Body::empty())?)
+                    }
+                }
+            }
+        });
+        let conn = http.serve_connection(io.unwrap(), service);
+
+        let conn = conn.with_upgrades();
+
+        use websocat_api::futures::TryFutureExt;
+        tokio::spawn(conn.map_err(|e| {
+            tracing::error!("hyper server error: {}", e);
+            ()
+        }));
+
+        let r = futures::stream::unfold(rq_rx, move |mut rq_rx| async move {
+            let x: Option<Result<websocat_api::HttpRequestWithResponseSlot>> = rq_rx.recv().await;
+            if x.is_none() {
+                tracing::debug!("HTTP request stream is finished");
+            }
+            x.map(move |rq| {
+                if let Ok(ref rq) = rq {
+                    tracing::debug!("Incoming HTTP request {} {}", rq.0.method(), rq.0.uri());
+                } else {
+                    tracing::error!(
+                        "Error instead of HTTP request? This should be an unreacahble message"
+                    );
+                }
+                (rq, rq_rx)
+            })
+        });
+
+        Ok(websocat_api::Bipipe {
+            r: websocat_api::Source::Http(Box::pin(r)),
+            w: websocat_api::Sink::None,
             closing_notification: cn,
         })
     }

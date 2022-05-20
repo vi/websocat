@@ -467,29 +467,26 @@ impl std::fmt::Debug for ClassRegistrar {
     }
 }
 
+pub type HttpRequestWithResponseSlot = (http::Request<hyper::Body>, tokio::sync::oneshot::Sender<http::Response<hyper::Body>>);
 pub type ByteStreamSource = Pin<Box<dyn AsyncRead + Send  + 'static>>;
 pub type DatagramSource = Pin<Box<dyn futures::stream::Stream<Item=Result<bytes::Bytes>> + Send  + 'static>>;
-pub type RequestSource = Pin<Box<dyn futures::stream::Stream<Item=Result<http::Request<hyper::Body>>> + Send + 'static>>;
-pub type ResponseSource = Pin<Box<dyn futures::stream::Stream<Item=Result<http::Response<hyper::Body>>> + Send + 'static>>;
+pub type HttpSource = Pin<Box<dyn futures::stream::Stream<Item=Result<HttpRequestWithResponseSlot>> + Send + 'static>>;
 pub type ByteStreamSink = Pin<Box<dyn AsyncWrite + Send  + 'static>>;
 pub type DatagramSink = Pin<Box<dyn futures::sink::Sink<bytes::Bytes, Error=anyhow::Error> + Send  + 'static>>;
-pub type RequestSink = Pin<Box<dyn futures::sink::Sink<http::Request<hyper::Body>, Error=anyhow::Error> + Send + 'static>>;
-pub type ResponseSink = Pin<Box<dyn futures::sink::Sink<http::Response<hyper::Body>, Error=anyhow::Error> + Send + 'static>>;
+pub type HttpSink = Pin<Box<dyn futures::sink::Sink<HttpRequestWithResponseSlot, Error=anyhow::Error> + Send + 'static>>;
 pub type ClosingNotification = Pin<Box<dyn Future<Output=()> + Send + 'static>>;
 
 pub enum Source {
     ByteStream(ByteStreamSource),
     Datagrams(DatagramSource),
-    Requests(RequestSource),
-    Responses(ResponseSource),
+    Http(HttpSource),
     None,
 }
 
 pub enum Sink {
     ByteStream(ByteStreamSink),
     Datagrams(DatagramSink),
-    Requests(RequestSink),
-    Responses(ResponseSink),
+    Http(HttpSink),
     None,
 }
 
@@ -505,15 +502,13 @@ impl std::fmt::Debug for Bipipe {
         match self.r {
             Source::ByteStream(..) => write!(f, "(r=ByteStream")?,
             Source::Datagrams(..) =>  write!(f, "(r=Datagrams")?,
-            Source::Requests(..) =>  write!(f, "(r=Requests")?,
-            Source::Responses(..) =>  write!(f, "(r=Resonses")?,
+            Source::Http(..) =>  write!(f, "(r=Http")?,
             Source::None =>  write!(f, "(r=None")?,
         };
         match self.w {
             Sink::ByteStream(..) => write!(f, " w=ByteStream")?,
             Sink::Datagrams(..) =>  write!(f, " w=Datagrams")?,
-            Sink::Requests(..) =>  write!(f, " w=Requests")?,
-            Sink::Responses(..) =>  write!(f, " w=Responses")?,
+            Sink::Http(..) =>  write!(f, " w=Http")?,
             Sink::None =>  write!(f, " w=None")?,
         };
         if self.closing_notification.is_some() {

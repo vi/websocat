@@ -9,7 +9,9 @@ pub fn all_node_classes() -> websocat_api::ClassRegistrar {
     reg.register::<websocat_basic::io_std::Stdio>();
     reg.register::<websocat_http::client::HttpClient>();
     reg.register_macro::<websocat_http::client::AutoLowlevelHttpClient>();
+    reg.register::<websocat_http::client::HttpClient2>();
     reg.register::<websocat_http::server::HttpServer>();
+    reg.register::<websocat_http::server::HttpServer2>();
     reg.register::<websocat_http::Header>();
     reg.register::<websocat_ioless::Identity>();
     reg.register::<websocat_ioless::Mirror>();

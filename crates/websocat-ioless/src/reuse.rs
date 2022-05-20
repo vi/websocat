@@ -95,8 +95,7 @@ impl RunnableNode for ReuseBroadcast {
                         
                         Some(tx2)
                     }
-                    Source::Requests(_x) => todo!(),
-                    Source::Responses(_x) => todo!(),
+                    Source::Http(_x) => todo!(),
                     Source::None => {None}
                 };
 
@@ -130,8 +129,7 @@ impl RunnableNode for ReuseBroadcast {
                         
                         Some(tx1)
                     }
-                    Sink::Requests(_x) => todo!(),
-                    Sink::Responses(_x) => todo!(),
+                    Sink::Http(_x) => todo!(),
                     Sink::None => {None}
                 };
 

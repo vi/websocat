@@ -87,8 +87,7 @@ impl RunnableNode for Spawner {
                             let dgrsink = match p.w {
                                 Sink::ByteStream(_) => anyhow::bail!("spawner supports only datagram-, requests- and responses-based nodes. Wrap your inner node in some sort of adapter."),
                                 Sink::Datagrams(x) => x,
-                                Sink::Requests(_x) => todo!(),
-                                Sink::Responses(_x) => todo!(),
+                                Sink::Http(_x) => todo!(),
                                 Sink::None => anyhow::bail!("spawner is not meaningful for unwriteable nodes."),
                             };
                             let dgrsrc = match (p.r, no_replies) {
@@ -98,13 +97,12 @@ impl RunnableNode for Spawner {
                                     tracing::warn!("spawner's inner node is write-only. Specify `n_replies` option to `0` to ignore this warning.");
                                     None
                                 }
-                                (Source::Datagrams(_) | Source::Requests(_) | Source::Responses(_), true) => {
+                                (Source::Datagrams(_) | Source::Http(_), true) => {
                                     tracing::debug!("spawner's inner node is not write-only, but we have `no_replies` option, so ignoring the replies stream.");
                                     None
                                 }
                                 (Source::Datagrams(x), false) => Some(x),
-                                (Source::Requests(_x), false) => todo!(),
-                                (Source::Responses(_x), false) => todo!(),
+                                (Source::Http(_x), false) => todo!(),
                             };
         
                             if let Some(mut dgsrc) = dgrsrc {
