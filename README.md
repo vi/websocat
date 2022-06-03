@@ -79,9 +79,9 @@ See [moreexamples.md](./moreexamples.md) for further examples.
 
 There are multiple options for installing WebSocat. From easy to hard:
 
-* If you're on Linux Debian or Ubuntu (or other dpkg-based), try downloading a pre-build deb package from [GitHub releases][releases] and install from GUI or with command like `gdebi websocat_..._.deb`
 * If you're on Fedora, you can install WebSocat from [Copr](https://copr.fedorainfracloud.org/coprs/atim/websocat/): `sudo dnf copr enable atim/websocat -y && sudo dnf install websocat`
 * If you're on FreeBSD, you may install WebSocat with the following command: `pkg install websocat`.
+* If you're on Linux Debian or Ubuntu (or other dpkg-based), try downloading a pre-build executable from [GitHub releases][releases]. Websocat is not yet officially packaged for Debian. Some older versions of Websocat may also have Debian package files avaialble on Github releases.
 * If you're on macOS, you can do:
   * `brew install websocat` using [Homebrew](https://brew.sh)
   * `sudo port install websocat` using [MacPorts](https://www.macports.org)
