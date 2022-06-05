@@ -1200,7 +1200,7 @@ Internal name for --dump-spec: ExitOnSpecificByte
 when terminal is set to raw mode. Works only bytes read from the overlay, not on the written bytes.
 
 
-Example: `(stty raw -echo; websocat -b exit_on_specific_byte:stdio:127.0.0.1:23; stty sane)`
+Example: `(stty raw -echo; websocat -b exit_on_specific_byte:stdio: tcp:127.0.0.1:23; stty sane)`
 
 
 
