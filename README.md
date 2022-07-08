@@ -89,29 +89,34 @@ There are multiple options for installing WebSocat. From easy to hard:
 * Install the [Rust toolchain](https://rustup.rs/) and do `cargo install --features=ssl websocat`. If something fails with a `-sys` crate, try without `--features=ssl`;
 * Build Websocat from source code (see below), then move `target/release/websocat` somewhere to the PATH.
 
-## Rust versions
-
-|Websocat versions|Minimal Rust version|
-|----|----|
-| 1.9 - 1.10| 1.46 |
-| 1.6 - 1.8 | 1.34 |
-| 1.3 - 1.5 | 1.31 |
-| 1.2       | 1.28 |
-| 1.0-1.1   | 1.23 |
-
-Early non-async versions of Websocat should be buildable by even older rustc.  
-Note that old versions of Websocat may misbehave if built by Rust 1.48 or later due to https://github.com/rust-lang/rust/pull/71274/.
-
-
 Pre-built binaries for Linux (usual and musl), Windows, OS X and Android are available on the [releases page](https://github.com/vi/websocat/releases).
 
 
 Building from source code
 ---
 
-1. Install the [Rust toolchain](https://rustup.rs/)
+1. Install the [Rust toolchain](https://rustup.rs/). Note that Websocat v1 (i.e. the current stable version) may fail to support too new Rust due to its old dependencies which can be broken by e.g. [this](https://github.com/rust-lang/rust/pull/78802).
 2. `cargo build --release --features=ssl`.
 3. Find the executable somewhere under `target/`, e.g. in `target/release/websocat`.
+
+### Rust versions
+
+
+|Websocat versions|Minimal Rust version|Maximal Rust version|
+|----|----|----|
+| 1.9 - 1.10| 1.46 |      |
+| 1.6 - 1.8 | 1.34 |      |
+| 1.3 - 1.5 | 1.31 | 1.47 |
+| 1.2       | 1.28 | 1.47 |
+| 1.0-1.1   | 1.23 | 1.47 |
+
+
+
+Early non-async versions of Websocat should be buildable by even older rustc.  
+
+Note that old versions of Websocat may misbehave if built by Rust 1.48 or later due to https://github.com/rust-lang/rust/pull/71274/.
+
+
 
 
 SSL on Android
