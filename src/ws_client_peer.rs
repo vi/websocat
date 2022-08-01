@@ -12,7 +12,7 @@ use self::websocket::client::Url;
 
 use super::{box_up_err, peer_err, peer_strerr, BoxedNewPeerFuture, Peer, Result};
 
-use super::ws_peer::{PeerForWs};
+use super::ws_peer::PeerForWs;
 use super::{once, ConstructParams, Options, PeerConstructor, Specifier};
 
 use self::hyper::header::Headers;
@@ -171,7 +171,7 @@ where
         after_connect
             .map(move |(duplex, _)| {
                 info!("Connected to ws",);
-                let close_on_shutdown =  !opts.websocket_dont_close;
+                let close_on_shutdown = !opts.websocket_dont_close;
                 super::ws_peer::finish_building_ws_peer(&*opts, duplex, close_on_shutdown, None)
             })
             .map_err(box_up_err),
@@ -183,17 +183,42 @@ pub fn get_ws_client_peer(uri: &Url, opts: Rc<Options>) -> BoxedNewPeerFuture {
 
     #[allow(unused)]
     let tls_insecure = opts.tls_insecure;
+    #[allow(unused)]
+    let client_ident = opts.pkcs12_der.clone();
+    #[allow(unused)]
+    let client_ident_passwd = opts.pkcs12_passwd.clone();
+
+    #[cfg(feature = "ssl")]
+    let identity = if let Some(client_ident) = client_ident {
+        super::ssl_peer::native_tls::Identity::from_pkcs12(
+            &client_ident,
+            &client_ident_passwd.unwrap_or("".to_string()),
+        )
+        .map_err(|e| {
+            error!(
+                "Unable to parse client identity: {}\nContinuing without client identity",
+                e
+            )
+        })
+        .ok()
+    } else {
+        None
+    };
+
     get_ws_client_peer_impl(uri, opts, |before_connect| {
         #[cfg(feature = "ssl")]
+        let mut builder_ = super::ssl_peer::native_tls::TlsConnector::builder();
+        #[cfg(feature = "ssl")]
+        let builder = builder_
+            .danger_accept_invalid_certs(tls_insecure)
+            .danger_accept_invalid_hostnames(tls_insecure);
+
+        #[cfg(feature = "ssl")]
         let after_connect = {
-            let mut tls_opts = None;
-            if tls_insecure {
-                tls_opts = Some(
-                    super::ssl_peer::native_tls::TlsConnector::builder()
-                        .danger_accept_invalid_certs(true)
-                        .danger_accept_invalid_hostnames(true)
-                        .build()?,
-                );
+            let tls_opts = if let Some(client_ident) = identity {
+                Some(builder.identity(client_ident).build()?)
+            } else {
+                Some(builder.build()?)
             };
             before_connect.async_connect(tls_opts)
         };

@@ -471,8 +471,8 @@ impl WebsocatConfiguration2 {
 
     #[cfg(feature = "ssl")]
     fn l_ssl(&mut self, _on_warning: &OnWarning) -> Result<()> {
-        if self.contains_class("TlsAcceptClass") ^ self.opts.pkcs12_der.is_some() {
-            Err("SSL listerer and --pkcs12-der option should go together")?;
+        if self.opts.pkcs12_der.is_some() && !self.contains_class("WsClientSecureClass") && !self.contains_class("TlsAcceptClass") {
+            Err("--pkcs12-der must occur either with SSL listener or SSL client connector")?;
         }
         #[cfg(target_os = "macos")]
         {
