@@ -104,8 +104,8 @@ Building from source code
 
 |Websocat versions|Minimal Rust version|Maximal Rust version|
 |----|----|----|
-| 1.9 - 1.10| 1.46 |      |
-| 1.6 - 1.8 | 1.34 |      |
+| 1.9 - 1.11| 1.46 | maybe 1.63 |
+| 1.6 - 1.8 | 1.34 | maybe 1.63  |
 | 1.3 - 1.5 | 1.31 | 1.47 |
 | 1.2       | 1.28 | 1.47 |
 | 1.0-1.1   | 1.23 | 1.47 |
@@ -116,7 +116,9 @@ Early non-async versions of Websocat should be buildable by even older rustc.
 
 Note that old versions of Websocat may misbehave if built by Rust 1.48 or later due to https://github.com/rust-lang/rust/pull/71274/.
 
+It may be not a good idea to build v1.x line of Websocat with Rust 1.64 due to [IP address representation refactor]. It may expose previously hidden undefined behaviour in legacy depedencies.
 
+[ipaddr]:https://github.com/rust-lang/rust/pull/78802
 
 
 SSL on Android
