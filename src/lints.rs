@@ -192,7 +192,7 @@ impl WebsocatConfiguration2 {
                 }
             }
             (IsItself, IsItself) => {
-                info!("Special mode, expection from usual one-stdio rule. Acting like `cat(1)`");
+                info!("Special mode, exception from usual one-stdio rule. Acting like `cat(1)`");
                 self.s2 = SpecifierStack::from_str("mirror:")?;
                 if self.opts.unidirectional ^ self.opts.unidirectional_reverse {
                     self.opts.unidirectional = false;
@@ -209,11 +209,11 @@ impl WebsocatConfiguration2 {
         {
             if r#async {
                 if self.s1.addrtype.cls.get_name() == "StdioClass" {
-                    debug!("Substituding StdioClass with AsyncStdioClass at the left");
+                    debug!("Substituting StdioClass with AsyncStdioClass at the left");
                     self.s1.addrtype = SpecifierNode{cls:Rc::new(crate::stdio_peer::AsyncStdioClass)};
                 } 
                 if self.s2.addrtype.cls.get_name() == "StdioClass" {
-                    debug!("Substituding StdioClass with AsyncStdioClass at the right");
+                    debug!("Substituting StdioClass with AsyncStdioClass at the right");
                     self.s2.addrtype = SpecifierNode{cls:Rc::new(crate::stdio_peer::AsyncStdioClass)};
                 } 
             }
@@ -508,7 +508,7 @@ impl WebsocatConfiguration2 {
             if self.opts.unidirectional_reverse || self.opts.exit_on_eof {
                 // OK
             } else {
-                _on_warning("--ping-interval is currenty not very effective without -E or -U")
+                _on_warning("--ping-interval is currently not very effective without -E or -U")
             }
         }
         if self.opts.print_ping_rtts && self.opts.ws_ping_interval.is_none() {

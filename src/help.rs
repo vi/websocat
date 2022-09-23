@@ -231,7 +231,7 @@ Some address types may be "aliases" to other address types or combinations of ov
     println!(
         r#"
   
-### Address types or specifiers to be implemeted later:
+### Address types or specifiers to be implemented later:
 
 `sctp:`, `speedlimit:`, `quic:`
 
@@ -246,7 +246,7 @@ then accept a websocket connection over the previous websocket used as a transpo
 then connect to a websocket using previous step as a transport,
 then forward resulting connection to the TCP port.
 
-(Excercise to the reader: manage to make it actually connect to 5678).
+(Exercise to the reader: manage to make it actually connect to 5678).
 "#
     );
 }

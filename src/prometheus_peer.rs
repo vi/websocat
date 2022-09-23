@@ -24,12 +24,12 @@ use prometheus::{Encoder, IntCounter, Histogram};
 pub struct GlobalStats {
     /// Number of times write function was called
     w_msgs: IntCounter,
-    /// Nuber of times read function was called
+    /// Number of times read function was called
     r_msgs: IntCounter,
 
-    /// Total nubmer of written bytes to the `prometheus:` node
+    /// Total number of written bytes to the `prometheus:` node
     w_bytes: IntCounter,
-    /// Total nubmer of read bytes from the `prometheus:` node
+    /// Total number of read bytes from the `prometheus:` node
     r_bytes: IntCounter,
 
     /// Number of times `prometheus:` overlay was instantiated

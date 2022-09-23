@@ -69,7 +69,7 @@ specifier_class!(
     StreamOriented,
     SingleConnect,
     help = r#"
-Like `asyncstdio:`, but intented for inetd(8) usage. [A]
+Like `asyncstdio:`, but intended for inetd(8) usage. [A]
 
 Automatically enables `-q` (`--quiet`) mode.
 

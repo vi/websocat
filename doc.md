@@ -405,7 +405,7 @@ Example: SSH transport
 Internal name for --dump-spec: Inetd
 
 
-Like `asyncstdio:`, but intented for inetd(8) usage. [A]
+Like `asyncstdio:`, but intended for inetd(8) usage. [A]
 
 Automatically enables `-q` (`--quiet`) mode.
 
@@ -1168,7 +1168,7 @@ Note that attacker may duplicate, drop or reorder messages, including between di
 
 Each encrypted message is 12 bytes bigger than original message.
 
-Assocated --crypto-key option accepts the following prefixes:
+Associated --crypto-key option accepts the following prefixes:
 
 - `file:` prefix means that Websocat should read 32-byte file and use it as a key.
 - `base64:` prefix means the rest of the value is base64-encoded 32-byte buffer
@@ -1207,7 +1207,7 @@ Example: `(stty raw -echo; websocat -b exit_on_specific_byte:stdio: tcp:127.0.0.
 
 
   
-### Address types or specifiers to be implemeted later:
+### Address types or specifiers to be implemented later:
 
 `sctp:`, `speedlimit:`, `quic:`
 
@@ -1222,7 +1222,7 @@ then accept a websocket connection over the previous websocket used as a transpo
 then connect to a websocket using previous step as a transport,
 then forward resulting connection to the TCP port.
 
-(Excercise to the reader: manage to make it actually connect to 5678).
+(Exercise to the reader: manage to make it actually connect to 5678).
 
 
 

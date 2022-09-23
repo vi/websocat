@@ -95,7 +95,7 @@ impl WebsocatConfiguration2 {
     }
 }
 
-/// An immutable chain of fucntions that results in a `Future`s or `Streams` that rely on each other.
+/// An immutable chain of functions that results in a `Future`s or `Streams` that rely on each other.
 /// This is somewhat like a frozen form of `WebsocatConfiguration2`.
 pub struct WebsocatConfiguration3 {
     pub opts: Options,
