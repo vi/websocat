@@ -51,7 +51,7 @@ Note that attacker may duplicate, drop or reorder messages, including between di
 
 Each encrypted message is 12 bytes bigger than original message.
 
-Assocated --crypto-key option accepts the following prefixes:
+Associated --crypto-key option accepts the following prefixes:
 
 - `file:` prefix means that Websocat should read 32-byte file and use it as a key.
 - `base64:` prefix means the rest of the value is base64-encoded 32-byte buffer

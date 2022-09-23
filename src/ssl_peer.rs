@@ -203,7 +203,7 @@ pub fn ssl_accept(inner_peer: Peer, _l2r: L2rUser, progopt: Rc<Options>) -> Boxe
     let der = progopt
         .pkcs12_der
         .as_ref()
-        .expect("lint should have cought the missing pkcs12_der option");
+        .expect("lint should have caught the missing pkcs12_der option");
     let passwd = progopt
         .pkcs12_passwd
         .as_ref()
