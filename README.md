@@ -110,7 +110,7 @@ Building from source code
 | 1.2       | 1.28 | 1.47 |
 | 1.0-1.1   | 1.23 | 1.47 |
 
-
+Note that building with legacy Rust version (e.g. 1.46) may require manually copying `Cargo.lock.legacy` to `Cargo.lock` prior to the building.
 
 Early non-async versions of Websocat should be buildable by even older rustc.  
 
