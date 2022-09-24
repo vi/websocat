@@ -32,6 +32,122 @@ type WsSource<T> = futures::stream::SplitStream<
     tokio_codec::Framed<T, websocket::r#async::MessageCodec<websocket::OwnedMessage>>,
 >;
 
+#[derive(Copy,Clone,PartialEq, Eq)]
+pub enum CompressionMethod {
+    None,
+    Deflate,
+    Zlib,
+    Gzip,
+}
+
+impl CompressionMethod {
+    #[cfg(feature="compression")]
+    fn uncompress(&self, x: Vec<u8>) -> Vec<u8> {
+        if self == &CompressionMethod::None {
+            return x;
+        }
+
+        let l = x.len();
+        let mut y = Vec::with_capacity(l*2);
+        match self {
+            CompressionMethod::None => unreachable!(),
+            CompressionMethod::Gzip => {
+                let mut t = flate2::read::GzDecoder::new(std::io::Cursor::new(x));
+                match t.read_to_end(&mut y) {
+                    Ok(_) => (),
+                    Err(e) => {
+                        error!("Error uncompressing data: {}", e);
+                    }
+                }
+            }
+            CompressionMethod::Deflate => {
+                let mut t = flate2::read::DeflateDecoder::new(std::io::Cursor::new(x));
+                match t.read_to_end(&mut y) {
+                    Ok(_) => (),
+                    Err(e) => {
+                        error!("Error uncompressing data: {}", e);
+                    }
+                }
+            }
+            CompressionMethod::Zlib =>{
+                let mut t = flate2::read::ZlibDecoder::new(std::io::Cursor::new(x));
+                match t.read_to_end(&mut y) {
+                    Ok(_) => (),
+                    Err(e) => {
+                        error!("Error uncompressing data: {}", e);
+                    }
+                }
+            }
+        }
+        debug!("Uncompressed {} bytes into {} bytes", l, y.len());
+        y
+    }
+
+
+    #[cfg(feature="compression")]
+    fn compress(&self, x: Vec<u8>) -> Vec<u8> {
+        if self == &CompressionMethod::None {
+            return x;
+        }
+
+        let l = x.len();
+        let mut y = Vec::with_capacity(l+64);
+        let c = flate2::Compression::new(6);
+        match self {
+            CompressionMethod::None => unreachable!(),
+            CompressionMethod::Gzip => {
+                let mut t = flate2::read::GzEncoder::new(std::io::Cursor::new(x), c);
+                match t.read_to_end(&mut y) {
+                    Ok(_) => (),
+                    Err(e) => {
+                        error!("Error compressing data: {}", e);
+                    }
+                }
+            }
+            CompressionMethod::Deflate => {
+                let mut t = flate2::read::DeflateEncoder::new(std::io::Cursor::new(x), c);
+                match t.read_to_end(&mut y) {
+                    Ok(_) => (),
+                    Err(e) => {
+                        error!("Error compressing data: {}", e);
+                    }
+                }
+            }
+            CompressionMethod::Zlib =>{
+                let mut t = flate2::read::ZlibEncoder::new(std::io::Cursor::new(x), c);
+                match t.read_to_end(&mut y) {
+                    Ok(_) => (),
+                    Err(e) => {
+                        error!("Error compressing data: {}", e);
+                    }
+                }
+            }
+        }
+        debug!("Compressed {} bytes into {} bytes", l, y.len());
+        y
+    }
+
+    #[cfg(not(feature="compression"))]
+    fn uncompress(&self, x: Vec<u8>) -> Vec<u8> {
+        if self == &CompressionMethod::None {
+            return x;
+        }
+
+        error!("Compression support is not selected during Websocat compiltion");
+        vec![]
+    }
+
+    #[cfg(not(feature="compression"))]
+    fn compress(&self, x: Vec<u8>) -> Vec<u8> {
+        if self == &CompressionMethod::None {
+            return x;
+        }
+
+        error!("Compression support is not selected during Websocat compiltion");
+        vec![]
+    }
+}
+
 pub struct WsReadWrapper<T: WsStream + 'static> {
     pub s: WsSource<T>,
     pub pingreply: MultiProducerWsSink<T>,
@@ -45,6 +161,7 @@ pub struct WsReadWrapper<T: WsStream + 'static> {
     pub text_base64: bool,
     pub creation_time: ::std::time::Instant, // for measuring ping RTTs
     pub print_rtts: bool,
+    pub uncompress : CompressionMethod,
 }
 
 impl<T: WsStream + 'static> AsyncRead for WsReadWrapper<T> {}
@@ -158,7 +275,8 @@ impl<T: WsStream + 'static> Read for WsReadWrapper<T> {
                         ProcessMessageResult::Recurse => continue,
                     }
                 }
-                Ready(Some(OwnedMessage::Binary(x))) => {
+                Ready(Some(OwnedMessage::Binary(mut x))) => {
+                    x = self.uncompress.uncompress(x);
                     debug!("incoming binary");
                     let mut qbuf : Vec<u8> = vec![];
                     let mut q : &[u8] = x.as_slice();
@@ -205,6 +323,7 @@ pub struct WsWriteWrapper<T: WsStream + 'static> {
     pub text_base64: bool,
     pub close_status_code: Option<u16>,
     pub close_reason: Option<String>,
+    pub compress : CompressionMethod,
 }
 
 impl<T: WsStream + 'static> AsyncWrite for WsWriteWrapper<T> {
@@ -278,7 +397,11 @@ impl<T: WsStream + 'static> Write for WsWriteWrapper<T> {
         }
 
         let om = match effective_mode {
-            Mode1::Binary => OwnedMessage::Binary(buf.to_vec()),
+            Mode1::Binary => {
+                let x = buf.to_vec();
+                let x = self.compress.compress(x);
+                OwnedMessage::Binary(x)
+            },
             Mode1::Text => {
                 let text_tmp;
                 let text = match ::std::str::from_utf8(buf) {
@@ -480,6 +603,28 @@ pub fn finish_building_ws_peer<S>(opts: &super::Options, duplex: Duplex<S>, clos
     } else {
         super::readdebt::ZeroMessagesHandling::Deliver
     };
+
+    let compress = match (opts.compress_deflate, opts.compress_gzip, opts.compress_zlib) {
+        (false, false, false) => CompressionMethod::None,
+        (true, false, false) => CompressionMethod::Deflate,
+        (false, true, false) => CompressionMethod::Gzip,
+        (false, false, true) => CompressionMethod::Zlib,
+        _ => {
+            error!("Multiple compression methods specified");
+            CompressionMethod::None
+        }
+    };
+    let uncompress = match (opts.uncompress_deflate, opts.uncompress_gzip, opts.uncompress_zlib) {
+        (false, false, false) => CompressionMethod::None,
+        (true, false, false) => CompressionMethod::Deflate,
+        (false, true, false) => CompressionMethod::Gzip,
+        (false, false, true) => CompressionMethod::Zlib,
+        _ => {
+            error!("Multiple uncompression methos specified");
+            CompressionMethod::None
+        }
+    };
+    
     
     let ws_str = WsReadWrapper {
         s: stream,
@@ -493,6 +638,7 @@ pub fn finish_building_ws_peer<S>(opts: &super::Options, duplex: Duplex<S>, clos
         text_base64: opts.ws_text_base64,
         creation_time: now,
         print_rtts: opts.print_ping_rtts,
+        uncompress,
     };
     let ws_sin = WsWriteWrapper{
         sink: mpsink,
@@ -505,6 +651,7 @@ pub fn finish_building_ws_peer<S>(opts: &super::Options, duplex: Duplex<S>, clos
         text_base64: opts.ws_text_base64,
         close_status_code: opts.close_status_code,
         close_reason: opts.close_reason.clone(),
+        compress,
     };
 
     Peer::new(ws_str, ws_sin, hup)

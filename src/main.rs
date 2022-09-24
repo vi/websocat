@@ -569,6 +569,31 @@ struct Opt {
     /// Prepend copied data with a specified string (reverse direction). Can be specified multiple times.
     #[structopt(long = "preamble-reverse", short="P")]
     pub preamble_reverse: Vec<String>,
+
+
+    /// [A] Compress data coming to a WebSocket using deflate method. Affects only binary WebSocket messages.
+    #[structopt(long = "compress-deflate")]
+    pub compress_deflate: bool,
+
+    /// [A] Compress data coming to a WebSocket using zlib method. Affects only binary WebSocket messages.
+    #[structopt(long = "compress-zlib")]
+    pub compress_zlib: bool,
+
+    /// [A] Compress data coming to a WebSocket using gzip method. Affects only binary WebSocket messages.
+    #[structopt(long = "compress-gzip")]
+    pub compress_gzip: bool,
+
+    /// [A] Uncompress data coming from a WebSocket using deflate method. Affects only binary WebSocket messages.
+    #[structopt(long = "uncompress-deflate")]
+    pub uncompress_deflate: bool,
+
+    /// [A] Uncompress data coming from a WebSocket using deflate method. Affects only binary WebSocket messages.
+    #[structopt(long = "uncompress-zlib")]
+    pub uncompress_zlib: bool,
+
+    /// [A] Uncompress data coming from a WebSocket using deflate method. Affects only binary WebSocket messages.
+    #[structopt(long = "uncompress-gzip")]
+    pub uncompress_gzip: bool,
 }
 
 // TODO: make it byte-oriented/OsStr?
@@ -839,6 +864,12 @@ fn run() -> Result<()> {
             max_ws_frame_length
             preamble
             preamble_reverse
+            compress_deflate
+            compress_zlib
+            compress_gzip
+            uncompress_deflate
+            uncompress_zlib
+            uncompress_gzip
         );
         #[cfg(feature = "ssl")]
         {

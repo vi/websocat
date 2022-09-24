@@ -611,6 +611,30 @@ impl WebsocatConfiguration2 {
         }
         Ok(())
     }
+    fn l_compress(&mut self, _on_warning: &OnWarning) -> Result<()> {
+        let mut cn = 0;
+        let mut un = 0;
+        if self.opts.compress_deflate { cn += 1 }
+        if self.opts.compress_gzip { cn += 1 }
+        if self.opts.compress_zlib { cn += 1 }
+        if self.opts.uncompress_deflate { un += 1 }
+        if self.opts.uncompress_gzip { un += 1 }
+        if self.opts.uncompress_zlib { un += 1 }
+        if cn > 1 {
+            return Err("Multiple --compress-* options specifed")?;
+        }
+        if un > 1 {
+            return Err("Multiple --uncompress-* options specifed")?;
+        }
+
+        #[cfg(not(feature="compression"))]
+        {
+            if cn > 0 || un > 0 {
+                return Err("Compression support is not selected during Websocat compiltion")?;
+            }
+        }
+        Ok(())
+    }
 
 
 
@@ -637,6 +661,7 @@ impl WebsocatConfiguration2 {
         self.l_udp(&on_warning)?;
         self.l_crypto(&on_warning)?;
         self.l_sizelimits(&on_warning)?;
+        self.l_compress(&on_warning)?;
 
         // TODO: UDP connect oneshot mode
         // TODO: tests for the linter

@@ -122,4 +122,11 @@ pub struct Options {
 
     pub preamble: Vec<String>,
     pub preamble_reverse: Vec<String>,
+
+    pub compress_deflate: bool,
+    pub compress_zlib: bool,
+    pub compress_gzip: bool,
+    pub uncompress_deflate: bool,
+    pub uncompress_zlib: bool,
+    pub uncompress_gzip: bool,
 }
