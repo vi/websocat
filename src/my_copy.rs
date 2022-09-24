@@ -33,6 +33,8 @@ pub struct Copy<R, W> {
     opts: CopyOptions,
     read_occurred: bool,
     remaining_ops: Option<usize>,
+    preamble: Vec<String>,
+    preamble_index: usize,
 }
 
 /// Creates a future which represents copying all the bytes from one object to
@@ -49,7 +51,7 @@ pub struct Copy<R, W> {
 ///
 /// Unlike original tokio_io::copy::copy, it does not always stop on zero length reads
 /// , handles BrokenPipe error kind as EOF and flushes after every write
-pub fn copy<R, W>(reader: R, writer: W, opts: CopyOptions) -> Copy<R, W>
+pub fn copy<R, W>(reader: R, writer: W, opts: CopyOptions, preamble: Vec<String>) -> Copy<R, W>
 where
     R: AsyncRead,
     W: AsyncWrite,
@@ -66,6 +68,8 @@ where
         opts,
         read_occurred: false,
         remaining_ops: opts.max_ops,
+        preamble,
+        preamble_index: 0,
     }
 }
 
@@ -78,13 +82,35 @@ where
     type Error = io::Error;
 
     fn poll(&mut self) -> Poll<(u64, R, W), io::Error> {
-        if self.opts.skip {
-            debug!("copy skipped");
-            let reader = self.reader.take().unwrap();
-            let writer = self.writer.take().unwrap();
-            return Ok((0, reader, writer).into());
-        }
         loop {
+            // First ensure that preamble messages got drained
+            if self.preamble_index < self.preamble.len() {
+                let writer = self.writer.as_mut().unwrap();
+                let i = try_nb!(writer.write(&self.preamble[self.preamble_index].as_bytes()));
+                if i == 0 {
+                    return Err(io::Error::new(
+                        io::ErrorKind::WriteZero,
+                        "write zero byte into writer",
+                    ));
+                } else {
+                    trace!("preamble write {}", i);
+                    if i != self.preamble[self.preamble_index].len() {
+                        warn!("Short write of a preamble. Expect trimmed data.")
+                    }
+                    self.preamble_index += 1;
+                }
+                try_nb!(writer.flush());
+                continue;
+            }
+
+            // Handle inhibiting options only after preamble is drained.
+            if self.opts.skip {
+                debug!("copy skipped");
+                let reader = self.reader.take().unwrap();
+                let writer = self.writer.take().unwrap();
+                return Ok((0, reader, writer).into());
+            }
+
             // If our buffer is empty, then we need to read some data to
             // continue.
             trace!("poll");

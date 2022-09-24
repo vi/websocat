@@ -119,4 +119,7 @@ pub struct Options {
     pub max_ws_message_length: usize,
     #[default = 104857600]
     pub max_ws_frame_length: usize,
+
+    pub preamble: Vec<String>,
+    pub preamble_reverse: Vec<String>,
 }

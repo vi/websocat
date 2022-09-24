@@ -27,8 +27,8 @@ impl Session {
         if self.opts.unidirectional_reverse {
             co1.skip=true;
         }
-        let f1 = my_copy::copy(self.t1.from, self.t1.to, co1);
-        let f2 = my_copy::copy(self.t2.from, self.t2.to, co2);
+        let f1 = my_copy::copy(self.t1.from, self.t1.to, co1, self.opts.preamble.clone());
+        let f2 = my_copy::copy(self.t2.from, self.t2.to, co2, self.opts.preamble_reverse.clone());
 
         let f1 = f1.and_then(|(_, r, w)| {
             info!("Forward finished");

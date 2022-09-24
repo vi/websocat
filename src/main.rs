@@ -561,6 +561,14 @@ struct Opt {
     /// [A] Maximum size of incoming WebSocket frames, to prevent memory overflow
     #[structopt(long = "max-ws-frame-length", default_value = "104857600")]
     pub max_ws_frame_length: usize,
+
+    /// Prepend copied data with a specified string. Can be specified multiple times.
+    #[structopt(long = "preamble", short="p")]
+    pub preamble: Vec<String>,
+
+    /// Prepend copied data with a specified string (reverse direction). Can be specified multiple times.
+    #[structopt(long = "preamble-reverse", short="P")]
+    pub preamble_reverse: Vec<String>,
 }
 
 // TODO: make it byte-oriented/OsStr?
@@ -829,6 +837,8 @@ fn run() -> Result<()> {
             byte_to_exit_on
             max_ws_message_length
             max_ws_frame_length
+            preamble
+            preamble_reverse
         );
         #[cfg(feature = "ssl")]
         {
@@ -864,8 +874,12 @@ fn run() -> Result<()> {
 
     let (s1, s2): (String, String) = match (cmd.addr1, cmd.addr2) {
         (None, None) => {
-            help::shorthelp();
-            return Err("No URL specified")?;
+            for x in std::env::args() {
+                if x == "-p" || x == "-P" || x == "--preamble" || x == "--preamble-reverse" {
+                    eprintln!("Warning: all dashless arguments after -p or -P are considered part of the preamble. You may want to move -p/-P to the end of the command line.")
+                }
+            }
+            return Err("No URL specified. Use `websocat --help` to show the help message.")?;
         }
         (Some(cmds1), Some(cmds2)) => {
             // Advanced mode

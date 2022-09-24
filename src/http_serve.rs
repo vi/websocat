@@ -92,7 +92,7 @@ pub fn http_serve(
 
     if let Some(f) = serve_file {
         Box::new(
-            copy(reply, p.1, co)
+            copy(reply, p.1, co, vec![])
                 .map_err(drop)
                 .and_then(move |(_len, _, conn)| {
                     let co2 = CopyOptions {
@@ -103,10 +103,10 @@ pub fn http_serve(
                         max_ops: None,
                     };
                     let wr = crate::file_peer::ReadFileWrapper(f);
-                    copy(wr, conn, co2).map(|_| ()).map_err(drop)
+                    copy(wr, conn, co2, vec![]).map(|_| ()).map_err(drop)
                 }),
         )
     } else {
-        Box::new(copy(reply, p.1, co).map(|_| ()).map_err(drop))
+        Box::new(copy(reply, p.1, co, vec![]).map(|_| ()).map_err(drop))
     }
 }
