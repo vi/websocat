@@ -471,12 +471,15 @@ impl WebsocatConfiguration2 {
 
     #[cfg(feature = "ssl")]
     fn l_ssl(&mut self, _on_warning: &OnWarning) -> Result<()> {
-        if self.opts.pkcs12_der.is_some() && !self.contains_class("WsClientSecureClass") && !self.contains_class("TlsAcceptClass") {
-            Err("--pkcs12-der must occur either with SSL listener or SSL client connector")?;
+        if self.opts.pkcs12_der.is_some() &&  !self.contains_class("TlsAcceptClass") {
+            Err("--pkcs12-der makes no sense without an TLS connections acceptor")?;
+        }
+        if self.opts.client_pkcs12_der.is_some() && !self.contains_class("WsClientSecureClass") && !self.contains_class("TlsConnectClass") {
+            Err("--client-pkcs12-der makes no sense without wss:// or ssl: connectors")?;
         }
         #[cfg(target_os = "macos")]
         {
-            if self.opts.pkcs12_der.is_some() && self.opts.pkcs12_passwd.is_none() {
+            if (self.opts.pkcs12_der.is_some() && self.opts.pkcs12_passwd.is_none()) || (self.opts.client_pkcs12_der.is_some() && self.opts.client_pkcs12_passwd.is_none()) {
                 _on_warning("PKCS12 archives without password may be unsupported on Mac");
 
                 for x in ::std::env::args() {

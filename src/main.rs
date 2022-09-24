@@ -393,6 +393,21 @@ struct Opt {
 
     #[cfg(feature = "ssl")]
     #[structopt(
+        long = "client-pkcs12-der",
+        help = "[A] Client identity TLS certificate",
+        parse(try_from_os_str = "websocat::ssl_peer::interpret_pkcs12")
+    )]
+    client_pkcs12_der: Option<Vec<u8>>,
+
+    #[cfg(feature = "ssl")]
+    #[structopt(
+        long = "client-pkcs12-passwd",
+        help = "[A] Password for --client-pkcs12-der pkcs12 archive. Required on Mac."
+    )]
+    client_pkcs12_passwd: Option<String>,
+
+    #[cfg(feature = "ssl")]
+    #[structopt(
         long = "insecure",
         short = "k",
         help = "Accept invalid certificates and hostnames while connecting to TLS"
@@ -811,6 +826,8 @@ fn run() -> Result<()> {
             opts! {
                 pkcs12_der
                 pkcs12_passwd
+                client_pkcs12_der
+                client_pkcs12_passwd
                 tls_insecure
             }
         }

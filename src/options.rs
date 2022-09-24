@@ -71,6 +71,10 @@ pub struct Options {
     pub pkcs12_der: Option<Vec<u8>>,
     #[derivative(Debug = "ignore")]
     pub pkcs12_passwd: Option<String>,
+    #[derivative(Debug = "ignore")]
+    pub client_pkcs12_der: Option<Vec<u8>>,
+    #[derivative(Debug = "ignore")]
+    pub client_pkcs12_passwd: Option<String>,
     pub tls_insecure: bool,
 
     pub headers_to_env: Vec<String>,

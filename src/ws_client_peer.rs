@@ -184,26 +184,9 @@ pub fn get_ws_client_peer(uri: &Url, opts: Rc<Options>) -> BoxedNewPeerFuture {
     #[allow(unused)]
     let tls_insecure = opts.tls_insecure;
     #[allow(unused)]
-    let client_ident = opts.pkcs12_der.clone();
+    let client_ident = opts.client_pkcs12_der.clone();
     #[allow(unused)]
-    let client_ident_passwd = opts.pkcs12_passwd.clone();
-
-    #[cfg(feature = "ssl")]
-    let identity = if let Some(client_ident) = client_ident {
-        super::ssl_peer::native_tls::Identity::from_pkcs12(
-            &client_ident,
-            &client_ident_passwd.unwrap_or("".to_string()),
-        )
-        .map_err(|e| {
-            error!(
-                "Unable to parse client identity: {}\nContinuing without client identity",
-                e
-            )
-        })
-        .ok()
-    } else {
-        None
-    };
+    let client_ident_passwd = opts.client_pkcs12_passwd.clone();
 
     get_ws_client_peer_impl(uri, opts, |before_connect| {
         #[cfg(feature = "ssl")]
@@ -215,7 +198,24 @@ pub fn get_ws_client_peer(uri: &Url, opts: Rc<Options>) -> BoxedNewPeerFuture {
 
         #[cfg(feature = "ssl")]
         let after_connect = {
+            let identity = if let Some(client_ident) = client_ident {
+                super::ssl_peer::native_tls::Identity::from_pkcs12(
+                    &client_ident,
+                    &client_ident_passwd.unwrap_or("".to_string()),
+                )
+                .map_err(|e| {
+                    error!(
+                        "Unable to parse client identity: {}\nContinuing without a client identity",
+                        e
+                    )
+                })
+                .ok()
+            } else {
+                None
+            };
+
             let tls_opts = if let Some(client_ident) = identity {
+                debug!("Adding client identity to the TLS connection");
                 Some(builder.identity(client_ident).build()?)
             } else {
                 Some(builder.build()?)

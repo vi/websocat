@@ -42,6 +42,8 @@ impl<T: Specifier> Specifier for TlsConnect<T> {
                 l2r,
                 cp.program_options.tls_domain.clone(),
                 cp.program_options.tls_insecure,
+                cp.program_options.client_pkcs12_der.clone(),
+                cp.program_options.client_pkcs12_passwd.clone(),
             )
         })
     }
@@ -149,11 +151,13 @@ pub fn ssl_connect(
     _l2r: L2rUser,
     dom: Option<String>,
     tls_insecure: bool,
+    client_identity : Option<Vec<u8>>,
+    client_identity_password : Option<String>,
 ) -> BoxedNewPeerFuture {
     let hup = inner_peer.2;
     let squashed_peer = readwrite::ReadWriteAsync::new(inner_peer.0, inner_peer.1);
 
-    fn gettlsc(nohost: bool, noverify: bool) -> native_tls::Result<TlsConnectorExt> {
+    fn gettlsc(nohost: bool, noverify: bool, client_identity : Option<Vec<u8>>, client_identity_password : Option<String>) -> native_tls::Result<TlsConnectorExt> {
         let mut b = TlsConnector::builder();
         if nohost {
             b.danger_accept_invalid_hostnames(true);
@@ -162,11 +166,29 @@ pub fn ssl_connect(
             b.danger_accept_invalid_hostnames(true);
             b.danger_accept_invalid_certs(true);
         }
+        
+        if let Some(client_ident) = client_identity {
+            let identity = super::ssl_peer::native_tls::Identity::from_pkcs12(
+                &client_ident,
+                &client_identity_password.unwrap_or("".to_string()),
+            )
+            .map_err(|e| {
+                error!(
+                    "Unable to parse client identity: {}\nContinuing without a client identity",
+                    e
+                )
+            })
+            .ok();
+            if let Some(x) = identity {
+                b.identity(x);
+            }
+        }
+
         let tlsc: TlsConnector = b.build()?;
         Ok(TlsConnectorExt::from(tlsc))
     }
 
-    let tls = match gettlsc(dom.is_none(), tls_insecure) {
+    let tls = match gettlsc(dom.is_none(), tls_insecure, client_identity, client_identity_password) {
         Ok(x) => x,
         Err(e) => return peer_err(e),
     };
@@ -214,12 +236,24 @@ pub fn ssl_accept(inner_peer: Peer, _l2r: L2rUser, progopt: Rc<Options>) -> Boxe
         Err(e) => return peer_err(e),
     };
 
-    info!("Accepting a TLS connection");
+    debug!("Accepting a TLS connection");
     Box::new(
         tls.accept(squashed_peer)
             .map_err(box_up_err)
             .and_then(move |tls_stream| {
-                info!("Connected to TLS");
+                info!("Accepted TLS connection");
+                match tls_stream.get_ref().peer_certificate() {
+                    Ok(Some(_cert)) => {
+                        // Does not actually work with native-tls
+                        info!("  the client presented an identity certificate.");
+                    }
+                    Ok(None) => {
+                        debug!("  no identity certificate from the client. But Websocat may have failed to request it.");
+                    }
+                    Err(e) => {
+                        warn!("Error getting identity certificate from client: {}", e);
+                    }
+                }
                 let (r, w) = tls_stream.split();
                 ok(Peer::new(r, w, hup))
             }),
