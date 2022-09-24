@@ -114,4 +114,9 @@ pub struct Options {
 
     #[default = 0x1c]
     pub byte_to_exit_on: u8,
+
+    #[default = 209715200]
+    pub max_ws_message_length: usize,
+    #[default = 104857600]
+    pub max_ws_frame_length: usize,
 }

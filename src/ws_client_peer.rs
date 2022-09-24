@@ -163,7 +163,8 @@ where
     } else {
         stage4
     };
-    let after_connect = match f(stage5) {
+    let stage6 = stage5.max_dataframe_size(opts.max_ws_frame_length).max_message_size(opts.max_ws_message_length);
+    let after_connect = match f(stage6) {
         Ok(x) => x,
         Err(_) => return peer_strerr("Failed to make TLS connector"),
     };

@@ -554,6 +554,13 @@ struct Opt {
     /// [A] Override the byte which byte_to_exit_on: overlay looks for
     #[structopt(long = "byte-to-exit-on", default_value = "28")]
     byte_to_exit_on: u8,
+
+    /// [A] Maximum size of incoming WebSocket messages (sans of one data frame), to prevent memory overflow
+    #[structopt(long = "max-ws-message-length", default_value = "209715200")]
+    pub max_ws_message_length: usize,
+    /// [A] Maximum size of incoming WebSocket frames, to prevent memory overflow
+    #[structopt(long = "max-ws-frame-length", default_value = "104857600")]
+    pub max_ws_frame_length: usize,
 }
 
 // TODO: make it byte-oriented/OsStr?
@@ -820,6 +827,8 @@ fn run() -> Result<()> {
             timestamp_monotonic
             print_ping_rtts
             byte_to_exit_on
+            max_ws_message_length
+            max_ws_frame_length
         );
         #[cfg(feature = "ssl")]
         {

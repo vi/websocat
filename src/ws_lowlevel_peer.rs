@@ -78,7 +78,7 @@ pub fn get_ws_lowlevel_peer(mode: WsLlContext, mut inner: Peer, opts: Rc<Options
     
     use ::tokio_codec::Decoder;
 
-    let c = websocket_base::codec::ws::MessageCodec::new(mode);
+    let c = websocket_base::codec::ws::MessageCodec::new_with_limits(mode, opts.max_ws_frame_length, opts.max_ws_message_length);
     let hup = inner.2;
     inner.2 = None;
     let duplex = c.framed(PeerForWs(inner));

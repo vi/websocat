@@ -605,6 +605,13 @@ impl WebsocatConfiguration2 {
         }
         Ok(())
     }
+    fn l_sizelimits(&mut self, _on_warning: &OnWarning) -> Result<()> {
+        if self.opts.max_ws_message_length < self.opts.max_ws_frame_length {
+            _on_warning("Lowering --max-ws-message-length without also lowering --max-ws-frame-length may be meaningless, as the former only affects whether to begin accept a new frame or not, given accumulated message size. Succesfully accepted frames within the frame size limit may exceed the message size.")
+        }
+        Ok(())
+    }
+
 
 
     pub fn lint_and_fixup(&mut self, on_warning: OnWarning) -> Result<()> {
@@ -629,6 +636,7 @@ impl WebsocatConfiguration2 {
         self.l_eeof_unidir(&on_warning)?;
         self.l_udp(&on_warning)?;
         self.l_crypto(&on_warning)?;
+        self.l_sizelimits(&on_warning)?;
 
         // TODO: UDP connect oneshot mode
         // TODO: tests for the linter
