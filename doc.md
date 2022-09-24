@@ -29,7 +29,7 @@ Some address types may be "aliases" to other address types or combinations of ov
 
 ```
 
-websocat 1.10.0
+websocat 1.11.0
 Vitaly "_Vi" Shukela <vi0oss@gmail.com>
 Command-line client for web sockets, like netcat/curl/socat for ws://.
 
@@ -43,6 +43,12 @@ FLAGS:
         --async-stdio                           [A] On UNIX, set stdin and stdout to nonblocking mode instead of
                                                 spawning a thread. This should improve performance, but may break other
                                                 programs running on the same console.
+        --compress-deflate                      [A] Compress data coming to a WebSocket using deflate method. Affects
+                                                only binary WebSocket messages.
+        --compress-gzip                         [A] Compress data coming to a WebSocket using gzip method. Affects only
+                                                binary WebSocket messages.
+        --compress-zlib                         [A] Compress data coming to a WebSocket using zlib method. Affects only
+                                                binary WebSocket messages.
         --crypto-reverse                        [A] Swap encryption and decryption operations in `crypto:` specifier -
                                                 encrypt on read, decrypto on write.
         --dump-spec                             [A] Instead of running, dump the specifiers representation to stdout
@@ -88,6 +94,12 @@ FLAGS:
         --udp-oneshot                           [A] udp-listen: replies only one packet per client
         --udp-reuseaddr                         [A] Set SO_REUSEADDR for UDP socket. Listening TCP sockets are always
                                                 reuseaddr.
+        --uncompress-deflate                    [A] Uncompress data coming from a WebSocket using deflate method.
+                                                Affects only binary WebSocket messages.
+        --uncompress-gzip                       [A] Uncompress data coming from a WebSocket using deflate method.
+                                                Affects only binary WebSocket messages.
+        --uncompress-zlib                       [A] Uncompress data coming from a WebSocket using deflate method.
+                                                Affects only binary WebSocket messages.
     -u, --unidirectional                        Inhibit copying data in one direction
     -U, --unidirectional-reverse                Inhibit copying data in the other direction (or maybe in both directions
                                                 if combined with -u)
@@ -128,6 +140,10 @@ OPTIONS:
         --byte-to-exit-on <byte_to_exit_on>
             [A] Override the byte which byte_to_exit_on: overlay looks for [default: 28]
 
+        --client-pkcs12-der <client_pkcs12_der>                      [A] Client identity TLS certificate
+        --client-pkcs12-passwd <client_pkcs12_passwd>
+            [A] Password for --client-pkcs12-der pkcs12 archive. Required on Mac.
+
         --close-reason <close_reason>
             Close connection with a reason message. This option only takes effect if --close-status-code option is
             provided as well.
@@ -166,6 +182,12 @@ OPTIONS:
         --conncap <max_parallel_conns>
             Maximum number of simultaneous connections for listening mode
 
+        --max-ws-frame-length <max_ws_frame_length>
+            [A] Maximum size of incoming WebSocket frames, to prevent memory overflow [default: 104857600]
+
+        --max-ws-message-length <max_ws_message_length>
+            [A] Maximum size of incoming WebSocket messages (sans of one data frame), to prevent memory overflow
+            [default: 209715200]
         --origin <origin>                                            Add Origin HTTP header to websocket client request
         --pkcs12-der <pkcs12_der>
             Pkcs12 archive needed to accept SSL connections, certificate and key.
@@ -174,6 +196,12 @@ OPTIONS:
             See moreexamples.md for more info.
         --pkcs12-passwd <pkcs12_passwd>
             Password for --pkcs12-der pkcs12 archive. Required on Mac.
+
+    -p, --preamble <preamble>...
+            Prepend copied data with a specified string. Can be specified multiple times.
+
+    -P, --preamble-reverse <preamble_reverse>...
+            Prepend copied data with a specified string (reverse direction). Can be specified multiple times.
 
         --prometheus <prometheus>
             Expose Prometheus metrics on specified IP address and port in addition to running usual Websocat session
@@ -660,14 +688,14 @@ Listen for connections on a specified UNIX socket [A]
 Example: forward connections from a UNIX socket to a WebSocket
 
     websocat --unlink unix-l:the_socket ws://127.0.0.1:8089
-    
+
 Example: Accept forwarded WebSocket connections from Nginx
 
     umask 0000
     websocat --unlink -b -E ws-u:unix-l:/tmp/wstest tcp:[::]:22
-      
+
 Nginx config:
-    
+
     location /ws {
         proxy_read_timeout 7d;
         proxy_send_timeout 7d;
@@ -1191,17 +1219,18 @@ Internal name for --dump-spec: Prometheus
 Not included by default, build a crate with `--features=prometheus_peer` to have it.
 You can also use `--features=prometheus_peer,prometheus/process` to have additional metrics.
 
+
 ### `exit_on_specific_byte:`
 
 Internal name for --dump-spec: ExitOnSpecificByte
 
-[A] Turn specific byte into a EOF, allowing user to escape interactive Websocat session
 
+[A] Turn specific byte into a EOF, allowing user to escape interactive Websocat session
 when terminal is set to raw mode. Works only bytes read from the overlay, not on the written bytes.
 
+Default byte is 1C which is typically triggered by Ctrl+\.
 
-Example: `(stty raw -echo; websocat -b exit_on_specific_byte:stdio: tcp:127.0.0.1:23; stty sane)`
-
+Example: `(stty raw -echo; websocat -b exit_on_specific_byte:stdio tcp:127.0.0.1:23; stty sane)`
 
 
 
@@ -1223,6 +1252,4 @@ then connect to a websocket using previous step as a transport,
 then forward resulting connection to the TCP port.
 
 (Exercise to the reader: manage to make it actually connect to 5678).
-
-
 
