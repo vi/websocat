@@ -81,7 +81,7 @@ There are multiple options for installing WebSocat. From easy to hard:
 
 * If you're on Fedora, you can install WebSocat from [Copr](https://copr.fedorainfracloud.org/coprs/atim/websocat/): `sudo dnf copr enable atim/websocat -y && sudo dnf install websocat`
 * If you're on FreeBSD, you may install WebSocat with the following command: `pkg install websocat`.
-* If you're on Linux Debian or Ubuntu (or other dpkg-based), try downloading a pre-build executable from [GitHub releases][releases]. Websocat is not yet officially packaged for Debian. Some older versions of Websocat may also have Debian package files avaialble on Github releases.
+* If you're on Linux Debian or Ubuntu (or other dpkg-based), try downloading a pre-build executable from [GitHub releases][releases]. Websocat is not yet officially packaged for Debian. Some older versions of Websocat may also have Debian package files available on Github releases.
 * If you're on macOS, you can do:
   * `brew install websocat` using [Homebrew](https://brew.sh)
   * `sudo port install websocat` using [MacPorts](https://www.macports.org)
@@ -372,7 +372,7 @@ Full list of address types:
 	wss-listen:     	Listen for secure WebSocket connections on a TCP port
 	http:           	[A] Issue HTTP request, receive a 1xx or 2xx reply, then pass
 	asyncstdio:     	[A] Set stdin and stdout to nonblocking mode, then use it as a communication counterpart. UNIX-only.
-	inetd:          	Like `asyncstdio:`, but intented for inetd(8) usage. [A]
+	inetd:          	Like `asyncstdio:`, but intended for inetd(8) usage. [A]
 	tcp:            	Connect to specified TCP host and port. Argument is a socket address.
 	tcp-listen:     	Listen TCP port on specified address.
 	ssl-listen:     	Listen for SSL connections on a TCP port

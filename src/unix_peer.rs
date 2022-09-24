@@ -76,14 +76,14 @@ Listen for connections on a specified UNIX socket [A]
 Example: forward connections from a UNIX socket to a WebSocket
 
     websocat --unlink unix-l:the_socket ws://127.0.0.1:8089
-    
+
 Example: Accept forwarded WebSocket connections from Nginx
 
     umask 0000
     websocat --unlink -b -E ws-u:unix-l:/tmp/wstest tcp:[::]:22
-      
+
 Nginx config:
-    
+
     location /ws {
         proxy_read_timeout 7d;
         proxy_send_timeout 7d;
@@ -123,7 +123,7 @@ specifier_class!(
         fn construct(self: &UnixDgramClass, just_arg: &str) -> super::Result<Rc<dyn Specifier>> {
             let splits: Vec<&str> = just_arg.split(':').collect();
             if splits.len() != 2 {
-                Err("Expected two colon-separted paths")?;
+                Err("Expected two colon-separated paths")?;
             }
             Ok(Rc::new(UnixDgram(splits[0].into(), splits[1].into())))
         }
@@ -257,7 +257,7 @@ specifier_class!(
         fn construct(self: &AbstractDgramClass, just_arg: &str) -> super::Result<Rc<dyn Specifier>> {
             let splits: Vec<&str> = just_arg.split(':').collect();
             if splits.len() != 2 {
-                Err("Expected two colon-separted addresses")?;
+                Err("Expected two colon-separated addresses")?;
             }
             Ok(Rc::new(UnixDgram(splits[0].into(), splits[1].into())))
         }
@@ -352,14 +352,14 @@ pub fn unix_listen_peer(addr: &Path, opts: &Rc<Options>) -> BoxedNewPeerStream {
         let fdnum: libc::c_int = match addr.to_str().map(|x|x.parse()) {
             Some(Ok(x)) => x,
             _ => {
-                let e: Box<dyn std::error::Error> = From::from("Specify numeric arguemnt instead of path in --accept-from-fd mode");
+                let e: Box<dyn std::error::Error> = From::from("Specify numeric argument instead of path in --accept-from-fd mode");
                 return peer_err_sb(e);
             }
         };
         use std::os::unix::io::FromRawFd;
         let l = unsafe { std::os::unix::net::UnixListener::from_raw_fd(fdnum) } ;
         let _ = l.set_nonblocking(true);
-        let bound =  
+        let bound =
         UnixListener::from_std(l, &tokio_reactor::Handle::default());
         bound
     } else {

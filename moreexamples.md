@@ -318,7 +318,7 @@ WantedBy=sockets.target
 ```
 
 
-`/etc/systemd/system/qqq.service` (note the absense of  `@`).
+`/etc/systemd/system/qqq.service` (note the absence of  `@`).
 
 ```
 [Unit]
