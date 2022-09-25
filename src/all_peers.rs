@@ -114,5 +114,15 @@ macro_rules! list_of_all_specifier_classes {
         $your_macro!($crate::prometheus_peer::PrometheusClass);
 
         $your_macro!($crate::trivial_peer::ExitOnSpecificByteClass);
+
+        #[cfg(feature = "transform_plugins")]
+        $your_macro!($crate::transform_peer::NativeTransformAClass);
+        #[cfg(feature = "transform_plugins")]
+        $your_macro!($crate::transform_peer::NativeTransformBClass);
+        #[cfg(feature = "transform_plugins")]
+        $your_macro!($crate::transform_peer::NativeTransformCClass);
+        #[cfg(feature = "transform_plugins")]
+        $your_macro!($crate::transform_peer::NativeTransformDClass);
+
     };
 }

@@ -635,6 +635,26 @@ impl WebsocatConfiguration2 {
         }
         Ok(())
     }
+    #[cfg(feature="transform_plugins")]
+    fn l_plugins(&mut self, _on_warning: &OnWarning) -> Result<()> {
+        if self.contains_class("NativeTransformAClass") && self.opts.native_transform_a.is_none() {
+            return Err("--native-plugin-a must be specified to use `native_plugin_transform_a:`")?;
+        }
+        if self.contains_class("NativeTransformBClass") && self.opts.native_transform_b.is_none() {
+            return Err("--native-plugin-b must be specified to use `native_plugin_transform_b:`")?;
+        }
+        if self.contains_class("NativeTransformCClass") && self.opts.native_transform_c.is_none() {
+            return Err("--native-plugin-c must be specified to use `native_plugin_transform_c:`")?;
+        }
+        if self.contains_class("NativeTransformDClass") && self.opts.native_transform_d.is_none() {
+            return Err("--native-plugin-d must be specified to use `native_plugin_transform_d:`")?;
+        }
+        Ok(())
+    }
+    #[cfg(not(feature="transform_plugins"))]
+    fn l_plugins(&mut self, _on_warning: &OnWarning) -> Result<()> {
+        Ok(())
+    }
 
 
 
@@ -662,6 +682,7 @@ impl WebsocatConfiguration2 {
         self.l_crypto(&on_warning)?;
         self.l_sizelimits(&on_warning)?;
         self.l_compress(&on_warning)?;
+        self.l_plugins(&on_warning)?;
 
         // TODO: UDP connect oneshot mode
         // TODO: tests for the linter
