@@ -586,7 +586,7 @@ impl WebsocatConfiguration2 {
     fn l_crypto(&mut self, _on_warning: &OnWarning) -> Result<()> {
         #[cfg(feature="crypto_peer")]
         if self.opts.crypto_key.is_some() {
-            if !self.contains_class("CryptoCLass") {
+            if !self.contains_class("CryptoClass") {
                 _on_warning("--crypto-key option is meaningless without a `crypto:` overlay");
             }
         }
