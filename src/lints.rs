@@ -630,7 +630,7 @@ impl WebsocatConfiguration2 {
         #[cfg(not(feature="compression"))]
         {
             if cn > 0 || un > 0 {
-                return Err("Compression support is not selected during Websocat compiltion")?;
+                return Err("Compression support is not selected during Websocat compilation")?;
             }
         }
         Ok(())

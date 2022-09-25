@@ -133,7 +133,7 @@ impl CompressionMethod {
             return x;
         }
 
-        error!("Compression support is not selected during Websocat compiltion");
+        error!("Compression support is not selected during Websocat compilation");
         vec![]
     }
 
@@ -143,7 +143,7 @@ impl CompressionMethod {
             return x;
         }
 
-        error!("Compression support is not selected during Websocat compiltion");
+        error!("Compression support is not selected during Websocat compilation");
         vec![]
     }
 }
