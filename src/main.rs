@@ -766,6 +766,11 @@ fn run() -> Result<()> {
         help::shorthelp();
         return Ok(());
     }
+    let mut logging_already_set = false;
+    if std::env::var("WEBSOCAT_EARLY_LOG").is_ok() {
+        logging::setup_env_logger(0)?;
+        logging_already_set = true;
+    }
 
     let mut cmd = Opt::from_args();
 
@@ -1057,7 +1062,7 @@ fn run() -> Result<()> {
     if !quiet && recommend_explicit_text_or_bin {
         eprintln!("websocat: It is recommended to either set --binary or --text explicitly");
     }
-    if !quiet {
+    if !quiet && !logging_already_set {
         logging::setup_env_logger(cmd.verbosity)?;
     }
 
