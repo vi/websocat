@@ -597,22 +597,22 @@ struct Opt {
 
     /// [A] Load specified symbol from specified native library and use it for `native_plugin_transform_a`.
     /// Format is `symbol@library_file`. If `symbol@` is omitted, `websocat_transform` is implied.
-    #[cfg(feature = "transform_plugins")]
+    #[cfg(feature = "native_plugins")]
     #[structopt(long = "native-plugin-a",  parse(try_from_str = "websocat::transform_peer::load_symbol"))]
     pub native_transform_a: Option<websocat::transform_peer::Sym>,
 
     /// [A] Load specified symbol from specified native library and use it for `native_plugin_transform_b`.
-    #[cfg(feature = "transform_plugins")]
+    #[cfg(feature = "native_plugins")]
     #[structopt(long = "native-plugin-b", parse(try_from_str = "websocat::transform_peer::load_symbol"))]
     pub native_transform_b: Option<websocat::transform_peer::Sym>,
 
     /// [A] Load specified symbol from specified native library and use it for `native_plugin_transform_c`.
-    #[cfg(feature = "transform_plugins")]
+    #[cfg(feature = "native_plugins")]
     #[structopt(long = "native-plugin-c", parse(try_from_str = "websocat::transform_peer::load_symbol"))]
     pub native_transform_c: Option<websocat::transform_peer::Sym>,
 
     /// [A] Load specified symbol from specified native library and use it for `native_plugin_transform_d`.
-    #[cfg(feature = "transform_plugins")]
+    #[cfg(feature = "native_plugins")]
     #[structopt(long = "native-plugin-d", parse(try_from_str = "websocat::transform_peer::load_symbol"))]
     pub native_transform_d: Option<websocat::transform_peer::Sym>,
 }
@@ -915,7 +915,7 @@ fn run() -> Result<()> {
                 prometheus
             }
         }
-        #[cfg(feature = "transform_plugins")]
+        #[cfg(feature = "native_plugins")]
         {
             opts! {
                 native_transform_a

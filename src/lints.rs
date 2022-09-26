@@ -635,7 +635,7 @@ impl WebsocatConfiguration2 {
         }
         Ok(())
     }
-    #[cfg(feature="transform_plugins")]
+    #[cfg(feature="native_plugins")]
     fn l_plugins(&mut self, _on_warning: &OnWarning) -> Result<()> {
         if self.contains_class("NativeTransformAClass") && self.opts.native_transform_a.is_none() {
             return Err("--native-plugin-a must be specified to use `native_plugin_transform_a:`")?;
@@ -651,7 +651,7 @@ impl WebsocatConfiguration2 {
         }
         Ok(())
     }
-    #[cfg(not(feature="transform_plugins"))]
+    #[cfg(not(feature="native_plugins"))]
     fn l_plugins(&mut self, _on_warning: &OnWarning) -> Result<()> {
         Ok(())
     }

@@ -93,7 +93,7 @@ vendored_openssl = ["openssl-sys/vendored"]
 crypto_peer = ["chacha20poly1305","argon2"]
 prometheus_peer=["prometheus","prometheus-metric-storage"]
 compression=["flate2"]
-transform_plugins=["libloading"]
+native_plugins=["libloading"]
 
 [target.'arm-linux-androideabi'.dependencies]
 openssl-sys = { version="0.9", features=[], optional=true }

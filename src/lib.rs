@@ -206,7 +206,7 @@ pub mod crypto_peer;
 #[cfg(feature = "prometheus_peer")]
 pub mod prometheus_peer;
 
-#[cfg(feature = "transform_plugins")]
+#[cfg(feature = "native_plugins")]
 pub mod transform_peer;
 
 pub mod specparse;

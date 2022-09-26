@@ -130,12 +130,12 @@ pub struct Options {
     pub uncompress_zlib: bool,
     pub uncompress_gzip: bool,
 
-    #[cfg(feature = "transform_plugins")]
+    #[cfg(feature = "native_plugins")]
     pub native_transform_a : Option<crate::transform_peer::Sym>,
-    #[cfg(feature = "transform_plugins")]
+    #[cfg(feature = "native_plugins")]
     pub native_transform_b : Option<crate::transform_peer::Sym>,
-    #[cfg(feature = "transform_plugins")]
+    #[cfg(feature = "native_plugins")]
     pub native_transform_c : Option<crate::transform_peer::Sym>,
-    #[cfg(feature = "transform_plugins")]
+    #[cfg(feature = "native_plugins")]
     pub native_transform_d : Option<crate::transform_peer::Sym>,
 }
