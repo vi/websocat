@@ -656,6 +656,27 @@ impl WebsocatConfiguration2 {
         Ok(())
     }
 
+    #[cfg(feature="wasm_plugins")]
+    fn l_wasm(&mut self, _on_warning: &OnWarning) -> Result<()> {
+        if self.contains_class("WasmTransformAClass") && self.opts.wasm_transform_a.is_none() {
+            return Err("--wasm-plugin-a must be specified to use `wasm_plugin_transform_a:`")?;
+        }
+        if self.contains_class("WasmTransformBClass") && self.opts.wasm_transform_b.is_none() {
+            return Err("--wasm-plugin-b must be specified to use `wasm_plugin_transform_b:`")?;
+        }
+        if self.contains_class("WasmTransformCClass") && self.opts.wasm_transform_c.is_none() {
+            return Err("--wasm-plugin-c must be specified to use `wasm_plugin_transform_c:`")?;
+        }
+        if self.contains_class("WasmTransformDClass") && self.opts.wasm_transform_d.is_none() {
+            return Err("--wasm-plugin-d must be specified to use `wasm_plugin_transform_d:`")?;
+        }
+        Ok(())
+    }
+    #[cfg(not(feature="wasm_plugins"))]
+    fn l_wasm(&mut self, _on_warning: &OnWarning) -> Result<()> {
+        Ok(())
+    }
+
 
 
     pub fn lint_and_fixup(&mut self, on_warning: OnWarning) -> Result<()> {
@@ -683,6 +704,7 @@ impl WebsocatConfiguration2 {
         self.l_sizelimits(&on_warning)?;
         self.l_compress(&on_warning)?;
         self.l_plugins(&on_warning)?;
+        self.l_wasm(&on_warning)?;
 
         // TODO: UDP connect oneshot mode
         // TODO: tests for the linter

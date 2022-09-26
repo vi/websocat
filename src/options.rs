@@ -138,4 +138,13 @@ pub struct Options {
     pub native_transform_c : Option<crate::transform_peer::Sym>,
     #[cfg(feature = "native_plugins")]
     pub native_transform_d : Option<crate::transform_peer::Sym>,
+
+    #[cfg(feature = "wasm_plugins")]
+    pub wasm_transform_a : Option<crate::wasm_transform_peer::Handle>,
+    #[cfg(feature = "wasm_plugins")]
+    pub wasm_transform_b : Option<crate::wasm_transform_peer::Handle>,
+    #[cfg(feature = "wasm_plugins")]
+    pub wasm_transform_c : Option<crate::wasm_transform_peer::Handle>,
+    #[cfg(feature = "wasm_plugins")]
+    pub wasm_transform_d : Option<crate::wasm_transform_peer::Handle>,
 }

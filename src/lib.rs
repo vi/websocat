@@ -209,6 +209,9 @@ pub mod prometheus_peer;
 #[cfg(feature = "native_plugins")]
 pub mod transform_peer;
 
+#[cfg(feature = "wasm_plugins")]
+pub mod wasm_transform_peer;
+
 pub mod specparse;
 
 pub type PeerOverlay = Rc<dyn Fn(Peer, L2rUser) -> BoxedNewPeerFuture>;

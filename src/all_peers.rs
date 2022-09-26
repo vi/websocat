@@ -124,5 +124,14 @@ macro_rules! list_of_all_specifier_classes {
         #[cfg(feature = "native_plugins")]
         $your_macro!($crate::transform_peer::NativeTransformDClass);
 
+        #[cfg(feature = "wasm_plugins")]
+        $your_macro!($crate::wasm_transform_peer::WasmTransformAClass);
+        #[cfg(feature = "wasm_plugins")]
+        $your_macro!($crate::wasm_transform_peer::WasmTransformBClass);
+        #[cfg(feature = "wasm_plugins")]
+        $your_macro!($crate::wasm_transform_peer::WasmTransformCClass);
+        #[cfg(feature = "wasm_plugins")]
+        $your_macro!($crate::wasm_transform_peer::WasmTransformDClass);
+
     };
 }
