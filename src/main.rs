@@ -619,6 +619,7 @@ struct Opt {
     /// [A] Load specified symbol from specified wasm module and use it for `wasm_plugin_transform_a:`.
     /// Format is `symbol@library_file`. If `symbol@` is omitted, `websocat_transform` is implied.
     /// The wasm module should also have `malloc` and `free` functions exposed.
+    /// Prepend `library_file` with `!` to load serialized cwasm produced by `wasmtime compile` instead of compining the module in Websocat.
     #[cfg(feature = "wasm_plugins")]
     #[structopt(long = "wasm-plugin-a",  parse(try_from_str = "websocat::wasm_transform_peer::load_symbol"))]
     pub wasm_transform_a: Option<websocat::wasm_transform_peer::Handle>,

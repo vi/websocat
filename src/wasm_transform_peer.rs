@@ -121,8 +121,19 @@ pub fn load_symbol(spec: &str) -> crate::Result<Handle> {
     let instance = match env.modules.entry(libname.to_owned()) {
         std::collections::hash_map::Entry::Occupied(x) => x.into_mut(),
         std::collections::hash_map::Entry::Vacant(x) => {
-            info!("Loading wasm module {}", libname);
-            let module = Module::from_file(env.store.engine(), libname)?;
+            let module = if libname.starts_with('!') {
+                info!("Loading pre-built wasm module {}", &libname[1..]);
+                unsafe { Module::deserialize_file(env.store.engine(), &libname[1..])? }
+            } else {
+                #[cfg(feature="wasm_compiler")] {
+                    info!("Compiling wasm module {}", libname);
+                    Module::from_file(env.store.engine(), libname)?
+                }
+                #[cfg(not(feature="wasm_compiler"))] {
+                    return Err("Compiling wasm modules is not enabled in this Websocat build. Pre-compile them using `wasmtime compile`, then specify as `!myfilename.cwasm`")?;
+                }
+            };
+            
             let mut linker = Linker::<()>::new(env.store.engine());
             let mem_cell = Arc::new(Mutex::new(None::<Memory>));
             let mem_cell2 = mem_cell.clone();
@@ -156,7 +167,7 @@ pub fn load_symbol(spec: &str) -> crate::Result<Handle> {
     let transform = instance.get_typed_func::<(u32, u32, u32, u32, u32), u32, _>(&mut env.store, symname)?;
     let malloc = instance.get_typed_func::<u32, u32, _>(&mut env.store, "malloc")?;
     let free = instance.get_typed_func::<u32, (), _>(&mut env.store, "free")?;
-    debug!("Instanitated");
+    debug!("Instantiated");
     
     let h = Handle {
         mem,
