@@ -59,6 +59,8 @@ B$ websocat ws://127.0.0.1:1234
 C$ websocat ws://127.0.0.1:1234
 ```
 
+(if you like this one, you may actually want https://github.com/vi/wsbroad/ instead)
+
 See [moreexamples.md](./moreexamples.md) for further examples.
 
 ## Features
