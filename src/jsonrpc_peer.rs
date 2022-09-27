@@ -15,7 +15,7 @@ pub struct JsonRpc<T: Specifier>(pub T);
 impl<T: Specifier> Specifier for JsonRpc<T> {
     fn construct(&self, cp: ConstructParams) -> PeerConstructor {
         let inner = self.0.construct(cp.clone());
-        inner.map(move |p, _| jsonrpc_peer(p))
+        inner.map(move |p, _| jsonrpc_peer(p, cp.program_options.jsonrpc_omit_jsonrpc))
     }
     specifier_boilerplate!(noglobalstate has_subspec);
     self_0_is_subspecifier!(proxy_is_multiconnect);
@@ -37,12 +37,12 @@ Example: TODO
 "#
 );
 
-pub fn jsonrpc_peer(inner_peer: Peer) -> BoxedNewPeerFuture {
-    let filtered = JsonRpcWrapper(inner_peer.0, 1);
+pub fn jsonrpc_peer(inner_peer: Peer, omit_jsonrpc: bool) -> BoxedNewPeerFuture {
+    let filtered = JsonRpcWrapper(inner_peer.0, 1, omit_jsonrpc);
     let thepeer = Peer::new(filtered, inner_peer.1, inner_peer.2);
     Box::new(ok(thepeer)) as BoxedNewPeerFuture
 }
-struct JsonRpcWrapper(Box<dyn AsyncRead>, u64);
+struct JsonRpcWrapper(Box<dyn AsyncRead>, u64, bool);
 
 impl Read for JsonRpcWrapper {
     fn read(&mut self, b: &mut [u8]) -> Result<usize, IoError> {
@@ -98,7 +98,11 @@ impl Read for JsonRpcWrapper {
         let mut bb = ::std::io::Cursor::new(b);
         use std::io::Write;
         //{"jsonrpc":"2.0","id":412, "method":"abc", "params":[1,2]}
-        let _ = bb.write_all(b"{\"jsonrpc\":\"2.0\",\"id\":");
+        if self.2 {
+            let _ = bb.write_all(b"{\"id\":");
+        } else {
+            let _ = bb.write_all(b"{\"jsonrpc\":\"2.0\",\"id\":");
+        }
         let _ = bb.write_all(format!("{}", self.1).as_bytes());
         self.1 += 1;
         let _ = bb.write_all(b", \"method\":\"");

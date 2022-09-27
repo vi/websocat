@@ -147,4 +147,6 @@ pub struct Options {
     pub wasm_transform_c : Option<crate::wasm_transform_peer::Handle>,
     #[cfg(feature = "wasm_plugins")]
     pub wasm_transform_d : Option<crate::wasm_transform_peer::Handle>,
+
+    pub jsonrpc_omit_jsonrpc: bool,
 }

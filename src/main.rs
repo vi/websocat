@@ -637,6 +637,10 @@ struct Opt {
     #[cfg(feature = "wasm_plugins")]
     #[structopt(long = "wasm-plugin-d",  parse(try_from_str = "websocat::wasm_transform_peer::load_symbol"))]
     pub wasm_transform_d: Option<websocat::wasm_transform_peer::Handle>,
+
+    /// [A] Omit `jsonrpc` field when using `--jsonrpc`, e.g. for Chromium
+    #[structopt(long = "jsonrpc-omit-jsonrpc")]
+    pub jsonrpc_omit_jsonrpc: bool,
 }
 
 // TODO: make it byte-oriented/OsStr?
@@ -918,6 +922,7 @@ fn run() -> Result<()> {
             uncompress_deflate
             uncompress_zlib
             uncompress_gzip
+            jsonrpc_omit_jsonrpc
         );
         #[cfg(feature = "ssl")]
         {
