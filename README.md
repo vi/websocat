@@ -118,7 +118,7 @@ Early non-async versions of Websocat should be buildable by even older rustc.
 
 Note that old versions of Websocat may misbehave if built by Rust 1.48 or later due to https://github.com/rust-lang/rust/pull/71274/.
 
-It may be not a good idea to build v1.x line of Websocat with Rust 1.64 due to [IP address representation refactor]. It may expose previously hidden undefined behaviour in legacy depedencies.
+It may be not a good idea to build v1.x line of Websocat with Rust 1.64 due to [IP address representation refactor]. It may expose previously hidden undefined behaviour in legacy dependencies.
 
 [ipaddr]:https://github.com/rust-lang/rust/pull/78802
 
@@ -216,7 +216,7 @@ FLAGS:
     -u, --unidirectional                        Inhibit copying data in one direction
     -U, --unidirectional-reverse                Inhibit copying data in the other direction (or maybe in both directions
                                                 if combined with -u)
-        --accept-from-fd                        [A] Do not call `socket(2)` in UNIX socket listerer peer, start with
+        --accept-from-fd                        [A] Do not call `socket(2)` in UNIX socket listener peer, start with
                                                 `accept(2)` using specified file descriptor number as argument instead
                                                 of filename
         --unlink                                [A] Unlink listening UNIX socket before binding to it
@@ -435,7 +435,7 @@ Full list of address types:
 	assert2:        	Check the input. [A]
 	seqpacket:      	Connect to AF_UNIX SOCK_SEQPACKET socket. Argument is a filesystem path. [A]
 	seqpacket-listen:	Listen for connections on a specified AF_UNIX SOCK_SEQPACKET socket [A]
-	random:         	Generage random bytes when being read from, discard written bytes.
+	random:         	Generate random bytes when being read from, discard written bytes.
 Full list of overlays:
 	ws-upgrade:     	WebSocket upgrader / raw server. Specify your own protocol instead of usual TCP. [A]
 	http-request:   	[A] Issue HTTP request, receive a 1xx or 2xx reply, then pass
@@ -454,7 +454,7 @@ Full list of overlays:
 	timestamp:      	[A] Prepend timestamp to each incoming message.
 	socks5-connect: 	SOCKS5 proxy client (raw) [A]
 	socks5-bind:    	SOCKS5 proxy client (raw, bind command) [A]
-	crypto:         	[A] Encrypts written messages and decryptes (and verifies) read messages with a static key, using ChaCha20-Poly1305 algorithm.
+	crypto:         	[A] Encrypts written messages and decrypts (and verifies) read messages with a static key, using ChaCha20-Poly1305 algorithm.
 	prometheus:     	[A] Account connections, messages, bytes and other data and expose Prometheus metrics on a separate port.
 	exit_on_specific_byte:	[A] Turn specific byte into a EOF, allowing user to escape interactive Websocat session
 ```

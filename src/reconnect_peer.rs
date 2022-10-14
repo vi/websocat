@@ -110,7 +110,7 @@ impl State {
 
                         if !aux.already_warned {
                             aux.already_warned = true;
-                            warn!("Reconnecting failed. Further failed reconnects announncements will have lower severity.");
+                            warn!("Reconnecting failed. Further failed reconnects announcements will have lower severity.");
                         } else {
                             info!("Reconnecting failed.");
                         }

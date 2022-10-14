@@ -171,7 +171,7 @@ struct Opt {
 
     #[structopt(
         long = "accept-from-fd",
-        help = "[A] Do not call `socket(2)` in UNIX socket listerer peer, start with `accept(2)` using specified file descriptor number as argument instead of filename"
+        help = "[A] Do not call `socket(2)` in UNIX socket listener peer, start with `accept(2)` using specified file descriptor number as argument instead of filename"
     )]
     unix_socket_accept_from_fd: bool,
 

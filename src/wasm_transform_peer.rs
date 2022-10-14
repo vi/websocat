@@ -156,7 +156,7 @@ pub fn load_symbol(spec: &str) -> crate::Result<Handle> {
     let transform = instance.get_typed_func::<(u32, u32, u32, u32, u32), u32, _>(&mut env.store, symname)?;
     let malloc = instance.get_typed_func::<u32, u32, _>(&mut env.store, "malloc")?;
     let free = instance.get_typed_func::<u32, (), _>(&mut env.store, "free")?;
-    debug!("Instanitated");
+    debug!("Instantiated");
     
     let h = Handle {
         mem,

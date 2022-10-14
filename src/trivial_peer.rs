@@ -414,7 +414,7 @@ specifier_class!(
     MessageOriented,
     SingleConnect,
     help = r#"
-Generage random bytes when being read from, discard written bytes.
+Generate random bytes when being read from, discard written bytes.
 
     websocat -b random: ws://127.0.0.1/flood
 

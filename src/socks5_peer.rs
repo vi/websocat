@@ -113,7 +113,7 @@ fn read_socks_reply(p: Peer) -> RSRRet {
                 }
                 if reply[1] != b'\x00' {
                     let msg = match reply[1] {
-                        1 => "SOCKS: General SOCKS server failuire",
+                        1 => "SOCKS: General SOCKS server failure",
                         2 => "SOCKS connection not allowed",
                         3 => "SOCKS: network unreachable",
                         4 => "SOCKS: host unreachable",
