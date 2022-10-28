@@ -1,21 +1,21 @@
 use super::*;
 
-pub type HttpRequestWithResponseSlot = (
+pub type HttpRequestWithAResponseSlot = (
     http::Request<hyper::Body>,
     tokio::sync::oneshot::Sender<http::Response<hyper::Body>>,
 );
 pub type ByteStreamSource = Pin<Box<dyn AsyncRead + Send + 'static>>;
 pub type DatagramSource =
     Pin<Box<dyn futures::stream::Stream<Item = Result<bytes::Bytes>> + Send + 'static>>;
-pub type HttpSource = Pin<
-    Box<dyn futures::stream::Stream<Item = Result<HttpRequestWithResponseSlot>> + Send + 'static>,
+pub type HttpRequestsSource = Pin<
+    Box<dyn futures::stream::Stream<Item = Result<HttpRequestWithAResponseSlot>> + Send + 'static>,
 >;
 pub type ByteStreamSink = Pin<Box<dyn AsyncWrite + Send + 'static>>;
 pub type DatagramSink =
     Pin<Box<dyn futures::sink::Sink<bytes::Bytes, Error = anyhow::Error> + Send + 'static>>;
-pub type HttpSink = Pin<
+pub type HttpRequestsSink = Pin<
     Box<
-        dyn futures::sink::Sink<HttpRequestWithResponseSlot, Error = anyhow::Error>
+        dyn futures::sink::Sink<HttpRequestWithAResponseSlot, Error = anyhow::Error>
             + Send
             + 'static,
     >,
@@ -25,14 +25,14 @@ pub type ClosingNotification = Pin<Box<dyn Future<Output = ()> + Send + 'static>
 pub enum Source {
     ByteStream(ByteStreamSource),
     Datagrams(DatagramSource),
-    Http(HttpSource),
+    Http(HttpRequestsSource),
     None,
 }
 
 pub enum Sink {
     ByteStream(ByteStreamSink),
     Datagrams(DatagramSink),
-    Http(HttpSink),
+    Http(HttpRequestsSink),
     None,
 }
 

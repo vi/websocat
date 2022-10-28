@@ -342,8 +342,8 @@ impl RunnableNode for Datagrams {
             Sink::ByteStream(s) => {
                 use tokio_util::codec::BytesCodec;
                 use futures::SinkExt;
-                let w = tokio_util::codec::FramedWrite::new(s, BytesCodec::new());
-                let w = w.sink_map_err(|e|e.into());
+                let w = tokio_util::codec::FramedWrite::<_,tokio_util::codec::BytesCodec>::new(s, BytesCodec::new());
+                let w = w.sink_map_err(|e : std::io::Error |e.into());
                 Sink::Datagrams(Box::pin(w))
             }
             x => x,

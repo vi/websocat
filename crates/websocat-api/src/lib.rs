@@ -56,7 +56,7 @@ mod running;
 
 pub use running::{
     AnyObject, Bipipe, ByteStreamSink, ByteStreamSource, ClosingNotification, DatagramSink,
-    DatagramSource, HttpRequestWithResponseSlot, HttpSink, HttpSource, RunContext,
+    DatagramSource, HttpRequestWithAResponseSlot, HttpRequestsSink, HttpRequestsSource, RunContext,
     ServerModeContext, Sink, Source,
 };
 

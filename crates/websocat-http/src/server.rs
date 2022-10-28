@@ -244,7 +244,7 @@ impl websocat_api::RunnableNode for HttpServer2 {
         });
 
         let (rq_tx, rq_rx) =
-            tokio::sync::mpsc::channel::<Result<websocat_api::HttpRequestWithResponseSlot>>(1);
+            tokio::sync::mpsc::channel::<Result<websocat_api::HttpRequestWithAResponseSlot>>(1);
 
         let http = hyper::server::conn::Http::new();
 
@@ -284,7 +284,7 @@ impl websocat_api::RunnableNode for HttpServer2 {
         }));
 
         let r = futures::stream::unfold(rq_rx, move |mut rq_rx| async move {
-            let x: Option<Result<websocat_api::HttpRequestWithResponseSlot>> = rq_rx.recv().await;
+            let x: Option<Result<websocat_api::HttpRequestWithAResponseSlot>> = rq_rx.recv().await;
             if x.is_none() {
                 tracing::debug!("HTTP request stream is finished");
             }

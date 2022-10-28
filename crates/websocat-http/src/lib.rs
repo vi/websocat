@@ -7,6 +7,8 @@ use websocat_derive::WebsocatNode;
 pub mod client;
 pub use client::{HttpClient,AutoLowlevelHttpClient};
 
+pub mod client2;
+
 pub mod server;
 pub use server::HttpServer;
 
