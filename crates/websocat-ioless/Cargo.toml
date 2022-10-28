@@ -13,4 +13,4 @@ websocat-api = {path = "../websocat-api"}
 
 tracing = "0.1.25"
 tokio = {version = "1", features=["sync","io-util", "rt", "macros"]}
-tokio-util = { version = "0.6", features = ["codec"] }
+tokio-util = { version = "0.7", features = ["codec"] }
