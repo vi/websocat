@@ -53,7 +53,7 @@ impl<T: Specifier> Specifier for TlsConnect<T> {
 specifier_class!(
     name = TlsConnectClass,
     target = TlsConnect,
-    prefixes = ["ssl-connect:","ssl-c","ssl:","tls:","tls-connect:","c-ssl:","connect-ssl:","c-tls:","connect-tls:"],
+    prefixes = ["ssl-connect:","ssl-c:","ssl:","tls:","tls-connect:","tls-c:","c-ssl:","connect-ssl:","c-tls:","connect-tls:"],
     arg_handling = subspec,
     overlay = true,
     StreamOriented,
