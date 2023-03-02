@@ -103,7 +103,7 @@ FLAGS:
     -u, --unidirectional                        Inhibit copying data in one direction
     -U, --unidirectional-reverse                Inhibit copying data in the other direction (or maybe in both directions
                                                 if combined with -u)
-        --accept-from-fd                        [A] Do not call `socket(2)` in UNIX socket listerer peer, start with
+        --accept-from-fd                        [A] Do not call `socket(2)` in UNIX socket listener peer, start with
                                                 `accept(2)` using specified file descriptor number as argument instead
                                                 of filename
         --unlink                                [A] Unlink listening UNIX socket before binding to it
@@ -892,7 +892,7 @@ Example: forward connections from a UNIX seqpacket socket to a WebSocket
 Internal name for --dump-spec: Random
 
 
-Generage random bytes when being read from, discard written bytes.
+Generate random bytes when being read from, discard written bytes.
 
     websocat -b random: ws://127.0.0.1/flood
 
@@ -1188,7 +1188,7 @@ See an example in moreexamples.md for more thorough example.
 Internal name for --dump-spec: Crypto
 
 
-[A] Encrypts written messages and decryptes (and verifies) read messages with a static key, using ChaCha20-Poly1305 algorithm.
+[A] Encrypts written messages and decrypts (and verifies) read messages with a static key, using ChaCha20-Poly1305 algorithm.
 
 Do not not use in stream mode - packet boundaries are significant.
 

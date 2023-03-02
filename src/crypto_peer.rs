@@ -43,7 +43,7 @@ specifier_class!(
     MessageOriented,
     MulticonnectnessDependsOnInnerType,
     help = r#"
-[A] Encrypts written messages and decryptes (and verifies) read messages with a static key, using ChaCha20-Poly1305 algorithm.
+[A] Encrypts written messages and decrypts (and verifies) read messages with a static key, using ChaCha20-Poly1305 algorithm.
 
 Do not not use in stream mode - packet boundaries are significant.
 

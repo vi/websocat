@@ -42,7 +42,7 @@ impl ReadDebt {
             self.0 = Some(buf_in[l..].to_vec());
         }
 
-        debug!("Fullfulling the debt of {} bytes", l);
+        debug!("Fulfilling the debt of {} bytes", l);
         if l == 0 {
             match self.2 {
                 ZeroMessagesHandling::Deliver => (),
