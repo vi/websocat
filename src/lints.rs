@@ -474,6 +474,9 @@ impl WebsocatConfiguration2 {
         if self.opts.pkcs12_der.is_some() &&  !self.contains_class("TlsAcceptClass") {
             Err("--pkcs12-der makes no sense without an TLS connections acceptor")?;
         }
+        if self.opts.pkcs12_der.is_none() &&  self.contains_class("TlsAcceptClass") {
+            Err("You need to specify server key and certificate using the --pkcs12-der option to use the TLS connections acceptor")?;
+        }
         if self.opts.client_pkcs12_der.is_some() && !self.contains_class("WsClientSecureClass") && !self.contains_class("TlsConnectClass") {
             Err("--client-pkcs12-der makes no sense without wss:// or ssl: connectors")?;
         }
