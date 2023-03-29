@@ -161,7 +161,7 @@ pub struct WsReadWrapper<T: WsStream + 'static> {
     pub text_base64: bool,
     pub creation_time: ::std::time::Instant, // for measuring ping RTTs
     pub print_rtts: bool,
-    pub inhibit_pongs: bool,
+    pub inhibit_pongs: Option<usize>,
     pub uncompress : CompressionMethod,
 }
 
@@ -220,12 +220,15 @@ impl<T: WsStream + 'static> Read for WsReadWrapper<T> {
                     info!("incoming None");
                     abort_and_broken_pipe!()
                 }
-                Ready(Some(OwnedMessage::Ping(_x))) if self.inhibit_pongs => {
+                Ready(Some(OwnedMessage::Ping(_x))) if self.inhibit_pongs == Some(0) => {
                     info!("Received and ignored WebSocket ping");
                     continue;
                 }
                 Ready(Some(OwnedMessage::Ping(x))) => {
                     info!("Received WebSocket ping");
+                    if let Some(ref mut ip) = self.inhibit_pongs {
+                        *ip = ip.wrapping_sub(1);
+                    }
                     let om = OwnedMessage::Pong(x);
                     let mut sink = self.pingreply.borrow_mut();
                     let mut proceed = false;

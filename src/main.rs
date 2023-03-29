@@ -643,9 +643,9 @@ struct Opt {
     #[structopt(long = "jsonrpc-omit-jsonrpc")]
     pub jsonrpc_omit_jsonrpc: bool,
 
-    /// [A] Do not reply for incoming Websocat pings
+    /// [A] Stop replying to incoming WebSocket pings after specified number of replies 
     #[structopt(long = "inhibit-pongs")]
-    pub inhibit_pongs: bool,
+    pub inhibit_pongs: Option<usize>,
 }
 
 // TODO: make it byte-oriented/OsStr?

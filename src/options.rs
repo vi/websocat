@@ -149,5 +149,5 @@ pub struct Options {
     pub wasm_transform_d : Option<crate::wasm_transform_peer::Handle>,
 
     pub jsonrpc_omit_jsonrpc: bool,
-    pub inhibit_pongs: bool,
+    pub inhibit_pongs: Option<usize>,
 }
