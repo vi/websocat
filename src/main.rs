@@ -642,6 +642,10 @@ struct Opt {
     /// [A] Omit `jsonrpc` field when using `--jsonrpc`, e.g. for Chromium
     #[structopt(long = "jsonrpc-omit-jsonrpc")]
     pub jsonrpc_omit_jsonrpc: bool,
+
+    /// [A] Do not reply for incoming Websocat pings
+    #[structopt(long = "inhibit-pongs")]
+    pub inhibit_pongs: bool,
 }
 
 // TODO: make it byte-oriented/OsStr?
@@ -924,6 +928,7 @@ fn run() -> Result<()> {
             uncompress_zlib
             uncompress_gzip
             jsonrpc_omit_jsonrpc
+            inhibit_pongs
         );
         #[cfg(feature = "ssl")]
         {
