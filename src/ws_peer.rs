@@ -488,6 +488,7 @@ pub struct WsPinger<T: WsStream + 'static> {
     t: ::tokio_timer::Interval,
     origin: ::std::time::Instant,
     aborter: ::futures::unsync::oneshot::Receiver<()>,
+    max_sent_pings: Option<usize>,
 }
 
 impl<T: WsStream + 'static> WsPinger<T> {
@@ -496,6 +497,7 @@ impl<T: WsStream + 'static> WsPinger<T> {
         interval: ::std::time::Duration,
         origin: ::std::time::Instant,
         aborter: ::futures::unsync::oneshot::Receiver<()>,
+        max_sent_pings: Option<usize>,
     ) -> Self {
         WsPinger {
             st: WsPingerState::WaitingForTimer,
@@ -503,6 +505,7 @@ impl<T: WsStream + 'static> WsPinger<T> {
             si: sink,
             origin,
             aborter,
+            max_sent_pings,
         }
     }
 }
@@ -530,6 +533,15 @@ impl<T: WsStream + 'static> ::futures::Future for WsPinger<T> {
                     Ok(Async::Ready(None)) => warn!("tokio-timer's interval stream ended?"),
                     Ok(Async::NotReady) => return Ok(Async::NotReady),
                     Ok(Async::Ready(Some(_instant))) => {
+                        if let Some(ref mut maxnum) = self.max_sent_pings {
+                            if *maxnum > 0 {
+                                *maxnum -= 1;
+                            } else {
+                                info!("Not sending WebSocket pings anymore");
+                                self.st = WaitingForTimer;
+                                continue;
+                            }
+                        }
                         self.st = StartSend;
                         info!("Sending WebSocket ping");
                         continue;
@@ -591,7 +603,7 @@ pub fn finish_building_ws_peer<S>(opts: &super::Options, duplex: Duplex<S>, clos
         let (tx, rx) = ::futures::unsync::oneshot::channel();
 
         let intv = ::std::time::Duration::from_secs(d);
-        let pinger = super::ws_peer::WsPinger::new(mpsink.clone(), intv,now, rx);
+        let pinger = super::ws_peer::WsPinger::new(mpsink.clone(), intv,now, rx, opts.max_sent_pings);
         ::tokio_current_thread::spawn(pinger);
         Some(tx)
     } else {

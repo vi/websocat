@@ -646,6 +646,10 @@ struct Opt {
     /// [A] Stop replying to incoming WebSocket pings after specified number of replies 
     #[structopt(long = "inhibit-pongs")]
     pub inhibit_pongs: Option<usize>,
+
+    /// [A] Stop sending pings after this number of sent pings
+    #[structopt(long = "max-sent-pings")]
+    pub max_sent_pings: Option<usize>,
 }
 
 // TODO: make it byte-oriented/OsStr?
@@ -929,6 +933,7 @@ fn run() -> Result<()> {
             uncompress_gzip
             jsonrpc_omit_jsonrpc
             inhibit_pongs
+            max_sent_pings
         );
         #[cfg(feature = "ssl")]
         {

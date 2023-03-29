@@ -150,4 +150,5 @@ pub struct Options {
 
     pub jsonrpc_omit_jsonrpc: bool,
     pub inhibit_pongs: Option<usize>,
+    pub max_sent_pings: Option<usize>,
 }
