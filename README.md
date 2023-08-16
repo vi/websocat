@@ -475,6 +475,7 @@ Limitations
 * Current version of Websocat don't receive notification about closed sockets. This makes serving without `-E` or `-u` options or in backpressure scenarios prone to socket leak.
 * Readline is not integrated. Users are advices to wrap websocat using [`rlwrap`](https://linux.die.net/man/1/rlwrap) tool for more convenient CLI.
 * Build process of current version of Websocat is not properly automated and is fragile.
+* `ws://localhost` may fail if service is not listening both IPv4 and IPv6 properly. There is a workaround based on `ws-c:tcp:` if needed. Or just use `ws://127.0.0.1`.
 
 See also
 ---
