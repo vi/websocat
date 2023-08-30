@@ -1,9 +1,9 @@
 extern crate tokio_process;
 
 use futures;
-use std::{self, process::ExitStatus};
 use std::io::Result as IoResult;
 use std::io::{Read, Write};
+use std::{self, process::ExitStatus};
 use tokio_io::{AsyncRead, AsyncWrite};
 
 use super::{L2rUser, LeftSpecToRightSpec};
@@ -32,6 +32,7 @@ impl Specifier for Cmd {
     fn construct(&self, p: ConstructParams) -> PeerConstructor {
         let zero_sighup = p.program_options.process_zero_sighup;
         let exit_sighup = p.program_options.process_exit_sighup;
+        let exit_on_disconnect = p.program_options.process_exit_on_disconnect;
         let args = if cfg!(target_os = "windows") {
             let mut args = Command::new("cmd");
             args.arg("/C").arg(self.0.clone());
@@ -47,6 +48,7 @@ impl Specifier for Cmd {
             env,
             zero_sighup,
             exit_sighup,
+            exit_on_disconnect,
         ))) as BoxedNewPeerFuture)
     }
     specifier_boilerplate!(noglobalstate singleconnect no_subspec );
@@ -74,6 +76,7 @@ impl Specifier for ShC {
     fn construct(&self, p: ConstructParams) -> PeerConstructor {
         let zero_sighup = p.program_options.process_zero_sighup;
         let exit_sighup = p.program_options.process_exit_sighup;
+        let exit_on_disconnect = p.program_options.process_exit_on_disconnect;
         let mut args = Command::new("sh");
         args.arg("-c").arg(self.0.clone());
         let env = needenv(&p);
@@ -82,6 +85,7 @@ impl Specifier for ShC {
             env,
             zero_sighup,
             exit_sighup,
+            exit_on_disconnect,
         ))) as BoxedNewPeerFuture)
     }
     specifier_boilerplate!(noglobalstate singleconnect no_subspec );
@@ -113,6 +117,7 @@ impl Specifier for Exec {
     fn construct(&self, p: ConstructParams) -> PeerConstructor {
         let zero_sighup = p.program_options.process_zero_sighup;
         let exit_sighup = p.program_options.process_exit_sighup;
+        let exit_on_disconnect = p.program_options.process_exit_on_disconnect;
         let mut args = Command::new(self.0.clone());
         args.args(p.program_options.exec_args.clone());
         let env = needenv(&p);
@@ -121,6 +126,7 @@ impl Specifier for Exec {
             env,
             zero_sighup,
             exit_sighup,
+            exit_on_disconnect,
         ))) as BoxedNewPeerFuture)
     }
     specifier_boilerplate!(noglobalstate singleconnect no_subspec );
@@ -152,6 +158,7 @@ fn process_connect_peer(
     l2r: Option<&LeftSpecToRightSpec>,
     zero_sighup: bool,
     close_sighup: bool,
+    exit_on_disconnect: bool,
 ) -> Result<Peer, Box<dyn std::error::Error>> {
     if let Some(x) = l2r {
         if let Some(ref z) = x.client_addr {
@@ -166,19 +173,35 @@ fn process_connect_peer(
     }
     cmd.stdin(Stdio::piped()).stdout(Stdio::piped());
     let child = cmd.spawn_async()?;
-    let ph = ProcessPeer(Rc::new(RefCell::new(ForgetfulProcess(Some(child)))), zero_sighup, close_sighup);
+    let ph = ProcessPeer {
+        chld: Rc::new(RefCell::new(ForgetfulProcess {
+            chld: Some(child),
+            exit_on_disconnect,
+        })),
+        sighup_on_zero: zero_sighup,
+        sighup_on_close: close_sighup,
+    };
     Ok(Peer::new(ph.clone(), ph, None /* TODO */))
 }
 
-struct ForgetfulProcess(Option<Child>);
+struct ForgetfulProcess {
+    chld: Option<Child>,
+    exit_on_disconnect: bool,
+}
 #[derive(Clone)]
-struct ProcessPeer(Rc<RefCell<ForgetfulProcess>>, bool, bool);
+struct ProcessPeer {
+    chld: Rc<RefCell<ForgetfulProcess>>,
+    sighup_on_zero: bool,
+    sighup_on_close: bool,
+}
 
 impl Read for ProcessPeer {
     fn read(&mut self, buf: &mut [u8]) -> IoResult<usize> {
-        self.0
+        self.chld
             .borrow_mut()
-            .0.as_mut().unwrap()
+            .chld
+            .as_mut()
+            .unwrap()
             .stdout()
             .as_mut()
             .expect("assertion failed 1425")
@@ -188,20 +211,23 @@ impl Read for ProcessPeer {
 
 impl Write for ProcessPeer {
     fn write(&mut self, buf: &[u8]) -> IoResult<usize> {
-        #[cfg(all(unix, feature = "libc"))]
+        #[cfg(unix)]
         {
-            if self.1 && buf.is_empty() {
+            if self.sighup_on_zero && buf.is_empty() {
                 // TODO use nix crate?
-                let pid = self.0.borrow().id();
-                unsafe {
-                    extern crate libc;
-                    libc::kill(pid as libc::pid_t, libc::SIGHUP);
+                if let Some(ref chld) = self.chld.borrow().chld {
+                    unsafe {
+                        extern crate libc;
+                        libc::kill(chld.id() as libc::pid_t, libc::SIGHUP);
+                    }
                 }
             }
         }
-        self.0
+        self.chld
             .borrow_mut()
-            .0.as_mut().unwrap()
+            .chld
+            .as_mut()
+            .unwrap()
             .stdin()
             .as_mut()
             .expect("assertion failed 1425")
@@ -209,9 +235,11 @@ impl Write for ProcessPeer {
     }
 
     fn flush(&mut self) -> IoResult<()> {
-        self.0
+        self.chld
             .borrow_mut()
-            .0.as_mut().unwrap()
+            .chld
+            .as_mut()
+            .unwrap()
             .stdin()
             .as_mut()
             .expect("assertion failed 1425")
@@ -223,22 +251,25 @@ impl AsyncRead for ProcessPeer {}
 
 impl AsyncWrite for ProcessPeer {
     fn shutdown(&mut self) -> futures::Poll<(), std::io::Error> {
-        #[cfg(all(unix, feature = "libc"))]
+        #[cfg(unix)]
         {
-            if self.2 {
+            if self.sighup_on_close {
                 // TODO use nix crate?
-                let pid = self.0.borrow().id();
-                unsafe {
-                    extern crate libc;
-                    libc::kill(pid as libc::pid_t, libc::SIGHUP);
+                if let Some(ref chld) = self.chld.borrow().chld {
+                    unsafe {
+                        extern crate libc;
+                        libc::kill(chld.id() as libc::pid_t, libc::SIGHUP);
+                    }
                 }
             }
         }
         debug!("Shutdown of process peer's writer");
         let mut c: tokio_process::ChildStdin = self
-            .0
+            .chld
             .borrow_mut()
-            .0.as_mut().unwrap()
+            .chld
+            .as_mut()
+            .unwrap()
             .stdin()
             .take()
             .expect("assertion failed 1425");
@@ -248,16 +279,30 @@ impl AsyncWrite for ProcessPeer {
 
 impl Drop for ForgetfulProcess {
     fn drop(&mut self) {
-        let chld = self.0.take().unwrap();
-        use futures::Future;
-        tokio::spawn(chld.map(|exc: ExitStatus| {
-            if exc.success() {
-                debug!("Child process exited")
-            } else {
-                warn!("Child process exited unsuccessfully: {:?}", exc.code());
+        let mut chld = self.chld.take().unwrap();
+        if ! self.exit_on_disconnect {
+            debug!("Forcing child process to exit");
+            match chld.kill() {
+                Ok(()) => (),
+                Err(e) => {
+                    warn!("Error terminating child process: {}", e);
+                }
             }
-        }).map_err(|e| {
-            error!("Error waiting for child process termination: {}", e);
-        }));
+            drop(chld);
+        } else {
+            use futures::Future;
+            tokio::spawn(
+                chld.map(|exc: ExitStatus| {
+                    if exc.success() {
+                        debug!("Child process exited")
+                    } else {
+                        warn!("Child process exited unsuccessfully: {:?}", exc.code());
+                    }
+                })
+                .map_err(|e| {
+                    error!("Error waiting for child process termination: {}", e);
+                }),
+            );
+        }
     }
 }

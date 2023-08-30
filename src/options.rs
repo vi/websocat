@@ -63,6 +63,7 @@ pub struct Options {
     pub reuser_send_zero_msg_on_disconnect: bool,
     pub process_zero_sighup: bool,
     pub process_exit_sighup: bool,
+    pub process_exit_on_disconnect: bool,
     pub socks_destination: Option<SocksSocketAddr>,
     pub auto_socks5: Option<SocketAddr>,
     pub socks5_bind_script: Option<OsString>,

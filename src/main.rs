@@ -344,6 +344,12 @@ struct Opt {
     process_exit_sighup: bool,
 
     #[structopt(
+        long = "exec-exit-on-disconnect",
+        help = "[A] Make exec: or sh-c: or cmd: immediately exit when connection is closed, don't wait for termination."
+    )]
+    process_exit_on_disconnect: bool,
+
+    #[structopt(
         long = "jsonrpc",
         help = "Format messages you type as JSON RPC 2.0 method calls. First word becomes method name, the rest becomes parameters, possibly automatically wrapped in []."
     )]
@@ -894,6 +900,7 @@ fn run() -> Result<()> {
             reuser_send_zero_msg_on_disconnect
             process_zero_sighup
             process_exit_sighup
+            process_exit_on_disconnect
             socks_destination
             auto_socks5
             socks5_bind_script
