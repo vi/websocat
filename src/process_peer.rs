@@ -280,7 +280,7 @@ impl AsyncWrite for ProcessPeer {
 impl Drop for ForgetfulProcess {
     fn drop(&mut self) {
         let mut chld = self.chld.take().unwrap();
-        if ! self.exit_on_disconnect {
+        if self.exit_on_disconnect {
             debug!("Forcing child process to exit");
             match chld.kill() {
                 Ok(()) => (),
