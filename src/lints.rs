@@ -55,6 +55,7 @@ pub trait SpecifierStackExt {
     fn contains(&self, t: &'static str) -> bool;
     fn is_multiconnect(&self) -> bool;
     fn is_stream_oriented(&self) -> bool;
+    fn autotoreconn_misuse(&self)  -> bool;
     fn insert_line_class_in_proper_place(&mut self, x: Rc<dyn SpecifierClass>);
 }
 impl SpecifierStackExt for SpecifierStack {
@@ -92,6 +93,20 @@ impl SpecifierStackExt for SpecifierStack {
             }
         }
         self.addrtype.cls.get_name() == t
+    }
+    fn autotoreconn_misuse(&self)  -> bool {
+        let mut autoreconnect_found = false;
+        for overlay in &self.overlays {
+            if overlay.cls.get_name() == "AutoReconnectClass" {
+                autoreconnect_found = true;
+            }
+            if overlay.cls.get_name() == "BroadcastReuserClass" || overlay.cls.get_name() == "ReuserClass" {
+                if autoreconnect_found {
+                    return true;
+                }
+            }
+        }
+        false
     }
     fn is_multiconnect(&self) -> bool {
         use super::ClassMulticonnectStatus::*;
@@ -680,7 +695,12 @@ impl WebsocatConfiguration2 {
         Ok(())
     }
 
-
+    fn l_autoreconn_reuse(&mut self, _on_warning: &OnWarning) -> Result<()> {
+        if self.s1.autotoreconn_misuse() || self.s2.autotoreconn_misuse() {
+            _on_warning("Warning: `autoreconnect:reuse:` is a bad overlay combination. Maybe you want `reuse:autoreconnect:");
+        }
+        Ok(())
+    }
 
     pub fn lint_and_fixup(&mut self, on_warning: OnWarning) -> Result<()> {
         let multiconnect = !self.opts.oneshot && self.s1.is_multiconnect();
@@ -708,6 +728,7 @@ impl WebsocatConfiguration2 {
         self.l_compress(&on_warning)?;
         self.l_plugins(&on_warning)?;
         self.l_wasm(&on_warning)?;
+        self.l_autoreconn_reuse(&on_warning)?;
 
         // TODO: UDP connect oneshot mode
         // TODO: tests for the linter
