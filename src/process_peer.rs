@@ -279,6 +279,7 @@ impl AsyncWrite for ProcessPeer {
 
 impl Drop for ForgetfulProcess {
     fn drop(&mut self) {
+        use futures::Future;
         let mut chld = self.chld.take().unwrap();
         if self.exit_on_disconnect {
             debug!("Forcing child process to exit");
@@ -288,9 +289,12 @@ impl Drop for ForgetfulProcess {
                     warn!("Error terminating child process: {}", e);
                 }
             }
-            drop(chld);
+            tokio::spawn(
+                chld.map(|_exc: ExitStatus| {
+
+                }).map_err(|_|())
+            );
         } else {
-            use futures::Future;
             tokio::spawn(
                 chld.map(|exc: ExitStatus| {
                     if exc.success() {
