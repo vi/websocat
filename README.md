@@ -143,7 +143,7 @@ There is a [list of all address types and overlays](doc.md).
 <details><summary>`websocat --help=long` output</summary>
 
 ```
-websocat 1.11.0
+websocat 1.12.0
 Vitaly "_Vi" Shukela <vi0oss@gmail.com>
 Command-line client for web sockets, like netcat/curl/socat for ws://.
 
@@ -175,6 +175,7 @@ FLAGS:
         --jsonrpc                               Format messages you type as JSON RPC 2.0 method calls. First word
                                                 becomes method name, the rest becomes parameters, possibly automatically
                                                 wrapped in [].
+        --jsonrpc-omit-jsonrpc                  [A] Omit `jsonrpc` field when using `--jsonrpc`, e.g. for Chromium
         --just-generate-key                     [A] Just a Sec-WebSocket-Key value without running main Websocat
         --linemode-strip-newlines               [A] Don't include trailing \n or \r\n coming from streams in WebSocket
                                                 messages
@@ -191,6 +192,8 @@ FLAGS:
         --oneshot                               Serve only once. Not to be confused with -1 (--one-message)
         --print-ping-rtts                       Print measured round-trip-time to stderr after each received WebSocket
                                                 pong.
+        --exec-exit-on-disconnect               [A] Make exec: or sh-c: or cmd: immediately exit when connection is
+                                                closed, don't wait for termination.
         --exec-sighup-on-stdin-close            [A] Make exec: or sh-c: or cmd: send SIGHUP on UNIX when input is
                                                 closed.
         --exec-sighup-on-zero-msg               [A] Make exec: or sh-c: or cmd: send SIGHUP on UNIX when facing incoming
@@ -284,6 +287,9 @@ OPTIONS:
             --help=short is the list of easy options and address types
             --help=long lists all options and types (see [A] markers)
             --help=doc also shows longer description and examples.
+        --inhibit-pongs <inhibit_pongs>
+            [A] Stop replying to incoming WebSocket pings after specified number of replies
+
         --just-generate-accept <just_generate_accept>
             [A] Just a Sec-WebSocket-Accept value based on supplied Sec-WebSocket-Key value without running main
             Websocat
@@ -295,6 +301,9 @@ OPTIONS:
 
         --conncap <max_parallel_conns>
             Maximum number of simultaneous connections for listening mode
+
+        --max-sent-pings <max_sent_pings>
+            [A] Stop sending pings after this number of sent pings
 
         --max-ws-frame-length <max_ws_frame_length>
             [A] Maximum size of incoming WebSocket frames, to prevent memory overflow [default: 104857600]
