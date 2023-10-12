@@ -61,6 +61,9 @@ struct State {
     aux: State2,
     reconnect_delay: std::time::Duration,
     ratelimiter: Option<tokio_timer::Delay>,
+    reconnect_count_limit: Option<usize>,
+    /// Do not initiate connection now, return not ready outcome instead
+    pegged_until_write: bool,
 }
 
 /// This implementation's poll is to be reused many times, both after returning item and error
@@ -85,17 +88,30 @@ impl State {
                     Ok(Async::NotReady) => return Ok(Async::NotReady),
                 }
             }
-            let cp = self.cp.clone();
             if let Some(ref mut p) = *pp {
                 return Ok(Async::Ready(p));
             }
+            let cp = self.cp.clone();
 
             // Peer is not present: trying to create a new one
+
+            if self.pegged_until_write {
+                return Ok(Async::NotReady);
+            }
+            if self.reconnect_count_limit == Some(0) {
+                info!("autoreconnector reconnect limit reached. Failing connection.");
+                return Err(Box::new(simple_err("No more connections allowed".to_owned())));
+            }
 
             if let Some(mut bnpf) = nn.take() {
                 match bnpf.poll() {
                     Ok(Async::Ready(p)) => {
                         *pp = Some(p);
+
+                        if let Some(ref mut cl) = self.reconnect_count_limit {
+                            *cl -= 1;
+                        }
+
                         continue;
                     }
                     Ok(Async::NotReady) => {
@@ -106,11 +122,15 @@ impl State {
                         // Stop on error:
                         //return Err(_x);
 
+                        if let Some(ref mut cl) = self.reconnect_count_limit {
+                            *cl -= 1;
+                        }
+
                         // Just reconnect again on error
 
                         if !aux.already_warned {
                             aux.already_warned = true;
-                            warn!("Reconnecting failed. Further failed reconnects announcements will have lower severity.");
+                            warn!("Reconnecting failed. Further failed reconnects announcements will have lower log severity.");
                         } else {
                             info!("Reconnecting failed.");
                         }
@@ -204,6 +224,7 @@ impl AsyncRead for PeerHandle {}
 impl Write for PeerHandle {
     fn write(&mut self, b: &[u8]) -> Result<usize, IoError> {
         let mut state = self.0.borrow_mut();
+        state.pegged_until_write = false;
         main_loop!(state, p, bytes p.1.write(b));
     }
     fn flush(&mut self) -> Result<(), IoError> {
@@ -229,9 +250,67 @@ pub fn autoreconnector(s: Rc<dyn Specifier>, cp: ConstructParams) -> BoxedNewPee
         aux: Default::default(),
         reconnect_delay,
         ratelimiter: None,
+        reconnect_count_limit: None,
+        pegged_until_write: false,
     }));
     let ph1 = PeerHandle(s.clone());
     let ph2 = PeerHandle(s);
     let peer = Peer::new(ph1, ph2, None /* we handle hups ourselves */);
     Box::new(ok(peer)) as BoxedNewPeerFuture
 }
+
+
+pub fn waitfordata(s: Rc<dyn Specifier>, cp: ConstructParams) -> BoxedNewPeerFuture {
+    let reconnect_delay = std::time::Duration::from_millis(cp.program_options.autoreconnect_delay_millis);
+    let s = Rc::new(RefCell::new(State {
+        cp,
+        s,
+        p: None,
+        n: None,
+        aux: Default::default(),
+        reconnect_delay, // unused
+        ratelimiter: None,
+        reconnect_count_limit: Some(1),
+        pegged_until_write: true,
+    }));
+    let ph1 = PeerHandle(s.clone());
+    let ph2 = PeerHandle(s);
+    let peer = Peer::new(ph1, ph2, None /* we handle hups ourselves, though shouldn't probably */);
+    Box::new(ok(peer)) as BoxedNewPeerFuture
+}
+
+
+#[derive(Debug)]
+pub struct WaitForData(pub Rc<dyn Specifier>);
+impl Specifier for WaitForData {
+    fn construct(&self, cp: ConstructParams) -> PeerConstructor {
+        once(waitfordata(self.0.clone(), cp))
+    }
+    specifier_boilerplate!(singleconnect has_subspec globalstate);
+    self_0_is_subspecifier!(...);
+}
+
+specifier_class!(
+    name = WaitForDataClass,
+    target = WaitForData,
+    prefixes = ["waitfordata:", "wait-for-data:"],
+    arg_handling = subspec,
+    overlay = true,
+    MessageBoundaryStatusDependsOnInnerType,
+    SingleConnect,
+    help = r#"
+Wait for some data to pending being written before starting connecting. [A]
+
+Example: Connect to the TCP server on the left side immediately, but connect to
+the TCP server on the right side only after some data gets written by the first connection
+
+
+    websocat -b tcp:127.0.0.1:1234 waitfordata:tcp:127.0.0.1:1235
+
+Example: Connect to first WebSocket server, wait for some incoming WebSocket message, then
+connect to the second WebSocket server and start exchanging text and binary WebSocket messages
+between them.
+
+    websocat -b --binary-prefix=b --text-prefix=t ws://127.0.0.1:1234 waitfordata:ws://127.0.0.1:1235/
+"#
+);

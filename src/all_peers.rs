@@ -133,5 +133,6 @@ macro_rules! list_of_all_specifier_classes {
         #[cfg(feature = "wasm_plugins")]
         $your_macro!($crate::wasm_transform_peer::WasmTransformDClass);
 
+        $your_macro!($crate::reconnect_peer::WaitForDataClass);
     };
 }
