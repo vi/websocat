@@ -192,6 +192,7 @@ pub mod broadcast_reuse_peer;
 pub mod jsonrpc_peer;
 pub mod timestamp_peer;
 pub mod line_peer;
+pub mod lengthprefixed_peer;
 pub mod foreachmsg_peer;
 pub mod primitive_reuse_peer;
 pub mod reconnect_peer;

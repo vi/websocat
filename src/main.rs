@@ -656,6 +656,14 @@ struct Opt {
     /// [A] Stop sending pings after this number of sent pings
     #[structopt(long = "max-sent-pings")]
     pub max_sent_pings: Option<usize>,
+
+    /// [A] Use this number of length header bytes for `lengthprefixed:` overlay.
+    #[structopt(long = "--lengthprefixed-nbytes", default_value = "4")]
+    pub lengthprefixed_header_bytes: usize,
+
+    /// [A] Use little-endian framing headers instead of big-endian for `lengthprefixed:` overlay.
+    #[structopt(long = "--lengthprefixed-little-endian")]
+    pub lengthprefixed_little_endian: bool,
 }
 
 // TODO: make it byte-oriented/OsStr?
@@ -941,6 +949,8 @@ fn run() -> Result<()> {
             jsonrpc_omit_jsonrpc
             inhibit_pongs
             max_sent_pings
+            lengthprefixed_header_bytes
+            lengthprefixed_little_endian
         );
         #[cfg(feature = "ssl")]
         {

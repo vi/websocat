@@ -84,6 +84,7 @@ macro_rules! list_of_all_specifier_classes {
 
         $your_macro!($crate::line_peer::Message2LineClass);
         $your_macro!($crate::line_peer::Line2MessageClass);
+        $your_macro!($crate::lengthprefixed_peer::LengthPrefixedClass);
         $your_macro!($crate::foreachmsg_peer::ForeachmsgClass);
         $your_macro!($crate::mirror_peer::MirrorClass);
         $your_macro!($crate::mirror_peer::LiteralReplyClass);

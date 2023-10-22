@@ -3,6 +3,7 @@
 
 * `waitfordata:` overlay to delay connection initiation until first data is attempted to be written to it
 * Dockerfile updates
+* `lengthprefixed:` overlay - alternative to base64 mode
 
 <a name="v1.12.0"></a>
 # [Maintainance release (v1.12.0)](https://github.com/vi/websocat/releases/tag/v1.12.0) - 17 Sep 2023
