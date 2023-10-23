@@ -1,0 +1,11 @@
+[package]
+name = "websocat4"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+anyhow = "1.0.75"
+rhai = { version = "1.16.2", features = ["sync", "no_custom_syntax", "no_float", "no_index", "no_object", "no_time", "no_function", "no_closure", "no_module", "no_optimize", "unchecked"] }
+tokio = { version = "1.32.0", features = ["sync", "net", "rt", "macros", "io-util", "io-std"] }
