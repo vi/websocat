@@ -1,4 +1,2 @@
 let s = create_stdio();
-let r = take_read_part(s);
-let w = take_write_part(s);
-copydata(r, w)
+copydata(take_read_part(s), take_write_part(s))
