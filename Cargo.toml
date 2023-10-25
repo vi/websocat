@@ -11,6 +11,7 @@ bytes = "1.5.0"
 catty = "0.1.5"
 futures = "0.3.28"
 object-pool = "0.5.4"
-rhai = { version = "1.16.2", features = ["internals", "sync", "no_custom_syntax", "no_float", "no_index", "no_object", "no_time", "no_function", "no_closure", "no_module", "no_optimize", "unchecked"] }
+rhai = { version = "1.16.2", features = ["serde", "internals", "sync", "no_custom_syntax", "no_float", "no_index", "no_time", "no_module", "no_optimize", "unchecked"] }
+serde = { version = "1.0.188", features = ["derive"] }
 sharded-slab = "0.1.7"
 tokio = { version = "1.32.0", features = ["sync", "net", "rt", "macros", "io-util", "io-std"] }

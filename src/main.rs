@@ -1,14 +1,14 @@
 use std::{
     future::Future,
     pin::Pin,
-    sync::{Arc, Mutex},
+    sync::{Arc, Mutex}, net::SocketAddr,
 };
 
 use bytes::BytesMut;
 use futures::{stream::Stream, sink::Sink, StreamExt};
 use object_pool::Pool;
-use rhai::Engine;
-use tokio::io::{AsyncRead, AsyncWrite};
+use rhai::{Engine, Dynamic, EvalAltResult, Map, Position, FnPtr, AST, NativeCallContext};
+use tokio::{io::{AsyncRead, AsyncWrite}, net::TcpStream};
 
 type Handle<T> = Arc<Mutex<Option<T>>>;
 
@@ -60,6 +60,25 @@ fn copydata(from: StreamReadHandle, to: StreamWriteHandle) -> TaskHandle {
         } else {
             eprintln!("Nothing to copydata");
         }
+    }))))
+}
+
+/*fn copybidir(s1: StreamSocketHandle, s2: StreamSocketHandle) -> TaskHandle {
+    Arc::new(Mutex::new(Some(Box::pin(async move {
+        let (f, t) = (from.lock().unwrap().take(), to.lock().unwrap().take());
+        if let (Some(mut r), Some(mut w)) = (f, t) {
+            match tokio::io::copy(&mut r, &mut w).await {
+                Ok(x) => eprintln!("Copied {x} bytes"),
+                Err(e) => eprintln!("Error from copydata: {e}"),
+            }
+        } else {
+            eprintln!("Nothing to copydata");
+        }
+    }))))
+}*/
+fn dummytask() -> TaskHandle {
+    Arc::new(Mutex::new(Some(Box::pin(async move {
+        
     }))))
 }
 
@@ -138,11 +157,54 @@ fn copy_packets(from: DatagramStreamHandle, to: DatagramSinkHandle) -> TaskHandl
 }
 
 
+fn connect_tcp(ast: &'static AST, ctx: NativeCallContext<'_>, opts: Dynamic, continuation: FnPtr) -> Result<TaskHandle,Box<EvalAltResult>> {
+    #[derive(serde::Deserialize)]
+    struct TcpOpts {
+        addr: SocketAddr,
+    }
+    let opts : TcpOpts = rhai::serde::from_dynamic(&opts)?;
+
+    let e = ctx.engine();
+    let e : &'static Engine = unsafe { std::mem::transmute(e) };
+
+    Ok(Arc::new(Mutex::new(Some(Box::pin(async move {
+        let t = tokio::net::TcpStream::connect(opts.addr).await;
+        let t = match t {
+            Ok(t) => t,
+            Err(e) => {
+                eprintln!("Error: {e}");
+                return;
+            }
+        };
+        let (r,w) = t.into_split();
+    
+        let h = Arc::new(Mutex::new(StreamSocket {
+            read: Some(Box::pin(r)),
+            write: Some(Box::pin(w)),
+            close: None,
+        }));
+
+
+        let t : TaskHandle = continuation.call(e, ast, (h,)).unwrap();
+        let t : Task = t.lock().unwrap().take();
+        if let Some(t) = t {
+            t.await;
+        } else {
+            eprintln!("No task requested");
+        }
+    })))))
+}
+
+
 #[tokio::main(flavor = "current_thread")]
 async fn main() -> anyhow::Result<()> {
     let f = std::fs::read(std::env::args().nth(1).unwrap())?;
 
     let mut engine = Engine::RAW;
+    let ast = engine.compile(std::str::from_utf8(&f[..])?)?;
+    let ast : &'static AST = Box::leak(Box::new(ast));
+
+    //let engine_h : Handle<Engine> = Arc::new(Mutex::new(None));
 
     engine.register_fn("create_stdio", create_stdio);
     engine.register_fn("take_read_part", take_read_part);
@@ -152,8 +214,15 @@ async fn main() -> anyhow::Result<()> {
     engine.register_fn("trivial_pkts", trivial_pkts);
     engine.register_fn("display_pkts", display_pkts);
     engine.register_fn("copy_packets", copy_packets);
+    engine.register_fn("dummy_task", dummytask);
 
-    let task: TaskHandle = engine.eval(std::str::from_utf8(&f[..])?)?;
+    let conntcp = move |ctx: NativeCallContext, opts: Dynamic, continuation: FnPtr| -> Result<TaskHandle,Box<EvalAltResult>> {
+        connect_tcp(ast, ctx, opts, continuation)
+    };
+    engine.register_fn("connect_tcp", conntcp);
+    
+
+    let task: TaskHandle = engine.eval_ast(&ast)?;
 
     if let Some(t) = task.lock().unwrap().take() {
         t.await;
