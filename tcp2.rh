@@ -1,0 +1,7 @@
+connect_tcp(#{addr: "127.0.0.1:1234"}, |s1| {
+    connect_tcp(#{addr: "127.0.0.1:1235"}, |s2| {
+        let r = take_read_part(s1);
+        let w = take_write_part(s2);
+        copydata(r,w)
+    })
+})
