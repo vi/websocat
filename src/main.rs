@@ -156,16 +156,18 @@ fn copy_packets(from: DatagramStreamHandle, to: DatagramSinkHandle) -> TaskHandl
     }))))
 }
 
+static ENGINE : Mutex<Option<Arc<Engine>>> = Mutex::new(None);
+static AST : Mutex<Option<Arc<AST>>> = Mutex::new(None);
 
-fn connect_tcp(ast: &'static AST, ctx: NativeCallContext<'_>, opts: Dynamic, continuation: FnPtr) -> Result<TaskHandle,Box<EvalAltResult>> {
+fn connect_tcp(opts: Dynamic, continuation: FnPtr) -> Result<TaskHandle,Box<EvalAltResult>> {
     #[derive(serde::Deserialize)]
     struct TcpOpts {
         addr: SocketAddr,
     }
     let opts : TcpOpts = rhai::serde::from_dynamic(&opts)?;
 
-    let e = ctx.engine();
-    let e : &'static Engine = unsafe { std::mem::transmute(e) };
+    let engine = ENGINE.lock().unwrap().as_ref().unwrap().clone();
+    let ast = AST.lock().unwrap().as_ref().unwrap().clone();
 
     Ok(Arc::new(Mutex::new(Some(Box::pin(async move {
         let t = tokio::net::TcpStream::connect(opts.addr).await;
@@ -185,7 +187,7 @@ fn connect_tcp(ast: &'static AST, ctx: NativeCallContext<'_>, opts: Dynamic, con
         }));
 
 
-        let t : TaskHandle = continuation.call(e, ast, (h,)).unwrap();
+        let t : TaskHandle = continuation.call(&*engine, &*ast, (h,)).unwrap();
         let t : Task = t.lock().unwrap().take();
         if let Some(t) = t {
             t.await;
@@ -202,7 +204,6 @@ async fn main() -> anyhow::Result<()> {
 
     let mut engine = Engine::RAW;
     let ast = engine.compile(std::str::from_utf8(&f[..])?)?;
-    let ast : &'static AST = Box::leak(Box::new(ast));
 
     //let engine_h : Handle<Engine> = Arc::new(Mutex::new(None));
 
@@ -216,10 +217,12 @@ async fn main() -> anyhow::Result<()> {
     engine.register_fn("copy_packets", copy_packets);
     engine.register_fn("dummy_task", dummytask);
 
-    let conntcp = move |ctx: NativeCallContext, opts: Dynamic, continuation: FnPtr| -> Result<TaskHandle,Box<EvalAltResult>> {
-        connect_tcp(ast, ctx, opts, continuation)
-    };
-    engine.register_fn("connect_tcp", conntcp);
+    engine.register_fn("connect_tcp", connect_tcp);
+
+    let engine = Arc::new(engine);
+    let ast = Arc::new(ast);
+    *ENGINE.lock().unwrap() = Some(engine.clone());
+    *AST.lock().unwrap() = Some(ast.clone());
     
 
     let task: TaskHandle = engine.eval_ast(&ast)?;
