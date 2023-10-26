@@ -31,6 +31,14 @@ impl<T : Future<Output = ()> + Send + 'static > TaskHandleExt for T {
     }
 }
 
+pub async fn run_task(h: Handle<Task>) {
+    let Some(t) = h.lock().unwrap().take() else {
+        eprintln!("No task requested");
+        return;
+    };
+    t.await
+}
+
 pub type StreamRead = Pin<Box<dyn AsyncRead + Send>>;
 pub type StreamWrite = Pin<Box<dyn AsyncWrite + Send>>;
 

@@ -6,7 +6,14 @@ use crate::types::{Handle, StreamWrite, StreamRead, TaskHandleExt, Task, Datagra
 fn copydata(from: Handle<StreamRead>, to: Handle<StreamWrite>) -> Handle<Task> {
     async move {
         let (f, t) = (from.lock().unwrap().take(), to.lock().unwrap().take());
+
         if let (Some(mut r), Some(mut w)) = (f, t) {
+            eprintln!(
+                "copy read={:?} write={:?}",
+                &*r as *const _,
+                &*w as *const _,
+            );
+
             match tokio::io::copy(&mut r, &mut w).await {
                 Ok(x) => eprintln!("Copied {x} bytes"),
                 Err(e) => eprintln!("Error from copydata: {e}"),
