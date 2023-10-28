@@ -1,8 +1,9 @@
 use std::sync::Mutex;
 
 use rhai::{Engine, AST, Variant, FnPtr, FuncArgs};
+use tracing::error;
 
-use crate::types::{Handle, Task};
+use crate::types::{Handle, Task, run_task};
 
 static SINGLETON : Mutex<Option<&'static GlobalContext>> = Mutex::new(None);
 
@@ -54,6 +55,16 @@ pub fn callback<T : Variant + Clone>(f: FnPtr, args: impl FuncArgs) -> anyhow::R
         }
     };
 
-    let ret = f.call(&context.engine, &context.ast, args)?;
-    Ok(ret)
+    let ret = f.call(&context.engine, &context.ast, args);
+    if let Err(ref e) = ret {
+        error!("Error from scenario task: {e}");
+    };
+    Ok(ret?)
+}
+
+pub async fn callback_and_continue(f: FnPtr, args: impl FuncArgs) {
+    match callback::<Handle<Task>> (f, args) {
+        Ok(h) => run_task(h).await,
+        Err(e) => error!("Error from scenario task: {e}"),
+    };
 }

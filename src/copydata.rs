@@ -1,25 +1,34 @@
 use futures::StreamExt;
 use rhai::Engine;
+use tracing::{debug_span, debug, field, Instrument};
 
-use crate::types::{Handle, StreamWrite, StreamRead, TaskHandleExt, Task, DatagramStream, DatagramSink, Buffer};
+use crate::types::{Handle, StreamWrite, StreamRead, TaskHandleExt, Task, DatagramStream, DatagramSink, Buffer, HandleExt2};
 
-fn copydata(from: Handle<StreamRead>, to: Handle<StreamWrite>) -> Handle<Task> {
+fn copy_bytes(from: Handle<StreamRead>, to: Handle<StreamWrite>) -> Handle<Task> {
+    let span = debug_span!("copy_bytes", f=field::Empty, t=field::Empty);
+    debug!(parent: &span, "node created");
     async move {
-        let (f, t) = (from.lock().unwrap().take(), to.lock().unwrap().take());
+        let (f, t) = (from.lut(), to.lut());
+
+        if let Some(f) = f.as_ref() {
+            span.record("f", format_args!("{:p}", *f));
+        }
+        if let Some(t) = t.as_ref() {
+            span.record("t", format_args!("{:p}", *t));
+        }
+
+        debug!(parent: &span, "node started");
 
         if let (Some(mut r), Some(mut w)) = (f, t) {
-            eprintln!(
-                "copy read={:?} write={:?}",
-                &*r as *const _,
-                &*w as *const _,
-            );
+            let fut = tokio::io::copy(&mut r, &mut w);
+            let fut = fut.instrument(span.clone());
 
-            match tokio::io::copy(&mut r, &mut w).await {
-                Ok(x) => eprintln!("Copied {x} bytes"),
-                Err(e) => eprintln!("Error from copydata: {e}"),
+            match fut.await {
+                Ok(x) => debug!(parent: &span, nbytes=x, "finished"),
+                Err(e) =>  debug!(parent: &span, error=%e, "error"),
             }
         } else {
-            eprintln!("Nothing to copydata");
+            debug!(parent: &span, "no operation");
         }
     }.wrap()
 }
@@ -27,7 +36,7 @@ fn copydata(from: Handle<StreamRead>, to: Handle<StreamWrite>) -> Handle<Task> {
 
 fn copy_packets(from: Handle<DatagramStream>, to: Handle<DatagramSink>) -> Handle<Task> {
     async move {
-        let (f, t) = (from.lock().unwrap().take(), to.lock().unwrap().take());
+        let (f, t) = (from.lut(), to.lut());
         if let (Some(r), Some(w)) = (f, t) {
             *w.pool.lock().unwrap() = Some(r.pool.clone());
             match r.src.map(|x|Ok::<Buffer,()>(x)).forward(w.snk).await {
@@ -41,6 +50,6 @@ fn copy_packets(from: Handle<DatagramStream>, to: Handle<DatagramSink>) -> Handl
 }
 
 pub fn register(engine: &mut Engine) {
-    engine.register_fn("copydata", copydata);
+    engine.register_fn("copy_bytes", copy_bytes);
     engine.register_fn("copy_packets", copy_packets);
 }

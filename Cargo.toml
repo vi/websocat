@@ -15,3 +15,5 @@ rhai = { version = "1.16.2", features = ["serde", "internals", "sync", "no_custo
 serde = { version = "1.0.188", features = ["derive"] }
 sharded-slab = "0.1.7"
 tokio = { version = "1.32.0", features = ["sync", "net", "rt", "macros", "io-util", "io-std"] }
+tracing = "0.1.37"
+tracing-subscriber = { version = "0.3.17", default-features = false, features = ["fmt"] }

@@ -18,6 +18,19 @@ impl<T> HandleExt for Option<T> {
     }
 }
 
+pub trait HandleExt2 {
+    type Target;
+    /// Lock, unwrap and take
+    fn lut(&self) -> Self::Target;
+}
+
+impl<T> HandleExt2 for Handle<T> {
+    type Target = Option<T>;
+    fn lut(&self) -> Self::Target {
+        self.lock().unwrap().take()
+    }
+}
+
 pub type Task = Pin<Box<dyn Future<Output = ()> + Send>>;
 pub type Hangup = Pin<Box<dyn Future<Output = ()> + Send>>;
 

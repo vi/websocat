@@ -20,6 +20,8 @@ pub mod scenario;
 
 #[tokio::main(flavor = "current_thread")]
 async fn main() -> anyhow::Result<()> {
+    tracing_subscriber::fmt::init();
+    
     let f = std::fs::read(std::env::args().nth(1).unwrap())?;
     let global_scenario = std::str::from_utf8(&f[..])?;
     
