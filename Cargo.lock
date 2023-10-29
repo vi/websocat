@@ -644,6 +644,7 @@ dependencies = [
  "rhai",
  "serde",
  "sharded-slab",
+ "smallvec",
  "tokio",
  "tracing",
  "tracing-subscriber",
