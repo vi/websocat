@@ -1,22 +1,23 @@
 use std::net::SocketAddr;
 
-use rhai::{Engine, Dynamic, FnPtr, EvalAltResult};
-use tracing::{debug,  debug_span, field};
+use rhai::{Dynamic, Engine, EvalAltResult, FnPtr};
+use tracing::{debug, debug_span, field};
 
-use crate::{types::{Handle, Task, StreamSocket, TaskHandleExt}, scenario::callback_and_continue};
+use crate::{
+    scenario::callback_and_continue,
+    types::{Handle, StreamRead, StreamSocket, StreamWrite, Task, TaskHandleExt},
+};
 
-fn connect_tcp(opts: Dynamic, continuation: FnPtr) -> Result<Handle<Task>,Box<EvalAltResult>> {
-    let span = debug_span!("connect_tcp", addr=field::Empty);
+fn connect_tcp(opts: Dynamic, continuation: FnPtr) -> Result<Handle<Task>, Box<EvalAltResult>> {
+    let span = debug_span!("connect_tcp", addr = field::Empty);
     debug!(parent: &span, "node created");
     #[derive(serde::Deserialize)]
     struct TcpOpts {
         addr: SocketAddr,
     }
-    let opts : TcpOpts = rhai::serde::from_dynamic(&opts)?;
+    let opts: TcpOpts = rhai::serde::from_dynamic(&opts)?;
     span.record("addr", field::display(opts.addr));
     debug!(parent: &span, "options parsed");
-
-    
 
     Ok(async move {
         debug!(parent: &span, "node started");
@@ -28,20 +29,24 @@ fn connect_tcp(opts: Dynamic, continuation: FnPtr) -> Result<Handle<Task>,Box<Ev
                 return;
             }
         };
-        let (r,w) = t.into_split();
-        let (r,w) = (Box::pin(r), Box::pin(w));
-        debug!(parent: &span, r=format_args!("{:p}", r), w=format_args!("{:p}", w), "connected");
+        let (r, w) = t.into_split();
+        let (r, w) = (Box::pin(r), Box::pin(w));
 
-        let h = StreamSocket {
-            read: Some(r),
-            write: Some(w),
+        let s = StreamSocket {
+            read: Some(StreamRead {
+                reader: r,
+                prefix: Default::default(),
+            }),
+            write: Some(StreamWrite { writer: w }),
             close: None,
-        }.wrap();
+        };
+        debug!(parent: &span, s=?s, "connected");
+        let h = s.wrap();
 
         callback_and_continue(continuation, (h,)).await;
-    }.wrap())
+    }
+    .wrap())
 }
-
 
 pub fn register(engine: &mut Engine) {
     engine.register_fn("connect_tcp", connect_tcp);

@@ -1,5 +1,6 @@
 use futures::StreamExt;
 use rhai::Engine;
+use tokio::io::AsyncWriteExt;
 use tracing::{debug_span, debug, field, Instrument};
 
 use crate::types::{Handle, StreamWrite, StreamRead, TaskHandleExt, Task, DatagramStream, DatagramSink, Buffer, HandleExt2};
@@ -11,16 +12,23 @@ fn copy_bytes(from: Handle<StreamRead>, to: Handle<StreamWrite>) -> Handle<Task>
         let (f, t) = (from.lut(), to.lut());
 
         if let Some(f) = f.as_ref() {
-            span.record("f", format_args!("{:p}", *f));
+            span.record("f", tracing::field::debug(f));
         }
         if let Some(t) = t.as_ref() {
-            span.record("t", format_args!("{:p}", *t));
+            span.record("t", tracing::field::debug(t));
         }
 
         debug!(parent: &span, "node started");
 
         if let (Some(mut r), Some(mut w)) = (f, t) {
-            let fut = tokio::io::copy(&mut r, &mut w);
+            if ! r.prefix.is_empty() {
+                match w.writer.write_all_buf(&mut r.prefix).await {
+                    Ok(()) => debug!(parent: &span, "prefix_written"),
+                    Err(e) =>  debug!(parent: &span, error=%e, "error"),
+                }
+            }
+
+            let fut = tokio::io::copy(&mut r.reader, &mut w.writer);
             let fut = fut.instrument(span.clone());
 
             match fut.await {

@@ -51,14 +51,54 @@ pub async fn run_task(h: Handle<Task>) {
     t.await
 }
 
-pub type StreamRead = Pin<Box<dyn AsyncRead + Send>>;
-pub type StreamWrite = Pin<Box<dyn AsyncWrite + Send>>;
+pub struct StreamRead {
+    pub reader: Pin<Box<dyn AsyncRead + Send>>,
+    pub prefix: BytesMut,
+}
+pub struct StreamWrite {
+    pub writer: Pin<Box<dyn AsyncWrite + Send>>,
+} 
+
+impl std::fmt::Debug for StreamRead {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f,"SR")?;
+        if !self.prefix.is_empty() {
+            write!(f, "{{{}}}", self.prefix.len())?;
+        }
+        write!(f, "@{:p}", self.reader)
+    }
+}
+impl std::fmt::Debug for StreamWrite {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "SW@{:p}", self.writer)
+    }
+}
 
 pub struct StreamSocket {
     pub read: Option<StreamRead>,
     pub write: Option<StreamWrite>,
     pub close: Option<Hangup>,
 }
+
+impl std::fmt::Debug for StreamSocket {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "SS(")?;
+        if let Some(ref r) = self.read {
+            r.fmt(f)?;
+        }
+        write!(f, ",")?;
+        if let Some(ref w) = self.write {
+            w.fmt(f)?;
+        }
+        write!(f, ",")?;
+        if let Some(_) = self.close {
+            write!(f, "H")?;
+        }
+        write!(f, ")")?;
+        Ok(())
+    }
+}
+
 
 impl StreamSocket {
     pub fn wrap(self) -> Handle<StreamSocket> {
