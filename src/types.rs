@@ -2,8 +2,6 @@ use std::{sync::{Arc,Mutex}, pin::Pin};
 
 use bytes::BytesMut;
 use futures::{Future, Stream, Sink};
-use object_pool::Pool;
-use smallvec::SmallVec;
 use tokio::io::{AsyncRead, AsyncWrite};
 pub type Handle<T> = Arc<Mutex<Option<T>>>;
 
@@ -68,35 +66,27 @@ impl StreamSocket {
     }
 }
 
-pub const MAX_INLINE_CHUNKS : usize = 4;
+
+flagset::flags! {
+    pub enum BufferFlag : u8 {
+        Final,
+        Text,
+    }
+}
+pub type BufferFlags = flagset::FlagSet<BufferFlag>;
 
 pub struct Buffer {
-    pub data: SmallVec<[BytesMut; MAX_INLINE_CHUNKS]>,
+    pub data: BytesMut,
+    pub flags: BufferFlags,
 }
 impl Buffer {
-    pub fn new() -> Buffer {
-        Buffer { data: SmallVec::new() }
-    }
-    pub fn clear_reserve(&mut self, p: &Pool<BytesMut>, new_len: usize) {
-        self.recycle(p);
-        let mut b = p.pull(||BytesMut::with_capacity(new_len)).detach().1;
-        b.resize(new_len, 0u8);
-        self.data.push(b);
-    }
-    pub fn recycle(&mut self, p: &Pool<BytesMut>) {
-        for x in self.data.drain(..) {
-            p.attach(x);
-        }
-    }
+    
 }
 
-pub type BufferPool = Arc<Pool<BytesMut>>;
 
 pub struct DatagramStream {
     pub src: Pin<Box<dyn Stream<Item = Buffer> + Send>>,
-    pub pool: BufferPool,
 }
 pub struct DatagramSink {
     pub snk: Pin<Box<dyn Sink<Buffer, Error = ()> + Send>>,
-    pub pool: Handle<BufferPool>,
 }

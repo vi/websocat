@@ -3,7 +3,7 @@ use object_pool::Pool;
 use rhai::Engine;
 use std::sync::{Arc, Mutex};
 
-use crate::types::{DatagramSink, Handle, DatagramStream, Buffer, BufferPool};
+use crate::types::{DatagramSink, Handle, DatagramStream, Buffer, BufferFlag};
 
 
 fn trivial_pkts() -> Handle<DatagramStream> {
@@ -13,32 +13,22 @@ fn trivial_pkts() -> Handle<DatagramStream> {
     b.clear();
     b.resize(4, 0);
     b.copy_from_slice(b"q2q\n");
-    let mut buf = Buffer::new();
-    buf.data.push(b);
+    let buf = Buffer{data: b, flags: BufferFlag::Final.into()};
     Arc::new(Mutex::new(Some(DatagramStream {
         src: Box::pin(futures::stream::iter([buf])),
-        pool,
     })))
 }
 
 
 
 fn display_pkts() -> Handle<DatagramSink> {
-    let pool : Handle<BufferPool> = Arc::new(Mutex::new(None));
-    let pool_ = pool.clone();
-    let snk = Box::pin(futures::sink::unfold((), move |_:(), mut item: Buffer| {
-        let pool = pool_.clone();
+    let snk = Box::pin(futures::sink::unfold((), move |_:(), item: Buffer| {
         async move {
-            eprintln!("QQQ {}", std::str::from_utf8(&item.data[0][..]).unwrap());
-            if let Ok(a) = pool.try_lock() {
-                if let Some(ref b) = *a {
-                    item.recycle(b);
-                }
-            }
+            eprintln!("QQQ {}", std::str::from_utf8(&item.data[..]).unwrap());
             Ok(())
         }
     }));
-    Arc::new(Mutex::new(Some(DatagramSink { snk, pool })))
+    Arc::new(Mutex::new(Some(DatagramSink { snk })))
 }
 
 

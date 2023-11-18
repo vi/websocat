@@ -38,7 +38,6 @@ fn copy_packets(from: Handle<DatagramStream>, to: Handle<DatagramSink>) -> Handl
     async move {
         let (f, t) = (from.lut(), to.lut());
         if let (Some(r), Some(w)) = (f, t) {
-            *w.pool.lock().unwrap() = Some(r.pool.clone());
             match r.src.map(|x|Ok::<Buffer,()>(x)).forward(w.snk).await {
                 Ok(()) => eprintln!("Finished forwarding"),
                 Err(()) => eprintln!("Error from copy_packets"),
