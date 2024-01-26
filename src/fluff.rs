@@ -1,36 +1,68 @@
-use bytes::BytesMut;
-use object_pool::Pool;
 use rhai::Engine;
-use std::sync::{Arc, Mutex};
+use std::{
+    sync::{Arc, Mutex}, task::Poll,
+};
 
-use crate::types::{DatagramSink, Handle, DatagramStream, Buffer, BufferFlag};
+use crate::types::{BufferFlag, DatagramRead, DatagramWrite, Handle, HandleExt, PacketRead, BufferFlags, PacketWrite};
 
-
-fn trivial_pkts() -> Handle<DatagramStream> {
-    //let b : Buffer = Box::new(&b"qqq\n"[..]);
-    let pool = Arc::new(Pool::new(1, ||BytesMut::new()));
-    let mut b = pool.pull(||BytesMut::new()).detach().1;
-    b.clear();
-    b.resize(4, 0);
-    b.copy_from_slice(b"q2q\n");
-    let buf = Buffer{data: b, flags: BufferFlag::Final.into()};
-    Arc::new(Mutex::new(Some(DatagramStream {
-        src: Box::pin(futures::stream::iter([buf])),
-    })))
+struct TrivialPkts {
+    n : u8,
 }
 
-
-
-fn display_pkts() -> Handle<DatagramSink> {
-    let snk = Box::pin(futures::sink::unfold((), move |_:(), item: Buffer| {
-        async move {
-            eprintln!("QQQ {}", std::str::from_utf8(&item.data[..]).unwrap());
-            Ok(())
+impl PacketRead for TrivialPkts {
+    fn poll_read(
+        mut self: std::pin::Pin<&mut Self>,
+        _cx: &mut std::task::Context<'_>,
+        buf: &mut tokio::io::ReadBuf<'_>
+    ) -> Poll<std::io::Result<BufferFlags>> {
+        let mut this = self.as_mut();
+        if this.n == 0 {
+            return Poll::Ready(Ok(BufferFlag::Eof.into()));
+        } else {
+            buf.put_slice(format!("{}", this.n).as_bytes());
+            this.n -= 1;
+            return Poll::Ready(Ok(BufferFlag::Text.into()));
         }
-    }));
-    Arc::new(Mutex::new(Some(DatagramSink { snk })))
+    }
 }
 
+fn trivial_pkts() -> Handle<DatagramRead> {
+    Some(DatagramRead {
+        src: Box::pin(TrivialPkts{n:3})
+    })
+    .wrap()
+}
+
+struct DisplayPkts {
+
+}
+
+impl PacketWrite for DisplayPkts {
+    fn poll_write(
+        self: std::pin::Pin<&mut Self>,
+        _cx: &mut std::task::Context<'_>,
+        buf: &mut tokio::io::ReadBuf<'_>,
+        flags: BufferFlags,
+    ) -> Poll<std::io::Result<()>> {
+        eprint!("P len={}", buf.filled().len());
+        if flags.contains(BufferFlag::Text) {
+            eprint!(" [T]");
+        }
+        if flags.contains(BufferFlag::Eof) {
+            eprint!(" [E]");
+        }
+        if flags.contains(BufferFlag::NonFinalChunk) {
+            eprint!(" [C]");
+        }
+        eprintln!();
+        Poll::Ready(Ok(()))
+    }
+}
+
+fn display_pkts() -> Handle<DatagramWrite> {
+    let snk = Box::pin(DisplayPkts{});
+    Arc::new(Mutex::new(Some(DatagramWrite { snk })))
+}
 
 pub fn register(engine: &mut Engine) {
     engine.register_fn("trivial_pkts", trivial_pkts);
