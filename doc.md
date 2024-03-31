@@ -29,7 +29,7 @@ Some address types may be "aliases" to other address types or combinations of ov
 
 ```
 
-websocat 1.11.0
+websocat 1.13.0
 Vitaly "_Vi" Shukela <vi0oss@gmail.com>
 Command-line client for web sockets, like netcat/curl/socat for ws://.
 
@@ -39,89 +39,118 @@ USAGE:
     websocat [FLAGS] [OPTIONS] <addr1> <addr2>  (advanced mode)
 
 FLAGS:
-        --stdout-announce-listening-ports       [A] Print a line to stdout for each port being listened
-        --async-stdio                           [A] On UNIX, set stdin and stdout to nonblocking mode instead of
-                                                spawning a thread. This should improve performance, but may break other
-                                                programs running on the same console.
-        --compress-deflate                      [A] Compress data coming to a WebSocket using deflate method. Affects
-                                                only binary WebSocket messages.
-        --compress-gzip                         [A] Compress data coming to a WebSocket using gzip method. Affects only
-                                                binary WebSocket messages.
-        --compress-zlib                         [A] Compress data coming to a WebSocket using zlib method. Affects only
-                                                binary WebSocket messages.
-        --crypto-reverse                        [A] Swap encryption and decryption operations in `crypto:` specifier -
-                                                encrypt on read, decrypto on write.
-        --dump-spec                             [A] Instead of running, dump the specifiers representation to stdout
-    -e, --set-environment                       Set WEBSOCAT_* environment variables when doing exec:/cmd:/sh-c:
-                                                Currently it's WEBSOCAT_URI and WEBSOCAT_CLIENT for
-                                                request URI and client address (if TCP)
-                                                Beware of ShellShock or similar security problems.
-    -E, --exit-on-eof                           Close a data transfer direction if the other one reached EOF
-        --foreachmsg-wait-read                  [A] Wait for reading to finish before closing foreachmsg:'s peer
-        --jsonrpc                               Format messages you type as JSON RPC 2.0 method calls. First word
-                                                becomes method name, the rest becomes parameters, possibly automatically
-                                                wrapped in [].
-        --just-generate-key                     [A] Just a Sec-WebSocket-Key value without running main Websocat
-        --linemode-strip-newlines               [A] Don't include trailing \n or \r\n coming from streams in WebSocket
-                                                messages
-    -0, --null-terminated                       Use \0 instead of \n for linemode
-        --no-line                               [A] Don't automatically insert line-to-message transformation
-        --no-exit-on-zeromsg                    [A] Don't exit when encountered a zero message. Zero messages are used
-                                                internally in Websocat, so it may fail to close connection at all.
-        --no-fixups                             [A] Don't perform automatic command-line fixups. May destabilize
-                                                websocat operation. Use --dump-spec without --no-fixups to discover what
-                                                is being inserted automatically and read the full manual about Websocat
-                                                internal workings.
-        --no-async-stdio                        [A] Inhibit using stdin/stdout in a nonblocking way if it is not a tty
-    -1, --one-message                           Send and/or receive only one message. Use with --no-close and/or -u/-U.
-        --oneshot                               Serve only once. Not to be confused with -1 (--one-message)
-        --print-ping-rtts                       Print measured round-trip-time to stderr after each received WebSocket
-                                                pong.
-        --exec-sighup-on-stdin-close            [A] Make exec: or sh-c: or cmd: send SIGHUP on UNIX when input is
-                                                closed.
-        --exec-sighup-on-zero-msg               [A] Make exec: or sh-c: or cmd: send SIGHUP on UNIX when facing incoming
-                                                zero-length message.
-    -q                                          Suppress all diagnostic messages, except of startup errors
-        --reuser-send-zero-msg-on-disconnect    [A] Make reuse-raw: send a zero-length message to the peer when some
-                                                clients disconnects.
-    -s, --server-mode                           Simple server mode: specify TCP port or addr:port as single argument
-    -S, --strict                                strict line/message mode: drop too long messages instead of splitting
-                                                them, drop incomplete lines.
-        --timestamp-monotonic                   [A] Use monotonic clock for `timestamp:` overlay
-    -k, --insecure                              Accept invalid certificates and hostnames while connecting to TLS
-        --udp-broadcast                         [A] Set SO_BROADCAST
-        --udp-multicast-loop                    [A] Set IP[V6]_MULTICAST_LOOP
-        --udp-oneshot                           [A] udp-listen: replies only one packet per client
-        --udp-reuseaddr                         [A] Set SO_REUSEADDR for UDP socket. Listening TCP sockets are always
-                                                reuseaddr.
-        --uncompress-deflate                    [A] Uncompress data coming from a WebSocket using deflate method.
-                                                Affects only binary WebSocket messages.
-        --uncompress-gzip                       [A] Uncompress data coming from a WebSocket using deflate method.
-                                                Affects only binary WebSocket messages.
-        --uncompress-zlib                       [A] Uncompress data coming from a WebSocket using deflate method.
-                                                Affects only binary WebSocket messages.
-    -u, --unidirectional                        Inhibit copying data in one direction
-    -U, --unidirectional-reverse                Inhibit copying data in the other direction (or maybe in both directions
-                                                if combined with -u)
-        --accept-from-fd                        [A] Do not call `socket(2)` in UNIX socket listener peer, start with
-                                                `accept(2)` using specified file descriptor number as argument instead
-                                                of filename
-        --unlink                                [A] Unlink listening UNIX socket before binding to it
-    -V, --version                               Prints version information
-    -v                                          Increase verbosity level to info or further
-    -b, --binary                                Send message to WebSockets as binary messages
-    -n, --no-close                              Don't send Close message to websocket on EOF
-        --websocket-ignore-zeromsg              [A] Silently drop incoming zero-length WebSocket messages. They may
-                                                cause connection close due to usage of zero-len message as EOF flag
-                                                inside Websocat.
-    -t, --text                                  Send message to WebSockets as text messages
-        --base64                                Encode incoming binary WebSocket messages in one-line Base64 If
-                                                `--binary-prefix` (see `--help=full`) is set, outgoing WebSocket
-                                                messages that start with the prefix are decoded from base64 prior to
-                                                sending.
-        --base64-text                           [A] Encode incoming text WebSocket messages in one-line Base64. I don't
-                                                know whether it can be ever useful, but it's for symmetry with
-                                                `--base64`.
+        --stdout-announce-listening-ports        [A] Print a line to stdout for each port being listened
+        --async-stdio
+            [A] On UNIX, set stdin and stdout to nonblocking mode instead of spawning a thread. This should improve
+            performance, but may break other programs running on the same console.
+        --compress-deflate
+            [A] Compress data coming to a WebSocket using deflate method. Affects only binary WebSocket messages.
+
+        --compress-gzip
+            [A] Compress data coming to a WebSocket using gzip method. Affects only binary WebSocket messages.
+
+        --compress-zlib
+            [A] Compress data coming to a WebSocket using zlib method. Affects only binary WebSocket messages.
+
+        --crypto-reverse
+            [A] Swap encryption and decryption operations in `crypto:` specifier - encrypt on read, decrypto on write.
+
+        --dump-spec                              [A] Instead of running, dump the specifiers representation to stdout
+    -e, --set-environment
+            Set WEBSOCAT_* environment variables when doing exec:/cmd:/sh-c:
+            Currently it's WEBSOCAT_URI and WEBSOCAT_CLIENT for
+            request URI and client address (if TCP)
+            Beware of ShellShock or similar security problems.
+    -E, --exit-on-eof                            Close a data transfer direction if the other one reached EOF
+        --foreachmsg-wait-read                   [A] Wait for reading to finish before closing foreachmsg:'s peer
+        --jsonrpc
+            Format messages you type as JSON RPC 2.0 method calls. First word becomes method name, the rest becomes
+            parameters, possibly automatically wrapped in [].
+        --jsonrpc-omit-jsonrpc                   [A] Omit `jsonrpc` field when using `--jsonrpc`, e.g. for Chromium
+        --just-generate-key                      [A] Just a Sec-WebSocket-Key value without running main Websocat
+        --lengthprefixed-little-endian
+            [A] Use little-endian framing headers instead of big-endian for `lengthprefixed:` overlay.
+
+        --lengthprefixed-skip-read-direction
+            [A] Only affect one direction of the `lengthprefixed:` overlay, bypass tranformation for the other one.
+
+        --lengthprefixed-skip-write-direction
+            [A] Only affect one direction of the `lengthprefixed:` overlay, bypass tranformation for the other one.
+
+        --linemode-strip-newlines
+            [A] Don't include trailing \n or \r\n coming from streams in WebSocket messages
+
+    -0, --null-terminated                        Use \0 instead of \n for linemode
+        --no-line                                [A] Don't automatically insert line-to-message transformation
+        --no-exit-on-zeromsg
+            [A] Don't exit when encountered a zero message. Zero messages are used internally in Websocat, so it may
+            fail to close connection at all.
+        --no-fixups
+            [A] Don't perform automatic command-line fixups. May destabilize websocat operation. Use --dump-spec without
+            --no-fixups to discover what is being inserted automatically and read the full manual about Websocat
+            internal workings.
+        --no-async-stdio                         [A] Inhibit using stdin/stdout in a nonblocking way if it is not a tty
+    -1, --one-message                            Send and/or receive only one message. Use with --no-close and/or -u/-U.
+        --oneshot                                Serve only once. Not to be confused with -1 (--one-message)
+        --print-ping-rtts
+            Print measured round-trip-time to stderr after each received WebSocket pong.
+
+        --exec-exit-on-disconnect
+            [A] Make exec: or sh-c: or cmd: immediately exit when connection is closed, don't wait for termination.
+
+        --exec-sighup-on-stdin-close
+            [A] Make exec: or sh-c: or cmd: send SIGHUP on UNIX when input is closed.
+
+        --exec-sighup-on-zero-msg
+            [A] Make exec: or sh-c: or cmd: send SIGHUP on UNIX when facing incoming zero-length message.
+
+    -q                                           Suppress all diagnostic messages, except of startup errors
+        --reuser-send-zero-msg-on-disconnect
+            [A] Make reuse-raw: send a zero-length message to the peer when some clients disconnects.
+
+    -s, --server-mode                            Simple server mode: specify TCP port or addr:port as single argument
+    -S, --strict
+            strict line/message mode: drop too long messages instead of splitting them, drop incomplete lines.
+
+        --timestamp-monotonic                    [A] Use monotonic clock for `timestamp:` overlay
+    -k, --insecure                               Accept invalid certificates and hostnames while connecting to TLS
+        --udp-broadcast                          [A] Set SO_BROADCAST
+        --udp-multicast-loop                     [A] Set IP[V6]_MULTICAST_LOOP
+        --udp-oneshot                            [A] udp-listen: replies only one packet per client
+        --udp-reuseaddr
+            [A] Set SO_REUSEADDR for UDP socket. Listening TCP sockets are always reuseaddr.
+
+        --uncompress-deflate
+            [A] Uncompress data coming from a WebSocket using deflate method. Affects only binary WebSocket messages.
+
+        --uncompress-gzip
+            [A] Uncompress data coming from a WebSocket using deflate method. Affects only binary WebSocket messages.
+
+        --uncompress-zlib
+            [A] Uncompress data coming from a WebSocket using deflate method. Affects only binary WebSocket messages.
+
+    -u, --unidirectional                         Inhibit copying data in one direction
+    -U, --unidirectional-reverse
+            Inhibit copying data in the other direction (or maybe in both directions if combined with -u)
+
+        --accept-from-fd
+            [A] Do not call `socket(2)` in UNIX socket listener peer, start with `accept(2)` using specified file
+            descriptor number as argument instead of filename
+        --unlink                                 [A] Unlink listening UNIX socket before binding to it
+    -V, --version                                Prints version information
+    -v                                           Increase verbosity level to info or further
+    -b, --binary                                 Send message to WebSockets as binary messages
+    -n, --no-close                               Don't send Close message to websocket on EOF
+        --websocket-ignore-zeromsg
+            [A] Silently drop incoming zero-length WebSocket messages. They may cause connection close due to usage of
+            zero-len message as EOF flag inside Websocat.
+    -t, --text                                   Send message to WebSockets as text messages
+        --base64
+            Encode incoming binary WebSocket messages in one-line Base64 If `--binary-prefix` (see `--help=full`) is
+            set, outgoing WebSocket messages that start with the prefix are decoded from base64 prior to sending.
+        --base64-text
+            [A] Encode incoming text WebSocket messages in one-line Base64. I don't know whether it can be ever useful,
+            but it's for symmetry with `--base64`.
 
 OPTIONS:
         --socks5 <auto_socks5>
@@ -170,9 +199,15 @@ OPTIONS:
             --help=short is the list of easy options and address types
             --help=long lists all options and types (see [A] markers)
             --help=doc also shows longer description and examples.
+        --inhibit-pongs <inhibit_pongs>
+            [A] Stop replying to incoming WebSocket pings after specified number of replies
+
         --just-generate-accept <just_generate_accept>
             [A] Just a Sec-WebSocket-Accept value based on supplied Sec-WebSocket-Key value without running main
             Websocat
+        --lengthprefixed-nbytes <lengthprefixed_header_bytes>
+            [A] Use this number of length header bytes for `lengthprefixed:` overlay. [default: 4]
+
         --max-messages <max_messages>
             Maximum number of messages to copy in one direction.
 
@@ -181,6 +216,9 @@ OPTIONS:
 
         --conncap <max_parallel_conns>
             Maximum number of simultaneous connections for listening mode
+
+        --max-sent-pings <max_sent_pings>
+            [A] Stop sending pings after this number of sent pings
 
         --max-ws-frame-length <max_ws_frame_length>
             [A] Maximum size of incoming WebSocket frames, to prevent memory overflow [default: 104857600]
@@ -957,7 +995,7 @@ Example - turn SSE+POST pair into a client WebSocket connection:
 
 ### `ssl-connect:`
 
-Aliases: `ssl-c`, `ssl:`, `tls:`, `tls-connect:`, `c-ssl:`, `connect-ssl:`, `c-tls:`, `connect-tls:`  
+Aliases: `ssl-c:`, `ssl:`, `tls:`, `tls-connect:`, `tls-c:`, `c-ssl:`, `connect-ssl:`, `c-tls:`, `connect-tls:`  
 Internal name for --dump-spec: TlsConnect
 
 
@@ -1101,6 +1139,32 @@ Automatically inserted by --line option at the top of the stack opposite to webs
 Example: TODO
 
 
+### `lengthprefixed:`
+
+Internal name for --dump-spec: LengthPrefixed
+
+
+Turn stream of bytes to/from data packets with length-prefixed framing.  [A]
+
+You can choose the number of header bytes (1 to 8) and endianness. Default is 4 bytes big endian.
+
+This affects both reading and writing - attach this overlay to stream specifier to turn it into a packet-orineted specifier.
+
+Mind the buffer size (-B). All packets should fit in there.
+
+Examples:
+
+    websocat -u -b udp-l:127.0.0.1:1234 lengthprefixed:writefile:test.dat
+
+    websocat -u -b lengthprefixed:readfile:test.dat udp:127.0.0.1:1235
+
+This would save incoming UDP packets to a file, then replay the datagrams back to UDP socket
+
+    websocat -b lengthprefixed:- ws://127.0.0.1:1234/ --binary-prefix=B --text-prefix=T
+
+This allows to mix and match text and binary WebSocket messages to and from stdio without the base64 overhead.
+
+
 ### `foreachmsg:`
 
 Internal name for --dump-spec: Foreachmsg
@@ -1232,6 +1296,27 @@ Default byte is 1C which is typically triggered by Ctrl+\.
 
 Example: `(stty raw -echo; websocat -b exit_on_specific_byte:stdio tcp:127.0.0.1:23; stty sane)`
 
+
+
+### `waitfordata:`
+
+Aliases: `wait-for-data:`  
+Internal name for --dump-spec: WaitForData
+
+
+Wait for some data to pending being written before starting connecting. [A]
+
+Example: Connect to the TCP server on the left side immediately, but connect to
+the TCP server on the right side only after some data gets written by the first connection
+
+
+    websocat -b tcp:127.0.0.1:1234 waitfordata:tcp:127.0.0.1:1235
+
+Example: Connect to first WebSocket server, wait for some incoming WebSocket message, then
+connect to the second WebSocket server and start exchanging text and binary WebSocket messages
+between them.
+
+    websocat -b --binary-prefix=b --text-prefix=t ws://127.0.0.1:1234 waitfordata:ws://127.0.0.1:1235/
 
 
 

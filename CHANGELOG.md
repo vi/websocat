@@ -1,9 +1,10 @@
-<a name="unreleased"></a>
-# Unreleased
+<a name="v1.13.0"></a>
+# [Happy eyeballs (v1.13.0)](https://github.com/vi/websocat/releases/tag/v1.13.0) - 31 Mar 2024
 
 * `waitfordata:` overlay to delay connection initiation until first data is attempted to be written to it
 * Dockerfile updates
 * `lengthprefixed:` overlay - alternative to base64 mode
+* Fix for #23 - "happy eyeballs" for ws:// and wss:// URLs.
 
 <a name="v1.12.0"></a>
 # [Maintainance release (v1.12.0)](https://github.com/vi/websocat/releases/tag/v1.12.0) - 17 Sep 2023
