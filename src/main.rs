@@ -664,6 +664,14 @@ struct Opt {
     /// [A] Use little-endian framing headers instead of big-endian for `lengthprefixed:` overlay.
     #[structopt(long = "--lengthprefixed-little-endian")]
     pub lengthprefixed_little_endian: bool,
+
+    /// [A] Only affect one direction of the `lengthprefixed:` overlay, bypass tranformation for the other one.
+    #[structopt(long = "--lengthprefixed-skip-read-direction")]
+    pub lengthprefixed_skip_read_direction: bool,
+
+    /// [A] Only affect one direction of the `lengthprefixed:` overlay, bypass tranformation for the other one.
+    #[structopt(long = "--lengthprefixed-skip-write-direction")]
+    pub lengthprefixed_skip_write_direction: bool,
 }
 
 // TODO: make it byte-oriented/OsStr?
@@ -951,6 +959,8 @@ fn run() -> Result<()> {
             max_sent_pings
             lengthprefixed_header_bytes
             lengthprefixed_little_endian
+            lengthprefixed_skip_read_direction
+            lengthprefixed_skip_write_direction
         );
         #[cfg(feature = "ssl")]
         {

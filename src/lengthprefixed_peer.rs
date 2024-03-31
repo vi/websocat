@@ -22,6 +22,8 @@ impl<T: Specifier> Specifier for LengthPrefixed<T> {
                 p,
                 cp.program_options.lengthprefixed_header_bytes,
                 cp.program_options.lengthprefixed_little_endian,
+                cp.program_options.lengthprefixed_skip_read_direction,
+                cp.program_options.lengthprefixed_skip_write_direction,
             )
         })
     }
@@ -63,6 +65,8 @@ pub fn lengthprefixed_peer(
     inner_peer: Peer,
     num_bytes_in_length_prefix: usize,
     little_endian: bool,
+    lengthprefixed_skip_read_direction: bool,
+    lengthprefixed_skip_write_direction: bool,
 ) -> BoxedNewPeerFuture {
     if num_bytes_in_length_prefix < 1 || num_bytes_in_length_prefix > 8 {
         return peer_strerr("Number of header bytes for lengthprefixed overlay should be from 1 to 8");
@@ -91,7 +95,12 @@ pub fn lengthprefixed_peer(
         little_endian,
         data_written_so_far: 0,
     };
-    let thepeer = Peer::new(reader, writer, inner_peer.2);
+    let thepeer = match (lengthprefixed_skip_read_direction, lengthprefixed_skip_write_direction) {
+        (true, true)   => Peer::new(reader.inner, writer.inner, inner_peer.2),
+        (true, false)  => Peer::new(reader.inner, writer,       inner_peer.2),
+        (false, true)  => Peer::new(reader,       writer.inner, inner_peer.2),
+        (false, false) => Peer::new(reader,       writer,       inner_peer.2),
+    };
     Box::new(ok(thepeer)) as BoxedNewPeerFuture
 }
 struct Lengthprefixed2PacketWrapper {

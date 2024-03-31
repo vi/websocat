@@ -155,4 +155,7 @@ pub struct Options {
 
     pub lengthprefixed_header_bytes: usize,
     pub lengthprefixed_little_endian: bool,
+    pub lengthprefixed_skip_read_direction: bool,
+    pub lengthprefixed_skip_write_direction: bool,
+
 }
