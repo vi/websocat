@@ -6,6 +6,7 @@ use self::websocket::stream::r#async::Stream as WsStream;
 use self::websocket::ClientBuilder;
 use futures::future::Future;
 
+use std::net::SocketAddr;
 use std::rc::Rc;
 
 use self::websocket::client::Url;
@@ -221,8 +222,16 @@ pub fn get_ws_client_peer(uri: &Url, opts: Rc<Options>) -> BoxedNewPeerFuture {
             } else {
                 Some(builder.build()?)
             };
-            before_connect.async_connect(tls_opts)
+            before_connect.async_connect_with_cb(tls_opts, |addrs| {
+                let addrs : Vec<SocketAddr> = addrs.collect();
+                let r = crate::net_peer::tcp_race(&addrs);
+                let r = r.map_err(|e|{
+                    websocket::WebSocketError::Other(e)
+                });
+                Box::new(r)
+            })
         };
+        /// FIXME: happy eyeballs without TLS support
         #[cfg(not(feature = "ssl"))]
         let after_connect = before_connect.async_connect_insecure();
         Ok(after_connect)

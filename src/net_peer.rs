@@ -193,7 +193,7 @@ impl Drop for MyTcpStream {
     }
 }
 
-pub fn tcp_connect_peer(addrs: &[SocketAddr]) -> BoxedNewPeerFuture {
+pub fn tcp_race(addrs: &[SocketAddr]) -> Box<dyn Future<Item = TcpStream, Error = Box<dyn std::error::Error + Send + Sync>> + Send> {
     // Apply Happy Eyeballs in case of multiple proposed addresses.
     if addrs.len() > 1 {
         debug!("Setting up a race between multiple TCP client sockets. Who connects the first?");
@@ -206,14 +206,9 @@ pub fn tcp_connect_peer(addrs: &[SocketAddr]) -> BoxedNewPeerFuture {
             TcpStream::connect(&addr)
             .map(move |x| {
                 info!("Connected to TCP {}", addr);
-                let x = Rc::new(x);
-                Peer::new(
-                    MyTcpStream(x.clone(), true),
-                    MyTcpStream(x.clone(), false),
-                    None /* TODO */
-                )
+                x
             })
-            .map_err(box_up_err)
+            .map_err(|e|Box::new(e) as Box<dyn std::error::Error + Send + Sync>)
         );
     }
     // reverse Ok and Err variants so that `fold` would exit early on a successful connection, but accumulate errors.
@@ -232,6 +227,19 @@ pub fn tcp_connect_peer(addrs: &[SocketAddr]) -> BoxedNewPeerFuture {
             Err(a) => Ok(a),
         }
     }).map_err(|e : Option<_>| e.unwrap());
+    Box::new(p)
+}
+
+pub fn tcp_connect_peer(addrs: &[SocketAddr]) -> BoxedNewPeerFuture {
+    let p = tcp_race(addrs)
+    .map(|x : TcpStream| {
+        let x = Rc::new(x);
+        Peer::new(
+            MyTcpStream(x.clone(), true),
+            MyTcpStream(x.clone(), false),
+            None /* TODO */
+        )
+    }).map_err(|e|{let e : Box<dyn std::error::Error> = e; e});
     /*let p = fu.into_future().and_then(|(x, _losers)| {
         let peer = x.unwrap();
         debug!("We have a winner. Disconnecting losers.");
