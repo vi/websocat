@@ -2,6 +2,7 @@
 Netcat, curl and socat for [WebSockets](https://en.wikipedia.org/wiki/WebSocket).
 
 [![Gitter](https://badges.gitter.im/websocat.svg)](https://gitter.im/websocat/Lobby?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=body_badge)
+[![image-build](https://github.com/vi/websocat/actions/workflows/container-image-buildah.yml/badge.svg)](https://github.com/vi/websocat/pkgs/container/websocat)
 
 ## Examples
 

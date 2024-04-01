@@ -1,8 +1,24 @@
 name: Container Image
 
 on:
-  workflow_dispatch: {}
-  workflow_call: {}
+  workflow_dispatch:
+    inputs:
+      platforms:
+        description: "comma-separated list of platforms to build for, e.g. linux/amd64,linux/s390x,linux/ppc64le,linux/riscv64 (leave empty for defaults)"
+        default: ''
+      custom_tag:
+        description: optional custom tag on remote repo you want image to be tagged with
+        default: scratch
+  workflow_call:
+    inputs:
+      platforms:
+        required: false
+        default: ''
+        type: string
+      custom_tag:
+        required: false
+        default: ''
+        type: string
   schedule:
     # every Wednesday morning
     - cron: 7 7 * * 3
@@ -33,11 +49,19 @@ jobs:
   buildah:
     runs-on: ubuntu-latest
     steps:
+      - name: Sanitize Platforms
+        id: platforms
+        run: |
+          platforms="${{ inputs.platforms == '' && 'linux/amd64,linux/arm64' || inputs.platforms }}"
+          archs="$( sed -e 's#linux/##g' <<< $platforms )"
+          echo "platforms=$platforms" >> $GITHUB_OUTPUT
+          echo "archs=$archs" >> $GITHUB_OUTPUT
+
       # Allow multi-target builds
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v2
         with:
-          platforms: arm64
+          platforms: ${{ steps.platforms.outputs.archs }}
       # Login against a Docker registry except on PR
       # https://github.com/docker/login-action
       - name: Log into registry ${{ env.REGISTRY }}
@@ -57,7 +81,9 @@ jobs:
           tags: |
             type=schedule
             type=raw,value=latest,enable=${{ github.ref_name == 'master' }}
-            ${{ github.ref_name == 'master' && 'type=raw,value=nightly' || 'type=ref,event=branch' }}
+            ${{ github.ref_name == 'master' && 'type=raw,value=nightly' }}
+            type=ref,event=branch,enable=${{ github.ref_name != 'master' && inputs.custom_tag == '' }}
+            ${{ inputs.custom_tag }}
             type=ref,event=tag
             type=ref,event=pr
 
@@ -69,7 +95,7 @@ jobs:
         uses: redhat-actions/buildah-build@v2
         with:
           tags: ${{ steps.meta.outputs.tags }}
-          platforms: linux/amd64
+          platforms: ${{ steps.platforms.outputs.platforms }}
           labels: ${{ steps.meta.outputs.labels }}
           layers: false
           oci: true
@@ -88,6 +114,34 @@ jobs:
 
       - name: Check images created
         run: buildah images
+
+      - name: Smoke test the images
+        run: |
+          set -ex
+          # accessing a mapped port from a container did not work so lets
+          # create a pod where both - server and client have same localhost
+          podman pod create > podid
+          platforms="${{ steps.platforms.outputs.platforms }}"
+
+          test_tag () {
+            podman run -d --pod-id-file=podid --name=listener -u 14:0 "${{ steps.build-image.outputs.image-with-tag }}$1" -s 0.0.0.0:1234
+            sleep 3
+            podman logs listener
+            podman run --pod-id-file=podid --rm -i "${{ steps.build-image.outputs.image-with-tag }}$1" ws://127.0.0.1:1234/ <<< "Test Message $1"
+            echo Expecting "\"Test Message $1\"" in listener log..
+            podman logs listener | tee /dev/stderr | grep -q "Test Message $1"
+            podman rm -f listener
+          }
+
+          if [ x$( sed -E -e 's#[^/]##g' <<< $platforms ) != "x/" ]; then
+            # if we are here, user has selected more than one build platform
+            arch_tags=$( tr ',' ' ' <<< $platforms | tr -d '/' )
+            # removed slashes to produce "linuxamd64 linuxs390x linuxppc64le"
+            for tag in $arch_tags; do test_tag -$tag; done
+          else
+            # if we are here, user has selected a single build platform
+            test_tag
+          fi
 
       - name: Push To Container Registry
         id: push-to-container-registry
