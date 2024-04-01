@@ -5,10 +5,16 @@ Netcat, curl and socat for [WebSockets](https://en.wikipedia.org/wiki/WebSocket)
 
 ## Examples
 
-### Connect to public echo server
+### Connect to public echo server (Ctrl+d to quit)
 
 ```
 $ websocat ws://ws.vi-server.org/mirror
+123
+123
+ABC
+ABC
+
+$ docker run --rm -ti ghcr.io/vi/websocat:nightly wss://ws.vi-server.org/mirror
 123
 123
 ABC
