@@ -8,7 +8,16 @@ version = "0.17.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b9ecd88a8c8378ca913a680cd98f0f13ac67383d35993f86c90a70e3f137816b"
 dependencies = [
- "gimli",
+ "gimli 0.26.2",
+]
+
+[[package]]
+name = "addr2line"
+version = "0.21.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8a30b2e23b9e17a9f90641c7ab1549cd9b44f296d3ccbf309d2863cfe398a0cb"
+dependencies = [
+ "gimli 0.28.1",
 ]
 
 [[package]]
@@ -91,6 +100,21 @@ name = "autocfg"
 version = "1.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f1fdabc7756949593fe60f30ec81974b613357de856987752631dea1e3394c80"
+
+[[package]]
+name = "backtrace"
+version = "0.3.71"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "26b05800d2e817c8b3b4b54abd461726265fa9789ae34330622f2db9ee696f9d"
+dependencies = [
+ "addr2line 0.21.0",
+ "cc",
+ "cfg-if 1.0.0",
+ "libc",
+ "miniz_oxide",
+ "object 0.32.2",
+ "rustc-demangle",
+]
 
 [[package]]
 name = "base64"
@@ -333,7 +357,7 @@ dependencies = [
  "cranelift-codegen-shared",
  "cranelift-entity",
  "cranelift-isle",
- "gimli",
+ "gimli 0.26.2",
  "log 0.4.21",
  "regalloc2",
  "smallvec 1.13.2",
@@ -723,6 +747,12 @@ dependencies = [
  "indexmap",
  "stable_deref_trait",
 ]
+
+[[package]]
+name = "gimli"
+version = "0.28.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4271d37baee1b8c7e4b708028c57d816cf9d2434acb33a549475f78c181f6253"
 
 [[package]]
 name = "hashbrown"
@@ -1135,6 +1165,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "object"
+version = "0.32.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a6a622008b6e321afc04970976f62ee297fdbaa6f95318ca343e3eebb9648441"
+dependencies = [
+ "memchr",
+]
+
+[[package]]
 name = "once_cell"
 version = "1.19.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1277,6 +1316,12 @@ name = "percent-encoding"
 version = "1.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "31010dd2e1ac33d5b46a5b413495239882813e0369f8ed8a5e266f173602f831"
+
+[[package]]
+name = "pin-project-lite"
+version = "0.2.14"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "bda66fc9667c18cb2758a2ac84d1167245054bcf85d5d1aaa6923f45801bdd02"
 
 [[package]]
 name = "pkg-config"
@@ -1924,7 +1969,7 @@ checksum = "5462b0f968c0457efe38fcd2df7e487096b992419e4f5337b06775a614bbda4b"
 dependencies = [
  "futures",
  "log 0.4.21",
- "tokio",
+ "tokio 0.1.22",
  "tokio-io",
 ]
 
@@ -1950,6 +1995,16 @@ dependencies = [
  "tokio-timer",
  "tokio-udp",
  "tokio-uds",
+]
+
+[[package]]
+name = "tokio"
+version = "1.37.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1adbebffeca75fcfd058afa480fb6c0b81e165a0323f9c9d39c9697e37c46787"
+dependencies = [
+ "backtrace",
+ "pin-project-lite",
 ]
 
 [[package]]
@@ -2028,7 +2083,7 @@ dependencies = [
  "futures",
  "mio",
  "mio-named-pipes",
- "tokio",
+ "tokio 0.1.22",
 ]
 
 [[package]]
@@ -2331,7 +2386,7 @@ dependencies = [
  "indexmap",
  "libc",
  "log 0.4.21",
- "object",
+ "object 0.29.0",
  "once_cell",
  "paste",
  "psm",
@@ -2367,9 +2422,9 @@ dependencies = [
  "cranelift-frontend",
  "cranelift-native",
  "cranelift-wasm",
- "gimli",
+ "gimli 0.26.2",
  "log 0.4.21",
- "object",
+ "object 0.29.0",
  "target-lexicon",
  "thiserror",
  "wasmparser",
@@ -2384,10 +2439,10 @@ checksum = "ebb881c61f4f627b5d45c54e629724974f8a8890d455bcbe634330cc27309644"
 dependencies = [
  "anyhow",
  "cranelift-entity",
- "gimli",
+ "gimli 0.26.2",
  "indexmap",
  "log 0.4.21",
- "object",
+ "object 0.29.0",
  "serde",
  "target-lexicon",
  "thiserror",
@@ -2401,14 +2456,14 @@ version = "1.0.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1985c628011fe26adf5e23a5301bdc79b245e0e338f14bb58b39e4e25e4d8681"
 dependencies = [
- "addr2line",
+ "addr2line 0.17.0",
  "anyhow",
  "bincode",
  "cfg-if 1.0.0",
  "cpp_demangle",
- "gimli",
+ "gimli 0.26.2",
  "log 0.4.21",
- "object",
+ "object 0.29.0",
  "rustc-demangle",
  "rustix 0.35.16",
  "serde",
@@ -2498,7 +2553,7 @@ dependencies = [
  "structopt-derive",
  "tempfile",
  "tk-listen",
- "tokio",
+ "tokio 1.37.0",
  "tokio-codec",
  "tokio-current-thread",
  "tokio-file-unix",
