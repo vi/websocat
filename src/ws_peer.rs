@@ -23,14 +23,16 @@ use super::readdebt::{ProcessMessageResult, ReadDebt};
 
 type MultiProducerWsSink<T> = Rc<
     RefCell<
-        futures::stream::SplitSink<
-            tokio_codec::Framed<T, websocket::r#async::MessageCodec<websocket::OwnedMessage>>,
-        >,
+        WsSinkWithOneBufferedMessage<T>,
     >,
 >;
 type WsSource<T> = futures::stream::SplitStream<
     tokio_codec::Framed<T, websocket::r#async::MessageCodec<websocket::OwnedMessage>>,
 >;
+pub struct WsSinkWithOneBufferedMessage<T> {
+    sink: futures::stream::SplitSink<tokio_codec::Framed<T, websocket::r#async::MessageCodec<websocket::OwnedMessage>>>,
+    pong_debt: Option<websocket_base::OwnedMessage>,
+}
 
 #[derive(Copy,Clone,PartialEq, Eq)]
 pub enum CompressionMethod {
@@ -232,20 +234,24 @@ impl<T: WsStream + 'static> Read for WsReadWrapper<T> {
                     let om = OwnedMessage::Pong(x);
                     let mut sink = self.pingreply.borrow_mut();
                     let mut proceed = false;
-                    // I'm not sure this is safe enough, RefCell-wise and Futures-wise
-                    // And pings and their replies are not tested yet
-                    match sink.start_send(om).map_err(io_other_error)? {
-                        futures::AsyncSink::NotReady(_) => {
-                            warn!(
-                                "dropped a ping request from websocket due to channel contention"
-                            );
+                    // If case of when we cannot sing pong write away (send window full), we try to cache one of pong replies.
+                    // But this scheme is not foolproof - there can be cases where pongs would still get lost
+                    match sink.sink.start_send(om).map_err(io_other_error)? {
+                        futures::AsyncSink::NotReady(om) => {
+                            if sink.pong_debt.is_some() {
+                                warn!(
+                                    "dropped a ping request from websocket due to channel contention"
+                                );
+                            }
+                            debug!("WebSocket write contenction: buffering pong instead of sending immediately");
+                            sink.pong_debt = Some(om);
                         }
                         futures::AsyncSink::Ready => {
                             proceed = true;
                         }
                     }
                     if proceed {
-                        let _ = sink.poll_complete().map_err(io_other_error)?;
+                        let _ = sink.sink.poll_complete().map_err(io_other_error)?;
                     }
 
                     continue;
@@ -263,7 +269,6 @@ impl<T: WsStream + 'static> Read for WsReadWrapper<T> {
                         if self.print_rtts {
                             eprintln!("RTT {}.{:06} s", delta.as_secs(), delta.subsec_micros());
                         }
-
                     } else {
                         warn!("Received a pong with a strange content from websocket");
                     }
@@ -346,7 +351,7 @@ impl<T: WsStream + 'static> AsyncWrite for WsWriteWrapper<T> {
             }
         );
         let mut sink = self.sink.borrow_mut();
-        match sink
+        match sink.sink
             .start_send(OwnedMessage::Close(close_data))
             .map_err(io_other_error)?
         {
@@ -355,7 +360,7 @@ impl<T: WsStream + 'static> AsyncWrite for WsWriteWrapper<T> {
                 // Too lazy to implement a state machine here just for
                 // properly handling this.
                 // And shutdown result is ignored here anyway.
-                let _ = sink.poll_complete().map_err(|_| ()).map(|_| ());
+                let _ = sink.sink.poll_complete().map_err(|_| ()).map(|_| ());
                 Ok(Ready(()))
             }
         }
@@ -364,6 +369,21 @@ impl<T: WsStream + 'static> AsyncWrite for WsWriteWrapper<T> {
 
 impl<T: WsStream + 'static> Write for WsWriteWrapper<T> {
     fn write(&mut self, buf_: &[u8]) -> IoResult<usize> {
+        if self.sink.borrow().pong_debt.is_some() {
+            let mut sink = self.sink.borrow_mut();
+            let debt = sink.pong_debt.take().unwrap();
+            match sink.sink.start_send(debt).map_err(io_other_error)? {
+                futures::AsyncSink::NotReady(debt) => {
+                    sink.pong_debt = Some(debt);
+                    return wouldblock();
+                },
+                futures::AsyncSink::Ready => {
+                    debug!("Finished sending Pong reply message");
+                }
+            }
+        }
+
+
         let bufv;
         let mut effective_mode = self.mode;
 
@@ -426,7 +446,7 @@ impl<T: WsStream + 'static> Write for WsWriteWrapper<T> {
                 OwnedMessage::Text(text.to_string())
             }
         };
-        match self.sink.borrow_mut().start_send(om).map_err(io_other_error)? {
+        match self.sink.borrow_mut().sink.start_send(om).map_err(io_other_error)? {
             futures::AsyncSink::NotReady(_) => wouldblock(),
             futures::AsyncSink::Ready => Ok(origlen),
         }
@@ -435,6 +455,7 @@ impl<T: WsStream + 'static> Write for WsWriteWrapper<T> {
         match self
             .sink
             .borrow_mut()
+            .sink
             .poll_complete()
             .map_err(io_other_error)?
         {
@@ -554,7 +575,7 @@ impl<T: WsStream + 'static> ::futures::Future for WsPinger<T> {
                     ts[0..8].copy_from_slice(&ts1.to_be_bytes());
                     ts[8..12].copy_from_slice(&ts2.to_be_bytes());
                     let om = OwnedMessage::Ping(ts.to_vec());
-                    match self.si.borrow_mut().start_send(om) {
+                    match self.si.borrow_mut().sink.start_send(om) {
                         Err(e) => info!("wsping: {}", e),
                         Ok(AsyncSink::NotReady(_om)) => {
                             return Ok(Async::NotReady);
@@ -565,7 +586,7 @@ impl<T: WsStream + 'static> ::futures::Future for WsPinger<T> {
                         }
                     }
                 }
-                PollComplete => match self.si.borrow_mut().poll_complete() {
+                PollComplete => match self.si.borrow_mut().sink.poll_complete() {
                     Err(e) => info!("wsping: {}", e),
                     Ok(Async::NotReady) => {
                         return Ok(Async::NotReady);
@@ -588,7 +609,11 @@ pub fn finish_building_ws_peer<S>(opts: &super::Options, duplex: Duplex<S>, clos
     where S : tokio_io::AsyncRead + tokio_io::AsyncWrite + 'static + Send
 {
     let (sink, stream) = duplex.split();
-    let mpsink = Rc::new(RefCell::new(sink));
+    let wrappedsink = WsSinkWithOneBufferedMessage {
+        sink,
+        pong_debt: None,
+    };
+    let mpsink = Rc::new(RefCell::new(wrappedsink));
 
     let mode1 = if opts.websocket_text_mode {
         Mode1::Text
