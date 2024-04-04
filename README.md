@@ -88,16 +88,29 @@ See [moreexamples.md](./moreexamples.md) for further examples.
 
 There are multiple options for installing WebSocat. From easy to hard:
 
-* If you're on Fedora, you can install WebSocat from [Copr](https://copr.fedorainfracloud.org/coprs/atim/websocat/): `sudo dnf copr enable atim/websocat -y && sudo dnf install websocat`
-* If you're on FreeBSD, you may install WebSocat with the following command: `pkg install websocat`.
-* If you're on Linux Debian or Ubuntu (or other dpkg-based), try downloading a pre-build executable from [GitHub releases][releases]. Websocat is not yet officially packaged for Debian. Some older versions of Websocat may also have Debian package files available on Github releases.
-* If you're on macOS, you can do:
-  * `brew install websocat` using [Homebrew](https://brew.sh)
-  * `sudo port install websocat` using [MacPorts](https://www.macports.org)
-* Download a pre-build executable and install it to PATH.
+## Fedora
+
+[Copr](https://copr.fedorainfracloud.org/coprs/atim/websocat/): `sudo dnf copr enable atim/websocat -y && sudo dnf install websocat`
+
+## FreeBSD
+
+`pkg install websocat`
+
+## Debian / Ubuntu
+* Download a pre-build executable from [GitHub releases][releases].
+* Websocat is not yet officially packaged for Debian. Some older versions of Websocat may also have Debian package files available on Github releases.
+
+## macOS
+
+[Homebrew](https://brew.sh): `brew install websocat`
+
+[MacPorts](https://www.macports.org): `sudo port install websocat`
+
+## From source
 * Install the [Rust toolchain](https://rustup.rs/) and do `cargo install --features=ssl websocat`. If something fails with a `-sys` crate, try without `--features=ssl`;
 * Build Websocat from source code (see below), then move `target/release/websocat` somewhere to the PATH.
 
+## Pre-built binaries
 Pre-built binaries for Linux (usual and musl), Windows, OS X and Android are available on the [releases page](https://github.com/vi/websocat/releases).
 
 
