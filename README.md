@@ -532,6 +532,7 @@ Some notes
 Limitations
 ---
 
+* It only connects (or serves) HTTP/1. [RFC 8441](https://www.rfc-editor.org/rfc/rfc8441) or [RFC 9220](https://www.rfc-editor.org/rfc/rfc9220.html) are not currently supported.
 * It is not convenient when text and binary WebSocket messages are mixed. This affects `mirror:` specifier, making it a bit different from ws://echo.websocket.org. There are `--binary-prefix`, `--text-prefix` and `--base64` options to handle mixture of binary and text.
 * Current version of Websocat don't receive notification about closed sockets. This makes serving without `-E` or `-u` options or in backpressure scenarios prone to socket leak.
 * Readline is not integrated. Users are advices to wrap websocat using [`rlwrap`](https://linux.die.net/man/1/rlwrap) tool for more convenient CLI.
