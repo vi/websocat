@@ -116,24 +116,6 @@ macro_rules! list_of_all_specifier_classes {
 
         $your_macro!($crate::trivial_peer::ExitOnSpecificByteClass);
 
-        #[cfg(feature = "native_plugins")]
-        $your_macro!($crate::transform_peer::NativeTransformAClass);
-        #[cfg(feature = "native_plugins")]
-        $your_macro!($crate::transform_peer::NativeTransformBClass);
-        #[cfg(feature = "native_plugins")]
-        $your_macro!($crate::transform_peer::NativeTransformCClass);
-        #[cfg(feature = "native_plugins")]
-        $your_macro!($crate::transform_peer::NativeTransformDClass);
-
-        #[cfg(feature = "wasm_plugins")]
-        $your_macro!($crate::wasm_transform_peer::WasmTransformAClass);
-        #[cfg(feature = "wasm_plugins")]
-        $your_macro!($crate::wasm_transform_peer::WasmTransformBClass);
-        #[cfg(feature = "wasm_plugins")]
-        $your_macro!($crate::wasm_transform_peer::WasmTransformCClass);
-        #[cfg(feature = "wasm_plugins")]
-        $your_macro!($crate::wasm_transform_peer::WasmTransformDClass);
-
         $your_macro!($crate::reconnect_peer::WaitForDataClass);
     };
 }

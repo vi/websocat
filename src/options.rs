@@ -131,24 +131,6 @@ pub struct Options {
     pub uncompress_zlib: bool,
     pub uncompress_gzip: bool,
 
-    #[cfg(feature = "native_plugins")]
-    pub native_transform_a : Option<crate::transform_peer::Sym>,
-    #[cfg(feature = "native_plugins")]
-    pub native_transform_b : Option<crate::transform_peer::Sym>,
-    #[cfg(feature = "native_plugins")]
-    pub native_transform_c : Option<crate::transform_peer::Sym>,
-    #[cfg(feature = "native_plugins")]
-    pub native_transform_d : Option<crate::transform_peer::Sym>,
-
-    #[cfg(feature = "wasm_plugins")]
-    pub wasm_transform_a : Option<crate::wasm_transform_peer::Handle>,
-    #[cfg(feature = "wasm_plugins")]
-    pub wasm_transform_b : Option<crate::wasm_transform_peer::Handle>,
-    #[cfg(feature = "wasm_plugins")]
-    pub wasm_transform_c : Option<crate::wasm_transform_peer::Handle>,
-    #[cfg(feature = "wasm_plugins")]
-    pub wasm_transform_d : Option<crate::wasm_transform_peer::Handle>,
-
     pub jsonrpc_omit_jsonrpc: bool,
     pub inhibit_pongs: Option<usize>,
     pub max_sent_pings: Option<usize>,

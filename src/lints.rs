@@ -1,7 +1,7 @@
 #![cfg_attr(feature="cargo-clippy", allow(collapsible_if,needless_pass_by_value))]
 
 use super::{Options, Result, SpecifierClass, SpecifierStack, WebsocatConfiguration2};
-use super::specifier::{SpecifierNode};
+use super::specifier::SpecifierNode;
 use std::rc::Rc;
 use std::str::FromStr;
 use std::ops::Not;
@@ -653,47 +653,6 @@ impl WebsocatConfiguration2 {
         }
         Ok(())
     }
-    #[cfg(feature="native_plugins")]
-    fn l_plugins(&mut self, _on_warning: &OnWarning) -> Result<()> {
-        if self.contains_class("NativeTransformAClass") && self.opts.native_transform_a.is_none() {
-            return Err("--native-plugin-a must be specified to use `native_plugin_transform_a:`")?;
-        }
-        if self.contains_class("NativeTransformBClass") && self.opts.native_transform_b.is_none() {
-            return Err("--native-plugin-b must be specified to use `native_plugin_transform_b:`")?;
-        }
-        if self.contains_class("NativeTransformCClass") && self.opts.native_transform_c.is_none() {
-            return Err("--native-plugin-c must be specified to use `native_plugin_transform_c:`")?;
-        }
-        if self.contains_class("NativeTransformDClass") && self.opts.native_transform_d.is_none() {
-            return Err("--native-plugin-d must be specified to use `native_plugin_transform_d:`")?;
-        }
-        Ok(())
-    }
-    #[cfg(not(feature="native_plugins"))]
-    fn l_plugins(&mut self, _on_warning: &OnWarning) -> Result<()> {
-        Ok(())
-    }
-
-    #[cfg(feature="wasm_plugins")]
-    fn l_wasm(&mut self, _on_warning: &OnWarning) -> Result<()> {
-        if self.contains_class("WasmTransformAClass") && self.opts.wasm_transform_a.is_none() {
-            return Err("--wasm-plugin-a must be specified to use `wasm_plugin_transform_a:`")?;
-        }
-        if self.contains_class("WasmTransformBClass") && self.opts.wasm_transform_b.is_none() {
-            return Err("--wasm-plugin-b must be specified to use `wasm_plugin_transform_b:`")?;
-        }
-        if self.contains_class("WasmTransformCClass") && self.opts.wasm_transform_c.is_none() {
-            return Err("--wasm-plugin-c must be specified to use `wasm_plugin_transform_c:`")?;
-        }
-        if self.contains_class("WasmTransformDClass") && self.opts.wasm_transform_d.is_none() {
-            return Err("--wasm-plugin-d must be specified to use `wasm_plugin_transform_d:`")?;
-        }
-        Ok(())
-    }
-    #[cfg(not(feature="wasm_plugins"))]
-    fn l_wasm(&mut self, _on_warning: &OnWarning) -> Result<()> {
-        Ok(())
-    }
 
     fn l_autoreconn_reuse(&mut self, _on_warning: &OnWarning) -> Result<()> {
         if self.s1.autotoreconn_misuse() || self.s2.autotoreconn_misuse() {
@@ -726,8 +685,6 @@ impl WebsocatConfiguration2 {
         self.l_crypto(&on_warning)?;
         self.l_sizelimits(&on_warning)?;
         self.l_compress(&on_warning)?;
-        self.l_plugins(&on_warning)?;
-        self.l_wasm(&on_warning)?;
         self.l_autoreconn_reuse(&on_warning)?;
 
         // TODO: UDP connect oneshot mode

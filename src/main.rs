@@ -607,50 +607,6 @@ struct Opt {
     #[structopt(long = "uncompress-gzip")]
     pub uncompress_gzip: bool,
 
-    /// [A] Load specified symbol from specified native library and use it for `native_plugin_transform_a`.
-    /// Format is `symbol@library_file`. If `symbol@` is omitted, `websocat_transform` is implied.
-    #[cfg(feature = "native_plugins")]
-    #[structopt(long = "native-plugin-a",  parse(try_from_str = "websocat::transform_peer::load_symbol"))]
-    pub native_transform_a: Option<websocat::transform_peer::Sym>,
-
-    /// [A] Load specified symbol from specified native library and use it for `native_plugin_transform_b`.
-    #[cfg(feature = "native_plugins")]
-    #[structopt(long = "native-plugin-b", parse(try_from_str = "websocat::transform_peer::load_symbol"))]
-    pub native_transform_b: Option<websocat::transform_peer::Sym>,
-
-    /// [A] Load specified symbol from specified native library and use it for `native_plugin_transform_c`.
-    #[cfg(feature = "native_plugins")]
-    #[structopt(long = "native-plugin-c", parse(try_from_str = "websocat::transform_peer::load_symbol"))]
-    pub native_transform_c: Option<websocat::transform_peer::Sym>,
-
-    /// [A] Load specified symbol from specified native library and use it for `native_plugin_transform_d`.
-    #[cfg(feature = "native_plugins")]
-    #[structopt(long = "native-plugin-d", parse(try_from_str = "websocat::transform_peer::load_symbol"))]
-    pub native_transform_d: Option<websocat::transform_peer::Sym>,
-
-    /// [A] Load specified symbol from specified wasm module and use it for `wasm_plugin_transform_a:`.
-    /// Format is `symbol@library_file`. If `symbol@` is omitted, `websocat_transform` is implied.
-    /// The wasm module should also have `malloc` and `free` functions exposed.
-    /// Prepend `library_file` with `!` to load serialized cwasm produced by `wasmtime compile` instead of compining the module in Websocat.
-    #[cfg(feature = "wasm_plugins")]
-    #[structopt(long = "wasm-plugin-a",  parse(try_from_str = "websocat::wasm_transform_peer::load_symbol"))]
-    pub wasm_transform_a: Option<websocat::wasm_transform_peer::Handle>,
-
-    /// [A] Load specified symbol from specified wasm module and use it for `wasm_plugin_transform_b:`.
-    #[cfg(feature = "wasm_plugins")]
-    #[structopt(long = "wasm-plugin-b",  parse(try_from_str = "websocat::wasm_transform_peer::load_symbol"))]
-    pub wasm_transform_b: Option<websocat::wasm_transform_peer::Handle>,
-
-    /// [A] Load specified symbol from specified wasm module and use it for `wasm_plugin_transform_c:`.
-    #[cfg(feature = "wasm_plugins")]
-    #[structopt(long = "wasm-plugin-c",  parse(try_from_str = "websocat::wasm_transform_peer::load_symbol"))]
-    pub wasm_transform_c: Option<websocat::wasm_transform_peer::Handle>,
-
-    /// [A] Load specified symbol from specified wasm module and use it for `wasm_plugin_transform_d:`.
-    #[cfg(feature = "wasm_plugins")]
-    #[structopt(long = "wasm-plugin-d",  parse(try_from_str = "websocat::wasm_transform_peer::load_symbol"))]
-    pub wasm_transform_d: Option<websocat::wasm_transform_peer::Handle>,
-
     /// [A] Omit `jsonrpc` field when using `--jsonrpc`, e.g. for Chromium
     #[structopt(long = "jsonrpc-omit-jsonrpc")]
     pub jsonrpc_omit_jsonrpc: bool,
@@ -993,24 +949,6 @@ fn run() -> Result<()> {
         {
             opts! {
                 prometheus
-            }
-        }
-        #[cfg(feature = "native_plugins")]
-        {
-            opts! {
-                native_transform_a
-                native_transform_b
-                native_transform_c
-                native_transform_d
-            }
-        }
-        #[cfg(feature = "wasm_plugins")]
-        {
-            opts! {
-                 wasm_transform_a
-                 wasm_transform_b
-                 wasm_transform_c
-                 wasm_transform_d
             }
         }
     };
