@@ -672,6 +672,10 @@ struct Opt {
     /// [A] Only affect one direction of the `lengthprefixed:` overlay, bypass tranformation for the other one.
     #[structopt(long = "--lengthprefixed-skip-write-direction")]
     pub lengthprefixed_skip_write_direction: bool,
+
+    /// Set `User-Agent` request header to this value. Similar to setting it with `-H`.
+    #[structopt(long = "--ua")]
+    pub useragent: Option<String>,
 }
 
 // TODO: make it byte-oriented/OsStr?
@@ -1004,6 +1008,11 @@ fn run() -> Result<()> {
             }
         }
     };
+
+    if let Some(x) = cmd.useragent {
+        opts.custom_headers.push(("User-Agent".to_owned(), x.as_bytes().to_vec()));
+        opts.request_headers.push((http::header::USER_AGENT, http::header::HeaderValue::from_bytes(x.as_bytes()).unwrap()));
+    }
 
     if let Some(ba) = cmd.basic_auth {
         let x = base64::encode(&ba);
