@@ -28,6 +28,7 @@ extern crate http_bytes;
 use http_bytes::http;
 
 use std::net::{IpAddr, SocketAddr};
+use std::path::PathBuf;
 
 use structopt::StructOpt;
 
@@ -522,9 +523,14 @@ struct Opt {
     #[structopt(long = "--no-async-stdio")]
     pub noasyncstdio: bool,
 
-    /// Add `Authorization: Basic` HTTP request header with this base64-encoded parameter
+    /// Add `Authorization: Basic` HTTP request header with this base64-encoded parameter.
+    /// Also available as `WEBSOCAT_BASIC_AUTH` environment variable
     #[structopt(long = "--basic-auth")]
     pub basic_auth: Option<String>,
+
+    /// Add `Authorization: Basic` HTTP request header base64-encoded content of the specified file
+    #[structopt(long = "--basic-auth-file")]
+    pub basic_auth_file: Option<PathBuf>,
 
     /// [A] Wait for reading to finish before closing foreachmsg:'s peer
     #[structopt(long = "--foreachmsg-wait-read")]
@@ -1014,7 +1020,26 @@ fn run() -> Result<()> {
         opts.request_headers.push((http::header::USER_AGENT, http::header::HeaderValue::from_bytes(x.as_bytes()).unwrap()));
     }
 
+    let mut basic_auth_content : Option<String> = None;
+
     if let Some(ba) = cmd.basic_auth {
+        basic_auth_content = Some(ba);
+    }
+    if let Ok(ba) = std::env::var("WEBSOCAT_BASIC_AUTH") {
+        if basic_auth_content.is_some() {
+            return Err("Multiple request basic auth options specified simultaneously")?;
+        }
+        basic_auth_content = Some(ba);
+    }
+    if let Some(baf) = cmd.basic_auth_file {
+        if basic_auth_content.is_some() {
+            return Err("Multiple request basic auth options specified simultaneously")?;
+        }
+        let x = std::fs::read_to_string(&baf).map_err(|e|{error!("Failed to read `{:?}`", baf); e})?;
+        basic_auth_content = Some(x.trim().to_owned());
+    }
+
+    if let Some(ba) = basic_auth_content {
         let x = base64::encode(&ba);
         let q = format!("Basic {}", x);
         opts.custom_headers.push(("Authorization".to_owned(), q.as_bytes().to_vec()));
