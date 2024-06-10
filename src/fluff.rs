@@ -3,7 +3,7 @@ use std::{
     sync::{Arc, Mutex}, task::Poll,
 };
 
-use crate::types::{BufferFlag, DatagramRead, DatagramWrite, Handle, HandleExt, PacketRead, BufferFlags, PacketWrite};
+use crate::{types::{BufferFlag, BufferFlags, DatagramRead, DatagramWrite, Handle, PacketRead, PacketWrite}, utils::HandleExt};
 
 struct TrivialPkts {
     n : u8,

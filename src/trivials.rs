@@ -1,7 +1,7 @@
 use rhai::{Engine, Dynamic};
 use tracing::{debug, debug_span, error, field, Instrument};
 
-use crate::{debugfluff::PtrDbg, types::{run_task, Handle, HandleExt, StreamRead, StreamSocket, StreamWrite, Task, TaskHandleExt}};
+use crate::{debugfluff::PtrDbg, types::{Handle, StreamRead, StreamSocket, StreamWrite, Task}, utils::{run_task, HandleExt, TaskHandleExt}};
 
 fn take_read_part(h: Handle<StreamSocket>) -> Handle<StreamRead> {
     if let Some(s) = h.lock().unwrap().as_mut() {

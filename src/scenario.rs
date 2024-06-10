@@ -2,7 +2,7 @@ use std::sync::{Arc, Weak};
 use rhai::{Engine, EvalAltResult, FnPtr, FuncArgs, NativeCallContext, Variant, AST};
 use tracing::error;
 
-use crate::types::{Handle, Task, run_task};
+use crate::{types::{Handle, Task}, utils::run_task};
 
 pub struct Scenario {
     pub ast: AST,

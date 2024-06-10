@@ -5,7 +5,7 @@ use rhai::Engine;
 use tokio::io::{AsyncWriteExt, ReadBuf};
 use tracing::{debug_span, debug, field, Instrument, error, info, warn};
 
-use crate::types::{BufferFlag, BufferFlags, DatagramRead, DatagramWrite, Handle, HandleExt2, StreamRead, StreamSocket, StreamWrite, Task, TaskHandleExt};
+use crate::{types::{BufferFlag, BufferFlags, DatagramRead, DatagramWrite, Handle, StreamRead, StreamSocket, StreamWrite, Task}, utils::{HandleExt2, TaskHandleExt}};
 
 fn copy_bytes(from: Handle<StreamRead>, to: Handle<StreamWrite>) -> Handle<Task> {
     let span = debug_span!("copy_bytes", f=field::Empty, t=field::Empty);
@@ -24,7 +24,7 @@ fn copy_bytes(from: Handle<StreamRead>, to: Handle<StreamWrite>) -> Handle<Task>
 
         if let (Some(mut r), Some(mut w)) = (f, t) {
             if ! r.prefix.is_empty() {
-                match w.writer.write_all_buf(&mut r.prefix).await {
+                match w.writer.write_all_buf(&mut r.prefix).instrument(span.clone()).await {
                     Ok(()) => debug!(parent: &span, "prefix_written"),
                     Err(e) =>  debug!(parent: &span, error=%e, "error"),
                 }
@@ -62,14 +62,14 @@ fn copy_bytes_bidirectional(s1: Handle<StreamSocket>, s2: Handle<StreamSocket>) 
             ) = (s1,s2) {
 
             if ! r1.prefix.is_empty() {
-                match w2.writer.write_all_buf(&mut r1.prefix).await {
+                match w2.writer.write_all_buf(&mut r1.prefix).instrument(span.clone()).await {
                     Ok(()) => debug!(parent: &span, "prefix_written_1to2"),
                     Err(e) =>  debug!(parent: &span, error=%e, "error_1to2"),
                 }
             }
 
             if ! r2.prefix.is_empty() {
-                match w1.writer.write_all_buf(&mut r2.prefix).await {
+                match w1.writer.write_all_buf(&mut r2.prefix).instrument(span.clone()).await {
                     Ok(()) => debug!(parent: &span, "prefix_written_2to1"),
                     Err(e) =>  debug!(parent: &span, error=%e, "error_2to1"),
                 }
@@ -78,7 +78,7 @@ fn copy_bytes_bidirectional(s1: Handle<StreamSocket>, s2: Handle<StreamSocket>) 
             let mut s1 = tokio::io::join(r1.reader, w1.writer);
             let mut s2 = tokio::io::join(r2.reader, w2.writer);
 
-            let copier = tokio::io::copy_bidirectional(&mut s1, &mut s2);
+            let copier = tokio::io::copy_bidirectional(&mut s1, &mut s2).instrument(span.clone());
 
             let c1p = c1.is_some();
             let c1o : OptionFuture<_> = c1.into();

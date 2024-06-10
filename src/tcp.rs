@@ -2,10 +2,11 @@ use std::net::SocketAddr;
 
 use rhai::{Dynamic, Engine, EvalAltResult, FnPtr, NativeCallContext};
 use tracing::{debug, debug_span, field, Instrument};
+use crate::utils::TaskHandleExt;
 
 use crate::{
     scenario::{callback_and_continue, Anyhow2EvalAltResult, ScenarioAccess},
-    types::{Handle, StreamRead, StreamSocket, StreamWrite, Task, TaskHandleExt},
+    types::{Handle, StreamRead, StreamSocket, StreamWrite, Task},
 };
 
 fn connect_tcp(ctx: NativeCallContext, opts: Dynamic, continuation: FnPtr) -> Result<Handle<Task>, Box<EvalAltResult>> {
