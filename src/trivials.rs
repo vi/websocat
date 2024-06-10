@@ -1,6 +1,7 @@
 use rhai::{Engine, Dynamic};
+use tracing::{debug, debug_span, error, field, Instrument};
 
-use crate::types::{Handle, StreamSocket, StreamRead, StreamWrite, Task, TaskHandleExt, HandleExt, run_task};
+use crate::{debugfluff::PtrDbg, types::{run_task, Handle, HandleExt, StreamRead, StreamSocket, StreamWrite, Task, TaskHandleExt}};
 
 fn take_read_part(h: Handle<StreamSocket>) -> Handle<StreamRead> {
     if let Some(s) = h.lock().unwrap().as_mut() {
@@ -28,6 +29,12 @@ fn take_write_part(h: Handle<StreamSocket>) -> Handle<StreamWrite> {
 fn dummytask() -> Handle<Task> {
     async move {
         
+    }.wrap()
+}
+
+fn sleep_ms(ms: i64) -> Handle<Task> {
+    async move {
+        tokio::time::sleep(std::time::Duration::from_millis(ms as u64)).await
     }.wrap()
 }
 
@@ -59,10 +66,27 @@ fn parallel(tasks: Vec<Dynamic> ) -> Handle<Task> {
     }.wrap()
 }
 
+fn spawn_task(task: Handle<Task> ) {
+    let original_span = tracing::Span::current();
+    let span = debug_span!(parent: original_span, "spawn", t = field::Empty);
+    if let Some(x) = task.lock().unwrap().as_ref() {
+        span.record("t", tracing::field::debug(PtrDbg(&**x)));
+        debug!(parent: &span, "Spawning");
+    } else {
+        error!("Attempt to spawn a null/taken task");
+    }
+    tokio::spawn(async move {
+        run_task(task).await;
+        debug!("Finished");
+    }.instrument(span));
+}
+
 pub fn register(engine: &mut Engine) {
     engine.register_fn("take_read_part", take_read_part);
     engine.register_fn("take_write_part", take_write_part);
     engine.register_fn("dummy_task", dummytask);
+    engine.register_fn("sleep_ms", sleep_ms);
     engine.register_fn("sequential", sequential);
     engine.register_fn("parallel", parallel);
+    engine.register_fn("spawn_task", spawn_task);
 }

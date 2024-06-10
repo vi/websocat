@@ -14,12 +14,13 @@ pub mod tcp;
 
 pub mod scenario;
 
-
+pub mod debugfluff;
 
 
 
 #[tokio::main(flavor = "current_thread")]
 async fn main() -> anyhow::Result<()> {
+    //tracing_subscriber::fmt().json().with_max_level(tracing::Level::DEBUG).init();
     tracing_subscriber::fmt::init();
     
     let f = std::fs::read(std::env::args().nth(1).unwrap())?;

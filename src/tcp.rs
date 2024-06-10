@@ -1,7 +1,7 @@
 use std::net::SocketAddr;
 
 use rhai::{Dynamic, Engine, EvalAltResult, FnPtr, NativeCallContext};
-use tracing::{debug, debug_span, field};
+use tracing::{debug, debug_span, field, Instrument};
 
 use crate::{
     scenario::{callback_and_continue, Anyhow2EvalAltResult, ScenarioAccess},
@@ -9,8 +9,9 @@ use crate::{
 };
 
 fn connect_tcp(ctx: NativeCallContext, opts: Dynamic, continuation: FnPtr) -> Result<Handle<Task>, Box<EvalAltResult>> {
-    let span = debug_span!("connect_tcp", addr = field::Empty);
-    let scenario = ctx.get_scenario().tbar()?;
+    let original_span = tracing::Span::current();
+    let span = debug_span!(parent: original_span, "connect_tcp", addr = field::Empty);
+    let the_scenario = ctx.get_scenario().tbar()?;
     debug!(parent: &span, "node created");
     #[derive(serde::Deserialize)]
     struct TcpOpts {
@@ -44,7 +45,7 @@ fn connect_tcp(ctx: NativeCallContext, opts: Dynamic, continuation: FnPtr) -> Re
         debug!(parent: &span, s=?s, "connected");
         let h = s.wrap();
 
-        callback_and_continue(scenario, continuation, (h,)).await;
+        callback_and_continue(the_scenario, continuation, (h,)).instrument(span).await;
     }
     .wrap())
 }

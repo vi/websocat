@@ -1,11 +1,15 @@
+fn copy_bidirectional(s1, s2) {
+    let r = take_read_part(s1);
+    let w = take_write_part(s2);
+    let r2 = take_read_part(s2);
+    let w2 = take_write_part(s1);
+    let t1 = copy_bytes(r,w);
+    let t2 = copy_bytes(r2,w2);
+    parallel([t1, t2])
+}
+
 connect_tcp(#{addr: "127.0.0.1:1234"}, |s1| {
     connect_tcp(#{addr: "127.0.0.1:1235"}, |s2| {
-        let r = take_read_part(s1);
-        let w = take_write_part(s2);
-        let r2 = take_read_part(s2);
-        let w2 = take_write_part(s1);
-        let t1 = copy_bytes(r,w);
-        let t2 = copy_bytes(r2,w2);
-        parallel([t1, t2])
+        copy_bytes_bidirectional(s1, s2)
     })
 })

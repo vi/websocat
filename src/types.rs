@@ -3,6 +3,7 @@ use std::{sync::{Arc,Mutex}, pin::Pin, task::{Context, Poll}};
 use bytes::BytesMut;
 use futures::Future;
 use tokio::io::{AsyncRead, AsyncWrite, ReadBuf};
+use tracing::{debug, error};
 pub type Handle<T> = Arc<Mutex<Option<T>>>;
 
 pub trait HandleExt {
@@ -45,10 +46,10 @@ impl<T : Future<Output = ()> + Send + 'static > TaskHandleExt for T {
 
 pub async fn run_task(h: Handle<Task>) {
     let Some(t) = h.lock().unwrap().take() else {
-        eprintln!("No task requested");
+        error!("Attempt to run a null/taken task");
         return;
     };
-    t.await
+    t.await;
 }
 
 pub struct StreamRead {
@@ -59,44 +60,11 @@ pub struct StreamWrite {
     pub writer: Pin<Box<dyn AsyncWrite + Send>>,
 } 
 
-impl std::fmt::Debug for StreamRead {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f,"SR")?;
-        if !self.prefix.is_empty() {
-            write!(f, "{{{}}}", self.prefix.len())?;
-        }
-        write!(f, "@{:p}", self.reader)
-    }
-}
-impl std::fmt::Debug for StreamWrite {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "SW@{:p}", self.writer)
-    }
-}
 
 pub struct StreamSocket {
     pub read: Option<StreamRead>,
     pub write: Option<StreamWrite>,
     pub close: Option<Hangup>,
-}
-
-impl std::fmt::Debug for StreamSocket {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "SS(")?;
-        if let Some(ref r) = self.read {
-            r.fmt(f)?;
-        }
-        write!(f, ",")?;
-        if let Some(ref w) = self.write {
-            w.fmt(f)?;
-        }
-        write!(f, ",")?;
-        if let Some(_) = self.close {
-            write!(f, "H")?;
-        }
-        write!(f, ")")?;
-        Ok(())
-    }
 }
 
 
@@ -164,14 +132,3 @@ pub struct DatagramWrite {
     pub snk: Pin<Box<dyn PacketWrite + Send>>,
 }
 
-impl std::fmt::Debug for DatagramRead {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "DR@{:p}", self.src)
-    }
-}
-
-impl std::fmt::Debug for DatagramWrite {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "DW@{:p}", self.snk)
-    }
-}
