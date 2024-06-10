@@ -1,8 +1,8 @@
-use std::net::SocketAddr;
+use std::{net::SocketAddr, time::Duration};
 
 use crate::utils::TaskHandleExt;
 use rhai::{Dynamic, Engine, EvalAltResult, FnPtr, NativeCallContext};
-use tracing::{debug, debug_span, field, Instrument};
+use tracing::{debug, debug_span, error, field, Instrument};
 
 use crate::{
     scenario::{callback_and_continue, Anyhow2EvalAltResult, ScenarioAccess},
@@ -57,6 +57,68 @@ fn connect_tcp(
     .wrap())
 }
 
+fn listen_tcp(
+    ctx: NativeCallContext,
+    opts: Dynamic,
+    continuation: FnPtr,
+) -> Result<Handle<Task>, Box<EvalAltResult>> {
+    let span = debug_span!("listen_tcp", addr = field::Empty);
+    let the_scenario = ctx.get_scenario().tbar()?;
+    debug!(parent: &span, "node created");
+    #[derive(serde::Deserialize)]
+    struct TcpListenOpts {
+        addr: SocketAddr,
+    }
+    let opts: TcpListenOpts = rhai::serde::from_dynamic(&opts)?;
+    span.record("addr", field::display(opts.addr));
+    debug!(parent: &span, "options parsed");
+
+    Ok(async move {
+        debug!(parent: &span, "node started");
+        let l = tokio::net::TcpListener::bind(opts.addr).await;
+        let l = match l {
+            Ok(l) => l,
+            Err(e) => {
+                debug!(parent: &span, error=%e, "bind failed");
+                return;
+            }
+        };
+
+        loop {
+            let span = span.clone();
+            let the_scenario = the_scenario.clone();
+            let continuation = continuation.clone();
+            match l.accept().await {
+                Ok((t, from)) => {
+                    let (r, w) = t.into_split();
+                    let (r, w) = (Box::pin(r), Box::pin(w));
+
+                    let s = StreamSocket {
+                        read: Some(StreamRead {
+                            reader: r,
+                            prefix: Default::default(),
+                        }),
+                        write: Some(StreamWrite { writer: w }),
+                        close: None,
+                    };
+
+                    debug!(parent: &span,  s=?s, from=?from, "accepted");
+                    let h = s.wrap();
+                    callback_and_continue(the_scenario, continuation, (h,from,))
+                        .instrument(span)
+                        .await;
+                }
+                Err(e) => {
+                    error!(parent: &span, "Error from accept: {e}");
+                    tokio::time::sleep(Duration::from_millis(500)).await;
+                }
+            }
+        }
+    }
+    .wrap())
+}
+
 pub fn register(engine: &mut Engine) {
     engine.register_fn("connect_tcp", connect_tcp);
+    engine.register_fn("listen_tcp", listen_tcp);
 }
