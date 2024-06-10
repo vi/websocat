@@ -4,17 +4,15 @@ use tracing::error;
 use crate::types::{Handle, StreamSocket, Task};
 use std::sync::{Arc, Mutex};
 
-
 pub trait TaskHandleExt {
     fn wrap(self) -> Handle<Task>;
 }
 
-impl<T : Future<Output = ()> + Send + 'static > TaskHandleExt for T {
+impl<T: Future<Output = ()> + Send + 'static> TaskHandleExt for T {
     fn wrap(self) -> Handle<Task> {
         Arc::new(Mutex::new(Some(Box::pin(self))))
     }
 }
-
 
 pub trait HandleExt {
     type HandleInner;
@@ -23,7 +21,7 @@ pub trait HandleExt {
 
 impl<T> HandleExt for Option<T> {
     type HandleInner = T;
-    fn wrap(self) -> Handle<T> {    
+    fn wrap(self) -> Handle<T> {
         Arc::new(Mutex::new(self))
     }
 }
@@ -48,7 +46,6 @@ pub async fn run_task(h: Handle<Task>) {
     };
     t.await;
 }
-
 
 impl StreamSocket {
     pub fn wrap(self) -> Handle<StreamSocket> {

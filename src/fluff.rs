@@ -1,19 +1,25 @@
 use rhai::Engine;
 use std::{
-    sync::{Arc, Mutex}, task::Poll,
+    sync::{Arc, Mutex},
+    task::Poll,
 };
 
-use crate::{types::{BufferFlag, BufferFlags, DatagramRead, DatagramWrite, Handle, PacketRead, PacketWrite}, utils::HandleExt};
+use crate::{
+    types::{
+        BufferFlag, BufferFlags, DatagramRead, DatagramWrite, Handle, PacketRead, PacketWrite,
+    },
+    utils::HandleExt,
+};
 
 struct TrivialPkts {
-    n : u8,
+    n: u8,
 }
 
 impl PacketRead for TrivialPkts {
     fn poll_read(
         mut self: std::pin::Pin<&mut Self>,
         _cx: &mut std::task::Context<'_>,
-        buf: &mut tokio::io::ReadBuf<'_>
+        buf: &mut tokio::io::ReadBuf<'_>,
     ) -> Poll<std::io::Result<BufferFlags>> {
         let mut this = self.as_mut();
         if this.n == 0 {
@@ -28,14 +34,12 @@ impl PacketRead for TrivialPkts {
 
 fn trivial_pkts() -> Handle<DatagramRead> {
     Some(DatagramRead {
-        src: Box::pin(TrivialPkts{n:3})
+        src: Box::pin(TrivialPkts { n: 3 }),
     })
     .wrap()
 }
 
-struct DisplayPkts {
-
-}
+struct DisplayPkts {}
 
 impl PacketWrite for DisplayPkts {
     fn poll_write(
@@ -60,7 +64,7 @@ impl PacketWrite for DisplayPkts {
 }
 
 fn display_pkts() -> Handle<DatagramWrite> {
-    let snk = Box::pin(DisplayPkts{});
+    let snk = Box::pin(DisplayPkts {});
     Arc::new(Mutex::new(Some(DatagramWrite { snk })))
 }
 

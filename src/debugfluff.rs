@@ -1,6 +1,5 @@
 use crate::types::{DatagramRead, DatagramWrite, StreamRead, StreamSocket, StreamWrite};
 
-
 impl std::fmt::Debug for StreamSocket {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "SS(")?;
@@ -22,7 +21,7 @@ impl std::fmt::Debug for StreamSocket {
 
 impl std::fmt::Debug for StreamRead {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f,"SR")?;
+        write!(f, "SR")?;
         if !self.prefix.is_empty() {
             write!(f, "{{{}}}", self.prefix.len())?;
         }
@@ -47,7 +46,7 @@ impl std::fmt::Debug for DatagramWrite {
     }
 }
 
-pub struct PtrDbg<T:std::fmt::Pointer>(pub T);
+pub struct PtrDbg<T: std::fmt::Pointer>(pub T);
 impl<T: std::fmt::Pointer> std::fmt::Debug for PtrDbg<T> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         std::fmt::Pointer::fmt(&self.0, f)

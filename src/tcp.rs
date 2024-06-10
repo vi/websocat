@@ -1,15 +1,19 @@
 use std::net::SocketAddr;
 
+use crate::utils::TaskHandleExt;
 use rhai::{Dynamic, Engine, EvalAltResult, FnPtr, NativeCallContext};
 use tracing::{debug, debug_span, field, Instrument};
-use crate::utils::TaskHandleExt;
 
 use crate::{
     scenario::{callback_and_continue, Anyhow2EvalAltResult, ScenarioAccess},
     types::{Handle, StreamRead, StreamSocket, StreamWrite, Task},
 };
 
-fn connect_tcp(ctx: NativeCallContext, opts: Dynamic, continuation: FnPtr) -> Result<Handle<Task>, Box<EvalAltResult>> {
+fn connect_tcp(
+    ctx: NativeCallContext,
+    opts: Dynamic,
+    continuation: FnPtr,
+) -> Result<Handle<Task>, Box<EvalAltResult>> {
     let original_span = tracing::Span::current();
     let span = debug_span!(parent: original_span, "connect_tcp", addr = field::Empty);
     let the_scenario = ctx.get_scenario().tbar()?;
@@ -46,7 +50,9 @@ fn connect_tcp(ctx: NativeCallContext, opts: Dynamic, continuation: FnPtr) -> Re
         debug!(parent: &span, s=?s, "connected");
         let h = s.wrap();
 
-        callback_and_continue(the_scenario, continuation, (h,)).instrument(span).await;
+        callback_and_continue(the_scenario, continuation, (h,))
+            .instrument(span)
+            .await;
     }
     .wrap())
 }

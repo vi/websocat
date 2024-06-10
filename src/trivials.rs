@@ -1,7 +1,11 @@
-use rhai::{Engine, Dynamic};
+use rhai::{Dynamic, Engine};
 use tracing::{debug, debug_span, error, field, Instrument};
 
-use crate::{debugfluff::PtrDbg, types::{Handle, StreamRead, StreamSocket, StreamWrite, Task}, utils::{run_task, HandleExt, TaskHandleExt}};
+use crate::{
+    debugfluff::PtrDbg,
+    types::{Handle, StreamRead, StreamSocket, StreamWrite, Task},
+    utils::{run_task, HandleExt, TaskHandleExt},
+};
 
 fn take_read_part(h: Handle<StreamSocket>) -> Handle<StreamRead> {
     if let Some(s) = h.lock().unwrap().as_mut() {
@@ -27,34 +31,31 @@ fn take_write_part(h: Handle<StreamSocket>) -> Handle<StreamWrite> {
     }
 }
 fn dummytask() -> Handle<Task> {
-    async move {
-        
-    }.wrap()
+    async move {}.wrap()
 }
 
 fn sleep_ms(ms: i64) -> Handle<Task> {
-    async move {
-        tokio::time::sleep(std::time::Duration::from_millis(ms as u64)).await
-    }.wrap()
+    async move { tokio::time::sleep(std::time::Duration::from_millis(ms as u64)).await }.wrap()
 }
 
-fn sequential(tasks: Vec<Dynamic> ) -> Handle<Task> {
+fn sequential(tasks: Vec<Dynamic>) -> Handle<Task> {
     async move {
         for t in tasks {
-            let Some(t) : Option<Handle<Task>> = t.try_cast() else {
+            let Some(t): Option<Handle<Task>> = t.try_cast() else {
                 eprintln!("Not a task in a list of tasks");
                 continue;
             };
             run_task(t).await;
         }
-    }.wrap()
+    }
+    .wrap()
 }
 
-fn parallel(tasks: Vec<Dynamic> ) -> Handle<Task> {
+fn parallel(tasks: Vec<Dynamic>) -> Handle<Task> {
     async move {
         let mut waitees = Vec::with_capacity(tasks.len());
         for t in tasks {
-            let Some(t) : Option<Handle<Task>> = t.try_cast() else {
+            let Some(t): Option<Handle<Task>> = t.try_cast() else {
                 eprintln!("Not a task in a list of tasks");
                 continue;
             };
@@ -63,10 +64,11 @@ fn parallel(tasks: Vec<Dynamic> ) -> Handle<Task> {
         for w in waitees {
             let _ = w.await;
         }
-    }.wrap()
+    }
+    .wrap()
 }
 
-fn spawn_task(task: Handle<Task> ) {
+fn spawn_task(task: Handle<Task>) {
     let original_span = tracing::Span::current();
     let span = debug_span!(parent: original_span, "spawn", t = field::Empty);
     if let Some(x) = task.lock().unwrap().as_ref() {
@@ -75,10 +77,13 @@ fn spawn_task(task: Handle<Task> ) {
     } else {
         error!("Attempt to spawn a null/taken task");
     }
-    tokio::spawn(async move {
-        run_task(task).await;
-        debug!("Finished");
-    }.instrument(span));
+    tokio::spawn(
+        async move {
+            run_task(task).await;
+            debug!("Finished");
+        }
+        .instrument(span),
+    );
 }
 
 pub fn register(engine: &mut Engine) {
