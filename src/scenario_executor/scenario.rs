@@ -2,7 +2,7 @@ use rhai::{Engine, FnPtr, FuncArgs, NativeCallContext, Variant, AST};
 use std::sync::{Arc, Weak};
 use tracing::error;
 
-use crate::{
+use crate::scenario_executor::{
     types::{Handle, Task},
     utils::run_task,
 };
@@ -20,7 +20,7 @@ pub trait ScenarioAccess {
 pub fn load_scenario(s: &str) -> anyhow::Result<Arc<Scenario>> {
     let mut engine = Engine::RAW;
 
-    crate::all_functions::register_functions(&mut engine);
+    crate::scenario_executor::all_functions::register_functions(&mut engine);
 
     let ast = engine.compile(s)?;
     let mut scenario = Scenario { ast, engine };

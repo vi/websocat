@@ -8,7 +8,7 @@ use rhai::Engine;
 use tokio::io::{AsyncWriteExt, ReadBuf};
 use tracing::{debug, debug_span, error, field, info, warn, Instrument};
 
-use crate::{
+use crate::scenario_executor::{
     types::{
         BufferFlag, BufferFlags, DatagramRead, DatagramWrite, Handle, StreamRead, StreamSocket,
         StreamWrite, Task,
@@ -180,7 +180,7 @@ impl std::future::Future for CopyPackets {
             match this.phase {
                 Phase::ReadFromStream => {
                     let mut bb = ReadBuf::new(&mut this.b[..]);
-                    match crate::types::PacketRead::poll_read(this.r.src.as_mut(), cx, &mut bb) {
+                    match crate::scenario_executor::types::PacketRead::poll_read(this.r.src.as_mut(), cx, &mut bb) {
                         Poll::Ready(Ok(f)) => {
                             let n = bb.filled().len();
                             drop(bb);
@@ -197,7 +197,7 @@ impl std::future::Future for CopyPackets {
                 Phase::WriteToSink(n) => {
                     let mut bb = ReadBuf::new(&mut this.b[..]);
                     bb.advance(n);
-                    match crate::types::PacketWrite::poll_write(
+                    match crate::scenario_executor::types::PacketWrite::poll_write(
                         this.w.snk.as_mut(),
                         cx,
                         &mut bb,
@@ -230,7 +230,7 @@ fn copy_packets(from: Handle<DatagramRead>, to: Handle<DatagramWrite>) -> Handle
     let b = vec![0u8; 65536].into_boxed_slice();
 
     let phase = Phase::ReadFromStream;
-    let flags = crate::types::BufferFlags::default();
+    let flags = crate::scenario_executor::types::BufferFlags::default();
 
     if let Some(f) = f.as_ref() {
         span.record("f", tracing::field::debug(f));

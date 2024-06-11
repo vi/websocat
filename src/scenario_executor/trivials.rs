@@ -4,7 +4,7 @@ use pin_project::pin_project;
 use rhai::{Dynamic, Engine};
 use tracing::{debug, debug_span, error, field, Instrument};
 
-use crate::{
+use crate::scenario_executor::{
     debugfluff::PtrDbg,
     types::{BufferFlag, BufferFlags, DatagramRead, DatagramWrite, Handle, PacketRead, PacketWrite, StreamRead, StreamSocket, StreamWrite, Task},
     utils::{

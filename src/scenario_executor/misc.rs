@@ -1,6 +1,6 @@
 use rhai::Engine;
 
-use crate::types::{Handle, StreamRead, StreamSocket, StreamWrite};
+use crate::scenario_executor::types::{Handle, StreamRead, StreamSocket, StreamWrite};
 
 fn create_stdio() -> Handle<StreamSocket> {
     StreamSocket {

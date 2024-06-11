@@ -1,22 +1,21 @@
-use types::Task;
 
-use types::Handle;
-use utils::run_task;
 
-pub mod copydata;
-pub mod misc;
-pub mod trivials;
-pub mod types;
+pub mod scenario_executor {
+    pub mod copydata;
 
-pub mod fluff;
-pub mod tcp;
+    pub mod misc;
+    pub mod trivials;
+    pub mod types;
+    pub mod fluff;
+    pub mod tcp;
+    pub mod scenario;
+    pub mod debugfluff;
+    pub mod utils;
+    pub mod wsupgrade;
 
-pub mod scenario;
+    pub mod all_functions;
+}
 
-pub mod debugfluff;
-pub mod utils;
-
-pub mod wsupgrade;
 
 #[tokio::main(flavor = "current_thread")]
 async fn main() -> anyhow::Result<()> {
@@ -26,12 +25,11 @@ async fn main() -> anyhow::Result<()> {
     let f = std::fs::read(std::env::args().nth(1).unwrap())?;
     let global_scenario = std::str::from_utf8(&f[..])?;
 
-    let ctx = scenario::load_scenario(global_scenario)?;
+    let ctx = scenario_executor::scenario::load_scenario(global_scenario)?;
 
-    let task: Handle<Task> = ctx.execute()?;
-    run_task(task).await;
+    let task: scenario_executor::types::Handle<scenario_executor::types::Task> = ctx.execute()?;
+    scenario_executor::utils::run_task(task).await;
 
     Ok(())
 }
 
-mod all_functions;

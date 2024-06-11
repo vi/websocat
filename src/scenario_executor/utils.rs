@@ -3,7 +3,7 @@ use futures::Future;
 use rhai::EvalAltResult;
 use tracing::error;
 
-use crate::types::{DatagramRead, DatagramWrite, Handle, StreamSocket, Task};
+use crate::scenario_executor::types::{DatagramRead, DatagramWrite, Handle, StreamSocket, Task};
 use std::sync::{Arc, Mutex};
 
 pub trait TaskHandleExt {

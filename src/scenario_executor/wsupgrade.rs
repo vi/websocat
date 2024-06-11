@@ -6,7 +6,7 @@ use hyper_util::rt::TokioIo;
 use rhai::{Dynamic, Engine, EvalAltResult, FnPtr, NativeCallContext};
 use tracing::{debug, debug_span, error, field, Instrument};
 
-use crate::{scenario::{callback_and_continue, ScenarioAccess}, types::{Handle, StreamRead, StreamSocket, StreamWrite, Task}, utils::{Anyhow2EvalAltResult, HandleExt2, TaskHandleExt2}};
+use crate::scenario_executor::{scenario::{callback_and_continue, ScenarioAccess}, types::{Handle, StreamRead, StreamSocket, StreamWrite, Task}, utils::{Anyhow2EvalAltResult, HandleExt2, TaskHandleExt2}};
 
 fn ws_upgrade(
     ctx: NativeCallContext,

@@ -1,4 +1,4 @@
-use crate::types::{DatagramRead, DatagramWrite, StreamRead, StreamSocket, StreamWrite};
+use crate::scenario_executor::types::{DatagramRead, DatagramWrite, StreamRead, StreamSocket, StreamWrite};
 
 impl std::fmt::Debug for StreamSocket {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
