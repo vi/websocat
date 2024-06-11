@@ -1,6 +1,6 @@
 use std::{net::SocketAddr, time::Duration};
 
-use crate::utils::TaskHandleExt;
+use crate::utils::TaskHandleExt2;
 use rhai::{Dynamic, Engine, EvalAltResult, FnPtr, NativeCallContext};
 use tracing::{debug, debug_span, error, field, Instrument};
 
@@ -27,15 +27,8 @@ fn connect_tcp(
     debug!(parent: &span, "options parsed");
 
     Ok(async move {
-        debug!(parent: &span, "node started");
-        let t = tokio::net::TcpStream::connect(opts.addr).await;
-        let t = match t {
-            Ok(t) => t,
-            Err(e) => {
-                debug!(parent: &span, error=%e, "connect failed");
-                return;
-            }
-        };
+        debug!("node started");
+        let t = tokio::net::TcpStream::connect(opts.addr).await?;
         let (r, w) = t.into_split();
         let (r, w) = (Box::pin(r), Box::pin(w));
 
@@ -47,13 +40,13 @@ fn connect_tcp(
             write: Some(StreamWrite { writer: w }),
             close: None,
         };
-        debug!(parent: &span, s=?s, "connected");
+        debug!(s=?s, "connected");
         let h = s.wrap();
 
         callback_and_continue(the_scenario, continuation, (h,))
-            .instrument(span)
             .await;
-    }
+        Ok(())
+    }.instrument(span)
     .wrap())
 }
 
@@ -74,18 +67,10 @@ fn listen_tcp(
     debug!(parent: &span, "options parsed");
 
     Ok(async move {
-        debug!(parent: &span, "node started");
-        let l = tokio::net::TcpListener::bind(opts.addr).await;
-        let l = match l {
-            Ok(l) => l,
-            Err(e) => {
-                debug!(parent: &span, error=%e, "bind failed");
-                return;
-            }
-        };
+        debug!("node started");
+        let l = tokio::net::TcpListener::bind(opts.addr).await?;
 
         loop {
-            let span = span.clone();
             let the_scenario = the_scenario.clone();
             let continuation = continuation.clone();
             match l.accept().await {
@@ -102,19 +87,18 @@ fn listen_tcp(
                         close: None,
                     };
 
-                    debug!(parent: &span,  s=?s, from=?from, "accepted");
+                    debug!(s=?s, from=?from, "accepted");
                     let h = s.wrap();
                     callback_and_continue(the_scenario, continuation, (h,from,))
-                        .instrument(span)
                         .await;
                 }
                 Err(e) => {
-                    error!(parent: &span, "Error from accept: {e}");
+                    error!("Error from accept: {e}");
                     tokio::time::sleep(Duration::from_millis(500)).await;
                 }
             }
         }
-    }
+    }.instrument(span)
     .wrap())
 }
 

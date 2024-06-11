@@ -40,7 +40,10 @@ fn copy_bytes(from: Handle<StreamRead>, to: Handle<StreamWrite>) -> Handle<Task>
                     .await
                 {
                     Ok(()) => debug!(parent: &span, "prefix_written"),
-                    Err(e) => debug!(parent: &span, error=%e, "error"),
+                    Err(e) => {
+                        error!(parent: &span, error=%e, "error writing prefix");
+                        return;
+                    },
                 }
             }
 
@@ -49,13 +52,16 @@ fn copy_bytes(from: Handle<StreamRead>, to: Handle<StreamWrite>) -> Handle<Task>
 
             match fut.await {
                 Ok(x) => debug!(parent: &span, nbytes=x, "finished"),
-                Err(e) => debug!(parent: &span, error=%e, "error"),
+                Err(e) => {
+                    error!(parent: &span, error=%e, "error copying bytes");
+                    return;
+                },
             }
         } else {
             debug!(parent: &span, "no operation");
         }
     }
-    .wrap()
+    .wrap_noerr()
 }
 fn copy_bytes_bidirectional(s1: Handle<StreamSocket>, s2: Handle<StreamSocket>) -> Handle<Task> {
     let span = debug_span!(
@@ -142,7 +148,7 @@ fn copy_bytes_bidirectional(s1: Handle<StreamSocket>, s2: Handle<StreamSocket>) 
             error!(parent: &span, "Incomplete stream sockets specified");
         }
     }
-    .wrap()
+    .wrap_noerr()
 }
 
 enum Phase {
@@ -243,7 +249,7 @@ fn copy_packets(from: Handle<DatagramRead>, to: Handle<DatagramWrite>) -> Handle
             flags,
             b,
         }
-        .wrap()
+        .wrap_noerr()
     } else {
         warn!(parent: &span, "Nothing to copy");
         Arc::new(Mutex::new(None))

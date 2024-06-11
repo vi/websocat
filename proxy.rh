@@ -1,5 +1,6 @@
 listen_tcp(#{addr: "127.0.0.1:1234"}, |s1, from| {
     connect_tcp(#{addr: "127.0.0.1:1235"}, |s2| {
-        copy_bytes_bidirectional(s1, s2)
+        spawn_task(copy_bytes_bidirectional(s1, s2));
+        dummy_task()
     })
 })

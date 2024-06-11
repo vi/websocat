@@ -5,10 +5,20 @@ use crate::types::{Handle, StreamSocket, Task};
 use std::sync::{Arc, Mutex};
 
 pub trait TaskHandleExt {
+    fn wrap_noerr(self) -> Handle<Task>;
+}
+pub trait TaskHandleExt2 {
     fn wrap(self) -> Handle<Task>;
 }
 
+
 impl<T: Future<Output = ()> + Send + 'static> TaskHandleExt for T {
+    fn wrap_noerr(self) -> Handle<Task> {
+        use futures::FutureExt;
+        Arc::new(Mutex::new(Some(Box::pin(self.map(|_|Ok(()))))))
+    }
+}
+impl<T: Future<Output = anyhow::Result<()>> + Send + 'static> TaskHandleExt2 for T {
     fn wrap(self) -> Handle<Task> {
         Arc::new(Mutex::new(Some(Box::pin(self))))
     }
@@ -44,7 +54,9 @@ pub async fn run_task(h: Handle<Task>) {
         error!("Attempt to run a null/taken task");
         return;
     };
-    t.await;
+    if let Err(e) = t.await {
+        error!("{e}");
+    }
 }
 
 impl StreamSocket {

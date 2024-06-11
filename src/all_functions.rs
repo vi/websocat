@@ -6,4 +6,5 @@ pub(crate) fn register_functions(engine: &mut Engine) {
     crate::misc::register(engine);
     crate::tcp::register(engine);
     crate::fluff::register(engine);
+    crate::wsupgrade::register(engine);
 }

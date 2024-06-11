@@ -16,6 +16,8 @@ pub mod scenario;
 pub mod debugfluff;
 pub mod utils;
 
+pub mod wsupgrade;
+
 #[tokio::main(flavor = "current_thread")]
 async fn main() -> anyhow::Result<()> {
     //tracing_subscriber::fmt().json().with_max_level(tracing::Level::DEBUG).init();

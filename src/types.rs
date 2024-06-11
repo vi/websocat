@@ -4,17 +4,17 @@ use std::{
     task::{Context, Poll},
 };
 
-use bytes::BytesMut;
+use bytes::Bytes;
 use futures::Future;
 use tokio::io::{AsyncRead, AsyncWrite, ReadBuf};
 pub type Handle<T> = Arc<Mutex<Option<T>>>;
 
-pub type Task = Pin<Box<dyn Future<Output = ()> + Send>>;
+pub type Task = Pin<Box<dyn Future<Output = anyhow::Result<()>> + Send>>;
 pub type Hangup = Pin<Box<dyn Future<Output = ()> + Send>>;
 
 pub struct StreamRead {
     pub reader: Pin<Box<dyn AsyncRead + Send>>,
-    pub prefix: BytesMut,
+    pub prefix: Bytes,
 }
 pub struct StreamWrite {
     pub writer: Pin<Box<dyn AsyncWrite + Send>>,

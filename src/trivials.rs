@@ -31,24 +31,24 @@ fn take_write_part(h: Handle<StreamSocket>) -> Handle<StreamWrite> {
     }
 }
 fn dummytask() -> Handle<Task> {
-    async move {}.wrap()
+    async move {}.wrap_noerr()
 }
 
 fn sleep_ms(ms: i64) -> Handle<Task> {
-    async move { tokio::time::sleep(std::time::Duration::from_millis(ms as u64)).await }.wrap()
+    async move { tokio::time::sleep(std::time::Duration::from_millis(ms as u64)).await }.wrap_noerr()
 }
 
 fn sequential(tasks: Vec<Dynamic>) -> Handle<Task> {
     async move {
         for t in tasks {
             let Some(t): Option<Handle<Task>> = t.try_cast() else {
-                eprintln!("Not a task in a list of tasks");
+                error!("Not a task in a list of tasks");
                 continue;
             };
             run_task(t).await;
         }
     }
-    .wrap()
+    .wrap_noerr()
 }
 
 fn parallel(tasks: Vec<Dynamic>) -> Handle<Task> {
@@ -56,7 +56,7 @@ fn parallel(tasks: Vec<Dynamic>) -> Handle<Task> {
         let mut waitees = Vec::with_capacity(tasks.len());
         for t in tasks {
             let Some(t): Option<Handle<Task>> = t.try_cast() else {
-                eprintln!("Not a task in a list of tasks");
+                error!("Not a task in a list of tasks");
                 continue;
             };
             waitees.push(tokio::spawn(run_task(t)));
@@ -65,7 +65,7 @@ fn parallel(tasks: Vec<Dynamic>) -> Handle<Task> {
             let _ = w.await;
         }
     }
-    .wrap()
+    .wrap_noerr()
 }
 
 fn spawn_task(task: Handle<Task>) {
