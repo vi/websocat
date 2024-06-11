@@ -1,7 +1,9 @@
+use anyhow::Context;
 use futures::Future;
+use rhai::EvalAltResult;
 use tracing::error;
 
-use crate::types::{Handle, StreamSocket, Task};
+use crate::types::{DatagramRead, DatagramWrite, Handle, StreamSocket, Task};
 use std::sync::{Arc, Mutex};
 
 pub trait TaskHandleExt {
@@ -64,3 +66,39 @@ impl StreamSocket {
         Arc::new(Mutex::new(Some(self)))
     }
 }
+impl DatagramRead {
+    pub fn wrap(self) -> Handle<DatagramRead> {
+        Arc::new(Mutex::new(Some(self)))
+    }
+}
+impl DatagramWrite {
+    pub fn wrap(self) -> Handle<DatagramWrite> {
+        Arc::new(Mutex::new(Some(self)))
+    }
+}
+
+pub trait Anyhow2EvalAltResult<T> {
+    fn tbar(self) -> Result<T, Box<EvalAltResult>>;
+}
+impl<T> Anyhow2EvalAltResult<T> for anyhow::Result<T> {
+    fn tbar(self) -> Result<T, Box<EvalAltResult>> {
+        match self {
+            Ok(x) => Ok(x),
+            Err(e) => Err(Box::new(EvalAltResult::ErrorRuntime(
+                rhai::Dynamic::from(format!("{e}")),
+                rhai::Position::NONE,
+            ))),
+        }
+    }
+}
+pub trait ExtractHandleOrFail<T> {
+    /// Lock mutex, Unwrapping possible poison error, Take the thing from option contained inside, fail if is is none and convert the error to BoxAltResult.
+    fn lutbar(self) -> Result<T, Box<EvalAltResult>>;
+}
+impl<T> ExtractHandleOrFail<T> for Handle<T> {
+    fn lutbar(self) -> Result<T, Box<EvalAltResult>> {
+        self.lut().context("Stale handle").tbar()
+    }
+}
+
+pub type RhResult<T> = Result<T, Box<EvalAltResult>>;

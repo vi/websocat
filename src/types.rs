@@ -59,7 +59,7 @@ pub trait PacketRead {
 ///
 /// Writing (possibly empty) buffer with Eof flag means something like `poll_shutdown()`.
 ///
-/// Implementer is supposed to use the `buf.filled()` part as a message to deliver.
+/// Implementer is supposed to use the `buf.filled()` part as a message to deliver. The buffer may be left uncleared after successful write.
 ///
 /// When `Poll::Pending` is returned, next call to `poll_write` should use the same arguments.
 ///

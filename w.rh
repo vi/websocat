@@ -1,0 +1,4 @@
+listen_tcp(#{addr: "127.0.0.1:1234"}, |s1, from| {
+    spawn_task(copy_packets(read_stream_chunks(take_read_part(s1)), write_stream_chunks(take_write_part(s1))));
+    dummy_task()
+})

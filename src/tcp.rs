@@ -1,11 +1,11 @@
 use std::{net::SocketAddr, time::Duration};
 
-use crate::utils::TaskHandleExt2;
+use crate::utils::{Anyhow2EvalAltResult, TaskHandleExt2};
 use rhai::{Dynamic, Engine, EvalAltResult, FnPtr, NativeCallContext};
 use tracing::{debug, debug_span, error, field, Instrument};
 
 use crate::{
-    scenario::{callback_and_continue, Anyhow2EvalAltResult, ScenarioAccess},
+    scenario::{callback_and_continue, ScenarioAccess},
     types::{Handle, StreamRead, StreamSocket, StreamWrite, Task},
 };
 

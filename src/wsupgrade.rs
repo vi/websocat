@@ -4,10 +4,9 @@ use http::{header, StatusCode};
 use hyper::client::conn::http1::{Connection, SendRequest};
 use hyper_util::rt::TokioIo;
 use rhai::{Dynamic, Engine, EvalAltResult, FnPtr, NativeCallContext};
-use tokio::io::{AsyncRead, AsyncWrite};
-use tracing::{debug, debug_span, error, field, warn, Instrument};
+use tracing::{debug, debug_span, error, field, Instrument};
 
-use crate::{scenario::{callback_and_continue, Anyhow2EvalAltResult, ScenarioAccess}, types::{Handle, StreamRead, StreamSocket, StreamWrite, Task}, utils::{HandleExt2, TaskHandleExt2}};
+use crate::{scenario::{callback_and_continue, ScenarioAccess}, types::{Handle, StreamRead, StreamSocket, StreamWrite, Task}, utils::{Anyhow2EvalAltResult, HandleExt2, TaskHandleExt2}};
 
 fn ws_upgrade(
     ctx: NativeCallContext,

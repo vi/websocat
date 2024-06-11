@@ -1,4 +1,4 @@
-use rhai::{Engine, EvalAltResult, FnPtr, FuncArgs, NativeCallContext, Variant, AST};
+use rhai::{Engine, FnPtr, FuncArgs, NativeCallContext, Variant, AST};
 use std::sync::{Arc, Weak};
 use tracing::error;
 
@@ -86,19 +86,4 @@ pub async fn callback_and_continue(ctx: Arc<Scenario>, f: FnPtr, args: impl Func
         Ok(h) => run_task(h).await,
         Err(e) => error!("Error from scenario task: {e}"),
     };
-}
-
-pub trait Anyhow2EvalAltResult<T> {
-    fn tbar(self) -> Result<T, Box<EvalAltResult>>;
-}
-impl<T> Anyhow2EvalAltResult<T> for anyhow::Result<T> {
-    fn tbar(self) -> Result<T, Box<EvalAltResult>> {
-        match self {
-            Ok(x) => Ok(x),
-            Err(e) => Err(Box::new(EvalAltResult::ErrorRuntime(
-                rhai::Dynamic::from(format!("{e}")),
-                rhai::Position::NONE,
-            ))),
-        }
-    }
 }
