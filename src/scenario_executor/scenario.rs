@@ -1,4 +1,4 @@
-use rhai::{Engine, FnPtr, FuncArgs, NativeCallContext, Variant, AST};
+use rhai::{Engine, EvalAltResult, FnPtr, FuncArgs, NativeCallContext, Variant, AST};
 use std::sync::{Arc, Weak};
 use tracing::error;
 
@@ -7,6 +7,8 @@ use crate::scenario_executor::{
     utils::run_task,
 };
 
+use super::utils::RhResult;
+
 pub struct Scenario {
     pub ast: AST,
     pub engine: Engine,
@@ -14,7 +16,7 @@ pub struct Scenario {
 
 pub trait ScenarioAccess {
     fn callback<T: Variant + Clone>(&self, f: FnPtr, args: impl FuncArgs) -> anyhow::Result<T>;
-    fn get_scenario(&self) -> anyhow::Result<Arc<Scenario>>;
+    fn get_scenario(&self) -> RhResult<Arc<Scenario>>;
 }
 
 pub fn load_scenario(s: &str) -> anyhow::Result<Arc<Scenario>> {
@@ -54,13 +56,18 @@ impl ScenarioAccess for NativeCallContext<'_> {
         }
     }
 
-    fn get_scenario(&self) -> anyhow::Result<Arc<Scenario>> {
+    fn get_scenario(&self) -> RhResult<Arc<Scenario>> {
         let scenario: Weak<Scenario> = self.tag().unwrap().clone().try_cast().unwrap();
 
         if let Some(s) = scenario.upgrade() {
             Ok(s)
         } else {
-            anyhow::bail!("Scenario is already terminated")
+            Err(Box::new(EvalAltResult::ErrorRuntime(
+                rhai::Dynamic::from(
+                    "Scenario is already terminating, cannot make a callback into it",
+                ),
+                rhai::Position::NONE,
+            )))
         }
     }
 }
@@ -76,7 +83,7 @@ impl ScenarioAccess for Arc<Scenario> {
         Ok(ret?)
     }
 
-    fn get_scenario(&self) -> anyhow::Result<Arc<Scenario>> {
+    fn get_scenario(&self) -> RhResult<Arc<Scenario>> {
         Ok(self.clone())
     }
 }

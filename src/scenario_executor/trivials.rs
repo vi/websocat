@@ -129,10 +129,12 @@ impl PacketRead for ReadStreamChunks {
 
 fn read_stream_chunks(x: Handle<StreamRead>) -> RhResult<Handle<DatagramRead>> {
     let x = x.lutbar()?;
-    Ok(DatagramRead {
+    debug!(inner=?x, "read_stream_chunks");
+    let x = DatagramRead {
         src: Box::pin(ReadStreamChunks(x)),
-    }
-    .wrap())
+    };
+    debug!(wrapped=?x, "read_stream_chunks");
+    Ok(x.wrap())
 }
 
 #[pin_project]
@@ -183,10 +185,12 @@ impl PacketWrite for WriteStreamChunks {
 
 fn write_stream_chunks(x: Handle<StreamWrite>) -> RhResult<Handle<DatagramWrite>> {
     let x = x.lutbar()?;
-    Ok(DatagramWrite {
+    debug!(inner=?x, "write_stream_chunks");
+    let x = DatagramWrite {
         snk: Box::pin(WriteStreamChunks{w:x, debt:0}),
-    }
-    .wrap())
+    };
+    debug!(wrapped=?x, "write_stream_chunks");
+    Ok(x.wrap())
 }
 
 pub fn register(engine: &mut Engine) {

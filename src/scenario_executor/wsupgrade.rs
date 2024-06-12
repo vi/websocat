@@ -6,7 +6,7 @@ use hyper_util::rt::TokioIo;
 use rhai::{Dynamic, Engine, EvalAltResult, FnPtr, NativeCallContext};
 use tracing::{debug, debug_span, error, field, Instrument};
 
-use crate::scenario_executor::{scenario::{callback_and_continue, ScenarioAccess}, types::{Handle, StreamRead, StreamSocket, StreamWrite, Task}, utils::{Anyhow2EvalAltResult, HandleExt2, TaskHandleExt2}};
+use crate::scenario_executor::{scenario::{callback_and_continue, ScenarioAccess}, types::{Handle, StreamRead, StreamSocket, StreamWrite, Task}, utils::{HandleExt2, TaskHandleExt2}};
 
 fn ws_upgrade(
     ctx: NativeCallContext,
@@ -16,7 +16,7 @@ fn ws_upgrade(
 ) -> Result<Handle<Task>, Box<EvalAltResult>> {
     let original_span = tracing::Span::current();
     let span = debug_span!(parent: original_span, "ws_upgrade", addr = field::Empty);
-    let the_scenario = ctx.get_scenario().tbar()?;
+    let the_scenario = ctx.get_scenario()?;
     debug!(parent: &span, "node created");
     #[derive(serde::Deserialize)]
     struct WsUpgradeOpts {

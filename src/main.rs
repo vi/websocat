@@ -12,6 +12,7 @@ pub mod scenario_executor {
     pub mod debugfluff;
     pub mod utils;
     pub mod wsupgrade;
+    pub mod wsframer;
 
     pub mod all_functions;
 }

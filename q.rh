@@ -2,7 +2,10 @@ listen_tcp(#{addr: "127.0.0.1:1234"}, |s1, from| {
     connect_tcp(#{addr: "127.0.0.1:1235"}, |s2| {
         spawn_task(
             ws_upgrade(s2, #{url: "/"}, |s2u| {
-                copy_bytes_bidirectional(s1, s2u)
+                copy_packets(
+                    read_stream_chunks(take_read_part(s1)),
+                    ws_encoder(#{masked: true}, take_write_part(s2u)),
+                )
             })
         );
         dummy_task()

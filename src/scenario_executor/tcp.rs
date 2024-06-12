@@ -1,6 +1,6 @@
 use std::{net::SocketAddr, time::Duration};
 
-use crate::scenario_executor::utils::{Anyhow2EvalAltResult, TaskHandleExt2};
+use crate::scenario_executor::utils::TaskHandleExt2;
 use rhai::{Dynamic, Engine, EvalAltResult, FnPtr, NativeCallContext};
 use tracing::{debug, debug_span, error, field, Instrument};
 
@@ -15,16 +15,16 @@ fn connect_tcp(
     continuation: FnPtr,
 ) -> Result<Handle<Task>, Box<EvalAltResult>> {
     let original_span = tracing::Span::current();
-    let span = debug_span!(parent: original_span, "connect_tcp", addr = field::Empty);
-    let the_scenario = ctx.get_scenario().tbar()?;
+    let span = debug_span!(parent: original_span, "connect_tcp");
+    let the_scenario = ctx.get_scenario()?;
     debug!(parent: &span, "node created");
     #[derive(serde::Deserialize)]
     struct TcpOpts {
         addr: SocketAddr,
     }
     let opts: TcpOpts = rhai::serde::from_dynamic(&opts)?;
-    span.record("addr", field::display(opts.addr));
-    debug!(parent: &span, "options parsed");
+    //span.record("addr", field::display(opts.addr));
+    debug!(parent: &span, addr=%opts.addr, "options parsed");
 
     Ok(async move {
         debug!("node started");
@@ -55,16 +55,16 @@ fn listen_tcp(
     opts: Dynamic,
     continuation: FnPtr,
 ) -> Result<Handle<Task>, Box<EvalAltResult>> {
-    let span = debug_span!("listen_tcp", addr = field::Empty);
-    let the_scenario = ctx.get_scenario().tbar()?;
+    let span = debug_span!("listen_tcp");
+    let the_scenario = ctx.get_scenario()?;
     debug!(parent: &span, "node created");
     #[derive(serde::Deserialize)]
     struct TcpListenOpts {
         addr: SocketAddr,
     }
     let opts: TcpListenOpts = rhai::serde::from_dynamic(&opts)?;
-    span.record("addr", field::display(opts.addr));
-    debug!(parent: &span, "options parsed");
+    //span.record("addr", field::display(opts.addr));
+    debug!(parent: &span, listen_addr=%opts.addr, "options parsed");
 
     Ok(async move {
         debug!("node started");
@@ -75,6 +75,7 @@ fn listen_tcp(
             let continuation = continuation.clone();
             match l.accept().await {
                 Ok((t, from)) => {
+                    let newspan = debug_span!("tcp_accept", from=%from);
                     let (r, w) = t.into_split();
                     let (r, w) = (Box::pin(r), Box::pin(w));
 
@@ -87,9 +88,9 @@ fn listen_tcp(
                         close: None,
                     };
 
-                    debug!(s=?s, from=?from, "accepted");
+                    debug!(parent: &newspan, s=?s,"accepted");
                     let h = s.wrap();
-                    callback_and_continue(the_scenario, continuation, (h,from,))
+                    callback_and_continue(the_scenario, continuation, (h,from,)).instrument(newspan)
                         .await;
                 }
                 Err(e) => {

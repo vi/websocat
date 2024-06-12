@@ -34,6 +34,10 @@ flagset::flags! {
         Text,
         /// End of stream, when used in [`PacketRead::poll_read`]
         Eof,
+        /// This buffer corresponds to a WebSocket ping
+        Ping,
+        /// This buffer corresponds to a WebSocket pong
+        Pong,
     }
 }
 pub type BufferFlags = flagset::FlagSet<BufferFlag>;
