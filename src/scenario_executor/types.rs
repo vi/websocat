@@ -4,9 +4,9 @@ use std::{
     task::{Context, Poll},
 };
 
-use bytes::Bytes;
+use bytes::BytesMut;
 use futures::Future;
-use tokio::io::{AsyncRead, AsyncWrite, ReadBuf};
+use tokio::io::{AsyncRead, AsyncWrite};
 pub type Handle<T> = Arc<Mutex<Option<T>>>;
 
 pub type Task = Pin<Box<dyn Future<Output = anyhow::Result<()>> + Send>>;
@@ -14,7 +14,7 @@ pub type Hangup = Pin<Box<dyn Future<Output = ()> + Send>>;
 
 pub struct StreamRead {
     pub reader: Pin<Box<dyn AsyncRead + Send>>,
-    pub prefix: Bytes,
+    pub prefix: BytesMut,
 }
 pub struct StreamWrite {
     pub writer: Pin<Box<dyn AsyncWrite + Send>>,
@@ -42,17 +42,30 @@ flagset::flags! {
 }
 pub type BufferFlags = flagset::FlagSet<BufferFlag>;
 
-/// Similar to `tokio::io::AsyncRead`, but for buffer boundaries are significant and there additional flags beside each buffer.
+#[derive(Debug,Clone,PartialEq, Eq)]
+pub struct PacketReadResult {
+    pub flags: BufferFlags,
+    pub buffer_subset: std::ops::Range<usize>,
+}
+
+/// Similar to `tokio::io::AsyncRead`, but for buffer boundaries are
+/// significant and there additional flags beside each buffer.
 ///
 /// Zero-length reads do not mean EOF.
 ///
 /// Stream/Sink are not used instead to control the allocations.
+/// 
+/// When `poll_read` returns, subsequent `poll_read` can expect data in `buf`
+/// outside of the range returned in `buffer_subset` to remain the same,
+/// though buffer address in memory may be different.
+/// Bytes references by `buffer_subset` data may be mangled, e.g. by `poll_write`
+/// using mutable chunk buffer of the same buffer
 pub trait PacketRead {
     fn poll_read(
         self: Pin<&mut Self>,
         cx: &mut Context<'_>,
-        buf: &mut ReadBuf<'_>,
-    ) -> Poll<std::io::Result<BufferFlags>>;
+        buf: &mut [u8],
+    ) -> Poll<std::io::Result<PacketReadResult>>;
 }
 
 /// Similar to `tokio::io::AsyncWrite`, but for buffer boundaries are significant and there additional flags beside each buffer.
@@ -69,12 +82,12 @@ pub trait PacketRead {
 ///
 /// Memory address of the buffer may be different, but content should be the same.
 ///
-/// The unused space in the buffer may be used to store temporary content to drive one `poll_write` to completion.
+/// Buffer content may be modified by writer (for in-place transformation instead of allocations).
 pub trait PacketWrite {
     fn poll_write(
         self: Pin<&mut Self>,
         cx: &mut Context<'_>,
-        buf: &mut ReadBuf<'_>,
+        buf: &mut [u8],
         flags: BufferFlags,
     ) -> Poll<std::io::Result<()>>;
 }

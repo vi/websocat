@@ -1,5 +1,5 @@
 use anyhow::bail;
-use bytes::Bytes;
+use bytes::{Bytes, BytesMut};
 use http::{header, StatusCode};
 use hyper::client::conn::http1::{Connection, SendRequest};
 use hyper_util::rt::TokioIo;
@@ -97,10 +97,11 @@ fn ws_upgrade(
         io = Some(parts.io);
         let (r,w) = io.unwrap().into_inner().into_inner();
 
+        let prefix = BytesMut::from(&parts.read_buf[..]);
         let s = StreamSocket {
             read: Some(StreamRead {
                 reader: r,
-                prefix: parts.read_buf,
+                prefix,
             }),
             write: Some(StreamWrite { writer: w }),
             close: c,

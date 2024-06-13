@@ -11,6 +11,8 @@ use crate::scenario_executor::{
     utils::HandleExt,
 };
 
+use super::types::PacketReadResult;
+
 struct TrivialPkts {
     n: u8,
 }
@@ -19,15 +21,24 @@ impl PacketRead for TrivialPkts {
     fn poll_read(
         mut self: std::pin::Pin<&mut Self>,
         _cx: &mut std::task::Context<'_>,
-        buf: &mut tokio::io::ReadBuf<'_>,
-    ) -> Poll<std::io::Result<BufferFlags>> {
+        buf: &mut [u8],
+    ) -> Poll<std::io::Result<PacketReadResult>> {
         let mut this = self.as_mut();
         if this.n == 0 {
-            return Poll::Ready(Ok(BufferFlag::Eof.into()));
+            return Poll::Ready(Ok(PacketReadResult {
+                flags: BufferFlag::Eof.into(),
+                buffer_subset: 0..0,
+            }));
         } else {
-            buf.put_slice(format!("{}", this.n).as_bytes());
+            let msg = format!("{}", this.n);
+            let msg =  msg.as_bytes();
+            let l = msg.len();
+            buf[..l].copy_from_slice(msg);
             this.n -= 1;
-            return Poll::Ready(Ok(BufferFlag::Text.into()));
+            return Poll::Ready(Ok(PacketReadResult {
+                flags: BufferFlag::Text.into(),
+                buffer_subset: 0..l,
+            }));
         }
     }
 }
@@ -45,15 +56,21 @@ impl PacketWrite for DisplayPkts {
     fn poll_write(
         self: std::pin::Pin<&mut Self>,
         _cx: &mut std::task::Context<'_>,
-        buf: &mut tokio::io::ReadBuf<'_>,
+        buf: &mut [u8],
         flags: BufferFlags,
     ) -> Poll<std::io::Result<()>> {
-        eprint!("P len={}", buf.filled().len());
+        eprint!("P len={}", buf.len());
         if flags.contains(BufferFlag::Text) {
             eprint!(" [T]");
         }
         if flags.contains(BufferFlag::Eof) {
             eprint!(" [E]");
+        }
+        if flags.contains(BufferFlag::Ping) {
+            eprint!(" [Pi]");
+        }
+        if flags.contains(BufferFlag::Pong) {
+            eprint!(" [Po]");
         }
         if flags.contains(BufferFlag::NonFinalChunk) {
             eprint!(" [C]");

@@ -1,11 +1,10 @@
 use std::{
-    sync::{Arc, Mutex},
-    task::{Context, Poll},
+    ops::Range, sync::{Arc, Mutex}, task::{Context, Poll}
 };
 
 use futures::future::OptionFuture;
 use rhai::Engine;
-use tokio::io::{AsyncWriteExt, ReadBuf};
+use tokio::io::AsyncWriteExt;
 use tracing::{debug, debug_span, error, field, info, warn, Instrument};
 
 use crate::scenario_executor::{
@@ -151,9 +150,10 @@ fn copy_bytes_bidirectional(s1: Handle<StreamSocket>, s2: Handle<StreamSocket>) 
     .wrap_noerr()
 }
 
+#[derive(Clone)]
 enum Phase {
     ReadFromStream,
-    WriteToSink(usize),
+    WriteToSink(Range<usize>),
 }
 struct CopyPackets {
     r: DatagramRead,
@@ -177,15 +177,12 @@ impl std::future::Future for CopyPackets {
         }
 
         loop {
-            match this.phase {
+            match this.phase.clone() {
                 Phase::ReadFromStream => {
-                    let mut bb = ReadBuf::new(&mut this.b[..]);
-                    match crate::scenario_executor::types::PacketRead::poll_read(this.r.src.as_mut(), cx, &mut bb) {
+                    match crate::scenario_executor::types::PacketRead::poll_read(this.r.src.as_mut(), cx, &mut this.b[..]) {
                         Poll::Ready(Ok(f)) => {
-                            let n = bb.filled().len();
-                            drop(bb);
-                            this.flags = f;
-                            this.phase = Phase::WriteToSink(n);
+                            this.flags = f.flags;
+                            this.phase = Phase::WriteToSink(f.buffer_subset);
                         }
                         Poll::Ready(Err(e)) => {
                             error!(parent: &this.span, "error reading from stream: {e}");
@@ -194,13 +191,11 @@ impl std::future::Future for CopyPackets {
                         Poll::Pending => return Poll::Pending,
                     }
                 }
-                Phase::WriteToSink(n) => {
-                    let mut bb = ReadBuf::new(&mut this.b[..]);
-                    bb.advance(n);
+                Phase::WriteToSink(range) => {
                     match crate::scenario_executor::types::PacketWrite::poll_write(
                         this.w.snk.as_mut(),
                         cx,
-                        &mut bb,
+                        &mut this.b[range],
                         this.flags,
                     ) {
                         Poll::Ready(Ok(())) => {

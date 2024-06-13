@@ -1,4 +1,10 @@
-listen_tcp(#{addr: "127.0.0.1:1234"}, |s1, from| {
-    spawn_task(copy_packets(read_stream_chunks(take_read_part(s1)), write_stream_chunks(take_write_part(s1))));
-    dummy_task()
+ connect_tcp(#{addr: "127.0.0.1:1235"}, |s2| {
+    ws_upgrade(s2, #{url: "/"}, |s2u| {
+        copy_packets(
+            ws_decoder(#{}, take_read_part(s2u)),
+            //trivial_pkts(),
+            ws_encoder(#{masked: true}, take_write_part(s2u)),
+            //display_pkts(),
+        )
+    })
 })

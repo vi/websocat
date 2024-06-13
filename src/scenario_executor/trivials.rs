@@ -2,6 +2,7 @@ use std::{pin::Pin, task::Poll};
 
 use pin_project::pin_project;
 use rhai::{Dynamic, Engine};
+use tokio::io::ReadBuf;
 use tracing::{debug, debug_span, error, field, Instrument};
 
 use crate::scenario_executor::{
@@ -12,6 +13,8 @@ use crate::scenario_executor::{
         TaskHandleExt,
     },
 };
+
+use super::types::PacketReadResult;
 
 fn take_read_part(h: Handle<StreamSocket>) -> Handle<StreamRead> {
     if let Some(s) = h.lock().unwrap().as_mut() {
@@ -100,26 +103,33 @@ impl PacketRead for ReadStreamChunks {
     fn poll_read(
         self: Pin<&mut Self>,
         cx: &mut std::task::Context<'_>,
-        buf: &mut tokio::io::ReadBuf<'_>,
-    ) -> Poll<std::io::Result<BufferFlags>> {
+        buf: &mut [u8],
+    ) -> Poll<std::io::Result<PacketReadResult>> {
         let sr: &mut StreamRead = self.project().0;
 
         if !sr.prefix.is_empty() {
-            let limit = buf.remaining().min(sr.prefix.len());
-            buf.put_slice(&sr.prefix.split_to(limit));
-            return Poll::Ready(Ok(BufferFlags::default()));
+            let limit = buf.len().min(sr.prefix.len());
+            buf[0..limit].copy_from_slice(&sr.prefix.split_to(limit));
+            return Poll::Ready(Ok(PacketReadResult {
+                flags: BufferFlags::default(),
+                buffer_subset: 0..limit,
+            }));
         }
 
-        let prior_len = buf.filled().len();
+        let mut rb = ReadBuf::new(buf);
         
-        match tokio::io::AsyncRead::poll_read(sr.reader.as_mut(), cx, buf) {
+        match tokio::io::AsyncRead::poll_read(sr.reader.as_mut(), cx, &mut rb) {
             Poll::Ready(Ok(())) => {
-                let new_len = buf.filled().len();
-                if new_len != prior_len {
-                    Poll::Ready(Ok(BufferFlags::default()))
+                let new_len = rb.filled().len();
+                let flags = if new_len > 0 {
+                    BufferFlags::default()
                 } else {
-                    Poll::Ready(Ok(BufferFlag::Eof.into()))
-                }
+                    BufferFlag::Eof.into()
+                };
+                Poll::Ready(Ok(PacketReadResult {
+                    flags,
+                    buffer_subset: 0..new_len,
+                }))
             }
             Poll::Ready(Err(e)) => Poll::Ready(Err(e)),
             Poll::Pending => Poll::Pending,
@@ -144,15 +154,15 @@ impl PacketWrite for WriteStreamChunks {
     fn poll_write(
         self: Pin<&mut Self>,
         cx: &mut std::task::Context<'_>,
-        buf: &mut tokio::io::ReadBuf<'_>,
+        buf: &mut [u8],
         flags: BufferFlags,
     ) -> Poll<std::io::Result<()>> {
         let p = self.project();
         let sw: &mut StreamWrite = p.w;
         
         loop {
-            assert!(buf.filled().len() >= *p.debt);
-            let buf_chunk = &buf.filled()[*p.debt..];
+            assert!(buf.len() >= *p.debt);
+            let buf_chunk = &buf[*p.debt..];
             if buf_chunk.is_empty() {
                 if !flags.contains(BufferFlag::NonFinalChunk) {
                     match tokio::io::AsyncWrite::poll_flush(sw.writer.as_mut(), cx) {
