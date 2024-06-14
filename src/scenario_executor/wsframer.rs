@@ -365,7 +365,11 @@ impl PacketRead for WsDecoder {
             match ret.event {
                 None => {
                     if ret.consumed_bytes == 0 {
-                        need_to_issue_inner_read = true;
+                        if outrange.is_some() {
+                            pending_exit_from_loop = true;
+                        } else {
+                            need_to_issue_inner_read = true;
+                        }
                     }
                 }
                 Some(websocket_sans_io::WebsocketFrameEvent::Start {
