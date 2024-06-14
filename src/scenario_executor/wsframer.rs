@@ -1,6 +1,7 @@
 use std::{ops::Range, task::Poll};
 
 use bytes::BytesMut;
+use pin_project::pin_project;
 use rand::{rngs::StdRng, Rng, SeedableRng};
 use rhai::{Dynamic, Engine, NativeCallContext};
 use tinyvec::ArrayVec;
@@ -262,8 +263,10 @@ fn ws_encoder(
     Ok(x.wrap())
 }
 
+#[pin_project]
 struct WsDecoder {
     span: Span,
+    #[pin]
     inner: StreamRead,
     require_masked: bool,
     require_unmasked: bool,
@@ -280,7 +283,7 @@ impl PacketRead for WsDecoder {
         cx: &mut std::task::Context<'_>,
         buf: &mut [u8],
     ) -> Poll<std::io::Result<PacketReadResult>> {
-        let this = self.get_mut();
+        let mut this = self.project();
         let _sg = this.span.enter();
 
         macro_rules! invdata {
@@ -306,35 +309,23 @@ impl PacketRead for WsDecoder {
             };
         }
 
-        #[derive(Debug)]
-        enum DataSource {
-            FromPrefix,
-            FromBuf,
-        }
-
         trace!("poll_read");
         let mut need_to_issue_inner_read = false;
         loop {
             let mut pending_exit_from_loop = false;
-            let (ds, unprocessed_data_range) = if !this.inner.prefix.is_empty() {
-                (
-                    DataSource::FromPrefix,
-                    0..buf.len().min(this.inner.prefix.len()),
-                )
-            } else {
-                if this.unprocessed_bytes > 0 || !need_to_issue_inner_read {
-                    assert!(this.unprocessed_bytes <= buf.len());
-                    (
-                        DataSource::FromBuf,
-                        this.offset..(this.offset + this.unprocessed_bytes),
-                    )
+            let unprocessed_data_range : Range<usize> = {
+                if *this.unprocessed_bytes > 0 || !need_to_issue_inner_read {
+                    assert!(*this.unprocessed_bytes <= buf.len());
+                    
+                        *this.offset..(*this.offset + *this.unprocessed_bytes)
+                    
                 } else {
                     trace!("inner read");
-                    let mut rb = ReadBuf::new(&mut buf[this.offset..]);
-                    match tokio::io::AsyncRead::poll_read(this.inner.reader.as_mut(), cx, &mut rb) {
+                    let mut rb = ReadBuf::new(&mut buf[*this.offset..]);
+                    match tokio::io::AsyncRead::poll_read(this.inner.as_mut(), cx, &mut rb) {
                         Poll::Ready(Ok(())) => {
-                            this.unprocessed_bytes = rb.filled().len();
-                            if this.unprocessed_bytes == 0 {
+                            *this.unprocessed_bytes = rb.filled().len();
+                            if *this.unprocessed_bytes == 0 {
                                 outflags |= BufferFlag::Eof;
                                 outflags &= !BufferFlag::NonFinalChunk;
                                 pending_exit_from_loop = true;
@@ -344,18 +335,14 @@ impl PacketRead for WsDecoder {
                         Poll::Pending => return Poll::Pending,
                     };
                     need_to_issue_inner_read = false;
-                    (
-                        DataSource::FromBuf,
-                        this.offset..(this.offset + this.unprocessed_bytes),
-                    )
+                    
+                        *this.offset..(*this.offset + *this.unprocessed_bytes)
+                    
                 }
             };
-            trace!(?ds, range=?unprocessed_data_range.clone(), "data ready");
+            trace!(range=?unprocessed_data_range.clone(), "data ready");
 
-            let unprocessed_data: &mut [u8] = match ds {
-                DataSource::FromPrefix => &mut this.inner.prefix[unprocessed_data_range.clone()],
-                DataSource::FromBuf => &mut buf[unprocessed_data_range.clone()],
-            };
+            let unprocessed_data: &mut [u8] = &mut buf[unprocessed_data_range.clone()];
 
             let ret = this.wd.add_data(unprocessed_data);
 
@@ -380,11 +367,11 @@ impl PacketRead for WsDecoder {
                         warn!("Invalid WebSocket frame header: {frame_info:?}");
                         invdata!();
                     }
-                    if this.require_masked && frame_info.mask.is_none() {
+                    if *this.require_masked && frame_info.mask.is_none() {
                         warn!("Unmasked frame where masked expected");
                         invdata!();
                     }
-                    if this.require_unmasked && frame_info.mask.is_some() {
+                    if *this.require_unmasked && frame_info.mask.is_some() {
                         warn!("Masked frame where unmasked is expected");
                         invdata!();
                     }
@@ -393,16 +380,7 @@ impl PacketRead for WsDecoder {
                 Some(websocket_sans_io::WebsocketFrameEvent::PayloadChunk { original_opcode }) => {
                     fill_in_flags_based_on_opcode!(original_opcode);
                     assert!(outrange.is_none());
-                    match ds {
-                        DataSource::FromPrefix => {
-                            outrange = Some(0..ret.consumed_bytes);
-                            buf[0..ret.consumed_bytes]
-                                .copy_from_slice(&this.inner.prefix[0..ret.consumed_bytes]);
-                        }
-                        DataSource::FromBuf => {
-                            outrange = Some(this.offset..(this.offset + ret.consumed_bytes));
-                        }
-                    }
+                    outrange = Some(*this.offset..(*this.offset + ret.consumed_bytes));
                 }
                 Some(websocket_sans_io::WebsocketFrameEvent::End {
                     frame_info,
@@ -415,21 +393,13 @@ impl PacketRead for WsDecoder {
                     pending_exit_from_loop = true;
                 }
             }
-            match ds {
-                DataSource::FromPrefix => {
-                    let _ = this.inner.prefix.split_to(ret.consumed_bytes);
-                    if this.inner.prefix.is_empty() {
-                        trace!("fully processed read prefix")
-                    }
-                }
-                DataSource::FromBuf => {
-                    this.offset += ret.consumed_bytes;
-                    this.unprocessed_bytes -= ret.consumed_bytes;
-                    if this.unprocessed_bytes == 0 {
-                        trace!("fully processed this read chunk")
-                    }
-                }
+
+            *this.offset += ret.consumed_bytes;
+            *this.unprocessed_bytes -= ret.consumed_bytes;
+            if *this.unprocessed_bytes == 0 {
+                trace!("fully processed this read chunk")
             }
+               
             if pending_exit_from_loop {
                 break;
             }

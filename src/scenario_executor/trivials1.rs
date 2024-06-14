@@ -97,7 +97,7 @@ fn spawn_task(task: Handle<Task>) {
 }
 
 #[pin_project]
-struct ReadStreamChunks(StreamRead);
+struct ReadStreamChunks(#[pin] StreamRead);
 
 impl PacketRead for ReadStreamChunks {
     fn poll_read(
@@ -105,20 +105,11 @@ impl PacketRead for ReadStreamChunks {
         cx: &mut std::task::Context<'_>,
         buf: &mut [u8],
     ) -> Poll<std::io::Result<PacketReadResult>> {
-        let sr: &mut StreamRead = self.project().0;
-
-        if !sr.prefix.is_empty() {
-            let limit = buf.len().min(sr.prefix.len());
-            buf[0..limit].copy_from_slice(&sr.prefix.split_to(limit));
-            return Poll::Ready(Ok(PacketReadResult {
-                flags: BufferFlags::default(),
-                buffer_subset: 0..limit,
-            }));
-        }
+        let sr: Pin<&mut StreamRead> = self.project().0;
 
         let mut rb = ReadBuf::new(buf);
         
-        match tokio::io::AsyncRead::poll_read(sr.reader.as_mut(), cx, &mut rb) {
+        match tokio::io::AsyncRead::poll_read(sr, cx, &mut rb) {
             Poll::Ready(Ok(())) => {
                 let new_len = rb.filled().len();
                 let flags = if new_len > 0 {

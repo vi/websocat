@@ -2,7 +2,7 @@ use anyhow::Context;
 use futures::Future;
 use rhai::EvalAltResult;
 use tokio::io::AsyncRead;
-use tracing::error;
+use tracing::{error, trace};
 
 use crate::scenario_executor::types::{DatagramRead, DatagramWrite, Handle, StreamSocket, Task};
 use std::{sync::{Arc, Mutex}, task::Poll};
@@ -126,6 +126,7 @@ impl AsyncRead for StreamRead {
 
         if !sr.prefix.is_empty() {
             let limit = buf.remaining().min(sr.prefix.len());
+            trace!(nbytes=limit, "Serving from prefix");
             buf.put_slice(&sr.prefix.split_to(limit));
             return Poll::Ready(Ok(()));
         }
