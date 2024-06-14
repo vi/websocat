@@ -4,7 +4,8 @@ pub mod scenario_executor {
     pub mod copydata;
 
     pub mod misc;
-    pub mod trivials;
+    pub mod trivials1;
+    pub mod trivials2;
     pub mod types;
     pub mod fluff;
     pub mod tcp;

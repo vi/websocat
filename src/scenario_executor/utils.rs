@@ -1,10 +1,13 @@
 use anyhow::Context;
 use futures::Future;
 use rhai::EvalAltResult;
+use tokio::io::AsyncRead;
 use tracing::error;
 
 use crate::scenario_executor::types::{DatagramRead, DatagramWrite, Handle, StreamSocket, Task};
-use std::sync::{Arc, Mutex};
+use std::{sync::{Arc, Mutex}, task::Poll};
+
+use super::types::{StreamRead, StreamWrite};
 
 pub trait TaskHandleExt {
     fn wrap_noerr(self) -> Handle<Task>;
@@ -76,6 +79,16 @@ impl DatagramWrite {
         Arc::new(Mutex::new(Some(self)))
     }
 }
+impl StreamRead {
+    pub fn wrap(self) -> Handle<StreamRead> {
+        Arc::new(Mutex::new(Some(self)))
+    }
+}
+impl StreamWrite {
+    pub fn wrap(self) -> Handle<StreamWrite> {
+        Arc::new(Mutex::new(Some(self)))
+    }
+}
 
 pub trait Anyhow2EvalAltResult<T> {
     fn tbar(self) -> Result<T, Box<EvalAltResult>>;
@@ -102,3 +115,21 @@ impl<T> ExtractHandleOrFail<T> for Handle<T> {
 }
 
 pub type RhResult<T> = Result<T, Box<EvalAltResult>>;
+
+impl AsyncRead for StreamRead {
+    fn poll_read(
+        self: std::pin::Pin<&mut Self>,
+        cx: &mut std::task::Context<'_>,
+        buf: &mut tokio::io::ReadBuf<'_>,
+    ) -> std::task::Poll<std::io::Result<()>> {
+        let sr = self.get_mut();
+
+        if !sr.prefix.is_empty() {
+            let limit = buf.remaining().min(sr.prefix.len());
+            buf.put_slice(&sr.prefix.split_to(limit));
+            return Poll::Ready(Ok(()));
+        }
+
+        sr.reader.as_mut().poll_read(cx, buf)
+    }
+}
