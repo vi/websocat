@@ -4,6 +4,7 @@
         // let src = trivial_pkts();
         //let dst = ws_encoder(#{masked: true}, take_write_part(s2u));
         // let dst = display_pkts();
+        //put_read_part(s2u, read_chunk_limiter(take_read_part(s2u),3));
         let s2uw = ws_wrap(#{client: true}, s2u);
         let src = take_source_part(s2uw);
         let dst = take_sink_part(s2uw);

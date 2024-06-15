@@ -1,24 +1,126 @@
-use std::{ops::Range, task::Poll};
+use std::{io::ErrorKind, pin::Pin, sync::Mutex, task::Poll};
 
-use bytes::BytesMut;
-use pin_project::pin_project;
-use rand::{rngs::StdRng, Rng, SeedableRng};
 use rhai::{Dynamic, Engine, NativeCallContext};
-use tinyvec::ArrayVec;
-use tokio::io::ReadBuf;
-use tracing::{debug, debug_span, trace, warn, Span};
-use websocket_sans_io::{
-    FrameInfo, Opcode, WebsocketFrameDecoder, WebsocketFrameEncoder, MAX_HEADER_LENGTH,
-};
+use tokio::sync::OwnedSemaphorePermit;
+use tokio_util::sync::PollSemaphore;
+use tracing::{debug, debug_span, trace};
+use std::sync::Arc;
 
 use crate::scenario_executor::{utils::{ExtractHandleOrFail, SimpleErr}, wsframer::{WsDecoder, WsEncoder}};
 
 use super::{
     types::{
-        BufferFlag, BufferFlags, DatagramRead, DatagramSocket, DatagramWrite, Handle, PacketRead, PacketReadResult, PacketWrite, StreamRead, StreamSocket, StreamWrite
+        BufferFlag, BufferFlags, DatagramRead, DatagramSocket, DatagramWrite, Handle, PacketRead, PacketReadResult, PacketWrite, StreamSocket
     },
     utils::RhResult,
 };
+
+
+struct WsEncoderThatCoexistsWithPongs {
+    inner: WsEncoder,
+    sem: PollSemaphore,
+}
+
+struct WsEncoderThatCoexistsWithPongsHandle {
+    inner: Arc<Mutex<WsEncoderThatCoexistsWithPongs>>,
+    /// Permit to finish up writing one (probably non-Pong) frame to WebSocket.
+    sem_permit: Option<OwnedSemaphorePermit>,
+}
+
+impl PacketWrite for WsEncoderThatCoexistsWithPongsHandle {
+    fn poll_write(
+        self: std::pin::Pin<&mut Self>,
+        cx: &mut std::task::Context<'_>,
+        buf: &mut [u8],
+        flags: BufferFlags,
+    ) -> Poll<std::io::Result<()>> {
+        let this = self.get_mut();
+
+        let mut inner = this.inner.lock().unwrap();
+        if this.sem_permit.is_none() {
+            match inner.sem.poll_acquire(cx) {
+                Poll::Ready(None) => return Poll::Ready(Err(ErrorKind::ConnectionReset.into())),
+                Poll::Ready(Some(p)) => this.sem_permit = Some(p),
+                Poll::Pending => return Poll::Pending,
+            }
+        }
+
+        match PacketWrite::poll_write(Pin::new(&mut inner.inner), cx,buf,flags) {
+            Poll::Ready(ret) => {
+                this.sem_permit = None;
+                Poll::Ready(ret)
+            }
+            Poll::Pending => return Poll::Pending,
+        }
+    }
+}
+
+struct WsDecoderThatCoexistsWithPingReplies {
+    inner: WsDecoder,
+    writer: Arc<Mutex<WsEncoderThatCoexistsWithPongs>>,
+    /// Permit to finish writing series of frames that will be assembled as full Pong frame
+    ping_reply_in_progress: Option<PacketReadResult>,
+    sem_permit: Option<OwnedSemaphorePermit>,
+}
+
+impl PacketRead for WsDecoderThatCoexistsWithPingReplies {
+    fn poll_read(
+        self: Pin<&mut Self>,
+        cx: &mut std::task::Context<'_>,
+        buf: &mut [u8],
+    ) -> Poll<std::io::Result<PacketReadResult>> {
+        let this = self.get_mut();
+
+        loop {
+            if let Some(prip) = this.ping_reply_in_progress.clone() {
+
+                let mut writer = this.writer.lock().unwrap();
+                if this.sem_permit.is_none() {
+                    match writer.sem.poll_acquire(cx) {
+                        Poll::Ready(None) => return Poll::Ready(Err(ErrorKind::ConnectionReset.into())),
+                        Poll::Ready(Some(p)) => this.sem_permit = Some(p),
+                        Poll::Pending => return Poll::Pending,
+                    }
+                }
+
+                let rb = &mut buf[prip.buffer_subset.clone()];
+
+                match PacketWrite::poll_write(Pin::new(&mut writer.inner), cx, rb, prip.flags) {
+                    Poll::Ready(Err(e)) => return Poll::Ready(Err(e)),
+                    Poll::Ready(Ok(())) => {
+                        this.ping_reply_in_progress = None;
+                        if prip.flags.contains(BufferFlag::NonFinalChunk) {
+                            trace!("ping reply split in middle - not unlocking normal traffic to WebSocket");
+                        } else {
+                            debug!("Replies to a ping");
+                            this.sem_permit = None;
+                        }
+                    }
+                    Poll::Pending => return Poll::Pending,
+                }
+            }
+
+            return match PacketRead::poll_read(Pin::new(&mut this.inner), cx, buf) {
+                Poll::Ready(Err(e)) => Poll::Ready(Err(e)),
+                Poll::Ready(Ok(ret)) => {
+    
+                    if ret.flags.contains(BufferFlag::Ping) {
+                        trace!("ping detected, replying instead of passing upstream");
+                        this.ping_reply_in_progress = Some(ret);
+                        continue;
+                    }
+    
+                    Poll::Ready(Ok(ret))
+                }
+                Poll::Pending => Poll::Pending,
+            }
+        }
+    }
+}
+
+
+
+
 
 fn ws_wrap(
     ctx: NativeCallContext,
@@ -53,20 +155,37 @@ fn ws_wrap(
         }
     };
 
+    let usual_encoder =  WsEncoder::new(
+        span.clone(),
+        opts.client,
+        !opts.no_flush_after_each_message,
+        inner_write,
+    );
+
+    let shared_encoder = WsEncoderThatCoexistsWithPongs {
+        inner: usual_encoder,
+        sem: PollSemaphore::new(Arc::new(tokio::sync::Semaphore::new(1))),
+    };
+    let shared_encoder = Arc::new(Mutex::new(shared_encoder));
+
     let d = WsDecoder::new(
         span.clone(),
         inner_read,
         require_masked,
         require_unmasked,
     );
-    let dr = DatagramRead { src: Box::pin(d) };
+    let dd = WsDecoderThatCoexistsWithPingReplies {
+        inner: d,
+        writer: shared_encoder.clone(),
+        ping_reply_in_progress: None,
+        sem_permit: None,
+    };
+    let dr = DatagramRead { src: Box::pin(dd) };
 
-    let e = WsEncoder::new(
-        span.clone(),
-        opts.client,
-        !opts.no_flush_after_each_message,
-        inner_write,
-    );
+    let e = WsEncoderThatCoexistsWithPongsHandle{
+        inner: shared_encoder,
+        sem_permit: None,
+    };
     let dw = DatagramWrite { snk: Box::pin(e) };
 
     let x = DatagramSocket { read: Some(dr), write: Some(dw), close };
