@@ -7,6 +7,7 @@ edition = "2021"
 
 [dependencies]
 anyhow = "1.0.75"
+argh = "0.1.12"
 bytes = "1.5.0"
 catty = "0.1.5"
 flagset = "0.4.4"

@@ -1,0 +1,51 @@
+use std::net::SocketAddr;
+
+use super::types::{Endpoint, Overlay, SpecifierStack};
+
+impl SpecifierStack {
+    pub fn from_str(mut x: &str) -> anyhow::Result<SpecifierStack> {
+        let innermost;
+        let mut overlays = vec![];
+
+        loop {
+            match ParseStrChunkResult::from_str(x)? {
+                ParseStrChunkResult::Endpoint(e) => {
+                    innermost = e;
+                    break
+                }
+                ParseStrChunkResult::Overlay { ovl, rest } => {
+                    todo!()
+                }
+            }
+        }
+
+        Ok(SpecifierStack {
+            innermost: innermost,
+            overlays,
+        })
+    }
+}
+
+enum ParseStrChunkResult<'a> {
+    Endpoint(Endpoint),
+    Overlay { ovl: Overlay, rest: &'a str },
+}
+
+impl ParseStrChunkResult<'_> {
+    fn from_str(x: &str) -> anyhow::Result<ParseStrChunkResult<'_>> {
+        if x.starts_with("ws://") {
+            let u = http::Uri::try_from(x)?;
+            Ok(ParseStrChunkResult::Endpoint(Endpoint::WsUrl(u)))
+        } else if x.starts_with("wss://") {
+            let u = http::Uri::try_from(x)?;
+            Ok(ParseStrChunkResult::Endpoint(Endpoint::WssUrl(u)))
+        } else if let Some(rest) = x.strip_prefix("tcp:") {
+            let a: SocketAddr = rest.parse()?;
+            Ok(ParseStrChunkResult::Endpoint(Endpoint::TcpConnectByIp(a)))
+        } else if x == "-" || x == "stdio:" {
+            Ok(ParseStrChunkResult::Endpoint(Endpoint::Stdio))
+        } else {
+            anyhow::bail!("Unknown specifier: {x}")
+        }
+    }
+}
