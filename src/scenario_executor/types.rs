@@ -98,3 +98,8 @@ pub struct DatagramRead {
 pub struct DatagramWrite {
     pub snk: Pin<Box<dyn PacketWrite + Send>>,
 }
+pub struct DatagramSocket {
+    pub read: Option<DatagramRead>,
+    pub write: Option<DatagramWrite>,
+    pub close: Option<Hangup>,
+}

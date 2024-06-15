@@ -1,5 +1,7 @@
 use crate::scenario_executor::types::{DatagramRead, DatagramWrite, StreamRead, StreamSocket, StreamWrite};
 
+use super::types::DatagramSocket;
+
 impl std::fmt::Debug for StreamSocket {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "SS(")?;
@@ -43,6 +45,25 @@ impl std::fmt::Debug for DatagramRead {
 impl std::fmt::Debug for DatagramWrite {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "DW@{:p}", self.snk)
+    }
+}
+
+impl std::fmt::Debug for DatagramSocket {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "DS(")?;
+        if let Some(ref r) = self.read {
+            r.fmt(f)?;
+        }
+        write!(f, ",")?;
+        if let Some(ref w) = self.write {
+            w.fmt(f)?;
+        }
+        write!(f, ",")?;
+        if let Some(_) = self.close {
+            write!(f, "H")?;
+        }
+        write!(f, ")")?;
+        Ok(())
     }
 }
 

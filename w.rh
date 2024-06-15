@@ -1,10 +1,12 @@
  connect_tcp(#{addr: "127.0.0.1:1235"}, |s2| {
     ws_upgrade(s2, #{url: "/"}, |s2u| {
-        copy_packets(
-            ws_decoder(#{}, read_chunk_limiter(take_read_part(s2u), 13)),
-            //trivial_pkts(),
-            ws_encoder(#{masked: true}, take_write_part(s2u)),
-            //display_pkts(),
-        )
+        //let src = ws_decoder(#{}, read_chunk_limiter(take_read_part(s2u), 13));
+        // let src = trivial_pkts();
+        //let dst = ws_encoder(#{masked: true}, take_write_part(s2u));
+        // let dst = display_pkts();
+        let s2uw = ws_wrap(#{client: true}, s2u);
+        let src = take_source_part(s2uw);
+        let dst = take_sink_part(s2uw);
+        copy_packets(src, dst)
     })
 })

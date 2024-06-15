@@ -237,7 +237,7 @@ impl PacketWrite for WsEncoder {
 }
 
 fn ws_encoder(
-    _ctx: NativeCallContext,
+    ctx: NativeCallContext,
     opts: Dynamic,
     inner: Handle<StreamWrite>,
 ) -> RhResult<Handle<DatagramWrite>> {
@@ -249,7 +249,7 @@ fn ws_encoder(
         no_flush_after_each_message: bool,
     }
     let opts: WsEncoderOpts = rhai::serde::from_dynamic(&opts)?;
-    let inner = inner.lutbar()?;
+    let inner = ctx.lutbar(inner)?;
     debug!(parent: &span, inner=?inner, "options parsed");
 
     let x = WsEncoder::new(
@@ -264,7 +264,7 @@ fn ws_encoder(
 }
 
 #[pin_project]
-struct WsDecoder {
+pub struct WsDecoder {
     span: Span,
     #[pin]
     inner: StreamRead,
@@ -434,7 +434,7 @@ impl WsDecoder {
 }
 
 fn ws_decoder(
-    _ctx: NativeCallContext,
+    ctx: NativeCallContext,
     opts: Dynamic,
     inner: Handle<StreamRead>,
 ) -> RhResult<Handle<DatagramRead>> {
@@ -447,7 +447,7 @@ fn ws_decoder(
         require_unmasked: bool,
     }
     let opts: WsDecoderOpts = rhai::serde::from_dynamic(&opts)?;
-    let inner = inner.lutbar()?;
+    let inner = ctx.lutbar(inner)?;
     debug!(parent: &span, inner=?inner, "options parsed");
 
     let x = WsDecoder::new(

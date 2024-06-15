@@ -1,13 +1,12 @@
-use anyhow::Context;
 use futures::Future;
-use rhai::EvalAltResult;
+use rhai::{EvalAltResult, NativeCallContext};
 use tokio::io::AsyncRead;
 use tracing::{error, trace};
 
 use crate::scenario_executor::types::{DatagramRead, DatagramWrite, Handle, StreamSocket, Task};
 use std::{sync::{Arc, Mutex}, task::Poll};
 
-use super::types::{StreamRead, StreamWrite};
+use super::types::{DatagramSocket, StreamRead, StreamWrite};
 
 pub trait TaskHandleExt {
     fn wrap_noerr(self) -> Handle<Task>;
@@ -89,7 +88,13 @@ impl StreamWrite {
         Arc::new(Mutex::new(Some(self)))
     }
 }
+impl DatagramSocket {
+    pub fn wrap(self) -> Handle<DatagramSocket> {
+        Arc::new(Mutex::new(Some(self)))
+    }
+}
 
+/*
 pub trait Anyhow2EvalAltResult<T> {
     fn tbar(self) -> Result<T, Box<EvalAltResult>>;
 }
@@ -104,13 +109,17 @@ impl<T> Anyhow2EvalAltResult<T> for anyhow::Result<T> {
         }
     }
 }
-pub trait ExtractHandleOrFail<T> {
+*/
+pub trait ExtractHandleOrFail {
     /// Lock mutex, Unwrapping possible poison error, Take the thing from option contained inside, fail if is is none and convert the error to BoxAltResult.
-    fn lutbar(self) -> Result<T, Box<EvalAltResult>>;
+    fn lutbar<T>(&self, h: Handle<T>) -> Result<T, Box<EvalAltResult>>;
 }
-impl<T> ExtractHandleOrFail<T> for Handle<T> {
-    fn lutbar(self) -> Result<T, Box<EvalAltResult>> {
-        self.lut().context("Stale handle").tbar()
+impl ExtractHandleOrFail for NativeCallContext<'_> {
+    fn lutbar<T>(&self, h: Handle<T>) -> Result<T, Box<EvalAltResult>> {
+        match h.lut() {
+            Some(x) => Ok(x),
+            None => Err(self.err("Null handle")),
+        }
     }
 }
 
@@ -134,3 +143,13 @@ impl AsyncRead for StreamRead {
         sr.reader.as_mut().poll_read(cx, buf)
     }
 }
+
+pub trait SimpleErr {
+    fn err(&self, v: impl Into<rhai::Dynamic>) -> Box<EvalAltResult>;
+}
+impl SimpleErr for NativeCallContext<'_> {
+    fn err(&self, v: impl Into<rhai::Dynamic>) -> Box<EvalAltResult> {
+        Box::new(EvalAltResult::ErrorRuntime(v.into(), self.position()))
+    }
+}
+

@@ -1,7 +1,7 @@
 use std::{pin::Pin, task::Poll};
 
 use pin_project::pin_project;
-use rhai::{Dynamic, Engine};
+use rhai::{Dynamic, Engine, NativeCallContext};
 use tokio::io::ReadBuf;
 use tracing::{debug, debug_span, error, field, Instrument};
 
@@ -14,31 +14,114 @@ use crate::scenario_executor::{
     },
 };
 
-use super::types::PacketReadResult;
+use super::{types::{DatagramSocket, Hangup, PacketReadResult}, utils::{HandleExt2, SimpleErr}};
 
-fn take_read_part(h: Handle<StreamSocket>) -> Handle<StreamRead> {
+fn take_read_part(ctx: NativeCallContext, h: Handle<StreamSocket>) -> RhResult<Handle<StreamRead>> {
     if let Some(s) = h.lock().unwrap().as_mut() {
-        if let Some(hh) = s.read.take() {
-            Some(hh).wrap()
-        } else {
-            None.wrap()
-        }
+        Ok(s.read.take().wrap())
     } else {
-        None.wrap()
+        Err(ctx.err("StreamSocket is null"))
     }
 }
 
-fn take_write_part(h: Handle<StreamSocket>) -> Handle<StreamWrite> {
+fn take_write_part(ctx: NativeCallContext, h: Handle<StreamSocket>) -> RhResult<Handle<StreamWrite>> {
     if let Some(s) = h.lock().unwrap().as_mut() {
-        if let Some(hh) = s.write.take() {
-            Some(hh).wrap()
-        } else {
-            None.wrap()
-        }
+        Ok(s.write.take().wrap())
     } else {
-        None.wrap()
+        Err(ctx.err("StreamSocket is null"))
     }
 }
+
+fn take_source_part(ctx: NativeCallContext, h: Handle<DatagramSocket>) -> RhResult<Handle<DatagramRead>> {
+    if let Some(s) = h.lock().unwrap().as_mut() {
+        Ok(s.read.take().wrap())
+    } else {
+        Err(ctx.err("StreamSocket is null"))
+    }
+}
+
+fn take_sink_part(ctx: NativeCallContext, h: Handle<DatagramSocket>) -> RhResult<Handle<DatagramWrite>> {
+    if let Some(s) = h.lock().unwrap().as_mut() {
+        Ok(s.write.take().wrap())
+    } else {
+        Err(ctx.err("StreamSocket is null"))
+    }
+}
+fn take_hangup_part(ctx: NativeCallContext, h: Dynamic) -> RhResult<Handle<Hangup>> {
+    if let Some(h) = h.clone().try_cast::<Handle<StreamSocket>>() {
+        return if let Some(s) = h.lock().unwrap().as_mut() {
+            Ok(s.close.take().wrap())
+        } else {
+            Err(ctx.err("StreamSocket is null"))
+        }
+    }
+    if let Some(h) = h.clone().try_cast::<Handle<DatagramSocket>>() {
+        return if let Some(s) = h.lock().unwrap().as_mut() {
+            Ok(s.close.take().wrap())
+        } else {
+            Err(ctx.err("DatagramSocket is null"))
+        }
+    }
+    Err(ctx.err("take_hangup_part expects StreamSocket or DatagramSocket as argument"))
+}
+
+
+fn put_read_part(ctx: NativeCallContext, h: Handle<StreamSocket>, x: Handle<StreamRead>) -> RhResult<()> {
+    if let Some(s) = h.lock().unwrap().as_mut() {
+        s.read = x.lut();
+        Ok(())
+    } else {
+        Err(ctx.err("StreamSocket null"))
+    }
+}
+
+fn put_write_part(ctx: NativeCallContext, h: Handle<StreamSocket>, x: Handle<StreamWrite>) -> RhResult<()> {
+    if let Some(s) = h.lock().unwrap().as_mut() {
+        s.write = x.lut();
+        Ok(())
+    } else {
+        Err(ctx.err("StreamSocket null"))
+    }
+}
+
+fn put_source_part(ctx: NativeCallContext, h: Handle<DatagramSocket>, x: Handle<DatagramRead>) -> RhResult<()> {
+    if let Some(s) = h.lock().unwrap().as_mut() {
+        s.read = x.lut();
+        Ok(())
+    } else {
+        Err(ctx.err("DatagramSocket null"))
+    }
+}
+fn put_sink_part(ctx: NativeCallContext, h: Handle<DatagramSocket>, x: Handle<DatagramWrite>) -> RhResult<()> {
+    if let Some(s) = h.lock().unwrap().as_mut() {
+        s.write = x.lut();
+        Ok(())
+    } else {
+        Err(ctx.err("DatagramSocket null"))
+    }
+}
+fn put_hangup_part(ctx: NativeCallContext, h: Dynamic, x: Handle<Hangup>) -> RhResult<()> {
+    if let Some(h) = h.clone().try_cast::<Handle<StreamSocket>>() {
+        return if let Some(s) = h.lock().unwrap().as_mut() {
+            s.close = x.lut();
+            Ok(())
+        } else {
+            Err(ctx.err("StreamSocket is null"))
+        }
+    }
+    if let Some(h) = h.clone().try_cast::<Handle<DatagramSocket>>() {
+        return if let Some(s) = h.lock().unwrap().as_mut() {
+            s.close = x.lut();
+            Ok(())
+        } else {
+            Err(ctx.err("DatagramSocket is null"))
+        }
+    }
+    Err(ctx.err("take_hangup_part expects StreamSocket or DatagramSocket as argument"))
+}
+
+
+
 fn dummytask() -> Handle<Task> {
     async move {}.wrap_noerr()
 }
@@ -128,8 +211,8 @@ impl PacketRead for ReadStreamChunks {
     }
 }
 
-fn read_stream_chunks(x: Handle<StreamRead>) -> RhResult<Handle<DatagramRead>> {
-    let x = x.lutbar()?;
+fn read_stream_chunks(ctx: NativeCallContext, x: Handle<StreamRead>) -> RhResult<Handle<DatagramRead>> {
+    let x = ctx.lutbar(x)?;
     debug!(inner=?x, "read_stream_chunks");
     let x = DatagramRead {
         src: Box::pin(ReadStreamChunks(x)),
@@ -184,8 +267,8 @@ impl PacketWrite for WriteStreamChunks {
     }
 }
 
-fn write_stream_chunks(x: Handle<StreamWrite>) -> RhResult<Handle<DatagramWrite>> {
-    let x = x.lutbar()?;
+fn write_stream_chunks(ctx: NativeCallContext, x: Handle<StreamWrite>) -> RhResult<Handle<DatagramWrite>> {
+    let x = ctx.lutbar(x)?;
     debug!(inner=?x, "write_stream_chunks");
     let x = DatagramWrite {
         snk: Box::pin(WriteStreamChunks{w:x, debt:0}),
@@ -197,6 +280,16 @@ fn write_stream_chunks(x: Handle<StreamWrite>) -> RhResult<Handle<DatagramWrite>
 pub fn register(engine: &mut Engine) {
     engine.register_fn("take_read_part", take_read_part);
     engine.register_fn("take_write_part", take_write_part);
+    engine.register_fn("take_source_part", take_source_part);
+    engine.register_fn("take_sink_part", take_sink_part);
+    engine.register_fn("take_hangup_part", take_hangup_part);
+
+    engine.register_fn("put_read_part", put_read_part);
+    engine.register_fn("put_write_part", put_write_part);
+    engine.register_fn("put_source_part", put_source_part);
+    engine.register_fn("put_sink_part", put_sink_part);
+    engine.register_fn("put_hangup_part", put_hangup_part);
+
     engine.register_fn("dummy_task", dummytask);
     engine.register_fn("sleep_ms", sleep_ms);
     engine.register_fn("sequential", sequential);

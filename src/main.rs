@@ -14,6 +14,7 @@ pub mod scenario_executor {
     pub mod utils;
     pub mod wsupgrade;
     pub mod wsframer;
+    pub mod wswithpings;
 
     pub mod all_functions;
 }

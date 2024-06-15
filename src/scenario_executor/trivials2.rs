@@ -2,7 +2,7 @@ use std::{pin::Pin, task::Poll};
 
 use bytes::BytesMut;
 use pin_project::pin_project;
-use rhai::Engine;
+use rhai::{Engine, NativeCallContext};
 use tokio::io::{AsyncRead, ReadBuf};
 use tracing::debug;
 
@@ -47,8 +47,8 @@ impl AsyncRead for ReadChunkLimiter {
     }
 }
 
-fn read_chunk_limiter(x: Handle<StreamRead>, limit: i64) -> RhResult<Handle<StreamRead>> {
-    let x = x.lutbar()?;
+fn read_chunk_limiter(ctx: NativeCallContext, x: Handle<StreamRead>, limit: i64) -> RhResult<Handle<StreamRead>> {
+    let x = ctx.lutbar(x)?;
     debug!(inner=?x, "read_chunk_limiter");
     let x = StreamRead {
         reader: Box::pin(ReadChunkLimiter{inner: x, limit: limit as usize}),
