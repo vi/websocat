@@ -1,10 +1,4 @@
-use std::net::{IpAddr, SocketAddr};
-
-use http::Uri;
-
-use crate::cli::WebsocatArgs;
-
-use super::{scenarioprinter::ScenarioPrinter, types::{CopyingType, Endpoint, SpecifierStack, WebsocatInvocation}};
+use super::types::{CopyingType, Endpoint, Overlay, SpecifierStack, WebsocatInvocation};
 
 
 
@@ -20,8 +14,15 @@ impl WebsocatInvocation {
 
 impl SpecifierStack {
     fn get_copying_type(&self) -> CopyingType {
-        assert!(self.overlays.is_empty());
-        self.innermost.get_copying_type()
+        let mut typ = self.innermost.get_copying_type();
+        for ovl in &self.overlays {
+            match ovl {
+                Overlay::WsUpgrade(_) => typ = CopyingType::ByteStream,
+                Overlay::WsWrap => typ = CopyingType::Datarams,
+                Overlay::StreamChunks => typ = CopyingType::Datarams,
+            }
+        }
+        typ
     }
 }
 
@@ -36,5 +37,30 @@ impl Endpoint {
             Endpoint::UdpConnect(_) => CopyingType::Datarams,
             Endpoint::UdpBind(_) => CopyingType::Datarams,
         }
+    }
+}
+
+impl WebsocatInvocation {
+    pub fn patches(&mut self) -> anyhow::Result<()> {
+        match (self.left.get_copying_type(), self.right.get_copying_type()) {
+            (CopyingType::ByteStream, CopyingType::ByteStream) => (),
+            (CopyingType::Datarams, CopyingType::Datarams) => (),
+            (CopyingType::ByteStream, CopyingType::Datarams) => {
+                if self.opts.binary {
+                    self.left.overlays.push(Overlay::StreamChunks);
+                } else {
+                    todo!()
+                }
+            }
+            (CopyingType::Datarams, CopyingType::ByteStream) => {
+                if self.opts.binary {
+                    self.right.overlays.push(Overlay::StreamChunks);
+                } else {
+                    todo!()
+                }
+            }
+        }
+        assert_eq!(self.left.get_copying_type(), self.right.get_copying_type());
+        Ok(())
     }
 }

@@ -3,27 +3,45 @@ use std::net::{IpAddr, SocketAddr};
 use http::Uri;
 
 
-use super::{scenarioprinter::ScenarioPrinter, types::{CopyingType, Endpoint, WebsocatInvocation}};
+use super::{scenarioprinter::ScenarioPrinter, types::{CopyingType, Endpoint, Overlay, WebsocatInvocation}};
 
 impl WebsocatInvocation {
     pub fn build_scenario(self) -> anyhow::Result<String> {
         let mut printer = ScenarioPrinter::new();
 
-        let left_inner = self.left.innermost.begin_print(&mut printer)?;
+        let mut left : String;
+        let mut right : String;
 
-        let right_inner = self.right.innermost.begin_print(&mut printer)?;
+        left = self.left.innermost.begin_print(&mut printer)?;
+
+        for ovl in &self.left.overlays {
+            left = ovl.begin_print(&mut printer, &left)?;
+        }
+
+        right = self.right.innermost.begin_print(&mut printer)?;
+
+        for ovl in &self.right.overlays {
+            right = ovl.begin_print(&mut printer, &left)?;
+        }
 
         match self.get_copying_type() {
             CopyingType::ByteStream => {
-                printer.print_line(&format!("exchange_bytes(#{{}}, {left_inner}, {right_inner})"));
+                printer.print_line(&format!("exchange_bytes(#{{}}, {left}, {right})"));
             }
             CopyingType::Datarams => {
-                printer.print_line(&format!("exchange_packets(#{{}}, {left_inner}, {right_inner})"));
+                printer.print_line(&format!("exchange_packets(#{{}}, {left}, {right})"));
             }
         }
         
+        for ovl in self.right.overlays.iter().rev() {
+            ovl.end_print(&mut printer);
+        }
 
         self.right.innermost.end_print(&mut printer);
+
+        for ovl in self.left.overlays.iter().rev() {
+            ovl.end_print(&mut printer);
+        }
 
         self.left.innermost.end_print(&mut printer);
 
@@ -103,6 +121,27 @@ impl Endpoint {
             }
             Endpoint::UdpConnect(_) => todo!(),
             Endpoint::UdpBind(_) => todo!(),
+        }
+    }
+}
+
+impl Overlay {
+    fn begin_print(&self, printer: &mut ScenarioPrinter, inner_var: &str) -> anyhow::Result<String> {
+        match self {
+            Overlay::WsUpgrade(_) => todo!(),
+            Overlay::WsWrap => todo!(),
+            Overlay::StreamChunks => {
+                let varnam = printer.getnewvarname("chunks");
+                printer.print_line(&format!("let {varnam} = stream_chunks({inner_var});"));
+                Ok(varnam)
+            }
+        }
+    }
+    fn end_print(&self, _printer: &mut ScenarioPrinter) {
+        match self {
+            Overlay::WsUpgrade(_) => todo!(),
+            Overlay::WsWrap => todo!(),
+            Overlay::StreamChunks => (),
         }
     }
 }

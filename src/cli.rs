@@ -1,6 +1,6 @@
 use argh::FromArgs;
 
-#[derive(FromArgs)]
+#[derive(FromArgs, Debug)]
 /// Tool to connect to WebSocket, listen them and do other network tricks
 pub struct WebsocatArgs {
     #[argh(positional)]

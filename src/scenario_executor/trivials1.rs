@@ -277,6 +277,34 @@ fn write_stream_chunks(ctx: NativeCallContext, x: Handle<StreamWrite>) -> RhResu
     Ok(x.wrap())
 }
 
+fn stream_chunks(ctx: NativeCallContext, x: Handle<StreamSocket>) -> RhResult<Handle<DatagramSocket>> {
+    let x = ctx.lutbar(x)?;
+    debug!(inner=?x, "stream_chunks");
+
+    if let StreamSocket {
+            read: Some(r),
+            write: Some(w),
+            close,
+        }  = x
+    {
+        let write = DatagramWrite {
+            snk: Box::pin(WriteStreamChunks{w:w, debt:0}),
+        };
+        let read = DatagramRead {
+            src: Box::pin(ReadStreamChunks(r) ),
+        };
+        let x = DatagramSocket {
+            read: Some(read),
+            write: Some(write),
+            close,
+        };
+        debug!(wrapped=?x, "stream_chunks");
+        Ok(x.wrap())
+    } else {
+        Err(ctx.err(""))
+    }
+}
+
 pub fn register(engine: &mut Engine) {
     engine.register_fn("take_read_part", take_read_part);
     engine.register_fn("take_write_part", take_write_part);
@@ -297,4 +325,5 @@ pub fn register(engine: &mut Engine) {
     engine.register_fn("spawn_task", spawn_task);
     engine.register_fn("read_stream_chunks", read_stream_chunks);
     engine.register_fn("write_stream_chunks", write_stream_chunks);
+    engine.register_fn("stream_chunks", stream_chunks);
 }

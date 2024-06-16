@@ -20,14 +20,14 @@ pub enum Endpoint {
 pub enum Overlay {
     WsUpgrade(Uri),
     WsWrap,
-    Spawner,
+    StreamChunks,
 }
 
 
 #[derive(Debug)]
 pub struct SpecifierStack {
     pub innermost: Endpoint,
-    /// zeroeth element is the first specified overlay, e.g. `reuse:` in `reuse:ws-ll:tcp:127.0.0.1:1234`.
+    /// zeroeth element is the last specified overlay, e.g. `ws-ll:` in `reuse:autoreconnect:ws-ll:tcp:127.0.0.1:1234`.
     pub overlays: Vec<Overlay>,
 }
 
@@ -38,6 +38,7 @@ pub struct WebsocatInvocation {
     pub opts: WebsocatArgs,
 }
 
+#[derive(Debug,Clone, Copy,PartialEq, Eq)]
 pub enum CopyingType {
     ByteStream,
     Datarams,

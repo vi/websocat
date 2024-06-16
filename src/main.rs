@@ -57,20 +57,28 @@ async fn main() -> anyhow::Result<()> {
             anyhow::bail!("Unimplemented");
         }
 
+        if !args.binary || !args.text {
+            eprintln!("Using --binary mode by default");
+            args.binary = true;
+        }
+
         let left_stack = SpecifierStack::from_str(&args.spec1)?;
         let right_stack = SpecifierStack::from_str(&args.spec2.take().unwrap())?;
 
-        if args.dump_spec_early {
-            println!("{:#?}", left_stack);
-            println!("{:#?}", right_stack);
-            return Ok(());
-        }
-
-        let invocation = WebsocatInvocation {
+        let mut invocation = WebsocatInvocation {
             left: left_stack,
             right: right_stack,
             opts: args,
         };
+
+        invocation.patches()?;
+
+        if invocation.opts.dump_spec_early {
+            println!("{:#?}", invocation.left);
+            println!("{:#?}", invocation.right);
+            println!("{:#?}", invocation.opts);
+            return Ok(());
+        }
 
         scenario_built_text = invocation.build_scenario()?;
         global_scenario = &scenario_built_text;

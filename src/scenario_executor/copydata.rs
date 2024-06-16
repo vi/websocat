@@ -235,7 +235,7 @@ impl std::future::Future for CopyPackets {
                             error!(parent: &this.span, "error writing to sink: {e}");
                             return Poll::Ready(());
                         }
-                        Poll::Pending => todo!(),
+                        Poll::Pending => return Poll::Pending,
                     }
                 }
             };

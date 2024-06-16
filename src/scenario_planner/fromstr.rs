@@ -14,10 +14,13 @@ impl SpecifierStack {
                     break
                 }
                 ParseStrChunkResult::Overlay { ovl, rest } => {
-                    todo!()
+                    overlays.push(ovl);
+                    x = rest;
                 }
             }
         }
+
+        overlays.reverse();
 
         Ok(SpecifierStack {
             innermost: innermost,
