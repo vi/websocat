@@ -54,7 +54,7 @@ async fn main() -> anyhow::Result<()> {
         global_scenario = std::str::from_utf8(&scenario_file[..])?;
     } else {
         if args.spec2.is_none() {
-            anyhow::bail!("Unimplemented");
+            args.spec2 = Some("stdio:".to_owned());
         }
 
         if !args.binary || !args.text {

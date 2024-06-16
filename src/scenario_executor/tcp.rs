@@ -43,10 +43,10 @@ fn connect_tcp(
         debug!(s=?s, "connected");
         let h = s.wrap();
 
-        callback_and_continue(the_scenario, continuation, (h,))
-            .await;
+        callback_and_continue(the_scenario, continuation, (h,)).await;
         Ok(())
-    }.instrument(span)
+    }
+    .instrument(span)
     .wrap())
 }
 
@@ -61,10 +61,14 @@ fn listen_tcp(
     #[derive(serde::Deserialize)]
     struct TcpListenOpts {
         addr: SocketAddr,
+        #[serde(default)]
+        autospawn: bool,
     }
     let opts: TcpListenOpts = rhai::serde::from_dynamic(&opts)?;
     //span.record("addr", field::display(opts.addr));
     debug!(parent: &span, listen_addr=%opts.addr, "options parsed");
+
+    let autospawn = opts.autospawn;
 
     Ok(async move {
         debug!("node started");
@@ -90,8 +94,17 @@ fn listen_tcp(
 
                     debug!(parent: &newspan, s=?s,"accepted");
                     let h = s.wrap();
-                    callback_and_continue(the_scenario, continuation, (h,from,)).instrument(newspan)
-                        .await;
+                    if !autospawn {
+                        callback_and_continue(the_scenario, continuation, (h, from))
+                            .instrument(newspan)
+                            .await;
+                    } else {
+                        tokio::spawn(async move {
+                            callback_and_continue(the_scenario, continuation, (h, from))
+                                .instrument(newspan)
+                                .await;
+                        });
+                    }
                 }
                 Err(e) => {
                     error!("Error from accept: {e}");
@@ -99,7 +112,8 @@ fn listen_tcp(
                 }
             }
         }
-    }.instrument(span)
+    }
+    .instrument(span)
     .wrap())
 }
 

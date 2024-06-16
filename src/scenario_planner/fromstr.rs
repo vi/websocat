@@ -51,6 +51,9 @@ impl ParseStrChunkResult<'_> {
         } else if let Some(rest) = x.strip_prefix("tcp:") {
             let a: SocketAddr = rest.parse()?;
             Ok(ParseStrChunkResult::Endpoint(Endpoint::TcpConnectByIp(a)))
+        } else if let Some(rest) = x.strip_prefix("tcp-l:") {
+            let a: SocketAddr = rest.parse()?;
+            Ok(ParseStrChunkResult::Endpoint(Endpoint::TcpListen(a)))
         } else if x == "-" || x == "stdio:" {
             Ok(ParseStrChunkResult::Endpoint(Endpoint::Stdio))
         } else {

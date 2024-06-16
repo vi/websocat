@@ -59,7 +59,13 @@ impl Endpoint {
                 printer.increase_indent();
                 Ok(varnam)
             }
-            Endpoint::TcpListen(_) => todo!(),
+            Endpoint::TcpListen(addr) => {
+                let varnam = printer.getnewvarname("tcp");
+                let fromaddr = printer.getnewvarname("from");
+                printer.print_line(&format!("listen_tcp(#{{autospawn: true, addr: \"{addr}\"}}, |{varnam}, {fromaddr}| {{"));
+                printer.increase_indent();
+                Ok(varnam)
+            }
             Endpoint::WsUrl(u) => {
                 let mut parts = u.clone().into_parts();
                 let auth = parts.authority.take().unwrap();
@@ -108,7 +114,10 @@ impl Endpoint {
                 printer.decrease_indent();
                 printer.print_line("})");
             }
-            Endpoint::TcpListen(_) => todo!(),
+            Endpoint::TcpListen(_) => {
+                printer.decrease_indent();
+                printer.print_line("})");
+            },
             Endpoint::WsUrl(_) => {
                 printer.decrease_indent();
                 printer.print_line("})");

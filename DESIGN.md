@@ -10,6 +10,7 @@
 * WebSocket framing library is custom, designed with avoiding allocations in mind.
 * It is OK to have multiple indirections for each transferred data chunk (i.e. `dyn` layer between stdio and line wrapper, then between line wrapper and WebSocket framer, then between the framer and TLS layer, then between the TLS layer and TCP socket).
 * `fn poll` is also the way, not everything needs to be async.
+* It is OK to add more elaborate `scenario_executor` things to simplify Websocat's Rhai scripts.
 
 # History or Websocat redesigns
 
