@@ -3,9 +3,9 @@ use std::{
 };
 
 use futures::future::OptionFuture;
-use rhai::Engine;
+use rhai::{Dynamic, Engine};
 use tokio::io::AsyncWriteExt;
-use tracing::{debug, debug_span, error, field, info, warn, Instrument};
+use tracing::{debug, debug_span, error, field, info, warn, Instrument, Span};
 
 use crate::scenario_executor::{
     types::{
@@ -14,6 +14,8 @@ use crate::scenario_executor::{
     },
     utils::{HandleExt2, TaskHandleExt},
 };
+
+use super::{types::DatagramSocket, utils::RhResult};
 
 fn copy_bytes(from: Handle<StreamRead>, to: Handle<StreamWrite>) -> Handle<Task> {
     let span = debug_span!("copy_bytes", f = field::Empty, t = field::Empty);
@@ -62,14 +64,20 @@ fn copy_bytes(from: Handle<StreamRead>, to: Handle<StreamWrite>) -> Handle<Task>
     }
     .wrap_noerr()
 }
-fn copy_bytes_bidirectional(s1: Handle<StreamSocket>, s2: Handle<StreamSocket>) -> Handle<Task> {
+fn exchange_bytes(opts: Dynamic, s1: Handle<StreamSocket>, s2: Handle<StreamSocket>) -> RhResult<Handle<Task>> {
     let span = debug_span!(
-        "copy_bytes_bidirectional",
+        "exchange_bytes",
         s1 = field::Empty,
         s2 = field::Empty
     );
+
+    #[derive(serde::Deserialize)]
+    struct ExchangeBytesOpts {
+        
+    }
+    let _opts: ExchangeBytesOpts = rhai::serde::from_dynamic(&opts)?;
     debug!(parent: &span, "node created");
-    async move {
+    Ok(async move {
         let (s1, s2) = (s1.lut(), s2.lut());
 
         if let Some(s1) = s1.as_ref() {
@@ -146,8 +154,7 @@ fn copy_bytes_bidirectional(s1: Handle<StreamSocket>, s2: Handle<StreamSocket>) 
         } else {
             error!(parent: &span, "Incomplete stream sockets specified");
         }
-    }
-    .wrap_noerr()
+    }.wrap_noerr())
 }
 
 #[derive(Clone)]
@@ -163,6 +170,25 @@ struct CopyPackets {
     phase: Phase,
     flags: BufferFlags,
     b: Box<[u8]>,
+}
+
+impl CopyPackets {
+    fn new(r: DatagramRead, w: DatagramWrite, span: Span, buffer_size: usize) -> CopyPackets {
+        let b = vec![0u8; buffer_size].into_boxed_slice();
+    
+        let phase = Phase::ReadFromStream;
+        let flags = crate::scenario_executor::types::BufferFlags::default();
+    
+        CopyPackets {
+            r,
+            w,
+            first_poll: true,
+            span,
+            phase,
+            flags,
+            b,
+        }
+    }
 }
 
 impl std::future::Future for CopyPackets {
@@ -222,11 +248,6 @@ fn copy_packets(from: Handle<DatagramRead>, to: Handle<DatagramWrite>) -> Handle
     debug!(parent: &span, "node created");
     let (f, t) = (from.lut(), to.lut());
 
-    let b = vec![0u8; 65536].into_boxed_slice();
-
-    let phase = Phase::ReadFromStream;
-    let flags = crate::scenario_executor::types::BufferFlags::default();
-
     if let Some(f) = f.as_ref() {
         span.record("f", tracing::field::debug(f));
     }
@@ -235,15 +256,7 @@ fn copy_packets(from: Handle<DatagramRead>, to: Handle<DatagramWrite>) -> Handle
     }
 
     if let (Some(r), Some(w)) = (f, t) {
-        CopyPackets {
-            r,
-            w,
-            first_poll: true,
-            span,
-            phase,
-            flags,
-            b,
-        }
+        CopyPackets::new(r, w, span, 65536)
         .wrap_noerr()
     } else {
         warn!(parent: &span, "Nothing to copy");
@@ -251,8 +264,75 @@ fn copy_packets(from: Handle<DatagramRead>, to: Handle<DatagramWrite>) -> Handle
     }
 }
 
+
+fn exchange_packets(opts: Dynamic, s1: Handle<DatagramSocket>, s2: Handle<DatagramSocket>) -> RhResult<Handle<Task>> {
+    let span = debug_span!(
+        "exchange_packets",
+        s1 = field::Empty,
+        s2 = field::Empty
+    );
+
+    #[derive(serde::Deserialize)]
+    struct ExchangeBytesOpts {
+        
+    }
+    let _opts: ExchangeBytesOpts = rhai::serde::from_dynamic(&opts)?;
+    debug!(parent: &span, "node created");
+    Ok(async move {
+        let (s1, s2) = (s1.lut(), s2.lut());
+
+        if let Some(s1) = s1.as_ref() {
+            span.record("s1", tracing::field::debug(s1));
+        }
+        if let Some(s2) = s2.as_ref() {
+            span.record("s2", tracing::field::debug(s2));
+        }
+
+        debug!(parent: &span, "node started");
+
+        if let (
+            Some(DatagramSocket {
+                read: Some(r1),
+                write: Some(w1),
+                close: c1,
+            }),
+            Some(DatagramSocket {
+                read: Some(r2),
+                write: Some(w2),
+                close: c2,
+            }),
+        ) = (s1, s2)
+        {    
+            let copier1 = CopyPackets::new(r1, w2, span.clone(), 65536);
+            let copier2 = CopyPackets::new(r2, w1, span.clone(), 65536);
+            let both_copiers = futures::future::join(copier1, copier2);
+
+            let c1p = c1.is_some();
+            let c1o: OptionFuture<_> = c1.into();
+
+            let c2p = c2.is_some();
+            let c2o: OptionFuture<_> = c2.into();
+
+            tokio::select! { biased;
+                Some(()) = c1o, if c1p => {
+                    debug!(parent: &span, "hangup1");
+                }
+                Some(()) = c2o, if c2p => {
+                    debug!(parent: &span, "hangup2");
+                }
+                ((),()) = both_copiers => {
+                    debug!("all directions finished");
+                }
+            }
+        } else {
+            error!(parent: &span, "Incomplete datagram sockets specified");
+        }
+    }.wrap_noerr())
+}
+
 pub fn register(engine: &mut Engine) {
     engine.register_fn("copy_bytes", copy_bytes);
-    engine.register_fn("copy_bytes_bidirectional", copy_bytes_bidirectional);
+    engine.register_fn("exchange_bytes", exchange_bytes);
     engine.register_fn("copy_packets", copy_packets);
+    engine.register_fn("exchange_packets", exchange_packets);
 }

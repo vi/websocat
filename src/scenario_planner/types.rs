@@ -2,6 +2,8 @@ use std::net::SocketAddr;
 
 use http::Uri;
 
+use crate::cli::WebsocatArgs;
+
 #[derive(Debug)]
 pub enum Endpoint {
     TcpConnectByIp(SocketAddr),
@@ -30,3 +32,13 @@ pub struct SpecifierStack {
 }
 
 
+pub struct WebsocatInvocation {
+    pub left: SpecifierStack,
+    pub right: SpecifierStack,
+    pub opts: WebsocatArgs,
+}
+
+pub enum CopyingType {
+    ByteStream,
+    Datarams,
+}

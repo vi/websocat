@@ -35,9 +35,15 @@ impl ParseStrChunkResult<'_> {
     fn from_str(x: &str) -> anyhow::Result<ParseStrChunkResult<'_>> {
         if x.starts_with("ws://") {
             let u = http::Uri::try_from(x)?;
+            if u.authority().is_none() {
+                anyhow::bail!("ws:// URL without authority");
+            }
             Ok(ParseStrChunkResult::Endpoint(Endpoint::WsUrl(u)))
         } else if x.starts_with("wss://") {
             let u = http::Uri::try_from(x)?;
+            if u.authority().is_none() {
+                anyhow::bail!("wss:// URL without authority");
+            }
             Ok(ParseStrChunkResult::Endpoint(Endpoint::WssUrl(u)))
         } else if let Some(rest) = x.strip_prefix("tcp:") {
             let a: SocketAddr = rest.parse()?;

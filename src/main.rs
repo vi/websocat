@@ -1,6 +1,7 @@
 use scenario_executor::{scenario::load_scenario, types::{Handle, Task}, utils::run_task};
+use scenario_planner::types::WebsocatInvocation;
 
-use crate::scenario_planner::{buildscenario::build_scenario, types::SpecifierStack};
+use crate::scenario_planner::types::SpecifierStack;
 
 
 
@@ -28,6 +29,7 @@ pub mod scenario_planner {
     pub mod fromstr;
     pub mod buildscenario;
     pub mod scenarioprinter;
+    pub mod patcher;
 }
 
 pub mod cli;
@@ -64,7 +66,13 @@ async fn main() -> anyhow::Result<()> {
             return Ok(());
         }
 
-        scenario_built_text = build_scenario(left_stack, right_stack, args)?;
+        let invocation = WebsocatInvocation {
+            left: left_stack,
+            right: right_stack,
+            opts: args,
+        };
+
+        scenario_built_text = invocation.build_scenario()?;
         global_scenario = &scenario_built_text;
 
         if dump_spec {

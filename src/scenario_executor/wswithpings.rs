@@ -85,7 +85,8 @@ impl PacketRead for WsDecoderThatCoexistsWithPingReplies {
 
                 let rb = &mut buf[prip.buffer_subset.clone()];
 
-                match PacketWrite::poll_write(Pin::new(&mut writer.inner), cx, rb, prip.flags) {
+                let flags = prip.flags & !BufferFlag::Ping | BufferFlag::Pong;
+                match PacketWrite::poll_write(Pin::new(&mut writer.inner), cx, rb, flags) {
                     Poll::Ready(Err(e)) => return Poll::Ready(Err(e)),
                     Poll::Ready(Ok(())) => {
                         this.ping_reply_in_progress = None;

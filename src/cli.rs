@@ -21,6 +21,14 @@ pub struct WebsocatArgs {
     #[argh(switch, short='x')]
     pub scenario: bool,
 
+    /// use text mode (one line = one WebSocket text message)
+    #[argh(switch, short='t')]
+    pub text: bool,
+
+    /// use binary mode (arbitrary byte chunk = one WebSocket binary message)
+    #[argh(switch, short='b')]
+    pub binary: bool,
+
 /*
     /// whether or not to jump
     #[argh(switch, short = 'j')]
