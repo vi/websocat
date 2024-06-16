@@ -54,6 +54,16 @@ impl Endpoint {
                 printer.increase_indent();
                 Ok(varnam)
             }
+            Endpoint::TcpConnectByHostname(name) => {
+                let addrs = printer.getnewvarname("addrs");
+                printer.print_line(&format!("lookup_host(\"{name}\", |{addrs}| {{"));
+                printer.increase_indent();
+
+                let varnam = printer.getnewvarname("tcp");
+                printer.print_line(&format!("connect_tcp_race(#{{}}, {addrs}, |{varnam}| {{"));
+                printer.increase_indent();
+                Ok(varnam)
+            }
             Endpoint::TcpListen(addr) => {
                 let varnam = printer.getnewvarname("tcp");
                 let fromaddr = printer.getnewvarname("from");
@@ -93,6 +103,13 @@ impl Endpoint {
             }
             Endpoint::UdpConnect(_) => todo!(),
             Endpoint::UdpBind(_) => todo!(),
+            Endpoint::TcpConnectByHostname(_)=> {
+                printer.decrease_indent();
+                printer.print_line("})");
+                
+                printer.decrease_indent();
+                printer.print_line("})");
+            }
         }
     }
 }

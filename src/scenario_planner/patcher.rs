@@ -40,6 +40,7 @@ impl Endpoint {
             Endpoint::Stdio => CopyingType::ByteStream,
             Endpoint::UdpConnect(_) => CopyingType::Datarams,
             Endpoint::UdpBind(_) => CopyingType::Datarams,
+            Endpoint::TcpConnectByHostname(_) => CopyingType::ByteStream,
         }
     }
 }
@@ -89,13 +90,19 @@ impl SpecifierStack {
                 host = host.strip_prefix('[').unwrap().strip_suffix(']').unwrap();
             }
 
-            let Ok(ip) : Result<IpAddr, _> = host.parse() else {
-                anyhow::bail!("Hostnames not supported yet")
+
+            let ip : Result<IpAddr, _> = host.parse();
+            
+            match ip {
+                Ok(ip) => {
+                    let addr = SocketAddr::new(ip, port);
+
+                    self.innermost = Endpoint::TcpConnectByIp(addr);
+                }
+                Err(_) => {
+                    self.innermost = Endpoint::TcpConnectByHostname(format!("{host}:{port}"));
+                }
             };
-
-            let addr = SocketAddr::new(ip, port);
-
-            self.innermost = Endpoint::TcpConnectByIp(addr);
 
             parts.scheme = None;
             let newurl = Uri::from_parts(parts).unwrap();

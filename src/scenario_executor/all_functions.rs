@@ -1,3 +1,5 @@
+use std::net::SocketAddr;
+
 use rhai::Engine;
 
 use crate::scenario_executor::types::{
@@ -31,4 +33,5 @@ pub fn register_types(engine: &mut Engine) {
     regtyp!(DatagramRead);
     regtyp!(DatagramWrite);
     regtyp!(DatagramSocket);
+    regtyp!(SocketAddr);
 }

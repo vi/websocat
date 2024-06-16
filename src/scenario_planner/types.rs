@@ -6,6 +6,7 @@ use crate::cli::WebsocatArgs;
 
 #[derive(Debug)]
 pub enum Endpoint {
+    TcpConnectByHostname(String),
     TcpConnectByIp(SocketAddr),
     TcpListen(SocketAddr),
     WsUrl(Uri),

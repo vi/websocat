@@ -49,8 +49,12 @@ impl ParseStrChunkResult<'_> {
             }
             Ok(ParseStrChunkResult::Endpoint(Endpoint::WssUrl(u)))
         } else if let Some(rest) = x.strip_prefix("tcp:") {
-            let a: SocketAddr = rest.parse()?;
-            Ok(ParseStrChunkResult::Endpoint(Endpoint::TcpConnectByIp(a)))
+            let a: Result<SocketAddr,_> = rest.parse();
+            match a {
+                Ok(a) => Ok(ParseStrChunkResult::Endpoint(Endpoint::TcpConnectByIp(a))),
+                Err(_) => Ok(ParseStrChunkResult::Endpoint(Endpoint::TcpConnectByHostname(rest.to_owned()))),
+            }
+            
         } else if let Some(rest) = x.strip_prefix("tcp-l:") {
             let a: SocketAddr = rest.parse()?;
             Ok(ParseStrChunkResult::Endpoint(Endpoint::TcpListen(a)))

@@ -1,7 +1,9 @@
 use std::{net::SocketAddr, time::Duration};
 
 use crate::scenario_executor::utils::TaskHandleExt2;
+use futures::{stream::FuturesUnordered, FutureExt, StreamExt};
 use rhai::{Dynamic, Engine, EvalAltResult, FnPtr, NativeCallContext};
+use tokio::net::TcpStream;
 use tracing::{debug, debug_span, error, Instrument};
 
 use crate::scenario_executor::{
@@ -28,7 +30,70 @@ fn connect_tcp(
 
     Ok(async move {
         debug!("node started");
-        let t = tokio::net::TcpStream::connect(opts.addr).await?;
+        let t = TcpStream::connect(opts.addr).await?;
+        let (r, w) = t.into_split();
+        let (r, w) = (Box::pin(r), Box::pin(w));
+
+        let s = StreamSocket {
+            read: Some(StreamRead {
+                reader: r,
+                prefix: Default::default(),
+            }),
+            write: Some(StreamWrite { writer: w }),
+            close: None,
+        };
+        debug!(s=?s, "connected");
+        let h = s.wrap();
+
+        callback_and_continue(the_scenario, continuation, (h,)).await;
+        Ok(())
+    }
+    .instrument(span)
+    .wrap())
+}
+
+fn connect_tcp_race(
+    ctx: NativeCallContext,
+    opts: Dynamic,
+    addrs: Vec<SocketAddr>,
+    continuation: FnPtr,
+) -> Result<Handle<Task>, Box<EvalAltResult>> {
+    let original_span = tracing::Span::current();
+    let span = debug_span!(parent: original_span, "connect_tcp_race");
+    let the_scenario = ctx.get_scenario()?;
+    debug!(parent: &span, "node created");
+    #[derive(serde::Deserialize)]
+    struct TcpOpts {
+        
+    }
+    let _opts: TcpOpts = rhai::serde::from_dynamic(&opts)?;
+    //span.record("addr", field::display(opts.addr));
+    debug!(parent: &span, addrs=?addrs, "options parsed");
+
+    Ok(async move {
+        debug!("node started");
+
+        let mut fu = FuturesUnordered::new();
+
+        for addr in addrs {
+            fu.push(TcpStream::connect(addr).map(move |x|(x, addr)));
+        }
+        
+        let t : TcpStream = loop { 
+            match fu.next().await {
+                Some((Ok(x), addr)) => {
+                    debug!(%addr, "connected");
+                    break x
+                }
+                Some((Err(e), addr)) => {
+                    debug!(%addr, %e, "failed to connect");
+                }
+                None => {
+                    anyhow::bail!("failed to connect to any of the candidates")
+                }
+            }
+        };
+
         let (r, w) = t.into_split();
         let (r, w) = (Box::pin(r), Box::pin(w));
 
@@ -119,5 +184,6 @@ fn listen_tcp(
 
 pub fn register(engine: &mut Engine) {
     engine.register_fn("connect_tcp", connect_tcp);
+    engine.register_fn("connect_tcp_race", connect_tcp_race);
     engine.register_fn("listen_tcp", listen_tcp);
 }
