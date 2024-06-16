@@ -1,8 +1,3 @@
-use std::net::{IpAddr, SocketAddr};
-
-use http::Uri;
-
-
 use super::{scenarioprinter::ScenarioPrinter, types::{CopyingType, Endpoint, Overlay, WebsocatInvocation}};
 
 impl WebsocatInvocation {
@@ -21,7 +16,7 @@ impl WebsocatInvocation {
         right = self.right.innermost.begin_print(&mut printer)?;
 
         for ovl in &self.right.overlays {
-            right = ovl.begin_print(&mut printer, &left)?;
+            right = ovl.begin_print(&mut printer, &right)?;
         }
 
         match self.get_copying_type() {
@@ -66,37 +61,8 @@ impl Endpoint {
                 printer.increase_indent();
                 Ok(varnam)
             }
-            Endpoint::WsUrl(u) => {
-                let mut parts = u.clone().into_parts();
-                let auth = parts.authority.take().unwrap();
-                let (mut host, port) = (auth.host(), auth.port_u16().unwrap_or(80));
-
-                if host.starts_with('[') && host.ends_with(']') {
-                    host = host.strip_prefix('[').unwrap().strip_suffix(']').unwrap();
-                }
-
-                let Ok(ip) : Result<IpAddr, _> = host.parse() else {
-                    anyhow::bail!("Hostnames not supported yet")
-                };
-
-                let addr = SocketAddr::new(ip, port);
-
-                let tcp = printer.getnewvarname("tcp");
-                printer.print_line(&format!("connect_tcp(#{{addr: \"{addr}\"}}, |{tcp}| {{"));
-                printer.increase_indent();
-
-                let wsframes = printer.getnewvarname("wsframes");
-
-                parts.scheme = None;
-
-                let newurl = Uri::from_parts(parts).unwrap();
-                printer.print_line(&format!("ws_upgrade({tcp}, #{{url: \"{newurl}\"}}, |{wsframes}| {{"));
-                printer.increase_indent();
-
-                let ws = printer.getnewvarname("ws");
-                printer.print_line(&format!("let {ws} = ws_wrap(#{{client: true}}, {wsframes});"));
-
-                Ok(ws)
+            Endpoint::WsUrl(..) => {
+                panic!("This endpoint is supposed to be split up by specifier stack patcher before.");
             }
             Endpoint::WssUrl(_) => todo!(),
             Endpoint::Stdio => {
@@ -119,10 +85,7 @@ impl Endpoint {
                 printer.print_line("})");
             },
             Endpoint::WsUrl(_) => {
-                printer.decrease_indent();
-                printer.print_line("})");
-                printer.decrease_indent();
-                printer.print_line("})");
+                panic!("This endpoint is supposed to be split up by specifier stack patcher before.");
             }
             Endpoint::WssUrl(_) => todo!(),
             Endpoint::Stdio => {
@@ -137,8 +100,20 @@ impl Endpoint {
 impl Overlay {
     fn begin_print(&self, printer: &mut ScenarioPrinter, inner_var: &str) -> anyhow::Result<String> {
         match self {
-            Overlay::WsUpgrade(_) => todo!(),
-            Overlay::WsWrap => todo!(),
+            Overlay::WsUpgrade(u) => {
+                let wsframes = printer.getnewvarname("wsframes");
+
+                printer.print_line(&format!("ws_upgrade({inner_var}, #{{url: \"{u}\"}}, |{wsframes}| {{"));
+                printer.increase_indent();
+
+                Ok(wsframes)
+            }
+            Overlay::WsFramer{client_mode} => {
+                let ws = printer.getnewvarname("ws");
+                printer.print_line(&format!("let {ws} = ws_wrap(#{{client: {client_mode}}}, {inner_var});"));
+
+                Ok(ws)
+            }
             Overlay::StreamChunks => {
                 let varnam = printer.getnewvarname("chunks");
                 printer.print_line(&format!("let {varnam} = stream_chunks({inner_var});"));
@@ -146,10 +121,13 @@ impl Overlay {
             }
         }
     }
-    fn end_print(&self, _printer: &mut ScenarioPrinter) {
+    fn end_print(&self, printer: &mut ScenarioPrinter) {
         match self {
-            Overlay::WsUpgrade(_) => todo!(),
-            Overlay::WsWrap => todo!(),
+            Overlay::WsUpgrade(_) => {
+                printer.decrease_indent();
+                printer.print_line("})");
+            }
+            Overlay::WsFramer{..} => (),
             Overlay::StreamChunks => (),
         }
     }

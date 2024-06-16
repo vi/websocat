@@ -11,6 +11,7 @@
 * It is OK to have multiple indirections for each transferred data chunk (i.e. `dyn` layer between stdio and line wrapper, then between line wrapper and WebSocket framer, then between the framer and TLS layer, then between the TLS layer and TCP socket).
 * `fn poll` is also the way, not everything needs to be async.
 * It is OK to add more elaborate `scenario_executor` things to simplify Websocat's Rhai scripts.
+* Address types and overlay stacks use `enum` approach, not `dyn`.
 
 # History or Websocat redesigns
 
@@ -24,7 +25,7 @@ Used `websocket` crate, `clap` for CLI.
 ## 1.0
 
 Based on tokio-core, later on Tokio v0.1.
-Specifier stacks.
+Specifier stacks, using `dyn`-based pluggable overlays and address types.
 Locked to single async IO thread only. Uses `Rc<RefCell>` a lot.
 Iffy error handing.
 Still uses `websocket` crate.
