@@ -8,6 +8,7 @@ edition = "2021"
 [dependencies]
 anyhow = "1.0.75"
 argh = "0.1.12"
+base64 = "0.22.1"
 bytes = "1.5.0"
 catty = "0.1.5"
 flagset = "0.4.4"
@@ -21,6 +22,7 @@ pin-project = "1.1.5"
 rand = "0.8.5"
 rhai = { version = "1.16.2", features = ["serde", "internals", "sync", "no_custom_syntax", "no_float", "no_time", "no_module", "no_optimize", "unchecked"] }
 serde = { version = "1.0.188", features = ["derive"] }
+sha1 = "0.10.6"
 sharded-slab = "0.1.7"
 smallvec = "1.11.1"
 tinyvec = "1.6.0"

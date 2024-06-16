@@ -21,7 +21,7 @@ impl SpecifierStack {
         let mut typ = self.innermost.get_copying_type();
         for ovl in &self.overlays {
             match ovl {
-                Overlay::WsUpgrade(_) => typ = CopyingType::ByteStream,
+                Overlay::WsUpgrade{..} => typ = CopyingType::ByteStream,
                 Overlay::WsFramer{..} => typ = CopyingType::Datarams,
                 Overlay::StreamChunks => typ = CopyingType::Datarams,
             }
@@ -80,6 +80,9 @@ impl SpecifierStack {
         if let Endpoint::WsUrl(ref u) = self.innermost {
             let mut parts = u.clone().into_parts();
             let auth = parts.authority.take().unwrap();
+            if auth.as_str().contains('@') {
+                anyhow::bail!("Usernames in URLs not supported");
+            }
             let (mut host, port) = (auth.host(), auth.port_u16().unwrap_or(80));
 
             if host.starts_with('[') && host.ends_with(']') {
@@ -97,7 +100,7 @@ impl SpecifierStack {
             parts.scheme = None;
             let newurl = Uri::from_parts(parts).unwrap();
 
-            self.overlays.insert(0, Overlay::WsUpgrade(newurl));
+            self.overlays.insert(0, Overlay::WsUpgrade{uri: newurl, host: auth.to_string()});
             self.overlays.insert(1, Overlay::WsFramer { client_mode: true });
             
 

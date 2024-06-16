@@ -18,7 +18,7 @@ pub enum Endpoint {
 
 #[derive(Debug)]
 pub enum Overlay {
-    WsUpgrade(Uri),
+    WsUpgrade{uri:Uri, host:String},
     WsFramer{client_mode: bool},
     StreamChunks,
 }

@@ -100,10 +100,10 @@ impl Endpoint {
 impl Overlay {
     fn begin_print(&self, printer: &mut ScenarioPrinter, inner_var: &str) -> anyhow::Result<String> {
         match self {
-            Overlay::WsUpgrade(u) => {
+            Overlay::WsUpgrade{ uri, host } => {
                 let wsframes = printer.getnewvarname("wsframes");
 
-                printer.print_line(&format!("ws_upgrade({inner_var}, #{{url: \"{u}\"}}, |{wsframes}| {{"));
+                printer.print_line(&format!("ws_upgrade({inner_var}, #{{host: \"{host}\", url: \"{uri}\"}}, |{wsframes}| {{"));
                 printer.increase_indent();
 
                 Ok(wsframes)
@@ -123,7 +123,7 @@ impl Overlay {
     }
     fn end_print(&self, printer: &mut ScenarioPrinter) {
         match self {
-            Overlay::WsUpgrade(_) => {
+            Overlay::WsUpgrade{..} => {
                 printer.decrease_indent();
                 printer.print_line("})");
             }
