@@ -1,8 +1,5 @@
-use std::collections::HashMap;
-
 pub struct ScenarioPrinter {
     out: String,
-    varnames : HashMap<&'static str, usize>,
     indent: usize,
 }
 
@@ -10,15 +7,8 @@ impl ScenarioPrinter {
     pub fn new() -> ScenarioPrinter {
         ScenarioPrinter { 
             out: String::with_capacity(1024),
-            varnames: HashMap::with_capacity(4),
             indent: 0,
         }
-    }
-
-    pub fn getnewvarname(&mut self, prefix: &'static str) -> String {
-        let e = self.varnames.entry(prefix).or_default();
-        *e += 1;
-        return format!("{prefix}{}", *e)
     }
 
     pub fn print_line(&mut self, s: &str) {

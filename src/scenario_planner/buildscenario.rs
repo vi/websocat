@@ -1,22 +1,26 @@
-use super::{scenarioprinter::ScenarioPrinter, types::{CopyingType, Endpoint, Overlay, WebsocatInvocation}};
+use super::{scenarioprinter::ScenarioPrinter, types::{CopyingType, Endpoint, Overlay, PreparatoryAction, WebsocatInvocation}, utils::IdentifierGenerator};
 
 impl WebsocatInvocation {
-    pub fn build_scenario(self) -> anyhow::Result<String> {
+    pub fn build_scenario(self,  vars : &mut  IdentifierGenerator) -> anyhow::Result<String> {
         let mut printer = ScenarioPrinter::new();
 
         let mut left : String;
         let mut right : String;
 
-        left = self.left.innermost.begin_print(&mut printer)?;
-
-        for ovl in &self.left.overlays {
-            left = ovl.begin_print(&mut printer, &left)?;
+        for prepare_action in &self.beginning {
+            prepare_action.begin_print(&mut printer, vars)?;
         }
 
-        right = self.right.innermost.begin_print(&mut printer)?;
+        left = self.left.innermost.begin_print(&mut printer, vars)?;
+
+        for ovl in &self.left.overlays {
+            left = ovl.begin_print(&mut printer, &left, vars)?;
+        }
+
+        right = self.right.innermost.begin_print(&mut printer, vars)?;
 
         for ovl in &self.right.overlays {
-            right = ovl.begin_print(&mut printer, &right)?;
+            right = ovl.begin_print(&mut printer, &right, vars)?;
         }
 
         match self.get_copying_type() {
@@ -40,33 +44,43 @@ impl WebsocatInvocation {
 
         self.left.innermost.end_print(&mut printer);
 
+        for prepare_action in self.beginning.iter().rev() {
+            prepare_action.end_print(&mut printer);
+        }
+
         Ok(printer.into_result())
     }
 }
 
 
 impl Endpoint {
-    fn begin_print(&self, printer: &mut ScenarioPrinter) -> anyhow::Result<String> {
+    fn begin_print(&self, printer: &mut ScenarioPrinter, vars: &mut IdentifierGenerator) -> anyhow::Result<String> {
         match self {
             Endpoint::TcpConnectByIp(addr) => {
-                let varnam = printer.getnewvarname("tcp");
+                let varnam = vars.getnewvarname("tcp");
                 printer.print_line(&format!("connect_tcp(#{{addr: \"{addr}\"}}, |{varnam}| {{"));
                 printer.increase_indent();
                 Ok(varnam)
             }
-            Endpoint::TcpConnectByHostname(name) => {
-                let addrs = printer.getnewvarname("addrs");
-                printer.print_line(&format!("lookup_host(\"{name}\", |{addrs}| {{"));
+            Endpoint::TcpConnectByEarlyHostname { varname_for_addrs } => {
+                let varnam = vars.getnewvarname("tcp");
+                printer.print_line(&format!("connect_tcp_race(#{{}}, {varname_for_addrs}, |{varnam}| {{"));
+                printer.increase_indent();
+                Ok(varnam)
+            }
+            Endpoint::TcpConnectByLateHostname { hostname } => {
+                let addrs = vars.getnewvarname("addrs");
+                printer.print_line(&format!("lookup_host(\"{hostname}\", |{addrs}| {{"));
                 printer.increase_indent();
 
-                let varnam = printer.getnewvarname("tcp");
+                let varnam = vars.getnewvarname("tcp");
                 printer.print_line(&format!("connect_tcp_race(#{{}}, {addrs}, |{varnam}| {{"));
                 printer.increase_indent();
                 Ok(varnam)
             }
             Endpoint::TcpListen(addr) => {
-                let varnam = printer.getnewvarname("tcp");
-                let fromaddr = printer.getnewvarname("from");
+                let varnam = vars.getnewvarname("tcp");
+                let fromaddr = vars.getnewvarname("from");
                 printer.print_line(&format!("listen_tcp(#{{autospawn: true, addr: \"{addr}\"}}, |{varnam}, {fromaddr}| {{"));
                 printer.increase_indent();
                 Ok(varnam)
@@ -76,7 +90,7 @@ impl Endpoint {
             }
             Endpoint::WssUrl(_) => todo!(),
             Endpoint::Stdio => {
-                let varnam = printer.getnewvarname("stdio");
+                let varnam = vars.getnewvarname("stdio");
                 printer.print_line(&format!("let {varnam} = create_stdio();"));
                 Ok(varnam)
             }
@@ -87,6 +101,10 @@ impl Endpoint {
     fn end_print(&self, printer: &mut ScenarioPrinter) {
         match self {
             Endpoint::TcpConnectByIp(_) => {
+                printer.decrease_indent();
+                printer.print_line("})");
+            }
+            Endpoint::TcpConnectByEarlyHostname {.. } => {
                 printer.decrease_indent();
                 printer.print_line("})");
             }
@@ -103,7 +121,7 @@ impl Endpoint {
             }
             Endpoint::UdpConnect(_) => todo!(),
             Endpoint::UdpBind(_) => todo!(),
-            Endpoint::TcpConnectByHostname(_)=> {
+            Endpoint::TcpConnectByLateHostname { hostname: _ }=> {
                 printer.decrease_indent();
                 printer.print_line("})");
                 
@@ -115,10 +133,10 @@ impl Endpoint {
 }
 
 impl Overlay {
-    fn begin_print(&self, printer: &mut ScenarioPrinter, inner_var: &str) -> anyhow::Result<String> {
+    fn begin_print(&self, printer: &mut ScenarioPrinter, inner_var: &str, vars: &mut IdentifierGenerator) -> anyhow::Result<String> {
         match self {
             Overlay::WsUpgrade{ uri, host } => {
-                let wsframes = printer.getnewvarname("wsframes");
+                let wsframes = vars.getnewvarname("wsframes");
 
                 printer.print_line(&format!("ws_upgrade({inner_var}, #{{host: \"{host}\", url: \"{uri}\"}}, |{wsframes}| {{"));
                 printer.increase_indent();
@@ -126,13 +144,13 @@ impl Overlay {
                 Ok(wsframes)
             }
             Overlay::WsFramer{client_mode} => {
-                let ws = printer.getnewvarname("ws");
+                let ws = vars.getnewvarname("ws");
                 printer.print_line(&format!("let {ws} = ws_wrap(#{{client: {client_mode}}}, {inner_var});"));
 
                 Ok(ws)
             }
             Overlay::StreamChunks => {
-                let varnam = printer.getnewvarname("chunks");
+                let varnam = vars.getnewvarname("chunks");
                 printer.print_line(&format!("let {varnam} = stream_chunks({inner_var});"));
                 Ok(varnam)
             }
@@ -146,6 +164,26 @@ impl Overlay {
             }
             Overlay::WsFramer{..} => (),
             Overlay::StreamChunks => (),
+        }
+    }
+}
+
+impl PreparatoryAction {
+    fn  begin_print(&self, printer: &mut ScenarioPrinter, _vars: &mut IdentifierGenerator) -> anyhow::Result<()> {
+        match self {
+            PreparatoryAction::ResolveHostname { hostname, varname_for_addrs } =>  {
+                printer.print_line(&format!("lookup_host(\"{hostname}\", |{varname_for_addrs}| {{"));
+                printer.increase_indent();
+            }
+        }
+        Ok(())
+    }
+    fn end_print(&self, printer: &mut ScenarioPrinter) {
+        match self {
+            PreparatoryAction::ResolveHostname {..} => {
+                printer.decrease_indent();
+                printer.print_line("})");
+            }
         }
     }
 }

@@ -52,7 +52,7 @@ impl ParseStrChunkResult<'_> {
             let a: Result<SocketAddr,_> = rest.parse();
             match a {
                 Ok(a) => Ok(ParseStrChunkResult::Endpoint(Endpoint::TcpConnectByIp(a))),
-                Err(_) => Ok(ParseStrChunkResult::Endpoint(Endpoint::TcpConnectByHostname(rest.to_owned()))),
+                Err(_) => Ok(ParseStrChunkResult::Endpoint(Endpoint::TcpConnectByLateHostname { hostname: rest.to_owned() })),
             }
             
         } else if let Some(rest) = x.strip_prefix("tcp-l:") {

@@ -15,7 +15,11 @@ pub struct WebsocatArgs {
 
     /// do not execute this Websocat invocation, print debug representation of specified arguments.
     #[argh(switch)]
-    pub dump_spec_early: bool,
+    pub dump_spec_phase1: bool,
+    
+    /// do not execute this Websocat invocation, print debug representation of specified arguments.
+    #[argh(switch)]
+    pub dump_spec_phase2: bool,
 
     /// execute specified file as Rhai script (e.g. resutling from --dump-spec option output)
     #[argh(switch, short='x')]
@@ -28,6 +32,10 @@ pub struct WebsocatArgs {
     /// use binary mode (arbitrary byte chunk = one WebSocket binary message)
     #[argh(switch, short='b')]
     pub binary: bool,
+
+    /// resolve hostnames to IP addresses late (every time when forwarding a connection) instead of one time at the beginning
+    #[argh(switch)]
+    pub late_resolve: bool,
 
 /*
     /// whether or not to jump

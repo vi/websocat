@@ -1,4 +1,4 @@
-use std::net::SocketAddr;
+use std:: net::SocketAddr;
 
 use http::Uri;
 
@@ -6,7 +6,10 @@ use crate::cli::WebsocatArgs;
 
 #[derive(Debug)]
 pub enum Endpoint {
-    TcpConnectByHostname(String),
+    TcpConnectByEarlyHostname { varname_for_addrs: String },
+    /// All TCP connections start as late-resolved when parsing CLI argument,
+    /// but may be converted to early-resolved by the patcher.
+    TcpConnectByLateHostname { hostname: String },
     TcpConnectByIp(SocketAddr),
     TcpListen(SocketAddr),
     WsUrl(Uri),
@@ -33,14 +36,23 @@ pub struct SpecifierStack {
 }
 
 
+#[derive(Debug)]
+pub enum PreparatoryAction {
+    ResolveHostname{ hostname : String, varname_for_addrs : String },
+}
+
 pub struct WebsocatInvocation {
     pub left: SpecifierStack,
     pub right: SpecifierStack,
     pub opts: WebsocatArgs,
+
+    pub beginning: Vec<PreparatoryAction>,
 }
+
 
 #[derive(Debug,Clone, Copy,PartialEq, Eq)]
 pub enum CopyingType {
     ByteStream,
     Datarams,
 }
+

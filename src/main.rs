@@ -1,5 +1,5 @@
 use scenario_executor::{scenario::load_scenario, types::{Handle, Task}, utils::run_task};
-use scenario_planner::types::WebsocatInvocation;
+use scenario_planner::{types::WebsocatInvocation, utils::IdentifierGenerator};
 
 use crate::scenario_planner::types::SpecifierStack;
 
@@ -30,6 +30,7 @@ pub mod scenario_planner {
     pub mod buildscenario;
     pub mod scenarioprinter;
     pub mod patcher;
+    pub mod utils;
 }
 
 pub mod cli;
@@ -69,18 +70,24 @@ async fn main() -> anyhow::Result<()> {
             left: left_stack,
             right: right_stack,
             opts: args,
+            beginning: vec![],
         };
 
-        invocation.patches()?;
+        let mut idgen = IdentifierGenerator::new();
 
-        if invocation.opts.dump_spec_early {
+        if ! invocation.opts.dump_spec_phase1 {
+            invocation.patches(&mut idgen)?;
+        }
+
+        if invocation.opts.dump_spec_phase1 || invocation.opts.dump_spec_phase2 {
             println!("{:#?}", invocation.left);
             println!("{:#?}", invocation.right);
             println!("{:#?}", invocation.opts);
+            println!("{:#?}", invocation.beginning);
             return Ok(());
         }
 
-        scenario_built_text = invocation.build_scenario()?;
+        scenario_built_text = invocation.build_scenario(&mut idgen)?;
         global_scenario = &scenario_built_text;
 
         if dump_spec {
