@@ -8,7 +8,11 @@ use rhai::{Dynamic, Engine, EvalAltResult, FnPtr, NativeCallContext};
 use sha1::{Digest, Sha1};
 use tracing::{debug, debug_span, error, field, Instrument};
 
-use crate::scenario_executor::{scenario::{callback_and_continue, ScenarioAccess}, types::{Handle, StreamSocket, StreamWrite, Task}, utils::{HandleExt2, TaskHandleExt2}};
+use crate::scenario_executor::{
+    scenario::{callback_and_continue, ScenarioAccess},
+    types::{Handle, StreamSocket, StreamWrite, Task},
+    utils::{HandleExt2, TaskHandleExt2},
+};
 
 static MAGIC_GUID: &str = "258EAFA5-E914-47DA-95CA-C5AB0DC85B11";
 
@@ -37,20 +41,21 @@ fn ws_upgrade(
         let opts = opts;
         debug!("node started");
         let Some(StreamSocket {
-                read: Some(r),
-                write: Some(w),
-                close: c,
-            }) = inner.lut() else {
-                bail!("Incomplete underlying socket specified")
-            };
+            read: Some(r),
+            write: Some(w),
+            close: c,
+        }) = inner.lut()
+        else {
+            bail!("Incomplete underlying socket specified")
+        };
 
         let io = tokio::io::join(r, w.writer);
         let mut io = Some(TokioIo::new(io));
 
         let (mut sr, conn): (SendRequest<http_body_util::Empty<Bytes>>, Connection<_, _>) =
-        hyper::client::conn::http1::Builder::new()
-            .handshake(io.take().unwrap())
-            .await?;
+            hyper::client::conn::http1::Builder::new()
+                .handshake(io.take().unwrap())
+                .await?;
 
         tokio::spawn(async move {
             match conn.with_upgrades().await {
@@ -62,11 +67,11 @@ fn ws_upgrade(
         });
 
         let key = {
-            let array : [u8; 16] = rand::random();
+            let array: [u8; 16] = rand::random();
             base64::prelude::BASE64_STANDARD.encode(array)
         };
 
-        let mut rqb =  http::Request::builder()
+        let mut rqb = http::Request::builder()
             .uri(opts.url)
             .header(header::CONNECTION, "upgrade")
             .header(header::UPGRADE, "websocket")
@@ -76,15 +81,13 @@ fn ws_upgrade(
         if let Some(hh) = opts.host {
             rqb = rqb.header(header::HOST, hh);
         }
-        let rq = rqb
-            .body(http_body_util::Empty::<Bytes>::new())?;
-
+        let rq = rqb.body(http_body_util::Empty::<Bytes>::new())?;
 
         debug!("request {rq:?}");
         let resp = sr.send_request(rq).await?;
         debug!("response {resp:?}");
 
-        if ! opts.lax {
+        if !opts.lax {
             if resp.status() != StatusCode::SWITCHING_PROTOCOLS {
                 bail!(
                     "Upstream server returned status code other than `switching protocols`: {}",
@@ -100,22 +103,24 @@ fn ws_upgrade(
             let Some(upstream_accept) = resp.headers().get(header::SEC_WEBSOCKET_ACCEPT) else {
                 bail!("Upstream server failed to return an `Sec-Websocket-Accept` header");
             };
-    
+
             let mut keybuf = String::with_capacity(key.len() + 36);
             keybuf.push_str(&key[..]);
             keybuf.push_str(MAGIC_GUID);
             let hash = Sha1::digest(keybuf.as_bytes());
             let expected_accept = base64::prelude::BASE64_STANDARD.encode(hash);
-    
+
             if upstream_accept != expected_accept.as_bytes() {
-                bail!("Upstream server failed to return invalid `Sec-Websocket-Accept` header value");
+                bail!(
+                    "Upstream server failed to return invalid `Sec-Websocket-Accept` header value"
+                );
             }
         }
 
         let upg = hyper::upgrade::on(resp).await?;
         let parts = upg.downcast().unwrap();
         io = Some(parts.io);
-        let (mut r,w) = io.unwrap().into_inner().into_inner();
+        let (mut r, w) = io.unwrap().into_inner().into_inner();
 
         let mut new_prefix = BytesMut::from(&parts.read_buf[..]);
         new_prefix.extend_from_slice(&r.prefix);
@@ -129,10 +134,10 @@ fn ws_upgrade(
         debug!(s=?s, "upgraded");
         let h = s.wrap();
 
-        callback_and_continue(the_scenario, continuation, (h,))
-            .await;
+        callback_and_continue(the_scenario, continuation, (h,)).await;
         Ok(())
-    }.instrument(span)
+    }
+    .instrument(span)
     .wrap())
 }
 

@@ -7,14 +7,17 @@ use tracing::{debug, debug_span, error, field, Instrument};
 
 use crate::scenario_executor::{
     debugfluff::PtrDbg,
-    types::{BufferFlag, BufferFlags, DatagramRead, DatagramWrite, Handle, PacketRead, PacketWrite, StreamRead, StreamSocket, StreamWrite, Task},
-    utils::{
-        run_task, ExtractHandleOrFail, HandleExt, RhResult,
-        TaskHandleExt,
+    types::{
+        BufferFlag, BufferFlags, DatagramRead, DatagramWrite, Handle, PacketRead, PacketWrite,
+        StreamRead, StreamSocket, StreamWrite, Task,
     },
+    utils::{run_task, ExtractHandleOrFail, HandleExt, RhResult, TaskHandleExt},
 };
 
-use super::{types::{DatagramSocket, Hangup, PacketReadResult}, utils::{HandleExt2, SimpleErr}};
+use super::{
+    types::{DatagramSocket, Hangup, PacketReadResult},
+    utils::{HandleExt2, SimpleErr},
+};
 
 fn take_read_part(ctx: NativeCallContext, h: Handle<StreamSocket>) -> RhResult<Handle<StreamRead>> {
     if let Some(s) = h.lock().unwrap().as_mut() {
@@ -24,7 +27,10 @@ fn take_read_part(ctx: NativeCallContext, h: Handle<StreamSocket>) -> RhResult<H
     }
 }
 
-fn take_write_part(ctx: NativeCallContext, h: Handle<StreamSocket>) -> RhResult<Handle<StreamWrite>> {
+fn take_write_part(
+    ctx: NativeCallContext,
+    h: Handle<StreamSocket>,
+) -> RhResult<Handle<StreamWrite>> {
     if let Some(s) = h.lock().unwrap().as_mut() {
         Ok(s.write.take().wrap())
     } else {
@@ -32,7 +38,10 @@ fn take_write_part(ctx: NativeCallContext, h: Handle<StreamSocket>) -> RhResult<
     }
 }
 
-fn take_source_part(ctx: NativeCallContext, h: Handle<DatagramSocket>) -> RhResult<Handle<DatagramRead>> {
+fn take_source_part(
+    ctx: NativeCallContext,
+    h: Handle<DatagramSocket>,
+) -> RhResult<Handle<DatagramRead>> {
     if let Some(s) = h.lock().unwrap().as_mut() {
         Ok(s.read.take().wrap())
     } else {
@@ -40,7 +49,10 @@ fn take_source_part(ctx: NativeCallContext, h: Handle<DatagramSocket>) -> RhResu
     }
 }
 
-fn take_sink_part(ctx: NativeCallContext, h: Handle<DatagramSocket>) -> RhResult<Handle<DatagramWrite>> {
+fn take_sink_part(
+    ctx: NativeCallContext,
+    h: Handle<DatagramSocket>,
+) -> RhResult<Handle<DatagramWrite>> {
     if let Some(s) = h.lock().unwrap().as_mut() {
         Ok(s.write.take().wrap())
     } else {
@@ -53,20 +65,23 @@ fn take_hangup_part(ctx: NativeCallContext, h: Dynamic) -> RhResult<Handle<Hangu
             Ok(s.close.take().wrap())
         } else {
             Err(ctx.err("StreamSocket is null"))
-        }
+        };
     }
     if let Some(h) = h.clone().try_cast::<Handle<DatagramSocket>>() {
         return if let Some(s) = h.lock().unwrap().as_mut() {
             Ok(s.close.take().wrap())
         } else {
             Err(ctx.err("DatagramSocket is null"))
-        }
+        };
     }
     Err(ctx.err("take_hangup_part expects StreamSocket or DatagramSocket as argument"))
 }
 
-
-fn put_read_part(ctx: NativeCallContext, h: Handle<StreamSocket>, x: Handle<StreamRead>) -> RhResult<()> {
+fn put_read_part(
+    ctx: NativeCallContext,
+    h: Handle<StreamSocket>,
+    x: Handle<StreamRead>,
+) -> RhResult<()> {
     if let Some(s) = h.lock().unwrap().as_mut() {
         s.read = x.lut();
         Ok(())
@@ -75,7 +90,11 @@ fn put_read_part(ctx: NativeCallContext, h: Handle<StreamSocket>, x: Handle<Stre
     }
 }
 
-fn put_write_part(ctx: NativeCallContext, h: Handle<StreamSocket>, x: Handle<StreamWrite>) -> RhResult<()> {
+fn put_write_part(
+    ctx: NativeCallContext,
+    h: Handle<StreamSocket>,
+    x: Handle<StreamWrite>,
+) -> RhResult<()> {
     if let Some(s) = h.lock().unwrap().as_mut() {
         s.write = x.lut();
         Ok(())
@@ -84,7 +103,11 @@ fn put_write_part(ctx: NativeCallContext, h: Handle<StreamSocket>, x: Handle<Str
     }
 }
 
-fn put_source_part(ctx: NativeCallContext, h: Handle<DatagramSocket>, x: Handle<DatagramRead>) -> RhResult<()> {
+fn put_source_part(
+    ctx: NativeCallContext,
+    h: Handle<DatagramSocket>,
+    x: Handle<DatagramRead>,
+) -> RhResult<()> {
     if let Some(s) = h.lock().unwrap().as_mut() {
         s.read = x.lut();
         Ok(())
@@ -92,7 +115,11 @@ fn put_source_part(ctx: NativeCallContext, h: Handle<DatagramSocket>, x: Handle<
         Err(ctx.err("DatagramSocket null"))
     }
 }
-fn put_sink_part(ctx: NativeCallContext, h: Handle<DatagramSocket>, x: Handle<DatagramWrite>) -> RhResult<()> {
+fn put_sink_part(
+    ctx: NativeCallContext,
+    h: Handle<DatagramSocket>,
+    x: Handle<DatagramWrite>,
+) -> RhResult<()> {
     if let Some(s) = h.lock().unwrap().as_mut() {
         s.write = x.lut();
         Ok(())
@@ -107,7 +134,7 @@ fn put_hangup_part(ctx: NativeCallContext, h: Dynamic, x: Handle<Hangup>) -> RhR
             Ok(())
         } else {
             Err(ctx.err("StreamSocket is null"))
-        }
+        };
     }
     if let Some(h) = h.clone().try_cast::<Handle<DatagramSocket>>() {
         return if let Some(s) = h.lock().unwrap().as_mut() {
@@ -115,12 +142,10 @@ fn put_hangup_part(ctx: NativeCallContext, h: Dynamic, x: Handle<Hangup>) -> RhR
             Ok(())
         } else {
             Err(ctx.err("DatagramSocket is null"))
-        }
+        };
     }
     Err(ctx.err("take_hangup_part expects StreamSocket or DatagramSocket as argument"))
 }
-
-
 
 fn dummytask() -> Handle<Task> {
     async move {}.wrap_noerr()
@@ -191,7 +216,7 @@ impl PacketRead for ReadStreamChunks {
         let sr: Pin<&mut StreamRead> = self.project().0;
 
         let mut rb = ReadBuf::new(buf);
-        
+
         match tokio::io::AsyncRead::poll_read(sr, cx, &mut rb) {
             Poll::Ready(Ok(())) => {
                 let new_len = rb.filled().len();
@@ -211,7 +236,10 @@ impl PacketRead for ReadStreamChunks {
     }
 }
 
-fn read_stream_chunks(ctx: NativeCallContext, x: Handle<StreamRead>) -> RhResult<Handle<DatagramRead>> {
+fn read_stream_chunks(
+    ctx: NativeCallContext,
+    x: Handle<StreamRead>,
+) -> RhResult<Handle<DatagramRead>> {
     let x = ctx.lutbar(x)?;
     debug!(inner=?x, "read_stream_chunks");
     let x = DatagramRead {
@@ -222,7 +250,10 @@ fn read_stream_chunks(ctx: NativeCallContext, x: Handle<StreamRead>) -> RhResult
 }
 
 #[pin_project]
-struct WriteStreamChunks { w: StreamWrite, debt: usize }
+struct WriteStreamChunks {
+    w: StreamWrite,
+    debt: usize,
+}
 
 impl PacketWrite for WriteStreamChunks {
     fn poll_write(
@@ -233,7 +264,7 @@ impl PacketWrite for WriteStreamChunks {
     ) -> Poll<std::io::Result<()>> {
         let p = self.project();
         let sw: &mut StreamWrite = p.w;
-        
+
         loop {
             assert!(buf.len() >= *p.debt);
             let buf_chunk = &buf[*p.debt..];
@@ -263,35 +294,41 @@ impl PacketWrite for WriteStreamChunks {
                 Poll::Pending => return Poll::Pending,
             }
         }
-        return Poll::Ready(Ok(()))
+        return Poll::Ready(Ok(()));
     }
 }
 
-fn write_stream_chunks(ctx: NativeCallContext, x: Handle<StreamWrite>) -> RhResult<Handle<DatagramWrite>> {
+fn write_stream_chunks(
+    ctx: NativeCallContext,
+    x: Handle<StreamWrite>,
+) -> RhResult<Handle<DatagramWrite>> {
     let x = ctx.lutbar(x)?;
     debug!(inner=?x, "write_stream_chunks");
     let x = DatagramWrite {
-        snk: Box::pin(WriteStreamChunks{w:x, debt:0}),
+        snk: Box::pin(WriteStreamChunks { w: x, debt: 0 }),
     };
     debug!(wrapped=?x, "write_stream_chunks");
     Ok(x.wrap())
 }
 
-fn stream_chunks(ctx: NativeCallContext, x: Handle<StreamSocket>) -> RhResult<Handle<DatagramSocket>> {
+fn stream_chunks(
+    ctx: NativeCallContext,
+    x: Handle<StreamSocket>,
+) -> RhResult<Handle<DatagramSocket>> {
     let x = ctx.lutbar(x)?;
     debug!(inner=?x, "stream_chunks");
 
     if let StreamSocket {
-            read: Some(r),
-            write: Some(w),
-            close,
-        }  = x
+        read: Some(r),
+        write: Some(w),
+        close,
+    } = x
     {
         let write = DatagramWrite {
-            snk: Box::pin(WriteStreamChunks{w:w, debt:0}),
+            snk: Box::pin(WriteStreamChunks { w: w, debt: 0 }),
         };
         let read = DatagramRead {
-            src: Box::pin(ReadStreamChunks(r) ),
+            src: Box::pin(ReadStreamChunks(r)),
         };
         let x = DatagramSocket {
             read: Some(read),

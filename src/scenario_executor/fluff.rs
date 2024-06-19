@@ -31,7 +31,7 @@ impl PacketRead for TrivialPkts {
             }));
         } else {
             let msg = format!("{}", this.n);
-            let msg =  msg.as_bytes();
+            let msg = msg.as_bytes();
             let l = msg.len();
             buf[..l].copy_from_slice(msg);
             this.n -= 1;

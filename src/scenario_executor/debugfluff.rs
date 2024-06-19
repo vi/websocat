@@ -1,4 +1,6 @@
-use crate::scenario_executor::types::{DatagramRead, DatagramWrite, StreamRead, StreamSocket, StreamWrite};
+use crate::scenario_executor::types::{
+    DatagramRead, DatagramWrite, StreamRead, StreamSocket, StreamWrite,
+};
 
 use super::types::DatagramSocket;
 

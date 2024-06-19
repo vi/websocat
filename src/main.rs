@@ -1,36 +1,38 @@
-use scenario_executor::{scenario::load_scenario, types::{Handle, Task}, utils::run_task};
+use scenario_executor::{
+    scenario::load_scenario,
+    types::{Handle, Task},
+    utils::run_task,
+};
 use scenario_planner::{types::WebsocatInvocation, utils::IdentifierGenerator};
 
 use crate::scenario_planner::types::SpecifierStack;
 
-
-
 pub mod scenario_executor {
     pub mod copydata;
 
+    pub mod debugfluff;
+    pub mod fluff;
     pub mod misc;
+    pub mod nativetls;
+    pub mod scenario;
+    pub mod tcp;
     pub mod trivials1;
     pub mod trivials2;
     pub mod types;
-    pub mod fluff;
-    pub mod tcp;
-    pub mod scenario;
-    pub mod debugfluff;
     pub mod utils;
-    pub mod wsupgrade;
     pub mod wsframer;
+    pub mod wsupgrade;
     pub mod wswithpings;
-    pub mod nativetls;
 
     pub mod all_functions;
 }
 
 pub mod scenario_planner {
-    pub mod types;
-    pub mod fromstr;
     pub mod buildscenario;
-    pub mod scenarioprinter;
+    pub mod fromstr;
     pub mod patcher;
+    pub mod scenarioprinter;
+    pub mod types;
     pub mod utils;
 }
 
@@ -41,10 +43,10 @@ async fn main() -> anyhow::Result<()> {
     //tracing_subscriber::fmt().json().with_max_level(tracing::Level::DEBUG).init();
     tracing_subscriber::fmt::init();
 
-    let mut args : cli::WebsocatArgs = argh::from_env();
+    let mut args: cli::WebsocatArgs = argh::from_env();
     let dump_spec = args.dump_spec;
 
-    let global_scenario : &str;
+    let global_scenario: &str;
     let scenario_file;
     let scenario_built_text;
     if args.scenario {
@@ -76,7 +78,7 @@ async fn main() -> anyhow::Result<()> {
 
         let mut idgen = IdentifierGenerator::new();
 
-        if ! invocation.opts.dump_spec_phase1 {
+        if !invocation.opts.dump_spec_phase1 {
             invocation.patches(&mut idgen)?;
         }
 
@@ -97,11 +99,9 @@ async fn main() -> anyhow::Result<()> {
         }
     }
 
-
     let ctx = load_scenario(global_scenario)?;
     let task: Handle<Task> = ctx.execute()?;
     run_task(task).await;
 
     Ok(())
 }
-

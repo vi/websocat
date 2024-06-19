@@ -42,7 +42,7 @@ flagset::flags! {
 }
 pub type BufferFlags = flagset::FlagSet<BufferFlag>;
 
-#[derive(Debug,Clone,PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PacketReadResult {
     pub flags: BufferFlags,
     pub buffer_subset: std::ops::Range<usize>,
@@ -54,7 +54,7 @@ pub struct PacketReadResult {
 /// Zero-length reads do not mean EOF.
 ///
 /// Stream/Sink are not used instead to control the allocations.
-/// 
+///
 /// When `poll_read` returns, subsequent `poll_read` can expect data in `buf`
 /// outside of the range returned in `buffer_subset` to remain the same,
 /// though buffer address in memory may be different.

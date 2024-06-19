@@ -1,9 +1,8 @@
 use std::collections::HashMap;
 
 pub struct IdentifierGenerator {
-    pub varnames : HashMap<&'static str, usize>,
+    pub varnames: HashMap<&'static str, usize>,
 }
-
 
 impl IdentifierGenerator {
     pub fn new() -> Self {

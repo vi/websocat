@@ -16,21 +16,21 @@ pub struct WebsocatArgs {
     /// do not execute this Websocat invocation, print debug representation of specified arguments.
     #[argh(switch)]
     pub dump_spec_phase1: bool,
-    
+
     /// do not execute this Websocat invocation, print debug representation of specified arguments.
     #[argh(switch)]
     pub dump_spec_phase2: bool,
 
     /// execute specified file as Rhai script (e.g. resutling from --dump-spec option output)
-    #[argh(switch, short='x')]
+    #[argh(switch, short = 'x')]
     pub scenario: bool,
 
     /// use text mode (one line = one WebSocket text message)
-    #[argh(switch, short='t')]
+    #[argh(switch, short = 't')]
     pub text: bool,
 
     /// use binary mode (arbitrary byte chunk = one WebSocket binary message)
-    #[argh(switch, short='b')]
+    #[argh(switch, short = 'b')]
     pub binary: bool,
 
     /// resolve hostnames to IP addresses late (every time when forwarding a connection) instead of one time at the beginning
@@ -38,10 +38,9 @@ pub struct WebsocatArgs {
     pub late_resolve: bool,
 
     /// accept invalid domains and root certificates for TLS client connections
-    #[argh(switch, short='k')]
+    #[argh(switch, short = 'k')]
     pub insecure: bool,
-
-/*
+    /*
     /// whether or not to jump
     #[argh(switch, short = 'j')]
     jump: bool,

@@ -1,4 +1,4 @@
-use std:: net::SocketAddr;
+use std::net::SocketAddr;
 
 use http::Uri;
 
@@ -6,10 +6,14 @@ use crate::cli::WebsocatArgs;
 
 #[derive(Debug)]
 pub enum Endpoint {
-    TcpConnectByEarlyHostname { varname_for_addrs: String },
+    TcpConnectByEarlyHostname {
+        varname_for_addrs: String,
+    },
     /// All TCP connections start as late-resolved when parsing CLI argument,
     /// but may be converted to early-resolved by the patcher.
-    TcpConnectByLateHostname { hostname: String },
+    TcpConnectByLateHostname {
+        hostname: String,
+    },
     TcpConnectByIp(SocketAddr),
     TcpListen(SocketAddr),
     WsUrl(Uri),
@@ -19,15 +23,21 @@ pub enum Endpoint {
     UdpBind(SocketAddr),
 }
 
-
 #[derive(Debug)]
 pub enum Overlay {
-    WsUpgrade{uri:Uri, host:String},
-    WsFramer{client_mode: bool},
-    TlsClient{domain: String, varname_for_connector: String},
+    WsUpgrade {
+        uri: Uri,
+        host: String,
+    },
+    WsFramer {
+        client_mode: bool,
+    },
+    TlsClient {
+        domain: String,
+        varname_for_connector: String,
+    },
     StreamChunks,
 }
-
 
 #[derive(Debug)]
 pub struct SpecifierStack {
@@ -36,11 +46,15 @@ pub struct SpecifierStack {
     pub overlays: Vec<Overlay>,
 }
 
-
 #[derive(Debug)]
 pub enum PreparatoryAction {
-    ResolveHostname{ hostname : String, varname_for_addrs : String },
-    CreateTlsConnector { varname_for_connector: String },
+    ResolveHostname {
+        hostname: String,
+        varname_for_addrs: String,
+    },
+    CreateTlsConnector {
+        varname_for_connector: String,
+    },
 }
 
 pub struct WebsocatInvocation {
@@ -51,10 +65,8 @@ pub struct WebsocatInvocation {
     pub beginning: Vec<PreparatoryAction>,
 }
 
-
-#[derive(Debug,Clone, Copy,PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum CopyingType {
     ByteStream,
     Datarams,
 }
-

@@ -44,11 +44,17 @@ impl WebsocatInvocation {
         assert_eq!(self.left.get_copying_type(), self.right.get_copying_type());
     }
 
-    fn maybe_fill_in_tls_connector_context(&mut self, vars: &mut IdentifierGenerator) -> anyhow::Result<()> {
+    fn maybe_fill_in_tls_connector_context(
+        &mut self,
+        vars: &mut IdentifierGenerator,
+    ) -> anyhow::Result<()> {
         let mut need_to_insert_it = false;
         for x in self.left.overlays.iter().chain(self.right.overlays.iter()) {
             match x {
-                Overlay::TlsClient { varname_for_connector, .. } if varname_for_connector.is_empty() => need_to_insert_it = true,
+                Overlay::TlsClient {
+                    varname_for_connector,
+                    ..
+                } if varname_for_connector.is_empty() => need_to_insert_it = true,
                 _ => (),
             }
         }
@@ -57,10 +63,20 @@ impl WebsocatInvocation {
         }
         let varname_for_connector = vars.getnewvarname("tlsctx");
         let v = varname_for_connector.clone();
-        self.beginning.push(PreparatoryAction::CreateTlsConnector { varname_for_connector });
-        for x in self.left.overlays.iter_mut().chain(self.right.overlays.iter_mut()) {
+        self.beginning.push(PreparatoryAction::CreateTlsConnector {
+            varname_for_connector,
+        });
+        for x in self
+            .left
+            .overlays
+            .iter_mut()
+            .chain(self.right.overlays.iter_mut())
+        {
             match x {
-                Overlay::TlsClient { varname_for_connector, .. } if varname_for_connector.is_empty() => {
+                Overlay::TlsClient {
+                    varname_for_connector,
+                    ..
+                } if varname_for_connector.is_empty() => {
                     *varname_for_connector = v.clone();
                 }
                 _ => (),
@@ -68,14 +84,12 @@ impl WebsocatInvocation {
         }
         Ok(())
     }
-
 }
 
 impl SpecifierStack {
     fn maybe_splitup_ws_endpoint(&mut self) -> anyhow::Result<()> {
         match self.innermost {
             Endpoint::WsUrl(ref u) | Endpoint::WssUrl(ref u) => {
-
                 let mut parts = u.clone().into_parts();
                 let auth = parts.authority.take().unwrap();
                 if auth.as_str().contains('@') {
@@ -86,23 +100,19 @@ impl SpecifierStack {
                     Endpoint::WssUrl(_) => true,
                     _ => unreachable!(),
                 };
-                let default_port = if wss_mode {
-                    443
-                } else {
-                    80
-                };
+                let default_port = if wss_mode { 443 } else { 80 };
                 let (mut host, port) = (auth.host(), auth.port_u16().unwrap_or(default_port));
-    
+
                 if host.starts_with('[') && host.ends_with(']') {
                     host = host.strip_prefix('[').unwrap().strip_suffix(']').unwrap();
                 }
-    
+
                 let ip: Result<IpAddr, _> = host.parse();
-    
+
                 match ip {
                     Ok(ip) => {
                         let addr = SocketAddr::new(ip, port);
-    
+
                         self.innermost = Endpoint::TcpConnectByIp(addr);
                     }
                     Err(_) => {
@@ -111,7 +121,7 @@ impl SpecifierStack {
                         };
                     }
                 };
-    
+
                 parts.scheme = None;
                 let newurl = Uri::from_parts(parts).unwrap();
 

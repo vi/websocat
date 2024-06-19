@@ -3,8 +3,8 @@ use std::net::SocketAddr;
 use rhai::Engine;
 
 use super::types::{
-    DatagramRead, DatagramSocket, DatagramWrite, Hangup, StreamRead, StreamSocket, StreamWrite,
-    Task, Handle,
+    DatagramRead, DatagramSocket, DatagramWrite, Handle, Hangup, StreamRead, StreamSocket,
+    StreamWrite, Task,
 };
 
 pub fn register_functions(engine: &mut Engine) {

@@ -230,7 +230,6 @@ impl PreparatoryAction {
                     printer.print_line(&format!(
                         "let {varname_for_connector} = tls_client_connector(#{{danger_accept_invalid_certs: true, danger_accept_invalid_hostnames: true}});"
                     ));
-
                 } else {
                     printer.print_line(&format!(
                         "let {varname_for_connector} = tls_client_connector(#{{}});"

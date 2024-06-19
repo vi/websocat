@@ -1,18 +1,19 @@
-
 use anyhow::bail;
 use base64::Engine as _;
 use bytes::BytesMut;
 use rhai::{Dynamic, Engine, FnPtr, NativeCallContext};
+use std::sync::Arc;
 use tokio_native_tls::native_tls::{Certificate, Protocol, TlsConnector};
 use tracing::{debug, debug_span, warn, Instrument};
-use std::sync::Arc;
 
-use crate::scenario_executor::{scenario::{callback_and_continue, ScenarioAccess}, types::{StreamRead, StreamWrite}, utils::{ExtractHandleOrFail, SimpleErr, TaskHandleExt2}};
+use crate::scenario_executor::{
+    scenario::{callback_and_continue, ScenarioAccess},
+    types::{StreamRead, StreamWrite},
+    utils::{ExtractHandleOrFail, SimpleErr, TaskHandleExt2},
+};
 
 use super::{
-    types::{
-        Handle, StreamSocket, Task
-    },
+    types::{Handle, StreamSocket, Task},
     utils::RhResult,
 };
 
@@ -39,14 +40,13 @@ fn tls_client_connector(
         danger_accept_invalid_hostnames: bool,
         #[serde(default)]
         no_sni: bool,
-
     }
     let opts: TslConnectorOpts = rhai::serde::from_dynamic(&opts)?;
     debug!("options parsed");
 
     let mut b = TlsConnector::builder();
 
-    let parseproto = |x:&str| -> RhResult<Protocol> {
+    let parseproto = |x: &str| -> RhResult<Protocol> {
         Ok(match x {
             "ssl3" => Protocol::Sslv3,
             "tls10" => Protocol::Tlsv10,
@@ -92,11 +92,13 @@ fn tls_client_connector(
         b.disable_built_in_roots(true);
     }
     if !opts.request_alpns.is_empty() {
-        #[cfg(feature="native-tls-alpn")] {
-            let refs : Vec<&str> = opts.request_alpns.iter().map(|x|&**x).collect();
+        #[cfg(feature = "native-tls-alpn")]
+        {
+            let refs: Vec<&str> = opts.request_alpns.iter().map(|x| &**x).collect();
             b.request_alpns(&refs);
         }
-        #[cfg(not(feature="native-tls-alpn"))] {
+        #[cfg(not(feature = "native-tls-alpn"))]
+        {
             return Err(ctx.err("TLS ALPN support is not enabled at compication time."));
         }
     }
@@ -123,7 +125,6 @@ fn tls_client_connector(
     Ok(Arc::new(cx))
 }
 
-
 fn tls_client(
     ctx: NativeCallContext,
     opts: Dynamic,
@@ -135,29 +136,29 @@ fn tls_client(
     let the_scenario = ctx.get_scenario()?;
     #[derive(serde::Deserialize)]
     struct TslClientOpts {
-       domain: Option<String>,
+        domain: Option<String>,
     }
     let opts: TslClientOpts = rhai::serde::from_dynamic(&opts)?;
     let inner = ctx.lutbar(inner)?;
     debug!(parent: &span, inner=?inner, "options parsed");
 
-    
     Ok(async move {
         let opts = opts;
         debug!("node started");
         let StreamSocket {
-                read: Some(r),
-                write: Some(w),
-                close: c,
-            } = inner else {
-                bail!("Incomplete underlying socket specified")
-            };
+            read: Some(r),
+            write: Some(w),
+            close: c,
+        } = inner
+        else {
+            bail!("Incomplete underlying socket specified")
+        };
 
         let io = tokio::io::join(r, w.writer);
 
         let domain = opts.domain.unwrap_or_default();
         let socket = connector.connect(&domain, io).await?;
-        let (r,w) = tokio::io::split(socket);
+        let (r, w) = tokio::io::split(socket);
 
         let s = StreamSocket {
             read: Some(StreamRead {
@@ -172,10 +173,10 @@ fn tls_client(
         debug!(s=?s, "connected");
         let h = s.wrap();
 
-        callback_and_continue(the_scenario, continuation, (h,))
-            .await;
+        callback_and_continue(the_scenario, continuation, (h,)).await;
         Ok(())
-    }.instrument(span)
+    }
+    .instrument(span)
     .wrap())
 }
 

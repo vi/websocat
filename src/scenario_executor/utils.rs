@@ -4,7 +4,10 @@ use tokio::io::AsyncRead;
 use tracing::{error, trace};
 
 use crate::scenario_executor::types::{DatagramRead, DatagramWrite, Handle, StreamSocket, Task};
-use std::{sync::{Arc, Mutex}, task::Poll};
+use std::{
+    sync::{Arc, Mutex},
+    task::Poll,
+};
 
 use super::types::{DatagramSocket, StreamRead, StreamWrite};
 
@@ -15,11 +18,10 @@ pub trait TaskHandleExt2 {
     fn wrap(self) -> Handle<Task>;
 }
 
-
 impl<T: Future<Output = ()> + Send + 'static> TaskHandleExt for T {
     fn wrap_noerr(self) -> Handle<Task> {
         use futures::FutureExt;
-        Arc::new(Mutex::new(Some(Box::pin(self.map(|_|Ok(()))))))
+        Arc::new(Mutex::new(Some(Box::pin(self.map(|_| Ok(()))))))
     }
 }
 impl<T: Future<Output = anyhow::Result<()>> + Send + 'static> TaskHandleExt2 for T {
@@ -135,7 +137,7 @@ impl AsyncRead for StreamRead {
 
         if !sr.prefix.is_empty() {
             let limit = buf.remaining().min(sr.prefix.len());
-            trace!(nbytes=limit, "Serving from prefix");
+            trace!(nbytes = limit, "Serving from prefix");
             buf.put_slice(&sr.prefix.split_to(limit));
             return Poll::Ready(Ok(()));
         }
@@ -152,4 +154,3 @@ impl SimpleErr for NativeCallContext<'_> {
         Box::new(EvalAltResult::ErrorRuntime(v.into(), self.position()))
     }
 }
-

@@ -5,7 +5,7 @@ pub struct ScenarioPrinter {
 
 impl ScenarioPrinter {
     pub fn new() -> ScenarioPrinter {
-        ScenarioPrinter { 
+        ScenarioPrinter {
             out: String::with_capacity(1024),
             indent: 0,
         }

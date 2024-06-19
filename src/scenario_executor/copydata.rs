@@ -1,5 +1,7 @@
 use std::{
-    ops::Range, sync::{Arc, Mutex}, task::{Context, Poll}
+    ops::Range,
+    sync::{Arc, Mutex},
+    task::{Context, Poll},
 };
 
 use futures::future::OptionFuture;
@@ -44,7 +46,7 @@ fn copy_bytes(from: Handle<StreamRead>, to: Handle<StreamWrite>) -> Handle<Task>
                     Err(e) => {
                         error!(parent: &span, error=%e, "error writing prefix");
                         return;
-                    },
+                    }
                 }
             }
 
@@ -56,7 +58,7 @@ fn copy_bytes(from: Handle<StreamRead>, to: Handle<StreamWrite>) -> Handle<Task>
                 Err(e) => {
                     error!(parent: &span, error=%e, "error copying bytes");
                     return;
-                },
+                }
             }
         } else {
             debug!(parent: &span, "no operation");
@@ -64,17 +66,15 @@ fn copy_bytes(from: Handle<StreamRead>, to: Handle<StreamWrite>) -> Handle<Task>
     }
     .wrap_noerr()
 }
-fn exchange_bytes(opts: Dynamic, s1: Handle<StreamSocket>, s2: Handle<StreamSocket>) -> RhResult<Handle<Task>> {
-    let span = debug_span!(
-        "exchange_bytes",
-        s1 = field::Empty,
-        s2 = field::Empty
-    );
+fn exchange_bytes(
+    opts: Dynamic,
+    s1: Handle<StreamSocket>,
+    s2: Handle<StreamSocket>,
+) -> RhResult<Handle<Task>> {
+    let span = debug_span!("exchange_bytes", s1 = field::Empty, s2 = field::Empty);
 
     #[derive(serde::Deserialize)]
-    struct ExchangeBytesOpts {
-        
-    }
+    struct ExchangeBytesOpts {}
     let _opts: ExchangeBytesOpts = rhai::serde::from_dynamic(&opts)?;
     debug!(parent: &span, "node created");
     Ok(async move {
@@ -154,7 +154,8 @@ fn exchange_bytes(opts: Dynamic, s1: Handle<StreamSocket>, s2: Handle<StreamSock
         } else {
             error!(parent: &span, "Incomplete stream sockets specified");
         }
-    }.wrap_noerr())
+    }
+    .wrap_noerr())
 }
 
 #[derive(Clone)]
@@ -175,10 +176,10 @@ struct CopyPackets {
 impl CopyPackets {
     fn new(r: DatagramRead, w: DatagramWrite, span: Span, buffer_size: usize) -> CopyPackets {
         let b = vec![0u8; buffer_size].into_boxed_slice();
-    
+
         let phase = Phase::ReadFromStream;
         let flags = crate::scenario_executor::types::BufferFlags::default();
-    
+
         CopyPackets {
             r,
             w,
@@ -205,7 +206,11 @@ impl std::future::Future for CopyPackets {
         loop {
             match this.phase.clone() {
                 Phase::ReadFromStream => {
-                    match crate::scenario_executor::types::PacketRead::poll_read(this.r.src.as_mut(), cx, &mut this.b[..]) {
+                    match crate::scenario_executor::types::PacketRead::poll_read(
+                        this.r.src.as_mut(),
+                        cx,
+                        &mut this.b[..],
+                    ) {
                         Poll::Ready(Ok(f)) => {
                             this.flags = f.flags;
                             this.phase = Phase::WriteToSink(f.buffer_subset);
@@ -253,24 +258,22 @@ fn copy_packets(from: Handle<DatagramRead>, to: Handle<DatagramWrite>) -> Handle
     }
 
     if let (Some(r), Some(w)) = (f, t) {
-        CopyPackets::new(r, w, span, 65536)
-        .wrap_noerr()
+        CopyPackets::new(r, w, span, 65536).wrap_noerr()
     } else {
         warn!(parent: &span, "Nothing to copy");
         Arc::new(Mutex::new(None))
     }
 }
 
-
-fn exchange_packets(opts: Dynamic, s1: Handle<DatagramSocket>, s2: Handle<DatagramSocket>) -> RhResult<Handle<Task>> {
-    let span = debug_span!(
-        "exchange_packets",
-    );
+fn exchange_packets(
+    opts: Dynamic,
+    s1: Handle<DatagramSocket>,
+    s2: Handle<DatagramSocket>,
+) -> RhResult<Handle<Task>> {
+    let span = debug_span!("exchange_packets",);
 
     #[derive(serde::Deserialize)]
-    struct ExchangeBytesOpts {
-        
-    }
+    struct ExchangeBytesOpts {}
     let _opts: ExchangeBytesOpts = rhai::serde::from_dynamic(&opts)?;
     debug!(parent: &span, "node created");
     Ok(async move {
@@ -296,7 +299,7 @@ fn exchange_packets(opts: Dynamic, s1: Handle<DatagramSocket>, s2: Handle<Datagr
                 close: c2,
             }),
         ) = (s1, s2)
-        {    
+        {
             let copier1 = CopyPackets::new(r1, w2, span.clone(), 65536);
             let copier2 = CopyPackets::new(r2, w1, span.clone(), 65536);
             let both_copiers = futures::future::join(copier1, copier2);
@@ -321,7 +324,8 @@ fn exchange_packets(opts: Dynamic, s1: Handle<DatagramSocket>, s2: Handle<Datagr
         } else {
             error!(parent: &span, "Incomplete datagram sockets specified");
         }
-    }.wrap_noerr())
+    }
+    .wrap_noerr())
 }
 
 pub fn register(engine: &mut Engine) {

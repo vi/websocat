@@ -89,7 +89,7 @@ impl PacketWrite for WsEncoder {
         let this = self.get_mut();
         let _sg = this.span.enter();
 
-        trace!(buflen=buf.len(), "poll_write");
+        trace!(buflen = buf.len(), "poll_write");
         loop {
             trace!(state=?this.state, "loop");
             match this.state {
@@ -338,12 +338,11 @@ impl PacketRead for WsDecoder {
         let mut need_to_issue_inner_read = false;
         loop {
             let mut pending_exit_from_loop = false;
-            let unprocessed_data_range : Range<usize> = {
+            let unprocessed_data_range: Range<usize> = {
                 if *this.unprocessed_bytes > 0 || !need_to_issue_inner_read {
                     assert!(*this.unprocessed_bytes <= buf.len());
-                    
-                        *this.offset..(*this.offset + *this.unprocessed_bytes)
-                    
+
+                    *this.offset..(*this.offset + *this.unprocessed_bytes)
                 } else {
                     trace!("inner read");
                     let mut rb = ReadBuf::new(&mut buf[*this.offset..]);
@@ -360,9 +359,8 @@ impl PacketRead for WsDecoder {
                         Poll::Pending => return Poll::Pending,
                     };
                     need_to_issue_inner_read = false;
-                    
-                        *this.offset..(*this.offset + *this.unprocessed_bytes)
-                    
+
+                    *this.offset..(*this.offset + *this.unprocessed_bytes)
                 }
             };
             trace!(range=?unprocessed_data_range.clone(), "data ready");
@@ -424,7 +422,7 @@ impl PacketRead for WsDecoder {
             if *this.unprocessed_bytes == 0 {
                 trace!("fully processed this read chunk")
             }
-               
+
             if pending_exit_from_loop {
                 break;
             }

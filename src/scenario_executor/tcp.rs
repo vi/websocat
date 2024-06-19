@@ -63,9 +63,7 @@ fn connect_tcp_race(
     let the_scenario = ctx.get_scenario()?;
     debug!(parent: &span, "node created");
     #[derive(serde::Deserialize)]
-    struct TcpOpts {
-        
-    }
+    struct TcpOpts {}
     let _opts: TcpOpts = rhai::serde::from_dynamic(&opts)?;
     //span.record("addr", field::display(opts.addr));
     debug!(parent: &span, addrs=?addrs, "options parsed");
@@ -76,14 +74,14 @@ fn connect_tcp_race(
         let mut fu = FuturesUnordered::new();
 
         for addr in addrs {
-            fu.push(TcpStream::connect(addr).map(move |x|(x, addr)));
+            fu.push(TcpStream::connect(addr).map(move |x| (x, addr)));
         }
-        
-        let t : TcpStream = loop { 
+
+        let t: TcpStream = loop {
             match fu.next().await {
                 Some((Ok(x), addr)) => {
                     debug!(%addr, "connected");
-                    break x
+                    break x;
                 }
                 Some((Err(e), addr)) => {
                     debug!(%addr, %e, "failed to connect");

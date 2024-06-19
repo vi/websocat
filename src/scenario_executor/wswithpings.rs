@@ -1,20 +1,23 @@
 use std::{io::ErrorKind, pin::Pin, sync::Mutex, task::Poll};
 
 use rhai::{Dynamic, Engine, NativeCallContext};
+use std::sync::Arc;
 use tokio::sync::OwnedSemaphorePermit;
 use tokio_util::sync::PollSemaphore;
 use tracing::{debug, debug_span, trace};
-use std::sync::Arc;
 
-use crate::scenario_executor::{utils::{ExtractHandleOrFail, SimpleErr}, wsframer::{WsDecoder, WsEncoder}};
+use crate::scenario_executor::{
+    utils::{ExtractHandleOrFail, SimpleErr},
+    wsframer::{WsDecoder, WsEncoder},
+};
 
 use super::{
     types::{
-        BufferFlag, BufferFlags, DatagramRead, DatagramSocket, DatagramWrite, Handle, PacketRead, PacketReadResult, PacketWrite, StreamSocket
+        BufferFlag, BufferFlags, DatagramRead, DatagramSocket, DatagramWrite, Handle, PacketRead,
+        PacketReadResult, PacketWrite, StreamSocket,
     },
     utils::RhResult,
 };
-
 
 struct WsEncoderThatCoexistsWithPongs {
     inner: WsEncoder,
@@ -45,7 +48,7 @@ impl PacketWrite for WsEncoderThatCoexistsWithPongsHandle {
             }
         }
 
-        match PacketWrite::poll_write(Pin::new(&mut inner.inner), cx,buf,flags) {
+        match PacketWrite::poll_write(Pin::new(&mut inner.inner), cx, buf, flags) {
             Poll::Ready(ret) => {
                 this.sem_permit = None;
                 Poll::Ready(ret)
@@ -73,11 +76,12 @@ impl PacketRead for WsDecoderThatCoexistsWithPingReplies {
 
         loop {
             if let Some(prip) = this.ping_reply_in_progress.clone() {
-
                 let mut writer = this.writer.lock().unwrap();
                 if this.sem_permit.is_none() {
                     match writer.sem.poll_acquire(cx) {
-                        Poll::Ready(None) => return Poll::Ready(Err(ErrorKind::ConnectionReset.into())),
+                        Poll::Ready(None) => {
+                            return Poll::Ready(Err(ErrorKind::ConnectionReset.into()))
+                        }
                         Poll::Ready(Some(p)) => this.sem_permit = Some(p),
                         Poll::Pending => return Poll::Pending,
                     }
@@ -104,24 +108,19 @@ impl PacketRead for WsDecoderThatCoexistsWithPingReplies {
             return match PacketRead::poll_read(Pin::new(&mut this.inner), cx, buf) {
                 Poll::Ready(Err(e)) => Poll::Ready(Err(e)),
                 Poll::Ready(Ok(ret)) => {
-    
                     if ret.flags.contains(BufferFlag::Ping) {
                         trace!("ping detected, replying instead of passing upstream");
                         this.ping_reply_in_progress = Some(ret);
                         continue;
                     }
-    
+
                     Poll::Ready(Ok(ret))
                 }
                 Poll::Pending => Poll::Pending,
-            }
+            };
         }
     }
 }
-
-
-
-
 
 fn ws_wrap(
     ctx: NativeCallContext,
@@ -162,7 +161,7 @@ fn ws_wrap(
         }
     };
 
-    let usual_encoder =  WsEncoder::new(
+    let usual_encoder = WsEncoder::new(
         span.clone(),
         opts.client,
         !opts.no_flush_after_each_message,
@@ -177,12 +176,7 @@ fn ws_wrap(
     };
     let shared_encoder = Arc::new(Mutex::new(shared_encoder));
 
-    let d = WsDecoder::new(
-        span.clone(),
-        inner_read,
-        require_masked,
-        require_unmasked,
-    );
+    let d = WsDecoder::new(span.clone(), inner_read, require_masked, require_unmasked);
     let dd = WsDecoderThatCoexistsWithPingReplies {
         inner: d,
         writer: shared_encoder.clone(),
@@ -191,13 +185,17 @@ fn ws_wrap(
     };
     let dr = DatagramRead { src: Box::pin(dd) };
 
-    let e = WsEncoderThatCoexistsWithPongsHandle{
+    let e = WsEncoderThatCoexistsWithPongsHandle {
         inner: shared_encoder,
         sem_permit: None,
     };
     let dw = DatagramWrite { snk: Box::pin(e) };
 
-    let x = DatagramSocket { read: Some(dr), write: Some(dw), close };
+    let x = DatagramSocket {
+        read: Some(dr),
+        write: Some(dw),
+        close,
+    };
 
     debug!(parent: &span, w=?x, "wrapped");
     Ok(x.wrap())

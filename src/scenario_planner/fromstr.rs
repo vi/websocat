@@ -11,7 +11,7 @@ impl SpecifierStack {
             match ParseStrChunkResult::from_str(x)? {
                 ParseStrChunkResult::Endpoint(e) => {
                     innermost = e;
-                    break
+                    break;
                 }
                 ParseStrChunkResult::Overlay { ovl, rest } => {
                     overlays.push(ovl);
@@ -32,7 +32,10 @@ impl SpecifierStack {
 enum ParseStrChunkResult<'a> {
     Endpoint(Endpoint),
     #[allow(dead_code)]
-    Overlay { ovl: Overlay, rest: &'a str },
+    Overlay {
+        ovl: Overlay,
+        rest: &'a str,
+    },
 }
 
 impl ParseStrChunkResult<'_> {
@@ -50,12 +53,15 @@ impl ParseStrChunkResult<'_> {
             }
             Ok(ParseStrChunkResult::Endpoint(Endpoint::WssUrl(u)))
         } else if let Some(rest) = x.strip_prefix("tcp:") {
-            let a: Result<SocketAddr,_> = rest.parse();
+            let a: Result<SocketAddr, _> = rest.parse();
             match a {
                 Ok(a) => Ok(ParseStrChunkResult::Endpoint(Endpoint::TcpConnectByIp(a))),
-                Err(_) => Ok(ParseStrChunkResult::Endpoint(Endpoint::TcpConnectByLateHostname { hostname: rest.to_owned() })),
+                Err(_) => Ok(ParseStrChunkResult::Endpoint(
+                    Endpoint::TcpConnectByLateHostname {
+                        hostname: rest.to_owned(),
+                    },
+                )),
             }
-            
         } else if let Some(rest) = x.strip_prefix("tcp-l:") {
             let a: SocketAddr = rest.parse()?;
             Ok(ParseStrChunkResult::Endpoint(Endpoint::TcpListen(a)))
