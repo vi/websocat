@@ -154,6 +154,14 @@ impl Overlay {
                 printer.print_line(&format!("let {varnam} = stream_chunks({inner_var});"));
                 Ok(varnam)
             }
+            Overlay::TlsClient { domain } => {
+                let outer_var = vars.getnewvarname("tls");
+
+                printer.print_line(&format!("tls_client(#{{domain: \"{domain}\"}}, {inner_var}, |{outer_var}| {{"));
+                printer.increase_indent();
+
+                Ok(outer_var)
+            }
         }
     }
     fn end_print(&self, printer: &mut ScenarioPrinter) {
@@ -164,6 +172,10 @@ impl Overlay {
             }
             Overlay::WsFramer{..} => (),
             Overlay::StreamChunks => (),
+            Overlay::TlsClient { .. } => {
+                printer.decrease_indent();
+                printer.print_line("})");
+            }
         }
     }
 }

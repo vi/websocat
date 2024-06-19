@@ -29,6 +29,7 @@ impl SpecifierStack {
                 Overlay::WsUpgrade { .. } => typ = CopyingType::ByteStream,
                 Overlay::WsFramer { .. } => typ = CopyingType::Datarams,
                 Overlay::StreamChunks => typ = CopyingType::Datarams,
+                Overlay::TlsClient { .. } => typ = CopyingType::ByteStream,
             }
         }
         typ
@@ -88,45 +89,68 @@ impl WebsocatInvocation {
 
 impl SpecifierStack {
     fn maybe_splitup_ws_endpoint(&mut self) -> anyhow::Result<()> {
-        if let Endpoint::WsUrl(ref u) = self.innermost {
-            let mut parts = u.clone().into_parts();
-            let auth = parts.authority.take().unwrap();
-            if auth.as_str().contains('@') {
-                anyhow::bail!("Usernames in URLs not supported");
-            }
-            let (mut host, port) = (auth.host(), auth.port_u16().unwrap_or(80));
+        match self.innermost {
+            Endpoint::WsUrl(ref u) | Endpoint::WssUrl(ref u) => {
 
-            if host.starts_with('[') && host.ends_with(']') {
-                host = host.strip_prefix('[').unwrap().strip_suffix(']').unwrap();
-            }
-
-            let ip: Result<IpAddr, _> = host.parse();
-
-            match ip {
-                Ok(ip) => {
-                    let addr = SocketAddr::new(ip, port);
-
-                    self.innermost = Endpoint::TcpConnectByIp(addr);
+                let mut parts = u.clone().into_parts();
+                let auth = parts.authority.take().unwrap();
+                if auth.as_str().contains('@') {
+                    anyhow::bail!("Usernames in URLs not supported");
                 }
-                Err(_) => {
-                    self.innermost = Endpoint::TcpConnectByLateHostname {
-                        hostname: format!("{host}:{port}"),
-                    };
+                let wss_mode = match self.innermost {
+                    Endpoint::WsUrl(_) => false,
+                    Endpoint::WssUrl(_) => true,
+                    _ => unreachable!(),
+                };
+                let default_port = if wss_mode {
+                    443
+                } else {
+                    80
+                };
+                let (mut host, port) = (auth.host(), auth.port_u16().unwrap_or(default_port));
+    
+                if host.starts_with('[') && host.ends_with(']') {
+                    host = host.strip_prefix('[').unwrap().strip_suffix(']').unwrap();
                 }
-            };
+    
+                let ip: Result<IpAddr, _> = host.parse();
+    
+                match ip {
+                    Ok(ip) => {
+                        let addr = SocketAddr::new(ip, port);
+    
+                        self.innermost = Endpoint::TcpConnectByIp(addr);
+                    }
+                    Err(_) => {
+                        self.innermost = Endpoint::TcpConnectByLateHostname {
+                            hostname: format!("{host}:{port}"),
+                        };
+                    }
+                };
+    
+                parts.scheme = None;
+                let newurl = Uri::from_parts(parts).unwrap();
 
-            parts.scheme = None;
-            let newurl = Uri::from_parts(parts).unwrap();
+                self.overlays.insert(
+                    0,
+                    Overlay::WsUpgrade {
+                        uri: newurl,
+                        host: auth.to_string(),
+                    },
+                );
+                self.overlays
+                    .insert(1, Overlay::WsFramer { client_mode: true });
 
-            self.overlays.insert(
-                0,
-                Overlay::WsUpgrade {
-                    uri: newurl,
-                    host: auth.to_string(),
-                },
-            );
-            self.overlays
-                .insert(1, Overlay::WsFramer { client_mode: true });
+                if wss_mode {
+                    self.overlays.insert(
+                        0,
+                        Overlay::TlsClient {
+                            domain: host.to_owned(),
+                        },
+                    );
+                }
+            }
+            _ => (),
         }
         Ok(())
     }

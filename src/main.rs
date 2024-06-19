@@ -20,6 +20,7 @@ pub mod scenario_executor {
     pub mod wsupgrade;
     pub mod wsframer;
     pub mod wswithpings;
+    pub mod nativetls;
 
     pub mod all_functions;
 }

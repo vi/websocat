@@ -2,21 +2,22 @@ use std::net::SocketAddr;
 
 use rhai::Engine;
 
-use crate::scenario_executor::types::{
+use super::types::{
     DatagramRead, DatagramSocket, DatagramWrite, Hangup, StreamRead, StreamSocket, StreamWrite,
     Task, Handle,
 };
 
 pub fn register_functions(engine: &mut Engine) {
-    crate::scenario_executor::trivials1::register(engine);
-    crate::scenario_executor::trivials2::register(engine);
-    crate::scenario_executor::copydata::register(engine);
-    crate::scenario_executor::misc::register(engine);
-    crate::scenario_executor::tcp::register(engine);
-    crate::scenario_executor::fluff::register(engine);
-    crate::scenario_executor::wsupgrade::register(engine);
-    crate::scenario_executor::wsframer::register(engine);
-    crate::scenario_executor::wswithpings::register(engine);
+    super::trivials1::register(engine);
+    super::trivials2::register(engine);
+    super::copydata::register(engine);
+    super::misc::register(engine);
+    super::tcp::register(engine);
+    super::fluff::register(engine);
+    super::wsupgrade::register(engine);
+    super::wsframer::register(engine);
+    super::wswithpings::register(engine);
+    super::nativetls::register(engine);
 }
 
 pub fn register_types(engine: &mut Engine) {

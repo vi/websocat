@@ -24,6 +24,7 @@ pub enum Endpoint {
 pub enum Overlay {
     WsUpgrade{uri:Uri, host:String},
     WsFramer{client_mode: bool},
+    TlsClient{domain: String},
     StreamChunks,
 }
 
