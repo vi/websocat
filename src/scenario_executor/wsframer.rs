@@ -32,6 +32,8 @@ pub struct WsEncoder {
     terminate_pending: bool,
     nonfirst_frame: bool,
     buffer_for_split_control_frames: BytesMut,
+    send_close_frame_on_eof: bool,
+    shutdown_socket_on_eof: bool,
 }
 
 impl WsEncoder {
@@ -40,6 +42,8 @@ impl WsEncoder {
         mask_frames: bool,
         flush_after_each_message: bool,
         inner: StreamWrite,
+        send_close_frame_on_eof: bool,
+        shutdown_socket_on_eof: bool,
     ) -> WsEncoder {
         let rng_for_mask = if mask_frames {
             Some(StdRng::from_rng(rand::thread_rng()).unwrap())
@@ -58,6 +62,8 @@ impl WsEncoder {
             terminate_pending: false,
             nonfirst_frame: false,
             buffer_for_split_control_frames: BytesMut::new(),
+            send_close_frame_on_eof,
+            shutdown_socket_on_eof,
         }
     }
 }
@@ -103,8 +109,14 @@ impl PacketWrite for WsEncoder {
                     }
                     if flags.contains(BufferFlag::Eof) {
                         debug!("EOF encountered");
-                        opcode = Opcode::ConnectionClose;
-                        this.terminate_pending = true;
+                        if this.send_close_frame_on_eof {
+                            opcode = Opcode::ConnectionClose;
+                            this.terminate_pending = true;
+                        } else {
+                            debug!("Not sending the close frame");
+                            this.state = WsEncoderState::Terminating;
+                            continue;
+                        }
                     }
                     if opcode.is_control() && flags.contains(BufferFlag::NonFinalChunk) {
                         this.buffer_for_split_control_frames.extend_from_slice(buf);
@@ -216,13 +228,18 @@ impl PacketWrite for WsEncoder {
                     }
                 }
                 WsEncoderState::Terminating => {
-                    match tokio::io::AsyncWrite::poll_shutdown(this.inner.writer.as_mut(), cx) {
-                        Poll::Ready(Ok(())) => {
-                            debug!("shutdown completed");
-                            this.state = WsEncoderState::PacketCompleted;
+                    if this.shutdown_socket_on_eof {
+                        match tokio::io::AsyncWrite::poll_shutdown(this.inner.writer.as_mut(), cx) {
+                            Poll::Ready(Ok(())) => {
+                                debug!("shutdown completed");
+                                this.state = WsEncoderState::PacketCompleted;
+                            }
+                            Poll::Ready(Err(e)) => return Poll::Ready(Err(e)),
+                            Poll::Pending => return Poll::Pending,
                         }
-                        Poll::Ready(Err(e)) => return Poll::Ready(Err(e)),
-                        Poll::Pending => return Poll::Pending,
+                    } else {
+                        debug!("Not shutting down the socket for writing");
+                        this.state = WsEncoderState::PacketCompleted;
                     }
                 }
                 WsEncoderState::PacketCompleted => {
@@ -247,6 +264,12 @@ fn ws_encoder(
         masked: bool,
         #[serde(default)]
         no_flush_after_each_message: bool,
+
+        #[serde(default)]
+        no_close_frame: bool,
+
+        #[serde(default)]
+        shutdown_socket_on_eof: bool,
     }
     let opts: WsEncoderOpts = rhai::serde::from_dynamic(&opts)?;
     let inner = ctx.lutbar(inner)?;
@@ -257,6 +280,8 @@ fn ws_encoder(
         opts.masked,
         !opts.no_flush_after_each_message,
         inner,
+        !opts.no_close_frame,
+        opts.shutdown_socket_on_eof,
     );
     let x = DatagramWrite { snk: Box::pin(x) };
     debug!(parent: &span, w=?x, "wrapped");

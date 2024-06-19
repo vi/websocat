@@ -136,6 +136,12 @@ fn ws_wrap(
         ignore_masks: bool,
         #[serde(default)]
         no_flush_after_each_message: bool,
+
+        #[serde(default)]
+        no_close_frame: bool,
+
+        #[serde(default)]
+        shutdown_socket_on_eof: bool,
     }
     let opts: WsDecoderOpts = rhai::serde::from_dynamic(&opts)?;
     let inner = ctx.lutbar(inner)?;
@@ -161,6 +167,8 @@ fn ws_wrap(
         opts.client,
         !opts.no_flush_after_each_message,
         inner_write,
+        !opts.no_close_frame,
+        opts.shutdown_socket_on_eof,
     );
 
     let shared_encoder = WsEncoderThatCoexistsWithPongs {
