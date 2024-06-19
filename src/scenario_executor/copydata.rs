@@ -226,7 +226,7 @@ impl std::future::Future for CopyPackets {
                     ) {
                         Poll::Ready(Ok(())) => {
                             if this.flags.contains(BufferFlag::Eof) {
-                                info!(parent: &this.span, "finished");
+                                debug!(parent: &this.span, "finished");
                                 return Poll::Ready(());
                             }
                             this.phase = Phase::ReadFromStream;
@@ -244,15 +244,12 @@ impl std::future::Future for CopyPackets {
 }
 
 fn copy_packets(from: Handle<DatagramRead>, to: Handle<DatagramWrite>) -> Handle<Task> {
-    let span = debug_span!("copy_packets", f = field::Empty, t = field::Empty);
+    let span = debug_span!("copy_packets");
     debug!(parent: &span, "node created");
     let (f, t) = (from.lut(), to.lut());
 
-    if let Some(f) = f.as_ref() {
-        span.record("f", tracing::field::debug(f));
-    }
-    if let Some(t) = t.as_ref() {
-        span.record("t", tracing::field::debug(t));
+    if let (Some(f), Some(t)) = (f.as_ref(), t.as_ref()) {
+        debug!(parent: &span, ?f, ?t, "streams");
     }
 
     if let (Some(r), Some(w)) = (f, t) {
@@ -268,8 +265,6 @@ fn copy_packets(from: Handle<DatagramRead>, to: Handle<DatagramWrite>) -> Handle
 fn exchange_packets(opts: Dynamic, s1: Handle<DatagramSocket>, s2: Handle<DatagramSocket>) -> RhResult<Handle<Task>> {
     let span = debug_span!(
         "exchange_packets",
-        s1 = field::Empty,
-        s2 = field::Empty
     );
 
     #[derive(serde::Deserialize)]
@@ -281,11 +276,10 @@ fn exchange_packets(opts: Dynamic, s1: Handle<DatagramSocket>, s2: Handle<Datagr
     Ok(async move {
         let (s1, s2) = (s1.lut(), s2.lut());
 
-        if let Some(s1) = s1.as_ref() {
+        if let (Some(s1), Some(s2)) = (s1.as_ref(), s2.as_ref()) {
             span.record("s1", tracing::field::debug(s1));
-        }
-        if let Some(s2) = s2.as_ref() {
             span.record("s2", tracing::field::debug(s2));
+            debug!(?s1, ?s2, "input sockets");
         }
 
         debug!(parent: &span, "node started");

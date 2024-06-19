@@ -58,7 +58,7 @@ async fn main() -> anyhow::Result<()> {
             args.spec2 = Some("stdio:".to_owned());
         }
 
-        if !args.binary || !args.text {
+        if !args.binary && !args.text {
             eprintln!("Using --binary mode by default");
             args.binary = true;
         }
