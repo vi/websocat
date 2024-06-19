@@ -31,6 +31,7 @@ impl SpecifierStack {
 
 enum ParseStrChunkResult<'a> {
     Endpoint(Endpoint),
+    #[allow(dead_code)]
     Overlay { ovl: Overlay, rest: &'a str },
 }
 

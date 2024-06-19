@@ -5,7 +5,7 @@ use std::{
 use futures::future::OptionFuture;
 use rhai::{Dynamic, Engine};
 use tokio::io::AsyncWriteExt;
-use tracing::{debug, debug_span, error, field, info, warn, Instrument, Span};
+use tracing::{debug, debug_span, error, field, warn, Instrument, Span};
 
 use crate::scenario_executor::{
     types::{
