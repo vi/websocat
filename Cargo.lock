@@ -1179,6 +1179,7 @@ dependencies = [
  "http-body-util",
  "hyper",
  "hyper-util",
+ "native-tls",
  "object-pool",
  "pin-project",
  "rand",

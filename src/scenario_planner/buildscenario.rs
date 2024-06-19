@@ -1,14 +1,20 @@
-use super::{scenarioprinter::ScenarioPrinter, types::{CopyingType, Endpoint, Overlay, PreparatoryAction, WebsocatInvocation}, utils::IdentifierGenerator};
+use crate::cli::WebsocatArgs;
+
+use super::{
+    scenarioprinter::ScenarioPrinter,
+    types::{CopyingType, Endpoint, Overlay, PreparatoryAction, WebsocatInvocation},
+    utils::IdentifierGenerator,
+};
 
 impl WebsocatInvocation {
-    pub fn build_scenario(self,  vars : &mut  IdentifierGenerator) -> anyhow::Result<String> {
+    pub fn build_scenario(self, vars: &mut IdentifierGenerator) -> anyhow::Result<String> {
         let mut printer = ScenarioPrinter::new();
 
-        let mut left : String;
-        let mut right : String;
+        let mut left: String;
+        let mut right: String;
 
         for prepare_action in &self.beginning {
-            prepare_action.begin_print(&mut printer, vars)?;
+            prepare_action.begin_print(&mut printer, &self.opts, vars)?;
         }
 
         left = self.left.innermost.begin_print(&mut printer, vars)?;
@@ -31,7 +37,7 @@ impl WebsocatInvocation {
                 printer.print_line(&format!("exchange_packets(#{{}}, {left}, {right})"));
             }
         }
-        
+
         for ovl in self.right.overlays.iter().rev() {
             ovl.end_print(&mut printer);
         }
@@ -52,9 +58,12 @@ impl WebsocatInvocation {
     }
 }
 
-
 impl Endpoint {
-    fn begin_print(&self, printer: &mut ScenarioPrinter, vars: &mut IdentifierGenerator) -> anyhow::Result<String> {
+    fn begin_print(
+        &self,
+        printer: &mut ScenarioPrinter,
+        vars: &mut IdentifierGenerator,
+    ) -> anyhow::Result<String> {
         match self {
             Endpoint::TcpConnectByIp(addr) => {
                 let varnam = vars.getnewvarname("tcp");
@@ -64,7 +73,9 @@ impl Endpoint {
             }
             Endpoint::TcpConnectByEarlyHostname { varname_for_addrs } => {
                 let varnam = vars.getnewvarname("tcp");
-                printer.print_line(&format!("connect_tcp_race(#{{}}, {varname_for_addrs}, |{varnam}| {{"));
+                printer.print_line(&format!(
+                    "connect_tcp_race(#{{}}, {varname_for_addrs}, |{varnam}| {{"
+                ));
                 printer.increase_indent();
                 Ok(varnam)
             }
@@ -81,12 +92,16 @@ impl Endpoint {
             Endpoint::TcpListen(addr) => {
                 let varnam = vars.getnewvarname("tcp");
                 let fromaddr = vars.getnewvarname("from");
-                printer.print_line(&format!("listen_tcp(#{{autospawn: true, addr: \"{addr}\"}}, |{varnam}, {fromaddr}| {{"));
+                printer.print_line(&format!(
+                    "listen_tcp(#{{autospawn: true, addr: \"{addr}\"}}, |{varnam}, {fromaddr}| {{"
+                ));
                 printer.increase_indent();
                 Ok(varnam)
             }
             Endpoint::WsUrl(..) => {
-                panic!("This endpoint is supposed to be split up by specifier stack patcher before.");
+                panic!(
+                    "This endpoint is supposed to be split up by specifier stack patcher before."
+                );
             }
             Endpoint::WssUrl(_) => todo!(),
             Endpoint::Stdio => {
@@ -104,27 +119,27 @@ impl Endpoint {
                 printer.decrease_indent();
                 printer.print_line("})");
             }
-            Endpoint::TcpConnectByEarlyHostname {.. } => {
+            Endpoint::TcpConnectByEarlyHostname { .. } => {
                 printer.decrease_indent();
                 printer.print_line("})");
             }
             Endpoint::TcpListen(_) => {
                 printer.decrease_indent();
                 printer.print_line("})");
-            },
+            }
             Endpoint::WsUrl(_) => {
-                panic!("This endpoint is supposed to be split up by specifier stack patcher before.");
+                panic!(
+                    "This endpoint is supposed to be split up by specifier stack patcher before."
+                );
             }
             Endpoint::WssUrl(_) => todo!(),
-            Endpoint::Stdio => {
-
-            }
+            Endpoint::Stdio => {}
             Endpoint::UdpConnect(_) => todo!(),
             Endpoint::UdpBind(_) => todo!(),
-            Endpoint::TcpConnectByLateHostname { hostname: _ }=> {
+            Endpoint::TcpConnectByLateHostname { hostname: _ } => {
                 printer.decrease_indent();
                 printer.print_line("})");
-                
+
                 printer.decrease_indent();
                 printer.print_line("})");
             }
@@ -133,9 +148,14 @@ impl Endpoint {
 }
 
 impl Overlay {
-    fn begin_print(&self, printer: &mut ScenarioPrinter, inner_var: &str, vars: &mut IdentifierGenerator) -> anyhow::Result<String> {
+    fn begin_print(
+        &self,
+        printer: &mut ScenarioPrinter,
+        inner_var: &str,
+        vars: &mut IdentifierGenerator,
+    ) -> anyhow::Result<String> {
         match self {
-            Overlay::WsUpgrade{ uri, host } => {
+            Overlay::WsUpgrade { uri, host } => {
                 let wsframes = vars.getnewvarname("wsframes");
 
                 printer.print_line(&format!("ws_upgrade({inner_var}, #{{host: \"{host}\", url: \"{uri}\"}}, |{wsframes}| {{"));
@@ -143,9 +163,11 @@ impl Overlay {
 
                 Ok(wsframes)
             }
-            Overlay::WsFramer{client_mode} => {
+            Overlay::WsFramer { client_mode } => {
                 let ws = vars.getnewvarname("ws");
-                printer.print_line(&format!("let {ws} = ws_wrap(#{{client: {client_mode}}}, {inner_var});"));
+                printer.print_line(&format!(
+                    "let {ws} = ws_wrap(#{{client: {client_mode}}}, {inner_var});"
+                ));
 
                 Ok(ws)
             }
@@ -154,7 +176,10 @@ impl Overlay {
                 printer.print_line(&format!("let {varnam} = stream_chunks({inner_var});"));
                 Ok(varnam)
             }
-            Overlay::TlsClient { domain, varname_for_connector } => {
+            Overlay::TlsClient {
+                domain,
+                varname_for_connector,
+            } => {
                 assert!(!varname_for_connector.is_empty());
                 let outer_var = vars.getnewvarname("tls");
 
@@ -167,11 +192,11 @@ impl Overlay {
     }
     fn end_print(&self, printer: &mut ScenarioPrinter) {
         match self {
-            Overlay::WsUpgrade{..} => {
+            Overlay::WsUpgrade { .. } => {
                 printer.decrease_indent();
                 printer.print_line("})");
             }
-            Overlay::WsFramer{..} => (),
+            Overlay::WsFramer { .. } => (),
             Overlay::StreamChunks => (),
             Overlay::TlsClient { .. } => {
                 printer.decrease_indent();
@@ -182,21 +207,42 @@ impl Overlay {
 }
 
 impl PreparatoryAction {
-    fn  begin_print(&self, printer: &mut ScenarioPrinter, _vars: &mut IdentifierGenerator) -> anyhow::Result<()> {
+    fn begin_print(
+        &self,
+        printer: &mut ScenarioPrinter,
+        opts: &WebsocatArgs,
+        _vars: &mut IdentifierGenerator,
+    ) -> anyhow::Result<()> {
         match self {
-            PreparatoryAction::ResolveHostname { hostname, varname_for_addrs } =>  {
-                printer.print_line(&format!("lookup_host(\"{hostname}\", |{varname_for_addrs}| {{"));
+            PreparatoryAction::ResolveHostname {
+                hostname,
+                varname_for_addrs,
+            } => {
+                printer.print_line(&format!(
+                    "lookup_host(\"{hostname}\", |{varname_for_addrs}| {{"
+                ));
                 printer.increase_indent();
             }
-            PreparatoryAction::CreateTlsConnector { varname_for_connector } => {
-                printer.print_line(&format!("let {varname_for_connector} = tls_client_connector(#{{}});"));
+            PreparatoryAction::CreateTlsConnector {
+                varname_for_connector,
+            } => {
+                if opts.insecure {
+                    printer.print_line(&format!(
+                        "let {varname_for_connector} = tls_client_connector(#{{danger_accept_invalid_certs: true, danger_accept_invalid_hostnames: true}});"
+                    ));
+
+                } else {
+                    printer.print_line(&format!(
+                        "let {varname_for_connector} = tls_client_connector(#{{}});"
+                    ));
+                }
             }
         }
         Ok(())
     }
     fn end_print(&self, printer: &mut ScenarioPrinter) {
         match self {
-            PreparatoryAction::ResolveHostname {..} => {
+            PreparatoryAction::ResolveHostname { .. } => {
                 printer.decrease_indent();
                 printer.print_line("})");
             }

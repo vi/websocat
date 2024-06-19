@@ -37,6 +37,10 @@ pub struct WebsocatArgs {
     #[argh(switch)]
     pub late_resolve: bool,
 
+    /// accept invalid domains and root certificates for TLS client connections
+    #[argh(switch, short='k')]
+    pub insecure: bool,
+
 /*
     /// whether or not to jump
     #[argh(switch, short = 'j')]
