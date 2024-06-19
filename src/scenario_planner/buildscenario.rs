@@ -154,10 +154,11 @@ impl Overlay {
                 printer.print_line(&format!("let {varnam} = stream_chunks({inner_var});"));
                 Ok(varnam)
             }
-            Overlay::TlsClient { domain } => {
+            Overlay::TlsClient { domain, varname_for_connector } => {
+                assert!(!varname_for_connector.is_empty());
                 let outer_var = vars.getnewvarname("tls");
 
-                printer.print_line(&format!("tls_client(#{{domain: \"{domain}\"}}, {inner_var}, |{outer_var}| {{"));
+                printer.print_line(&format!("tls_client(#{{domain: \"{domain}\"}}, {varname_for_connector}, {inner_var}, |{outer_var}| {{"));
                 printer.increase_indent();
 
                 Ok(outer_var)
@@ -187,6 +188,9 @@ impl PreparatoryAction {
                 printer.print_line(&format!("lookup_host(\"{hostname}\", |{varname_for_addrs}| {{"));
                 printer.increase_indent();
             }
+            PreparatoryAction::CreateTlsConnector { varname_for_connector } => {
+                printer.print_line(&format!("let {varname_for_connector} = tls_client_connector(#{{}});"));
+            }
         }
         Ok(())
     }
@@ -196,6 +200,7 @@ impl PreparatoryAction {
                 printer.decrease_indent();
                 printer.print_line("})");
             }
+            PreparatoryAction::CreateTlsConnector { .. } => (),
         }
     }
 }

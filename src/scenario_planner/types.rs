@@ -24,7 +24,7 @@ pub enum Endpoint {
 pub enum Overlay {
     WsUpgrade{uri:Uri, host:String},
     WsFramer{client_mode: bool},
-    TlsClient{domain: String},
+    TlsClient{domain: String, varname_for_connector: String},
     StreamChunks,
 }
 
@@ -40,6 +40,7 @@ pub struct SpecifierStack {
 #[derive(Debug)]
 pub enum PreparatoryAction {
     ResolveHostname{ hostname : String, varname_for_addrs : String },
+    CreateTlsConnector { varname_for_connector: String },
 }
 
 pub struct WebsocatInvocation {

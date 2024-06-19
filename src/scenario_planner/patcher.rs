@@ -10,49 +10,18 @@ use super::{
 };
 
 impl WebsocatInvocation {
-    pub fn get_copying_type(&self) -> CopyingType {
-        match (self.left.get_copying_type(), self.right.get_copying_type()) {
-            (CopyingType::ByteStream, CopyingType::ByteStream) => CopyingType::ByteStream,
-            (CopyingType::Datarams, CopyingType::Datarams) => CopyingType::Datarams,
-            _ => {
-                panic!("Incompatible types encountered: bytestream-oriented and datagram-oriented")
-            }
+    pub fn patches(&mut self, vars: &mut IdentifierGenerator) -> anyhow::Result<()> {
+        self.left.maybe_splitup_ws_endpoint()?;
+        self.right.maybe_splitup_ws_endpoint()?;
+        if !self.opts.late_resolve {
+            self.left.maybe_early_resolve(&mut self.beginning, vars);
+            self.right.maybe_early_resolve(&mut self.beginning, vars);
         }
+        self.maybe_fill_in_tls_connector_context(vars)?;
+        self.maybe_insert_chunker();
+        Ok(())
     }
-}
 
-impl SpecifierStack {
-    fn get_copying_type(&self) -> CopyingType {
-        let mut typ = self.innermost.get_copying_type();
-        for ovl in &self.overlays {
-            match ovl {
-                Overlay::WsUpgrade { .. } => typ = CopyingType::ByteStream,
-                Overlay::WsFramer { .. } => typ = CopyingType::Datarams,
-                Overlay::StreamChunks => typ = CopyingType::Datarams,
-                Overlay::TlsClient { .. } => typ = CopyingType::ByteStream,
-            }
-        }
-        typ
-    }
-}
-
-impl Endpoint {
-    fn get_copying_type(&self) -> CopyingType {
-        match self {
-            Endpoint::TcpConnectByIp(_) => CopyingType::ByteStream,
-            Endpoint::TcpListen(_) => CopyingType::ByteStream,
-            Endpoint::TcpConnectByEarlyHostname { .. } => CopyingType::ByteStream,
-            Endpoint::TcpConnectByLateHostname { hostname: _ } => CopyingType::ByteStream,
-            Endpoint::WsUrl(_) => CopyingType::Datarams,
-            Endpoint::WssUrl(_) => CopyingType::Datarams,
-            Endpoint::Stdio => CopyingType::ByteStream,
-            Endpoint::UdpConnect(_) => CopyingType::Datarams,
-            Endpoint::UdpBind(_) => CopyingType::Datarams,
-        }
-    }
-}
-
-impl WebsocatInvocation {
     fn maybe_insert_chunker(&mut self) {
         match (self.left.get_copying_type(), self.right.get_copying_type()) {
             (CopyingType::ByteStream, CopyingType::ByteStream) => (),
@@ -75,16 +44,31 @@ impl WebsocatInvocation {
         assert_eq!(self.left.get_copying_type(), self.right.get_copying_type());
     }
 
-    pub fn patches(&mut self, vars: &mut IdentifierGenerator) -> anyhow::Result<()> {
-        self.left.maybe_splitup_ws_endpoint()?;
-        self.right.maybe_splitup_ws_endpoint()?;
-        if !self.opts.late_resolve {
-            self.left.maybe_early_resolve(&mut self.beginning, vars);
-            self.right.maybe_early_resolve(&mut self.beginning, vars);
+    fn maybe_fill_in_tls_connector_context(&mut self, vars: &mut IdentifierGenerator) -> anyhow::Result<()> {
+        let mut need_to_insert_it = false;
+        for x in self.left.overlays.iter().chain(self.right.overlays.iter()) {
+            match x {
+                Overlay::TlsClient { varname_for_connector, .. } if varname_for_connector.is_empty() => need_to_insert_it = true,
+                _ => (),
+            }
         }
-        self.maybe_insert_chunker();
+        if !need_to_insert_it {
+            return Ok(());
+        }
+        let varname_for_connector = vars.getnewvarname("tlsctx");
+        let v = varname_for_connector.clone();
+        self.beginning.push(PreparatoryAction::CreateTlsConnector { varname_for_connector });
+        for x in self.left.overlays.iter_mut().chain(self.right.overlays.iter_mut()) {
+            match x {
+                Overlay::TlsClient { varname_for_connector, .. } if varname_for_connector.is_empty() => {
+                    *varname_for_connector = v.clone();
+                }
+                _ => (),
+            }
+        }
         Ok(())
     }
+
 }
 
 impl SpecifierStack {
@@ -146,6 +130,7 @@ impl SpecifierStack {
                         0,
                         Overlay::TlsClient {
                             domain: host.to_owned(),
+                            varname_for_connector: String::new(),
                         },
                     );
                 }
@@ -170,6 +155,49 @@ impl SpecifierStack {
                 self.innermost = Endpoint::TcpConnectByEarlyHostname { varname_for_addrs };
             }
             _ => (),
+        }
+    }
+}
+
+impl WebsocatInvocation {
+    pub fn get_copying_type(&self) -> CopyingType {
+        match (self.left.get_copying_type(), self.right.get_copying_type()) {
+            (CopyingType::ByteStream, CopyingType::ByteStream) => CopyingType::ByteStream,
+            (CopyingType::Datarams, CopyingType::Datarams) => CopyingType::Datarams,
+            _ => {
+                panic!("Incompatible types encountered: bytestream-oriented and datagram-oriented")
+            }
+        }
+    }
+}
+
+impl SpecifierStack {
+    fn get_copying_type(&self) -> CopyingType {
+        let mut typ = self.innermost.get_copying_type();
+        for ovl in &self.overlays {
+            match ovl {
+                Overlay::WsUpgrade { .. } => typ = CopyingType::ByteStream,
+                Overlay::WsFramer { .. } => typ = CopyingType::Datarams,
+                Overlay::StreamChunks => typ = CopyingType::Datarams,
+                Overlay::TlsClient { .. } => typ = CopyingType::ByteStream,
+            }
+        }
+        typ
+    }
+}
+
+impl Endpoint {
+    fn get_copying_type(&self) -> CopyingType {
+        match self {
+            Endpoint::TcpConnectByIp(_) => CopyingType::ByteStream,
+            Endpoint::TcpListen(_) => CopyingType::ByteStream,
+            Endpoint::TcpConnectByEarlyHostname { .. } => CopyingType::ByteStream,
+            Endpoint::TcpConnectByLateHostname { hostname: _ } => CopyingType::ByteStream,
+            Endpoint::WsUrl(_) => CopyingType::Datarams,
+            Endpoint::WssUrl(_) => CopyingType::Datarams,
+            Endpoint::Stdio => CopyingType::ByteStream,
+            Endpoint::UdpConnect(_) => CopyingType::Datarams,
+            Endpoint::UdpBind(_) => CopyingType::Datarams,
         }
     }
 }

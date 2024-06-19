@@ -12,6 +12,7 @@
 * `fn poll` is also the way, not everything needs to be async.
 * It is OK to add more elaborate `scenario_executor` things to simplify Websocat's Rhai scripts.
 * Address types and overlay stacks use `enum` approach, not `dyn`.
+* Generated Rhai code should be readable and may be optimised a bit, but "callback hell" is allowed.
 
 # History or Websocat redesigns
 
