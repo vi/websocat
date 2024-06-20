@@ -40,19 +40,8 @@ pub struct WebsocatArgs {
     /// accept invalid domains and root certificates for TLS client connections
     #[argh(switch, short = 'k')]
     pub insecure: bool,
-    /*
-    /// whether or not to jump
-    #[argh(switch, short = 'j')]
-    jump: bool,
 
-    /// how high to go
+    /// manually specify domain for `tls:` overlay or override domain for `wss://` URLs
     #[argh(option)]
-    height: usize,
-
-    /// an optional nickname for the pilot
-    #[argh(option)]
-    pilot_nickname: Option<String>,
-     */
+    pub tls_domain: Option<String>,
 }
-
-//let up: GoUp = argh::from_env();

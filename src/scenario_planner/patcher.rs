@@ -1,6 +1,7 @@
 use std::net::{IpAddr, SocketAddr};
 
 use http::Uri;
+use tracing::warn;
 
 use super::{
     types::{
@@ -17,7 +18,7 @@ impl WebsocatInvocation {
             self.left.maybe_early_resolve(&mut self.beginning, vars);
             self.right.maybe_early_resolve(&mut self.beginning, vars);
         }
-        self.maybe_fill_in_tls_connector_context(vars)?;
+        self.maybe_fill_in_tls_details(vars)?;
         self.maybe_insert_chunker();
         Ok(())
     }
@@ -44,21 +45,41 @@ impl WebsocatInvocation {
         assert_eq!(self.left.get_copying_type(), self.right.get_copying_type());
     }
 
-    fn maybe_fill_in_tls_connector_context(
-        &mut self,
-        vars: &mut IdentifierGenerator,
-    ) -> anyhow::Result<()> {
-        let mut need_to_insert_it = false;
+    fn maybe_fill_in_tls_details(&mut self, vars: &mut IdentifierGenerator) -> anyhow::Result<()> {
+        if let Some(ref d) = self.opts.tls_domain {
+            let mut patch_occurred = false;
+            for x in self
+                .left
+                .overlays
+                .iter_mut()
+                .chain(self.right.overlays.iter_mut())
+            {
+                match x {
+                    Overlay::TlsClient { domain, .. } => {
+                        if domain != d {
+                            *domain = d.clone();
+                            patch_occurred = true;
+                        }
+                    }
+                    _ => (),
+                }
+            }
+            if !patch_occurred {
+                warn!("--tls-domain option did not affect anything");
+            }
+        }
+
+        let mut need_to_insert_context = false;
         for x in self.left.overlays.iter().chain(self.right.overlays.iter()) {
             match x {
                 Overlay::TlsClient {
                     varname_for_connector,
                     ..
-                } if varname_for_connector.is_empty() => need_to_insert_it = true,
+                } if varname_for_connector.is_empty() => need_to_insert_context = true,
                 _ => (),
             }
         }
-        if !need_to_insert_it {
+        if !need_to_insert_context {
             return Ok(());
         }
         let varname_for_connector = vars.getnewvarname("tlsctx");

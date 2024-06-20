@@ -31,11 +31,7 @@ impl SpecifierStack {
 
 enum ParseStrChunkResult<'a> {
     Endpoint(Endpoint),
-    #[allow(dead_code)]
-    Overlay {
-        ovl: Overlay,
-        rest: &'a str,
-    },
+    Overlay { ovl: Overlay, rest: &'a str },
 }
 
 impl ParseStrChunkResult<'_> {
@@ -67,6 +63,14 @@ impl ParseStrChunkResult<'_> {
             Ok(ParseStrChunkResult::Endpoint(Endpoint::TcpListen(a)))
         } else if x == "-" || x == "stdio:" {
             Ok(ParseStrChunkResult::Endpoint(Endpoint::Stdio))
+        } else if let Some(rest) = x.strip_prefix("tls:") {
+            Ok(ParseStrChunkResult::Overlay {
+                ovl: Overlay::TlsClient {
+                    domain: String::new(),
+                    varname_for_connector: String::new(),
+                },
+                rest,
+            })
         } else {
             anyhow::bail!("Unknown specifier: {x}")
         }

@@ -136,7 +136,7 @@ fn tls_client(
     let the_scenario = ctx.get_scenario()?;
     #[derive(serde::Deserialize)]
     struct TslClientOpts {
-        domain: Option<String>,
+        domain: String,
     }
     let opts: TslClientOpts = rhai::serde::from_dynamic(&opts)?;
     let inner = ctx.lutbar(inner)?;
@@ -156,7 +156,10 @@ fn tls_client(
 
         let io = tokio::io::join(r, w.writer);
 
-        let domain = opts.domain.unwrap_or_default();
+        let mut domain = opts.domain;
+        if domain.is_empty() {
+            domain = "nodomain".to_owned();
+        }
         let socket = connector.connect(&domain, io).await?;
         let (r, w) = tokio::io::split(socket);
 
