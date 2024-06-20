@@ -19,15 +19,15 @@ on:
         required: false
         default: ''
         type: string
-  schedule:
-    # every Wednesday morning
-    - cron: 7 7 * * 3
+  #schedule:
+  #  # every Wednesday morning
+  #  - cron: 7 7 * * 3
   push:
     branches: [ master ]
     tags:
       - '*'           # Push events to every tag not containing /
-  pull_request:
-    types: [opened, reopened, synchronize]
+  #pull_request:
+  #  types: [opened, reopened, synchronize]
 
 concurrency:
   group: ci-container-build-${{ github.ref }}-1
