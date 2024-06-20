@@ -53,3 +53,4 @@
 * simple ecnryptor/decryptor
 * assert node
 * waitfordata
+* left-to-right features to set envvars based on incoming request
