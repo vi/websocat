@@ -43,7 +43,7 @@ async fn main() -> anyhow::Result<()> {
     //tracing_subscriber::fmt().json().with_max_level(tracing::Level::DEBUG).init();
     tracing_subscriber::fmt::init();
 
-    let mut args: cli::WebsocatArgs = argh::from_env();
+    let mut args = cli::WebsocatArgs::from_env_or_exit();
     let dump_spec = args.dump_spec;
 
     let global_scenario: &str;
