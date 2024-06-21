@@ -6,6 +6,7 @@ use super::types::{
     DatagramRead, DatagramSocket, DatagramWrite, Handle, Hangup, StreamRead, StreamSocket,
     StreamWrite, Task,
 };
+use super::wsupgrade::{IncomingRequest,OutgoingResponse};
 
 pub fn register_functions(engine: &mut Engine) {
     super::trivials1::register(engine);
@@ -35,4 +36,6 @@ pub fn register_types(engine: &mut Engine) {
     regtyp!(DatagramWrite);
     regtyp!(DatagramSocket);
     regtyp!(SocketAddr);
+    regtyp!(IncomingRequest);
+    regtyp!(OutgoingResponse);
 }

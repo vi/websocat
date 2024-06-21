@@ -1,8 +1,10 @@
 listen_tcp(#{addr: "127.0.0.1:1234"}, |s1, from| {
-    ws_accept(#{}, s1, |s2| {
-        let ws = ws_wrap(#{client:false}, s2);
-        let r = take_source_part(ws);
-        let w = take_sink_part(ws);
-        copy_packets(r, w)
+    http1_serve(#{}, s1, |rq, hup| {
+        ws_accept(#{}, rq, hup, |s2| {
+            let ws = ws_wrap(#{client:false}, s2);
+            let r = take_source_part(ws);
+            let w = take_sink_part(ws);
+            copy_packets(r, w)
+        })
     })
 })

@@ -7,16 +7,19 @@ use hyper_util::rt::TokioIo;
 use rhai::{Dynamic, Engine, EvalAltResult, FnPtr, NativeCallContext};
 use sha1::{Digest, Sha1};
 use tokio::io::AsyncWrite;
-use tracing::{debug, debug_span, error, field, warn, Instrument};
-use std::{pin::Pin, sync::Arc};
+use tracing::{debug, debug_span, error, warn, Instrument};
+use std::pin::Pin;
 
 use crate::scenario_executor::{
     scenario::{callback_and_continue, ScenarioAccess},
     types::{Handle, Hangup, StreamRead, StreamSocket, StreamWrite, Task},
-    utils::{HandleExt, HandleExt2, TaskHandleExt2},
+    utils::{HandleExt, HandleExt2, RhResult, SimpleErr, TaskHandleExt2},
 };
 
 type EmptyBody = http_body_util::Empty<bytes::Bytes>;
+type IoType = TokioIo<tokio::io::Join<StreamRead, Pin<Box<dyn AsyncWrite + Send>>>>;
+pub type IncomingRequest = hyper::Request<hyper::body::Incoming>;
+pub type OutgoingResponse = Response<EmptyBody>;
 
 static MAGIC_GUID: &str = "258EAFA5-E914-47DA-95CA-C5AB0DC85B11";
 
@@ -144,26 +147,24 @@ fn ws_upgrade(
     .wrap())
 }
 
-fn ws_accept(
+fn http1_serve(
     ctx: NativeCallContext,
     opts: Dynamic,
     inner: Handle<StreamSocket>,
     continuation: FnPtr,
 ) -> Result<Handle<Task>, Box<EvalAltResult>> {
     let original_span = tracing::Span::current();
-    let span = debug_span!(parent: original_span, "ws_accept");
+    let span = debug_span!(parent: original_span, "http1_serve");
     let the_scenario = ctx.get_scenario()?;
     debug!(parent: &span, "node created");
     #[derive(serde::Deserialize)]
     struct WsAcceptOpts {
-        #[serde(default)]
-        lax: bool,
     }
     let opts: WsAcceptOpts = rhai::serde::from_dynamic(&opts)?;
     debug!(parent: &span, "options parsed");
 
     Ok(async move {
-        let opts = opts;
+        let _opts = opts;
         debug!("node started");
         let Some(StreamSocket {
             read: Some(r),
@@ -177,115 +178,38 @@ fn ws_accept(
         let server_builder = hyper::server::conn::http1::Builder::new();
         let io = tokio::io::join(r, w.writer);
 
-        type IoType = TokioIo<tokio::io::Join<StreamRead, Pin<Box<dyn AsyncWrite + Send>>>>;
         let io: IoType  = TokioIo::new(io);
 
         let c : Handle<Hangup> = c.wrap();
 
-        let service = hyper::service::service_fn(move |rq: hyper::Request<hyper::body::Incoming>| {
+        let service = hyper::service::service_fn(move |rq: IncomingRequest| {
             debug!(?rq, "request");
             let c = c.clone();
             let the_scenario = the_scenario.clone();
             let continuation = continuation.clone();
             async move {
-                let bail = || -> anyhow::Result<Response<EmptyBody>> {
-                    let response = Response::builder()
-                        .status(400)
+
+                let h : Handle<IncomingRequest> = Some(rq).wrap();
+
+                let resp: Handle<OutgoingResponse> = match the_scenario.callback(continuation, (h,c)) {
+                    Ok(x) => x,
+                    Err(e) => {
+                        warn!("Error from handler function: {e}");
+                        return Ok(Response::builder()
+                        .status(500)
                         .body(EmptyBody::new())
-                        .unwrap();
-                    Ok(response)
+                        .unwrap())
+                    }
                 };
-                if rq.method() != http::Method::GET {
-                    warn!("Incoming WebSocket connection's method is not GET");
-                    return bail();
-                }
-                let Some(upgrval) = rq.headers().get(header::UPGRADE) else {
-                    warn!("Incoming WebSocket connection's lacks Upgrade: header");
-                    return bail();
-                };
-                if upgrval != "websocket" {
-                    warn!("Incoming WebSocket connection's Upgrade: header is not `websocket`");
-                    return bail();
-                }
-                let Some(wsver) = rq.headers().get(header::SEC_WEBSOCKET_VERSION) else {
-                    warn!("Incoming WebSocket connection's lacks Websocket-Sec-Version: header");
-                    return bail();
-                };
-                if wsver != "13" {
-                    warn!("Incoming WebSocket connection's  Websocket-Sec-Version: header is not `13`");
-                    return bail();
-                }
-                let Some(wskey) = rq.headers().get(header::SEC_WEBSOCKET_KEY) else {
-                    warn!("Incoming WebSocket connection's lacks Websocket-Sec-Key: header");
-                    return bail();
-                };
-                /*let Ok(key) = base64::engine::general_purpose::STANDARD.decode(wskey) else {
-                    warn!("Incoming WebSocket connection's Websocket-Sec-Key: is invalid base64");
-                    return bail();
-                };
-                if key.len() != 20 {
-                    warn!("Incoming WebSocket connection's Websocket-Sec-Key: is not exactly 20 base64-encoded bytes");
-                    return bail();
-                }
-                let mut array = [0u8; 20];
-                array[..20].clone_from_slice(&key[..20]);
-                */
 
-                let mut concat_key = Vec::with_capacity(wskey.len() + 36);
-                concat_key.extend_from_slice(wskey.as_bytes());
-                concat_key.extend_from_slice(MAGIC_GUID.as_bytes());
-                let hash = Sha1::digest(concat_key);
-
-                let accept = base64::engine::general_purpose::STANDARD.encode(hash);
-
-                let response = Response::builder()
-                    .status(StatusCode::SWITCHING_PROTOCOLS)
-                    .header(header::CONNECTION, "upgrade")
-                    .header(header::UPGRADE, "websocket")
-                    .header(header::SEC_WEBSOCKET_ACCEPT, accept)
+                let Some(resp) = resp.lut() else {
+                    warn!("Empty handle from handler function");
+                    return Ok(Response::builder()
+                    .status(500)
                     .body(EmptyBody::new())
-                    .unwrap();
-                debug!(resp=?response, "response");
-
-                tokio::spawn(async move {
-                    let upg = match hyper::upgrade::on(rq).await {
-                        Ok(x) => x,
-                        Err(e) => {
-                            error!("Error accepting WebSocket conenction: {e}");
-                            return;
-                        }
-                    };
-                
-                    let parts = match upg.downcast() {
-                        Ok(x) => x,
-                        Err(_e) => {
-                            error!("Error downcasting Upgraded");
-                            return;
-                        }
-                    };
-                    let io : IoType = parts.io;
-
-                    let (mut r, w) = io.into_inner().into_inner();
-
-                    let mut new_prefix = BytesMut::from(&parts.read_buf[..]);
-                    new_prefix.extend_from_slice(&r.prefix);
-                    r.prefix = new_prefix;
-
-                    let s = StreamSocket {
-                        read: Some(r),
-                        write: Some(StreamWrite { writer: w }),
-                        close: c.lut(),
-                    };
-                    debug!(s=?s, "accepted");
-                    let h = s.wrap();
-
-                    callback_and_continue(the_scenario, continuation, (h,)).await;
-
-                });
-
-
-
-                Ok::<Response<EmptyBody>, anyhow::Error>(response)
+                    .unwrap())
+                };
+                Ok::<Response<EmptyBody>, anyhow::Error>(resp)
             }
         });
         let conn = server_builder.serve_connection(io, service);
@@ -304,8 +228,131 @@ fn ws_accept(
     .wrap())
 }
 
+fn ws_accept(
+    ctx: NativeCallContext,
+    opts: Dynamic,
+    rq: Handle<IncomingRequest>,
+    close_handle: Handle<Hangup>,
+    continuation: FnPtr,
+) -> Result<Handle<OutgoingResponse>, Box<EvalAltResult>> {
+    let original_span = tracing::Span::current();
+    let span = debug_span!(parent: original_span, "ws_accept");
+    let the_scenario = ctx.get_scenario()?;
+    #[derive(serde::Deserialize)]
+    struct WsAcceptOpts {
+        #[serde(default)]
+        lax: bool,
+    }
+    let opts: WsAcceptOpts = rhai::serde::from_dynamic(&opts)?;
+    debug!(parent: &span, "options parsed");
+
+    let c : Option<Hangup> = close_handle.lut();
+    let Some(rq) = rq.lut() else {
+        return Err(ctx.err("Null request token specified"));
+    };
+
+    let bail = || -> RhResult<Handle<OutgoingResponse>> {
+        let response = Response::builder()
+            .status(400)
+            .body(EmptyBody::new())
+            .unwrap();
+        Ok(Some(response).wrap())
+    };
+    if !opts.lax {
+        if rq.method() != http::Method::GET {
+            warn!("Incoming WebSocket connection's method is not GET");
+            return bail();
+        }
+        let Some(upgrval) = rq.headers().get(header::UPGRADE) else {
+            warn!("Incoming WebSocket connection's lacks Upgrade: header");
+            return bail();
+        };
+        if upgrval != "websocket" {
+            warn!("Incoming WebSocket connection's Upgrade: header is not `websocket`");
+            return bail();
+        }
+        let Some(wsver) = rq.headers().get(header::SEC_WEBSOCKET_VERSION) else {
+            warn!("Incoming WebSocket connection's lacks Websocket-Sec-Version: header");
+            return bail();
+        };
+        if wsver != "13" {
+            warn!("Incoming WebSocket connection's  Websocket-Sec-Version: header is not `13`");
+            return bail();
+        }
+    }
+
+    let mut response_builder = Response::builder()
+        .status(StatusCode::SWITCHING_PROTOCOLS)
+        .header(header::CONNECTION, "upgrade")
+        .header(header::UPGRADE, "websocket");
+
+    match rq.headers().get(header::SEC_WEBSOCKET_KEY) {
+        Some(wskey) => {
+            let mut concat_key = Vec::with_capacity(wskey.len() + 36);
+            concat_key.extend_from_slice(wskey.as_bytes());
+            concat_key.extend_from_slice(MAGIC_GUID.as_bytes());
+            let hash = Sha1::digest(concat_key);
+
+            let accept = base64::engine::general_purpose::STANDARD.encode(hash);
+
+            response_builder = response_builder
+                .header(header::SEC_WEBSOCKET_ACCEPT, accept);
+        }
+        None if !opts.lax => {
+            warn!("Incoming WebSocket connection's lacks Sec-Websocket-Key: header");
+            return bail();
+        }
+        None => {
+            debug!("No Sec-Websocket-Key header, so replying  without Sec-Websocket-Accept.")
+        }
+    }
+
+    let response = response_builder
+        .body(EmptyBody::new())
+        .unwrap();
+    debug!(resp=?response, "response");
+
+    tokio::spawn(async move {
+        let upg = match hyper::upgrade::on(rq).await {
+            Ok(x) => x,
+            Err(e) => {
+                error!("Error accepting WebSocket conenction: {e}");
+                return;
+            }
+        };
+    
+        let parts = match upg.downcast() {
+            Ok(x) => x,
+            Err(_e) => {
+                error!("Error downcasting Upgraded");
+                return;
+            }
+        };
+        let io : IoType = parts.io;
+
+        let (mut r, w) = io.into_inner().into_inner();
+
+        let mut new_prefix = BytesMut::from(&parts.read_buf[..]);
+        new_prefix.extend_from_slice(&r.prefix);
+        r.prefix = new_prefix;
+
+        let s = StreamSocket {
+            read: Some(r),
+            write: Some(StreamWrite { writer: w }),
+            close: c,
+        };
+        debug!(s=?s, "accepted");
+        let h = s.wrap();
+
+        callback_and_continue(the_scenario, continuation, (h,)).await;
+
+    });
+
+    Ok(Some(response).wrap())
+}
 
 pub fn register(engine: &mut Engine) {
     engine.register_fn("ws_upgrade", ws_upgrade);
+    engine.register_fn("http1_serve", http1_serve);
     engine.register_fn("ws_accept", ws_accept);
 }
