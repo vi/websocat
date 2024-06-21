@@ -1,14 +1,15 @@
 use anyhow::bail;
 use base64::Engine as _;
 use bytes::{Bytes, BytesMut};
+use futures::FutureExt;
 use http::{header, Response, StatusCode};
 use hyper::client::conn::http1::{Connection, SendRequest};
 use hyper_util::rt::TokioIo;
 use rhai::{Dynamic, Engine, EvalAltResult, FnPtr, NativeCallContext};
 use sha1::{Digest, Sha1};
+use std::pin::Pin;
 use tokio::io::AsyncWrite;
 use tracing::{debug, debug_span, error, warn, Instrument};
-use std::pin::Pin;
 
 use crate::scenario_executor::{
     scenario::{callback_and_continue, ScenarioAccess},
@@ -20,13 +21,68 @@ type EmptyBody = http_body_util::Empty<bytes::Bytes>;
 type IoType = TokioIo<tokio::io::Join<StreamRead, Pin<Box<dyn AsyncWrite + Send>>>>;
 pub type IncomingRequest = hyper::Request<hyper::body::Incoming>;
 pub type OutgoingResponse = Response<EmptyBody>;
+pub type IncomingResponse = Response<hyper::body::Incoming>;
+pub type OutgoingRequest = hyper::Request<EmptyBody>;
+pub struct Http1Client {
+    sr: SendRequest<EmptyBody>,
+    hup: Option<Hangup>,
+}
 
 static MAGIC_GUID: &str = "258EAFA5-E914-47DA-95CA-C5AB0DC85B11";
 
+fn http1_client(
+    ctx: NativeCallContext,
+    opts: Dynamic,
+    inner: Handle<StreamSocket>,
+) -> Result<Handle<Http1Client>, Box<EvalAltResult>> {
+    let original_span = tracing::Span::current();
+    let span = debug_span!(parent: original_span, "http1_client");
+    debug!(parent: &span, "node created");
+    #[derive(serde::Deserialize)]
+    struct Http1ClientOpts {}
+    let _opts: Http1ClientOpts = rhai::serde::from_dynamic(&opts)?;
+    debug!(parent: &span, "options parsed");
+
+    let Some(StreamSocket {
+        read: Some(r),
+        write: Some(w),
+        close: c,
+    }) = inner.lut()
+    else {
+        return Err(ctx.err("Incomplete underlying socket specified"));
+    };
+
+    let io = tokio::io::join(r, w.writer);
+    let mut io = Some(TokioIo::new(io));
+
+    let (sr, conn): (SendRequest<EmptyBody>, Connection<_, _>) =
+        match hyper::client::conn::http1::Builder::new()
+            .handshake(io.take().unwrap())
+            .now_or_never()
+            .unwrap()
+        {
+            Ok(x) => x,
+            Err(e) => {
+                warn!("Failed to create http1 client: {e}");
+                return Err(ctx.err("Failed to create http1 client"));
+            }
+        };
+
+    tokio::spawn(async move {
+        match conn.with_upgrades().await {
+            Ok(()) => (),
+            Err(e) => {
+                error!("Error serving hyper client connection: {e}");
+            }
+        }
+    });
+    Ok(Some(Http1Client { sr, hup: c }).wrap())
+}
+
 fn ws_upgrade(
     ctx: NativeCallContext,
-    inner: Handle<StreamSocket>,
     opts: Dynamic,
+    client: Handle<Http1Client>,
     continuation: FnPtr,
 ) -> Result<Handle<Task>, Box<EvalAltResult>> {
     let original_span = tracing::Span::current();
@@ -43,34 +99,13 @@ fn ws_upgrade(
     let opts: WsUpgradeOpts = rhai::serde::from_dynamic(&opts)?;
     debug!(parent: &span, url=opts.url, "options parsed");
 
+    let Some(mut client) = client.lut() else {
+        return Err(ctx.err("Null http1 client handle specified"));
+    };
+
     Ok(async move {
         let opts = opts;
         debug!("node started");
-        let Some(StreamSocket {
-            read: Some(r),
-            write: Some(w),
-            close: c,
-        }) = inner.lut()
-        else {
-            bail!("Incomplete underlying socket specified")
-        };
-
-        let io = tokio::io::join(r, w.writer);
-        let mut io = Some(TokioIo::new(io));
-
-        let (mut sr, conn): (SendRequest<EmptyBody>, Connection<_, _>) =
-            hyper::client::conn::http1::Builder::new()
-                .handshake(io.take().unwrap())
-                .await?;
-
-        tokio::spawn(async move {
-            match conn.with_upgrades().await {
-                Ok(()) => (),
-                Err(e) => {
-                    error!("Error serving hyper client connection: {e}");
-                }
-            }
-        });
 
         let key = {
             let array: [u8; 16] = rand::random();
@@ -90,7 +125,7 @@ fn ws_upgrade(
         let rq = rqb.body(http_body_util::Empty::<Bytes>::new())?;
 
         debug!("request {rq:?}");
-        let resp = sr.send_request(rq).await?;
+        let resp = client.sr.send_request(rq).await?;
         debug!("response {resp:?}");
 
         if !opts.lax {
@@ -125,8 +160,8 @@ fn ws_upgrade(
 
         let upg = hyper::upgrade::on(resp).await?;
         let parts = upg.downcast().unwrap();
-        io = Some(parts.io);
-        let (mut r, w) = io.unwrap().into_inner().into_inner();
+        let io: IoType = parts.io;
+        let (mut r, w) = io.into_inner().into_inner();
 
         let mut new_prefix = BytesMut::from(&parts.read_buf[..]);
         new_prefix.extend_from_slice(&r.prefix);
@@ -135,7 +170,7 @@ fn ws_upgrade(
         let s = StreamSocket {
             read: Some(r),
             write: Some(StreamWrite { writer: w }),
-            close: c,
+            close: client.hup,
         };
         debug!(s=?s, "upgraded");
         let h = s.wrap();
@@ -158,8 +193,7 @@ fn http1_serve(
     let the_scenario = ctx.get_scenario()?;
     debug!(parent: &span, "node created");
     #[derive(serde::Deserialize)]
-    struct WsAcceptOpts {
-    }
+    struct WsAcceptOpts {}
     let opts: WsAcceptOpts = rhai::serde::from_dynamic(&opts)?;
     debug!(parent: &span, "options parsed");
 
@@ -178,9 +212,9 @@ fn http1_serve(
         let server_builder = hyper::server::conn::http1::Builder::new();
         let io = tokio::io::join(r, w.writer);
 
-        let io: IoType  = TokioIo::new(io);
+        let io: IoType = TokioIo::new(io);
 
-        let c : Handle<Hangup> = c.wrap();
+        let c: Handle<Hangup> = c.wrap();
 
         let service = hyper::service::service_fn(move |rq: IncomingRequest| {
             debug!(?rq, "request");
@@ -188,26 +222,26 @@ fn http1_serve(
             let the_scenario = the_scenario.clone();
             let continuation = continuation.clone();
             async move {
+                let h: Handle<IncomingRequest> = Some(rq).wrap();
 
-                let h : Handle<IncomingRequest> = Some(rq).wrap();
-
-                let resp: Handle<OutgoingResponse> = match the_scenario.callback(continuation, (h,c)) {
-                    Ok(x) => x,
-                    Err(e) => {
-                        warn!("Error from handler function: {e}");
-                        return Ok(Response::builder()
-                        .status(500)
-                        .body(EmptyBody::new())
-                        .unwrap())
-                    }
-                };
+                let resp: Handle<OutgoingResponse> =
+                    match the_scenario.callback(continuation, (h, c)) {
+                        Ok(x) => x,
+                        Err(e) => {
+                            warn!("Error from handler function: {e}");
+                            return Ok(Response::builder()
+                                .status(500)
+                                .body(EmptyBody::new())
+                                .unwrap());
+                        }
+                    };
 
                 let Some(resp) = resp.lut() else {
                     warn!("Empty handle from handler function");
                     return Ok(Response::builder()
-                    .status(500)
-                    .body(EmptyBody::new())
-                    .unwrap())
+                        .status(500)
+                        .body(EmptyBody::new())
+                        .unwrap());
                 };
                 Ok::<Response<EmptyBody>, anyhow::Error>(resp)
             }
@@ -246,7 +280,7 @@ fn ws_accept(
     let opts: WsAcceptOpts = rhai::serde::from_dynamic(&opts)?;
     debug!(parent: &span, "options parsed");
 
-    let c : Option<Hangup> = close_handle.lut();
+    let c: Option<Hangup> = close_handle.lut();
     let Some(rq) = rq.lut() else {
         return Err(ctx.err("Null request token specified"));
     };
@@ -295,8 +329,7 @@ fn ws_accept(
 
             let accept = base64::engine::general_purpose::STANDARD.encode(hash);
 
-            response_builder = response_builder
-                .header(header::SEC_WEBSOCKET_ACCEPT, accept);
+            response_builder = response_builder.header(header::SEC_WEBSOCKET_ACCEPT, accept);
         }
         None if !opts.lax => {
             warn!("Incoming WebSocket connection's lacks Sec-Websocket-Key: header");
@@ -307,9 +340,7 @@ fn ws_accept(
         }
     }
 
-    let response = response_builder
-        .body(EmptyBody::new())
-        .unwrap();
+    let response = response_builder.body(EmptyBody::new()).unwrap();
     debug!(resp=?response, "response");
 
     tokio::spawn(async move {
@@ -320,7 +351,7 @@ fn ws_accept(
                 return;
             }
         };
-    
+
         let parts = match upg.downcast() {
             Ok(x) => x,
             Err(_e) => {
@@ -328,7 +359,7 @@ fn ws_accept(
                 return;
             }
         };
-        let io : IoType = parts.io;
+        let io: IoType = parts.io;
 
         let (mut r, w) = io.into_inner().into_inner();
 
@@ -345,13 +376,13 @@ fn ws_accept(
         let h = s.wrap();
 
         callback_and_continue(the_scenario, continuation, (h,)).await;
-
     });
 
     Ok(Some(response).wrap())
 }
 
 pub fn register(engine: &mut Engine) {
+    engine.register_fn("http1_client", http1_client);
     engine.register_fn("ws_upgrade", ws_upgrade);
     engine.register_fn("http1_serve", http1_serve);
     engine.register_fn("ws_accept", ws_accept);

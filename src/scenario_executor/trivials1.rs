@@ -342,6 +342,10 @@ fn stream_chunks(
     }
 }
 
+fn empty_close_handle() -> Handle<Hangup> {
+    None.wrap()
+}
+
 pub fn register(engine: &mut Engine) {
     engine.register_fn("take_read_part", take_read_part);
     engine.register_fn("take_write_part", take_write_part);
@@ -363,4 +367,6 @@ pub fn register(engine: &mut Engine) {
     engine.register_fn("read_stream_chunks", read_stream_chunks);
     engine.register_fn("write_stream_chunks", write_stream_chunks);
     engine.register_fn("stream_chunks", stream_chunks);
+
+    engine.register_fn("empty_hangup_handle", empty_close_handle);
 }

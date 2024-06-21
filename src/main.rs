@@ -12,6 +12,7 @@ pub mod scenario_executor {
 
     pub mod debugfluff;
     pub mod fluff;
+    pub mod http1;
     pub mod misc;
     pub mod nativetls;
     pub mod scenario;
@@ -21,7 +22,6 @@ pub mod scenario_executor {
     pub mod types;
     pub mod utils;
     pub mod wsframer;
-    pub mod wsupgrade;
     pub mod wswithpings;
 
     pub mod all_functions;

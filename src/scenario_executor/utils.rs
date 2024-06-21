@@ -9,7 +9,7 @@ use std::{
     task::Poll,
 };
 
-use super::{types::{DatagramSocket, StreamRead, StreamWrite}, wsupgrade::OutgoingResponse};
+use super::types::{DatagramSocket, StreamRead, StreamWrite};
 
 pub trait TaskHandleExt {
     fn wrap_noerr(self) -> Handle<Task>;

@@ -2,11 +2,13 @@ use std::net::SocketAddr;
 
 use rhai::Engine;
 
+use super::http1::{
+    Http1Client, IncomingRequest, IncomingResponse, OutgoingRequest, OutgoingResponse,
+};
 use super::types::{
     DatagramRead, DatagramSocket, DatagramWrite, Handle, Hangup, StreamRead, StreamSocket,
     StreamWrite, Task,
 };
-use super::wsupgrade::{IncomingRequest,OutgoingResponse};
 
 pub fn register_functions(engine: &mut Engine) {
     super::trivials1::register(engine);
@@ -15,7 +17,7 @@ pub fn register_functions(engine: &mut Engine) {
     super::misc::register(engine);
     super::tcp::register(engine);
     super::fluff::register(engine);
-    super::wsupgrade::register(engine);
+    super::http1::register(engine);
     super::wsframer::register(engine);
     super::wswithpings::register(engine);
     super::nativetls::register(engine);
@@ -38,4 +40,7 @@ pub fn register_types(engine: &mut Engine) {
     regtyp!(SocketAddr);
     regtyp!(IncomingRequest);
     regtyp!(OutgoingResponse);
+    regtyp!(OutgoingRequest);
+    regtyp!(IncomingResponse);
+    regtyp!(Http1Client);
 }

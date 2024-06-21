@@ -156,9 +156,14 @@ impl Overlay {
     ) -> anyhow::Result<String> {
         match self {
             Overlay::WsUpgrade { uri, host } => {
+                let httpclient = vars.getnewvarname("http");
                 let wsframes = vars.getnewvarname("wsframes");
 
-                printer.print_line(&format!("ws_upgrade({inner_var}, #{{host: \"{host}\", url: \"{uri}\"}}, |{wsframes}| {{"));
+                printer.print_line(&format!(
+                    "let {httpclient} = http1_client(#{{}}, {inner_var});"
+                ));
+
+                printer.print_line(&format!("ws_upgrade(#{{host: \"{host}\", url: \"{uri}\"}}, {httpclient}, |{wsframes}| {{"));
                 printer.increase_indent();
 
                 Ok(wsframes)
