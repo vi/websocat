@@ -193,6 +193,19 @@ impl Overlay {
 
                 Ok(outer_var)
             }
+            Overlay::WsAccept {  } => {
+                let ws = vars.getnewvarname("ws");
+                let hup = vars.getnewvarname("hup");
+                let rq = vars.getnewvarname("rq");
+
+                printer.print_line(&format!("http1_serve(#{{}}, {inner_var}, |{rq}, {hup}| {{"));
+                printer.increase_indent();
+
+                printer.print_line(&format!("ws_accept(#{{}}, {rq}, {hup}, |{ws}| {{"));
+                printer.increase_indent();
+
+                Ok(ws)
+            }
         }
     }
     fn end_print(&self, printer: &mut ScenarioPrinter) {
@@ -204,6 +217,13 @@ impl Overlay {
             Overlay::WsFramer { .. } => (),
             Overlay::StreamChunks => (),
             Overlay::TlsClient { .. } => {
+                printer.decrease_indent();
+                printer.print_line("})");
+            }
+            Overlay::WsAccept { .. } => {
+                printer.decrease_indent();
+                printer.print_line("})");
+
                 printer.decrease_indent();
                 printer.print_line("})");
             }

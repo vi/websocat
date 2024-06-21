@@ -211,6 +211,7 @@ impl SpecifierStack {
                 Overlay::WsFramer { .. } => typ = CopyingType::Datarams,
                 Overlay::StreamChunks => typ = CopyingType::Datarams,
                 Overlay::TlsClient { .. } => typ = CopyingType::ByteStream,
+                Overlay::WsAccept {  } => typ = CopyingType::ByteStream,
             }
         }
         typ

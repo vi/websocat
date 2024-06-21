@@ -29,6 +29,8 @@ pub enum Overlay {
         uri: Uri,
         host: String,
     },
+    WsAccept {
+    },
     WsFramer {
         client_mode: bool,
     },

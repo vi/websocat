@@ -71,6 +71,21 @@ impl ParseStrChunkResult<'_> {
                 },
                 rest,
             })
+        } else if let Some(rest) = x.strip_prefix("ws-accept:") {
+            Ok(ParseStrChunkResult::Overlay {
+                ovl: Overlay::WsAccept {  },
+                rest,
+            })
+        } else if let Some(rest) = x.strip_prefix("ws-ll-client:") {
+            Ok(ParseStrChunkResult::Overlay {
+                ovl: Overlay::WsFramer { client_mode: true },
+                rest,
+            })
+        } else if let Some(rest) = x.strip_prefix("ws-ll-server:") {
+            Ok(ParseStrChunkResult::Overlay {
+                ovl: Overlay::WsFramer { client_mode: false },
+                rest,
+            })
         } else {
             anyhow::bail!("Unknown specifier: {x}")
         }
