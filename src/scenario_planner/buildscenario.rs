@@ -98,12 +98,11 @@ impl Endpoint {
                 printer.increase_indent();
                 Ok(varnam)
             }
-            Endpoint::WsUrl(..) => {
+            Endpoint::WsUrl(..) | Endpoint::WssUrl(..) | Endpoint::WsListen(..) => {
                 panic!(
                     "This endpoint is supposed to be split up by specifier stack patcher before."
                 );
             }
-            Endpoint::WssUrl(_) => todo!(),
             Endpoint::Stdio => {
                 let varnam = vars.getnewvarname("stdio");
                 printer.print_line(&format!("let {varnam} = create_stdio();"));
@@ -127,12 +126,11 @@ impl Endpoint {
                 printer.decrease_indent();
                 printer.print_line("})");
             }
-            Endpoint::WsUrl(_) => {
+            Endpoint::WsUrl(..) | Endpoint::WssUrl(..) | Endpoint::WsListen(..) => {
                 panic!(
                     "This endpoint is supposed to be split up by specifier stack patcher before."
                 );
             }
-            Endpoint::WssUrl(_) => todo!(),
             Endpoint::Stdio => {}
             Endpoint::UdpConnect(_) => todo!(),
             Endpoint::UdpBind(_) => todo!(),

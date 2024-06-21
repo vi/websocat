@@ -12,8 +12,10 @@ use super::{
 
 impl WebsocatInvocation {
     pub fn patches(&mut self, vars: &mut IdentifierGenerator) -> anyhow::Result<()> {
-        self.left.maybe_splitup_ws_endpoint()?;
-        self.right.maybe_splitup_ws_endpoint()?;
+        self.left.maybe_splitup_client_ws_endpoint()?;
+        self.right.maybe_splitup_client_ws_endpoint()?;
+        self.left.maybe_splitup_server_ws_endpoint()?;
+        self.right.maybe_splitup_server_ws_endpoint()?;
         if !self.opts.late_resolve {
             self.left.maybe_early_resolve(&mut self.beginning, vars);
             self.right.maybe_early_resolve(&mut self.beginning, vars);
@@ -108,7 +110,7 @@ impl WebsocatInvocation {
 }
 
 impl SpecifierStack {
-    fn maybe_splitup_ws_endpoint(&mut self) -> anyhow::Result<()> {
+    fn maybe_splitup_client_ws_endpoint(&mut self) -> anyhow::Result<()> {
         match self.innermost {
             Endpoint::WsUrl(ref u) | Endpoint::WssUrl(ref u) => {
                 let mut parts = u.clone().into_parts();
@@ -165,6 +167,23 @@ impl SpecifierStack {
                         },
                     );
                 }
+            }
+            _ => (),
+        }
+        Ok(())
+    }
+
+    fn maybe_splitup_server_ws_endpoint(&mut self) -> anyhow::Result<()> {
+        match self.innermost {
+            Endpoint::WsListen(a) => {
+                self.innermost = Endpoint::TcpListen(a);
+
+                self.overlays.insert(
+                    0,
+                    Overlay::WsAccept {  },
+                );
+                self.overlays
+                    .insert(1, Overlay::WsFramer { client_mode: false });
             }
             _ => (),
         }
@@ -230,6 +249,7 @@ impl Endpoint {
             Endpoint::Stdio => CopyingType::ByteStream,
             Endpoint::UdpConnect(_) => CopyingType::Datarams,
             Endpoint::UdpBind(_) => CopyingType::Datarams,
+            Endpoint::WsListen(_) => CopyingType::Datarams,
         }
     }
 }

@@ -18,6 +18,7 @@ pub enum Endpoint {
     TcpListen(SocketAddr),
     WsUrl(Uri),
     WssUrl(Uri),
+    WsListen(SocketAddr),
     Stdio,
     UdpConnect(SocketAddr),
     UdpBind(SocketAddr),

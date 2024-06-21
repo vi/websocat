@@ -65,6 +65,13 @@ async fn main() -> anyhow::Result<()> {
             eprintln!("Using --binary mode by default");
             args.binary = true;
         }
+        if args.server {
+            if !args.spec1.contains(':') {
+                args.spec1 = format!("127.0.0.1:{}", args.spec1);
+            }
+            args.spec1 = format!("ws-l:{}", args.spec1);
+        }
+
 
         let left_stack = SpecifierStack::from_str(&args.spec1)?;
         let right_stack = SpecifierStack::from_str(&args.spec2.take().unwrap())?;

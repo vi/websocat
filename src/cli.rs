@@ -44,4 +44,8 @@ pub struct WebsocatArgs {
     /// manually specify domain for `tls:` overlay or override domain for `wss://` URLs
     #[argh(option)]
     pub tls_domain: Option<String>,
+
+    /// listen for WebSocket conenctions instead of establishing client WebSocket connection
+    #[argh(switch, short = 's')]
+    pub server: bool,
 }

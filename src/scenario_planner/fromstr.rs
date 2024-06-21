@@ -86,6 +86,9 @@ impl ParseStrChunkResult<'_> {
                 ovl: Overlay::WsFramer { client_mode: false },
                 rest,
             })
+        } else if let Some(rest) = x.strip_prefix("ws-l:") {
+            let a: SocketAddr = rest.parse()?;
+            Ok(ParseStrChunkResult::Endpoint(Endpoint::WsListen(a)))
         } else {
             anyhow::bail!("Unknown specifier: {x}")
         }
