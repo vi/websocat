@@ -1,19 +1,19 @@
 # For alpha release
 
 * Line mode
-* Server (including TLS)
+* TLS server
 * basic UDP
 * subprocesses
 * buffering / performance checks
 * unidirectional mode
-* outgoing pings
-* oneshot mode
-* one message mode
 * --protocol / --server-protocol
 * custom request/response headers
 
 # Later
 
+* outgoing pings
+* oneshot mode
+* one message mode
 * Advanced UDP options
 * Advanced TCP options
 * DTLS
@@ -54,3 +54,4 @@
 * assert node
 * waitfordata
 * left-to-right features to set envvars based on incoming request
+* Good, helpful `-v` logs
