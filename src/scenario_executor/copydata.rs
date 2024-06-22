@@ -19,7 +19,14 @@ use crate::scenario_executor::{
 
 use super::{types::DatagramSocket, utils::RhResult};
 
-fn copy_bytes(from: Handle<StreamRead>, to: Handle<StreamWrite>) -> Handle<Task> {
+//@ Forward unframed bytes from source to sink
+fn copy_bytes(
+    //@ stream source to read from
+    from: Handle<StreamRead>,
+    //@ stream sink to write to
+    to: Handle<StreamWrite>,
+     //@ task that finishes when forwarding finishes or exists with an error
+) -> Handle<Task> {
     let span = debug_span!("copy_bytes", f = field::Empty, t = field::Empty);
     debug!(parent: &span, "node created");
     async move {
