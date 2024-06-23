@@ -2,7 +2,7 @@ use std::{net::SocketAddr, time::Duration};
 
 use crate::scenario_executor::utils::TaskHandleExt2;
 use futures::{stream::FuturesUnordered, FutureExt, StreamExt};
-use rhai::{Dynamic, Engine, EvalAltResult, FnPtr, NativeCallContext};
+use rhai::{Dynamic, Engine, FnPtr, NativeCallContext};
 use tokio::net::TcpStream;
 use tracing::{debug, debug_span, error, Instrument};
 
@@ -11,11 +11,13 @@ use crate::scenario_executor::{
     types::{Handle, StreamRead, StreamSocket, StreamWrite, Task},
 };
 
+use super::utils::RhResult;
+
 fn connect_tcp(
     ctx: NativeCallContext,
     opts: Dynamic,
     continuation: FnPtr,
-) -> Result<Handle<Task>, Box<EvalAltResult>> {
+) -> RhResult<Handle<Task>> {
     let original_span = tracing::Span::current();
     let span = debug_span!(parent: original_span, "connect_tcp");
     let the_scenario = ctx.get_scenario()?;
@@ -57,7 +59,7 @@ fn connect_tcp_race(
     opts: Dynamic,
     addrs: Vec<SocketAddr>,
     continuation: FnPtr,
-) -> Result<Handle<Task>, Box<EvalAltResult>> {
+) -> RhResult<Handle<Task>> {
     let original_span = tracing::Span::current();
     let span = debug_span!(parent: original_span, "connect_tcp_race");
     let the_scenario = ctx.get_scenario()?;
@@ -117,7 +119,7 @@ fn listen_tcp(
     ctx: NativeCallContext,
     opts: Dynamic,
     continuation: FnPtr,
-) -> Result<Handle<Task>, Box<EvalAltResult>> {
+) -> RhResult<Handle<Task>> {
     let span = debug_span!("listen_tcp");
     let the_scenario = ctx.get_scenario()?;
     debug!(parent: &span, "node created");

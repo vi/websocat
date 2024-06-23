@@ -25,6 +25,24 @@ E_FN_DECL_PARAM = re.compile(r"""
 E_FN_DECL_END = re.compile(r"""
     \) \s* (?P<ret>  -> (.*) )? { $
     """, re.VERBOSE)
+E_FN_DECL_ONELINE = re.compile(r"""
+    \b fn \s* 
+    (?P<rust_function> [a-zA-Z0-9_]+  )
+    \s* \( \s*
+        (?P<params> [^)]* )
+    \s* \) \s*
+    (?P<ret>  -> (.*) )?
+    \s* {
+    """, re.VERBOSE)
+E_FN_COOK_RET1 = re.compile(r"""
+    \s* -> \s* (.*)
+    """, re.VERBOSE)
+E_FN_COOK_RET2 = re.compile(r"""
+    ^ RhResult \s* < \s* (.*) \s* > \s* $
+    """, re.VERBOSE)
+E_STRIP_HANDLE = re.compile(r"""
+    ^ Handle \s* < \s* (.*) \s* > \s* $
+    """, re.VERBOSE)
 
 @dataclass
 class TypeAndDoc:
@@ -67,7 +85,21 @@ def read_executor_file(ll: List[str]) -> List[ExecutorFunc]:
         if x := DOCCOMMENT_LINE.search(l):
             accumulated_doccomment_lines.append(x.group(1))
         if active_function is None:
-            if x:=E_FN_DECL_START.search(l):
+            if x:=E_FN_DECL_ONELINE.search(l):
+                g = x.groupdict()
+                nam = g["rust_function"]
+                if nam in funcs:
+                    f = funcs[g["rust_function"]]
+                    f.primary_doc = "\n".join(accumulated_doccomment_lines)
+                    accumulated_doccomment_lines=[]
+                    if "ret" in g:
+                        f.ret.typ = g["ret"]
+                    params = g["params"]
+                    if params:
+                        for param in params.split(","):
+                            d = param.split(":")
+                            f.params.append((d[0].strip(), TypeAndDoc(d[1].strip(),"")))
+            elif x:=E_FN_DECL_START.search(l):
                 nam = x.group("rust_fn")
                 if nam in funcs:
                     active_function = nam
@@ -96,6 +128,10 @@ def read_executor_file(ll: List[str]) -> List[ExecutorFunc]:
 
     return [x for x in funcs.values()]
 
+def strip_handle(s : str) -> str:
+    if x:=E_STRIP_HANDLE.search(s):
+        s=x.group(1)
+    return s.strip()
 
 def document_executor_function(f: ExecutorFunc) -> None:
     print("## " + f.rhai_function)
@@ -103,11 +139,12 @@ def document_executor_function(f: ExecutorFunc) -> None:
     if f.primary_doc != "":
         print(f.primary_doc)
         print()
+    f.params = [x for x in f.params if x[0] != "ctx"]
     if len(f.params) > 0:
         print("Parameters:")
         print()
         for (nam, x) in f.params:
-            s = "* " + nam + " (`" + x.typ + "`)"
+            s = "* " + nam + " (`" + strip_handle(x.typ) + "`)"
             if x.doc:
                 s += " - " + x.doc
             print(s)
@@ -117,7 +154,12 @@ def document_executor_function(f: ExecutorFunc) -> None:
     if not f.ret.typ:
         s="Does not return anything."
     else:
-        s="Returns `" + f.ret.typ + '`'
+        r = f.ret.typ
+        if xx := E_FN_COOK_RET1.search(r):
+            r = xx.group(1)
+        if xx := E_FN_COOK_RET2.search(r):
+            r = xx.group(1)
+        s="Returns `" + strip_handle(r) + '`'
     if f.ret.doc:
         s += " - " + f.ret.doc
     print(s)
@@ -131,7 +173,12 @@ def main() -> None:
             with open(os.path.join(root, fn), "r") as f:
                 executor_functions.extend(read_executor_file([line.rstrip() for line in f.readlines()]))
 
-    #executor_functions.sort
+    executor_functions.sort(key=lambda x: x.rhai_function)
+
+    print("# Scenario functions")
+    print()
+    print("Those functions are used in Weboscat Rhai Scripts (Scenarios):")
+    print()
 
     for execfn in executor_functions:
         document_executor_function(execfn)

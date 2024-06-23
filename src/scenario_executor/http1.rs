@@ -5,7 +5,7 @@ use futures::FutureExt;
 use http::{header, Response, StatusCode};
 use hyper::client::conn::http1::{Connection, SendRequest};
 use hyper_util::rt::TokioIo;
-use rhai::{Dynamic, Engine, EvalAltResult, FnPtr, NativeCallContext};
+use rhai::{Dynamic, Engine, FnPtr, NativeCallContext};
 use sha1::{Digest, Sha1};
 use std::pin::Pin;
 use tokio::io::AsyncWrite;
@@ -34,7 +34,7 @@ fn http1_client(
     ctx: NativeCallContext,
     opts: Dynamic,
     inner: Handle<StreamSocket>,
-) -> Result<Handle<Http1Client>, Box<EvalAltResult>> {
+) -> RhResult<Handle<Http1Client>> {
     let original_span = tracing::Span::current();
     let span = debug_span!(parent: original_span, "http1_client");
     debug!(parent: &span, "node created");
@@ -84,7 +84,7 @@ fn ws_upgrade(
     opts: Dynamic,
     client: Handle<Http1Client>,
     continuation: FnPtr,
-) -> Result<Handle<Task>, Box<EvalAltResult>> {
+) -> RhResult<Handle<Task>> {
     let original_span = tracing::Span::current();
     let span = debug_span!(parent: original_span, "ws_upgrade");
     let the_scenario = ctx.get_scenario()?;
@@ -187,7 +187,7 @@ fn http1_serve(
     opts: Dynamic,
     inner: Handle<StreamSocket>,
     continuation: FnPtr,
-) -> Result<Handle<Task>, Box<EvalAltResult>> {
+) -> RhResult<Handle<Task>> {
     let original_span = tracing::Span::current();
     let span = debug_span!(parent: original_span, "http1_serve");
     let the_scenario = ctx.get_scenario()?;
@@ -268,7 +268,7 @@ fn ws_accept(
     rq: Handle<IncomingRequest>,
     close_handle: Handle<Hangup>,
     continuation: FnPtr,
-) -> Result<Handle<OutgoingResponse>, Box<EvalAltResult>> {
+) -> RhResult<Handle<OutgoingResponse>> {
     let original_span = tracing::Span::current();
     let span = debug_span!(parent: original_span, "ws_accept");
     let the_scenario = ctx.get_scenario()?;
