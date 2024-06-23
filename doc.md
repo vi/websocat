@@ -11,6 +11,10 @@ Parameters:
 
 Returns `Task`
 
+Options:
+
+* addr (`SocketAddr`)
+
 ## connect_tcp_race
 
 Parameters:
@@ -104,6 +108,11 @@ Parameters:
 * continuation (`Fn(StreamSocket, SocketAddr)`)
 
 Returns `Task`
+
+Options:
+
+* addr (`SocketAddr`)
+* autospawn (`bool`)
 
 ## lookup_host
 
@@ -267,6 +276,10 @@ Parameters:
 
 Returns `Task`
 
+Options:
+
+* domain (`String`)
+
 ## tls_client_connector
 
 Parameters:
@@ -274,6 +287,18 @@ Parameters:
 * opts (`Dynamic`)
 
 Returns `Arc<tokio_native_tls::TlsConnector>`
+
+Options:
+
+* min_protocol_version (`Option<String>`)
+* max_protocol_version (`Option<String>`)
+* root_certificates_pem (`Vec<String>`)
+* root_certificates_der_base64 (`Vec<String>`)
+* disable_built_in_roots (`bool`)
+* request_alpns (`Vec<String>`)
+* danger_accept_invalid_certs (`bool`)
+* danger_accept_invalid_hostnames (`bool`)
+* no_sni (`bool`)
 
 ## trivial_pkts
 
@@ -298,6 +323,10 @@ Parameters:
 
 Returns `OutgoingResponse`
 
+Options:
+
+* lax (`bool`)
+
 ## ws_decoder
 
 Parameters:
@@ -307,6 +336,11 @@ Parameters:
 
 Returns `DatagramRead`
 
+Options:
+
+* require_masked (`bool`)
+* require_unmasked (`bool`)
+
 ## ws_encoder
 
 Parameters:
@@ -315,6 +349,13 @@ Parameters:
 * inner (`StreamWrite`)
 
 Returns `DatagramWrite`
+
+Options:
+
+* masked (`bool`)
+* no_flush_after_each_message (`bool`)
+* no_close_frame (`bool`)
+* shutdown_socket_on_eof (`bool`)
 
 ## ws_upgrade
 
@@ -326,6 +367,12 @@ Parameters:
 
 Returns `Task`
 
+Options:
+
+* url (`String`)
+* host (`Option<String>`)
+* lax (`bool`)
+
 ## ws_wrap
 
 Parameters:
@@ -334,4 +381,12 @@ Parameters:
 * inner (`StreamSocket`)
 
 Returns `DatagramSocket`
+
+Options:
+
+* client (`bool`)
+* ignore_masks (`bool`)
+* no_flush_after_each_message (`bool`)
+* no_close_frame (`bool`)
+* shutdown_socket_on_eof (`bool`)
 

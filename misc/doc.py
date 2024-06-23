@@ -46,6 +46,20 @@ E_FN_BODY_CALLBACK2 = re.compile(r"""
        (?P<cbparams>  .* )
     \s* \) \s* > \s* \(
     """, re.VERBOSE)
+E_FN_OPTS_START = re.compile(r"""
+   ^ \s* struct \s* [a-zA-Z0-9_]+ \s* { \s* $
+    """, re.VERBOSE)
+E_FN_OPTS_ENTRY = re.compile(r"""
+   ^ \s* 
+        (?P<nam> [a-zA-Z0-9_]+ )
+   \s* : \s*  
+        (?P<typ>  [^,]+  )
+   \s* , \s* $
+    """, re.VERBOSE)
+E_FN_OPTS_END = re.compile(r"""
+   ^ \s* } \s* $
+    """, re.VERBOSE)
+
 E_FN_BODY_END = re.compile('^}\s*$')
 
 
@@ -73,6 +87,7 @@ class ExecutorFunc:
     ret: TypeAndDoc
     callback_params: List[str]
     callback_return: str
+    options: List[Tuple[str, TypeAndDoc]]
 
 def read_executor_file(ll: List[str]) -> List[ExecutorFunc]:
     funcs : Dict[str, ExecutorFunc] = {}
@@ -91,7 +106,7 @@ def read_executor_file(ll: List[str]) -> List[ExecutorFunc]:
                 rs = m.group('rust_function')
                 rh = m.group('rhai_function')
                 funcs[rs] = ExecutorFunc(
-                    rs,rh,'',[],TypeAndDoc('',''),[],""
+                    rs,rh,'',[],TypeAndDoc('',''),[],"",[]
                 )
 
     # Step 2: extract each fuction's documentation, parameters and return type
@@ -99,6 +114,7 @@ def read_executor_file(ll: List[str]) -> List[ExecutorFunc]:
     accumulated_doccomment_lines : List[str] = []
     active_function_decl : None | str = None
     active_function_body: None | str = None
+    active_options_list = False
     for l in ll:
         if x := DOCCOMMENT_LINE.search(l):
             accumulated_doccomment_lines.append(x.group(1))
@@ -128,20 +144,33 @@ def read_executor_file(ll: List[str]) -> List[ExecutorFunc]:
                         active_function_body = nam
             else:
                 # inside a function body
-                def process_cbparams(cbp: str) -> None:
-                    if active_function_body is None: raise Exception("!")
-                    if len(funcs[active_function_body].callback_params) == 0:
-                        for p in cbp.split(","):
-                            if p.strip() == "": continue
-                            funcs[active_function_body].callback_params.append(p)
-                if E_FN_BODY_END.search(l):
-                    active_function_body = None
-                elif x:= E_FN_BODY_CALLBACK1.search(l):
-                    process_cbparams(x.group("cbparams"))
-                elif x:= E_FN_BODY_CALLBACK2.search(l):
-                    process_cbparams(x.group("cbparams"))
-                    if funcs[active_function_body].callback_return == "":
-                        funcs[active_function_body].callback_return = x.group("cbret")
+                if not active_options_list:
+                    def process_cbparams(cbp: str) -> None:
+                        if active_function_body is None: raise Exception("!")
+                        if len(funcs[active_function_body].callback_params) == 0:
+                            for p in cbp.split(","):
+                                if p.strip() == "": continue
+                                funcs[active_function_body].callback_params.append(p)
+                    if E_FN_BODY_END.search(l):
+                        active_function_body = None
+                    elif x:= E_FN_BODY_CALLBACK1.search(l):
+                        process_cbparams(x.group("cbparams"))
+                    elif x:= E_FN_BODY_CALLBACK2.search(l):
+                        process_cbparams(x.group("cbparams"))
+                        if funcs[active_function_body].callback_return == "":
+                            funcs[active_function_body].callback_return = x.group("cbret")
+                    elif E_FN_OPTS_START.search(l):
+                        active_options_list = True
+                else:
+                    # inside options list
+                    if E_FN_OPTS_END.search(l):
+                        active_options_list = False
+                    elif x := E_FN_OPTS_ENTRY.search(l):
+                        nam = x.group("nam")
+                        typ = x.group("typ")
+                        doc = "\n".join(accumulated_doccomment_lines)
+                        accumulated_doccomment_lines=[]
+                        funcs[active_function_body].options.append((nam, TypeAndDoc(typ, doc)))
         else:
             # inside a function declaration
             if x:=E_FN_DECL_PARAM.search(l):
@@ -215,6 +244,16 @@ def document_executor_function(f: ExecutorFunc) -> None:
         s += " - " + f.ret.doc
     print(s)
     print()
+    if len(f.options) > 0:
+        print("Options:")
+        print()
+        for (on, od) in f.options:
+            s = "* " + on + " (`" + od.typ + "`)"
+            if od.doc:
+                s += ' - '
+                s += od.doc
+            print(s)
+        print()
 
 def main() -> None:
     executor_functions : List[ExecutorFunc] = []
