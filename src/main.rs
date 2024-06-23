@@ -72,7 +72,6 @@ async fn main() -> anyhow::Result<()> {
             args.spec1 = format!("ws-l:{}", args.spec1);
         }
 
-
         let left_stack = SpecifierStack::from_str(&args.spec1)?;
         let right_stack = SpecifierStack::from_str(&args.spec2.take().unwrap())?;
 

@@ -25,7 +25,7 @@ fn copy_bytes(
     from: Handle<StreamRead>,
     //@ stream sink to write to
     to: Handle<StreamWrite>,
-     //@ task that finishes when forwarding finishes or exists with an error
+    //@ task that finishes when forwarding finishes or exists with an error
 ) -> Handle<Task> {
     let span = debug_span!("copy_bytes", f = field::Empty, t = field::Empty);
     debug!(parent: &span, "node created");

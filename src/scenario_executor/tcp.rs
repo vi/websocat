@@ -47,7 +47,7 @@ fn connect_tcp(
         debug!(s=?s, "connected");
         let h = s.wrap();
 
-        callback_and_continue(the_scenario, continuation, (h,)).await;
+        callback_and_continue::<(Handle<StreamSocket>,)>(the_scenario, continuation, (h,)).await;
         Ok(())
     }
     .instrument(span)
@@ -108,7 +108,7 @@ fn connect_tcp_race(
         debug!(s=?s, "connected");
         let h = s.wrap();
 
-        callback_and_continue(the_scenario, continuation, (h,)).await;
+        callback_and_continue::<(Handle<StreamSocket>,)>(the_scenario, continuation, (h,)).await;
         Ok(())
     }
     .instrument(span)
@@ -160,14 +160,22 @@ fn listen_tcp(
                     debug!(parent: &newspan, s=?s,"accepted");
                     let h = s.wrap();
                     if !autospawn {
-                        callback_and_continue(the_scenario, continuation, (h, from))
-                            .instrument(newspan)
-                            .await;
+                        callback_and_continue::<(Handle<StreamSocket>, SocketAddr)>(
+                            the_scenario,
+                            continuation,
+                            (h, from),
+                        )
+                        .instrument(newspan)
+                        .await;
                     } else {
                         tokio::spawn(async move {
-                            callback_and_continue(the_scenario, continuation, (h, from))
-                                .instrument(newspan)
-                                .await;
+                            callback_and_continue::<(Handle<StreamSocket>, SocketAddr)>(
+                                the_scenario,
+                                continuation,
+                                (h, from),
+                            )
+                            .instrument(newspan)
+                            .await;
                         });
                     }
                 }

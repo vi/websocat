@@ -15,7 +15,7 @@ pub struct Scenario {
 }
 
 pub trait ScenarioAccess {
-    fn callback<T: Variant + Clone>(&self, f: FnPtr, args: impl FuncArgs) -> anyhow::Result<T>;
+    fn callback<T: Variant + Clone, A: FuncArgs>(&self, f: FnPtr, args: A) -> anyhow::Result<T>;
     fn get_scenario(&self) -> RhResult<Arc<Scenario>>;
 }
 
@@ -47,7 +47,7 @@ impl Scenario {
 }
 
 impl ScenarioAccess for NativeCallContext<'_> {
-    fn callback<T: Variant + Clone>(&self, f: FnPtr, args: impl FuncArgs) -> anyhow::Result<T> {
+    fn callback<T: Variant + Clone, A: FuncArgs>(&self, f: FnPtr, args: A) -> anyhow::Result<T> {
         let scenario: Weak<Scenario> = self.tag().unwrap().clone().try_cast().unwrap();
 
         if let Some(s) = scenario.upgrade() {
@@ -74,7 +74,7 @@ impl ScenarioAccess for NativeCallContext<'_> {
 }
 
 impl ScenarioAccess for Arc<Scenario> {
-    fn callback<T: Variant + Clone>(&self, f: FnPtr, args: impl FuncArgs) -> anyhow::Result<T> {
+    fn callback<T: Variant + Clone, A: FuncArgs>(&self, f: FnPtr, args: A) -> anyhow::Result<T> {
         let scenario = self;
 
         let ret = f.call(&self.engine, &scenario.ast, args);
@@ -89,8 +89,8 @@ impl ScenarioAccess for Arc<Scenario> {
     }
 }
 
-pub async fn callback_and_continue(ctx: Arc<Scenario>, f: FnPtr, args: impl FuncArgs) {
-    match ctx.callback::<Handle<Task>>(f, args) {
+pub async fn callback_and_continue<A: FuncArgs>(ctx: Arc<Scenario>, f: FnPtr, args: A) {
+    match ctx.callback::<Handle<Task>, A>(f, args) {
         Ok(h) => run_task(h).await,
         Err(e) => error!("Error from scenario task: {e}"),
     };

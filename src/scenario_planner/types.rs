@@ -30,8 +30,7 @@ pub enum Overlay {
         uri: Uri,
         host: String,
     },
-    WsAccept {
-    },
+    WsAccept {},
     WsFramer {
         client_mode: bool,
     },

@@ -175,7 +175,7 @@ fn ws_upgrade(
         debug!(s=?s, "upgraded");
         let h = s.wrap();
 
-        callback_and_continue(the_scenario, continuation, (h,)).await;
+        callback_and_continue::<(Handle<StreamSocket>,)>(the_scenario, continuation, (h,)).await;
         Ok(())
     }
     .instrument(span)
@@ -225,7 +225,10 @@ fn http1_serve(
                 let h: Handle<IncomingRequest> = Some(rq).wrap();
 
                 let resp: Handle<OutgoingResponse> =
-                    match the_scenario.callback(continuation, (h, c)) {
+                    match the_scenario.callback::<_, (Handle<IncomingRequest>, Handle<Hangup>)>(
+                        continuation,
+                        (h, c),
+                    ) {
                         Ok(x) => x,
                         Err(e) => {
                             warn!("Error from handler function: {e}");
@@ -375,7 +378,7 @@ fn ws_accept(
         debug!(s=?s, "accepted");
         let h = s.wrap();
 
-        callback_and_continue(the_scenario, continuation, (h,)).await;
+        callback_and_continue::<(Handle<StreamSocket>,)>(the_scenario, continuation, (h,)).await;
     });
 
     Ok(Some(response).wrap())

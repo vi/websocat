@@ -176,7 +176,7 @@ fn tls_client(
         debug!(s=?s, "connected");
         let h = s.wrap();
 
-        callback_and_continue(the_scenario, continuation, (h,)).await;
+        callback_and_continue::<(Handle<StreamSocket>,)>(the_scenario, continuation, (h,)).await;
         Ok(())
     }
     .instrument(span)

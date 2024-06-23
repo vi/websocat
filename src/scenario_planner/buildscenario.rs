@@ -191,7 +191,7 @@ impl Overlay {
 
                 Ok(outer_var)
             }
-            Overlay::WsAccept {  } => {
+            Overlay::WsAccept {} => {
                 let ws = vars.getnewvarname("ws");
                 let hup = vars.getnewvarname("hup");
                 let rq = vars.getnewvarname("rq");

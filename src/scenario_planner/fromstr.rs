@@ -73,7 +73,7 @@ impl ParseStrChunkResult<'_> {
             })
         } else if let Some(rest) = x.strip_prefix("ws-accept:") {
             Ok(ParseStrChunkResult::Overlay {
-                ovl: Overlay::WsAccept {  },
+                ovl: Overlay::WsAccept {},
                 rest,
             })
         } else if let Some(rest) = x.strip_prefix("ws-ll-client:") {

@@ -178,10 +178,7 @@ impl SpecifierStack {
             Endpoint::WsListen(a) => {
                 self.innermost = Endpoint::TcpListen(a);
 
-                self.overlays.insert(
-                    0,
-                    Overlay::WsAccept {  },
-                );
+                self.overlays.insert(0, Overlay::WsAccept {});
                 self.overlays
                     .insert(1, Overlay::WsFramer { client_mode: false });
             }
@@ -230,7 +227,7 @@ impl SpecifierStack {
                 Overlay::WsFramer { .. } => typ = CopyingType::Datarams,
                 Overlay::StreamChunks => typ = CopyingType::Datarams,
                 Overlay::TlsClient { .. } => typ = CopyingType::ByteStream,
-                Overlay::WsAccept {  } => typ = CopyingType::ByteStream,
+                Overlay::WsAccept {} => typ = CopyingType::ByteStream,
             }
         }
         typ

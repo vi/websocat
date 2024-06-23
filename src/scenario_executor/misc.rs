@@ -39,7 +39,7 @@ fn lookup_host(
         debug!("node started");
         let ips: Vec<SocketAddr> = tokio::net::lookup_host(addr).await?.collect();
 
-        callback_and_continue(the_scenario, continuation, (ips,)).await;
+        callback_and_continue::<(Vec<SocketAddr>,)>(the_scenario, continuation, (ips,)).await;
         Ok(())
     }
     .instrument(span)
