@@ -34,6 +34,21 @@ E_FN_DECL_ONELINE = re.compile(r"""
     (?P<ret>  -> (.*) )?
     \s* {
     """, re.VERBOSE)
+E_FN_BODY_CALLBACK1 = re.compile(r"""
+   callback_and_continue \s* ::< \s* \(
+    (?P<cbparams>  .* )
+    \s* \) \s* > \s* \(
+    """, re.VERBOSE)
+E_FN_BODY_CALLBACK2 = re.compile(r"""
+   callback \s* ::< 
+       (?P<cbret> [^,]+? )
+    \s* \, \s* \(
+       (?P<cbparams>  .* )
+    \s* \) \s* > \s* \(
+    """, re.VERBOSE)
+E_FN_BODY_END = re.compile('^}\s*$')
+
+
 E_FN_COOK_RET1 = re.compile(r"""
     \s* -> \s* (.*)
     """, re.VERBOSE)
@@ -56,6 +71,8 @@ class ExecutorFunc:
     primary_doc: str
     params: List[Tuple[str, TypeAndDoc]]
     ret: TypeAndDoc
+    callback_params: List[str]
+    callback_return: str
 
 def read_executor_file(ll: List[str]) -> List[ExecutorFunc]:
     funcs : Dict[str, ExecutorFunc] = {}
@@ -74,42 +91,63 @@ def read_executor_file(ll: List[str]) -> List[ExecutorFunc]:
                 rs = m.group('rust_function')
                 rh = m.group('rhai_function')
                 funcs[rs] = ExecutorFunc(
-                    rs,rh,'',[],TypeAndDoc('','')
+                    rs,rh,'',[],TypeAndDoc('',''),[],""
                 )
 
     # Step 2: extract each fuction's documentation, parameters and return type
 
     accumulated_doccomment_lines : List[str] = []
-    active_function : None | str = None
+    active_function_decl : None | str = None
+    active_function_body: None | str = None
     for l in ll:
         if x := DOCCOMMENT_LINE.search(l):
             accumulated_doccomment_lines.append(x.group(1))
-        if active_function is None:
-            if x:=E_FN_DECL_ONELINE.search(l):
-                g = x.groupdict()
-                nam = g["rust_function"]
-                if nam in funcs:
-                    f = funcs[g["rust_function"]]
-                    f.primary_doc = "\n".join(accumulated_doccomment_lines)
-                    accumulated_doccomment_lines=[]
-                    if "ret" in g:
-                        f.ret.typ = g["ret"]
-                    params = g["params"]
-                    if params:
-                        for param in params.split(","):
-                            d = param.split(":")
-                            f.params.append((d[0].strip(), TypeAndDoc(d[1].strip(),"")))
-            elif x:=E_FN_DECL_START.search(l):
-                nam = x.group("rust_fn")
-                if nam in funcs:
-                    active_function = nam
-                    funcs[active_function].primary_doc = "\n".join(accumulated_doccomment_lines)
-                    accumulated_doccomment_lines=[]
+        if active_function_decl is None:
+            if active_function_body is None:
+                if x:=E_FN_DECL_ONELINE.search(l):
+                    g = x.groupdict()
+                    nam = g["rust_function"]
+                    if nam in funcs:
+                        f = funcs[g["rust_function"]]
+                        f.primary_doc = "\n".join(accumulated_doccomment_lines)
+                        accumulated_doccomment_lines=[]
+                        if "ret" in g:
+                            f.ret.typ = g["ret"]
+                        params = g["params"]
+                        if params:
+                            for param in params.split(","):
+                                d = param.split(":")
+                                f.params.append((d[0].strip(), TypeAndDoc(d[1].strip(),"")))
+                        active_function_body = nam
+                elif x:=E_FN_DECL_START.search(l):
+                    nam = x.group("rust_fn")
+                    if nam in funcs:
+                        active_function_decl = nam
+                        funcs[active_function_decl].primary_doc = "\n".join(accumulated_doccomment_lines)
+                        accumulated_doccomment_lines=[]
+                        active_function_body = nam
+            else:
+                # inside a function body
+                def process_cbparams(cbp: str) -> None:
+                    if active_function_body is None: raise Exception("!")
+                    if len(funcs[active_function_body].callback_params) == 0:
+                        for p in cbp.split(","):
+                            if p.strip() == "": continue
+                            funcs[active_function_body].callback_params.append(p)
+                if E_FN_BODY_END.search(l):
+                    active_function_body = None
+                elif x:= E_FN_BODY_CALLBACK1.search(l):
+                    process_cbparams(x.group("cbparams"))
+                elif x:= E_FN_BODY_CALLBACK2.search(l):
+                    process_cbparams(x.group("cbparams"))
+                    if funcs[active_function_body].callback_return == "":
+                        funcs[active_function_body].callback_return = x.group("cbret")
         else:
+            # inside a function declaration
             if x:=E_FN_DECL_PARAM.search(l):
                 nam = x.group("name")
                 typ = x.group("typ")
-                funcs[active_function].params.append((nam, TypeAndDoc(
+                funcs[active_function_decl].params.append((nam, TypeAndDoc(
                     typ,
                     "\n".join(accumulated_doccomment_lines)
                 )))
@@ -118,12 +156,12 @@ def read_executor_file(ll: List[str]) -> List[ExecutorFunc]:
                 typ = ""
                 if "ret" in x.groupdict():
                     typ =  x.group("ret")
-                funcs[active_function].ret = TypeAndDoc(
+                funcs[active_function_decl].ret = TypeAndDoc(
                     typ,
                     "\n".join(accumulated_doccomment_lines)
                 )
                 accumulated_doccomment_lines=[]
-                active_function=None
+                active_function_decl=None
             
 
     return [x for x in funcs.values()]
@@ -144,7 +182,20 @@ def document_executor_function(f: ExecutorFunc) -> None:
         print("Parameters:")
         print()
         for (nam, x) in f.params:
-            s = "* " + nam + " (`" + strip_handle(x.typ) + "`)"
+            s = "* " + nam + " (`" 
+            if x.typ != "FnPtr":
+                s += strip_handle(x.typ)
+            else:
+                s += "Fn("
+                for (i,pt) in enumerate(f.callback_params):
+                    if i>0:
+                        s += ", "
+                    s += strip_handle(pt.strip())
+                s += ")"
+                if f.callback_return:
+                    s += " -> "
+                    s += strip_handle(f.callback_return)
+            s += "`)"
             if x.doc:
                 s += " - " + x.doc
             print(s)
@@ -177,7 +228,7 @@ def main() -> None:
 
     print("# Scenario functions")
     print()
-    print("Those functions are used in Weboscat Rhai Scripts (Scenarios):")
+    print("Those functions are used in Websocat Rhai Scripts (Scenarios):")
     print()
 
     for execfn in executor_functions:

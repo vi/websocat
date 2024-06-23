@@ -225,7 +225,7 @@ fn http1_serve(
                 let h: Handle<IncomingRequest> = Some(rq).wrap();
 
                 let resp: Handle<OutgoingResponse> =
-                    match the_scenario.callback::<_, (Handle<IncomingRequest>, Handle<Hangup>)>(
+                    match the_scenario.callback::<Handle<OutgoingResponse>, (Handle<IncomingRequest>, Handle<Hangup>)>(
                         continuation,
                         (h, c),
                     ) {
