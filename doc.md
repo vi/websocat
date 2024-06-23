@@ -6,8 +6,8 @@ Those functions are used in Websocat Rhai Scripts (Scenarios):
 
 Parameters:
 
-* opts (`Dynamic`)
-* continuation (`Fn(StreamSocket)`)
+* opts (`Dynamic`) - object map containing dynamic options to the function
+* continuation (`Fn(StreamSocket) -> Task`) - Rhai function that will be called to continue processing
 
 Returns `Task`
 
@@ -19,9 +19,9 @@ Options:
 
 Parameters:
 
-* opts (`Dynamic`)
+* opts (`Dynamic`) - object map containing dynamic options to the function
 * addrs (`Vec<SocketAddr>`)
-* continuation (`Fn(StreamSocket)`)
+* continuation (`Fn(StreamSocket) -> Task`) - Rhai function that will be called to continue processing
 
 Returns `Task`
 
@@ -65,7 +65,7 @@ Returns `Hangup`
 
 Parameters:
 
-* opts (`Dynamic`)
+* opts (`Dynamic`) - object map containing dynamic options to the function
 * s1 (`StreamSocket`)
 * s2 (`StreamSocket`)
 
@@ -75,7 +75,7 @@ Returns `Task`
 
 Parameters:
 
-* opts (`Dynamic`)
+* opts (`Dynamic`) - object map containing dynamic options to the function
 * s1 (`DatagramSocket`)
 * s2 (`DatagramSocket`)
 
@@ -85,7 +85,7 @@ Returns `Task`
 
 Parameters:
 
-* opts (`Dynamic`)
+* opts (`Dynamic`) - object map containing dynamic options to the function
 * inner (`StreamSocket`)
 
 Returns `Http1Client`
@@ -94,9 +94,9 @@ Returns `Http1Client`
 
 Parameters:
 
-* opts (`Dynamic`)
+* opts (`Dynamic`) - object map containing dynamic options to the function
 * inner (`StreamSocket`)
-* continuation (`Fn(IncomingRequest, Hangup) -> OutgoingResponse`)
+* continuation (`Fn(IncomingRequest, Hangup) -> OutgoingResponse`) - Rhai function that will be called to continue processing
 
 Returns `Task`
 
@@ -104,8 +104,8 @@ Returns `Task`
 
 Parameters:
 
-* opts (`Dynamic`)
-* continuation (`Fn(StreamSocket, SocketAddr)`)
+* opts (`Dynamic`) - object map containing dynamic options to the function
+* continuation (`Fn(StreamSocket, SocketAddr) -> Task`) - Rhai function that will be called to continue processing
 
 Returns `Task`
 
@@ -119,7 +119,7 @@ Options:
 Parameters:
 
 * addr (`String`)
-* continuation (`Fn(Vec<SocketAddr>)`)
+* continuation (`Fn(Vec<SocketAddr>) -> Task`) - Rhai function that will be called to continue processing
 
 Returns `Task`
 
@@ -269,10 +269,10 @@ Returns `StreamWrite`
 
 Parameters:
 
-* opts (`Dynamic`)
+* opts (`Dynamic`) - object map containing dynamic options to the function
 * connector (`Arc<tokio_native_tls::TlsConnector>`)
 * inner (`StreamSocket`)
-* continuation (`Fn(StreamSocket)`)
+* continuation (`Fn(StreamSocket) -> Task`) - Rhai function that will be called to continue processing
 
 Returns `Task`
 
@@ -284,7 +284,7 @@ Options:
 
 Parameters:
 
-* opts (`Dynamic`)
+* opts (`Dynamic`) - object map containing dynamic options to the function
 
 Returns `Arc<tokio_native_tls::TlsConnector>`
 
@@ -316,10 +316,10 @@ Returns `DatagramWrite`
 
 Parameters:
 
-* opts (`Dynamic`)
+* opts (`Dynamic`) - object map containing dynamic options to the function
 * rq (`IncomingRequest`)
 * close_handle (`Hangup`)
-* continuation (`Fn(StreamSocket)`)
+* continuation (`Fn(StreamSocket) -> Task`) - Rhai function that will be called to continue processing
 
 Returns `OutgoingResponse`
 
@@ -331,7 +331,7 @@ Options:
 
 Parameters:
 
-* opts (`Dynamic`)
+* opts (`Dynamic`) - object map containing dynamic options to the function
 * inner (`StreamRead`)
 
 Returns `DatagramRead`
@@ -345,7 +345,7 @@ Options:
 
 Parameters:
 
-* opts (`Dynamic`)
+* opts (`Dynamic`) - object map containing dynamic options to the function
 * inner (`StreamWrite`)
 
 Returns `DatagramWrite`
@@ -361,9 +361,9 @@ Options:
 
 Parameters:
 
-* opts (`Dynamic`)
+* opts (`Dynamic`) - object map containing dynamic options to the function
 * client (`Http1Client`)
-* continuation (`Fn(StreamSocket)`)
+* continuation (`Fn(StreamSocket) -> Task`) - Rhai function that will be called to continue processing
 
 Returns `Task`
 
@@ -377,7 +377,7 @@ Options:
 
 Parameters:
 
-* opts (`Dynamic`)
+* opts (`Dynamic`) - object map containing dynamic options to the function
 * inner (`StreamSocket`)
 
 Returns `DatagramSocket`

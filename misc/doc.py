@@ -145,20 +145,20 @@ def read_executor_file(ll: List[str]) -> List[ExecutorFunc]:
             else:
                 # inside a function body
                 if not active_options_list:
-                    def process_cbparams(cbp: str) -> None:
+                    def process_cbparams(cbp: str, ret:str) -> None:
                         if active_function_body is None: raise Exception("!")
                         if len(funcs[active_function_body].callback_params) == 0:
                             for p in cbp.split(","):
                                 if p.strip() == "": continue
                                 funcs[active_function_body].callback_params.append(p)
+                        if funcs[active_function_body].callback_return == "":
+                            funcs[active_function_body].callback_return = ret
                     if E_FN_BODY_END.search(l):
                         active_function_body = None
                     elif x:= E_FN_BODY_CALLBACK1.search(l):
-                        process_cbparams(x.group("cbparams"))
+                        process_cbparams(x.group("cbparams"), "Task")
                     elif x:= E_FN_BODY_CALLBACK2.search(l):
-                        process_cbparams(x.group("cbparams"))
-                        if funcs[active_function_body].callback_return == "":
-                            funcs[active_function_body].callback_return = x.group("cbret")
+                        process_cbparams(x.group("cbparams"), x.group("cbret"))
                     elif E_FN_OPTS_START.search(l):
                         active_options_list = True
                 else:
@@ -211,6 +211,8 @@ def document_executor_function(f: ExecutorFunc) -> None:
         print("Parameters:")
         print()
         for (nam, x) in f.params:
+            if nam == "opts" and x.typ == "Dynamic" and not x.doc:
+                x.doc = "object map containing dynamic options to the function"
             s = "* " + nam + " (`" 
             if x.typ != "FnPtr":
                 s += strip_handle(x.typ)
@@ -224,6 +226,8 @@ def document_executor_function(f: ExecutorFunc) -> None:
                 if f.callback_return:
                     s += " -> "
                     s += strip_handle(f.callback_return)
+                if not x.doc:
+                    x.doc = "Rhai function that will be called to continue processing"
             s += "`)"
             if x.doc:
                 s += " - " + x.doc
