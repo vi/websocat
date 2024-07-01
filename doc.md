@@ -1,3 +1,27 @@
+# Glossary
+
+* Specifier - WebSocket URL, TCP socket address or other connection type Websocat recognizes, 
+or an overlay that transforms other Specifier.
+* Endpoint - leaf-level specifier that directly creates some sort of Socket
+* Overlay - intermediate specifier that transforms inner specifier
+* Socket - a pair of byte stream- or datagram-oriented data flows: write 
+(to socket) and read (from socket), optionally with a hangup signal
+* Scenario = Websocat Rhai Script - detailed instruction of how Websocat would perform its operation.
+Normally it is generated automatically from CLI arguments, then executed; but you can separate 
+those steps and customize the scenario to fine tune of how Websocat operates. Just like usual CLI API, 
+Rhai functions API is also intended to be semver-stable API of Websocat.
+* Scenario function - Rhai native function that Websocat registers with Rhai engine that can be used 
+in Scenarios.
+* Scenario Planner - part of Websocat implementation that parses command line arguments and prepares a Scenario
+* Scenario Executor - part of Websocat implementation that executes a Scenario.
+* CLI arguments - combination of a positional arguments (typically Specifiers) and various 
+flags (e.g. `--binary`) and options (e.g. `--buffer-size 4096`) that affect Scenario Planner.
+
+
+# CLI specifiers
+
+Things you can use as a (part of a) positional command-line argument in Websocat
+
 # Scenario functions
 
 Those functions are used in Websocat Rhai Scripts (Scenarios):
