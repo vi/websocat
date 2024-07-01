@@ -19,6 +19,7 @@ pub enum Endpoint {
     WsUrl(Uri),
     WssUrl(Uri),
     WsListen(SocketAddr),
+    //@ Console, terminal: read bytes from stdin, write bytes to stdout.
     Stdio,
     UdpConnect(SocketAddr),
     UdpBind(SocketAddr),

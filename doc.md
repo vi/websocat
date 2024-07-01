@@ -1,26 +1,126 @@
-# Glossary
+# Command-line interface
 
-* Specifier - WebSocket URL, TCP socket address or other connection type Websocat recognizes, 
-or an overlay that transforms other Specifier.
-* Endpoint - leaf-level specifier that directly creates some sort of Socket
-* Overlay - intermediate specifier that transforms inner specifier
-* Socket - a pair of byte stream- or datagram-oriented data flows: write 
-(to socket) and read (from socket), optionally with a hangup signal
-* Scenario = Websocat Rhai Script - detailed instruction of how Websocat would perform its operation.
-Normally it is generated automatically from CLI arguments, then executed; but you can separate 
-those steps and customize the scenario to fine tune of how Websocat operates. Just like usual CLI API, 
-Rhai functions API is also intended to be semver-stable API of Websocat.
-* Scenario function - Rhai native function that Websocat registers with Rhai engine that can be used 
-in Scenarios.
-* Scenario Planner - part of Websocat implementation that parses command line arguments and prepares a Scenario
-* Scenario Executor - part of Websocat implementation that executes a Scenario.
-* CLI arguments - combination of a positional arguments (typically Specifiers) and various 
-flags (e.g. `--binary`) and options (e.g. `--buffer-size 4096`) that affect Scenario Planner.
+This section describes options, flags and specifiers of Websocat CLI.
 
 
-# CLI specifiers
+## Endpoints
 
-Things you can use as a (part of a) positional command-line argument in Websocat
+### Stdio
+
+Console, terminal: read bytes from stdin, write bytes to stdout.
+
+This endpoint cannot be directly specified as a prefix to a positional CLI argument, there may be some other way to access it.
+
+### TcpConnectByEarlyHostname
+
+(undocumented)
+
+This endpoint cannot be directly specified as a prefix to a positional CLI argument, there may be some other way to access it.
+
+### TcpConnectByIp
+
+(undocumented)
+
+This endpoint cannot be directly specified as a prefix to a positional CLI argument, there may be some other way to access it.
+
+### TcpConnectByLateHostname
+
+(undocumented)
+
+This endpoint cannot be directly specified as a prefix to a positional CLI argument, there may be some other way to access it.
+
+### TcpListen
+
+(undocumented)
+
+This endpoint cannot be directly specified as a prefix to a positional CLI argument, there may be some other way to access it.
+
+### UdpBind
+
+(undocumented)
+
+This endpoint cannot be directly specified as a prefix to a positional CLI argument, there may be some other way to access it.
+
+### UdpConnect
+
+(undocumented)
+
+This endpoint cannot be directly specified as a prefix to a positional CLI argument, there may be some other way to access it.
+
+### WsListen
+
+(undocumented)
+
+This endpoint cannot be directly specified as a prefix to a positional CLI argument, there may be some other way to access it.
+
+### WsUrl
+
+(undocumented)
+
+This endpoint cannot be directly specified as a prefix to a positional CLI argument, there may be some other way to access it.
+
+### WssUrl
+
+(undocumented)
+
+This endpoint cannot be directly specified as a prefix to a positional CLI argument, there may be some other way to access it.
+
+
+## Overlays
+
+### ByteStream
+
+(undocumented)
+
+This overlay cannot be directly specified as a prefix to a positional CLI argument, there may be some other way to access it.
+
+### CreateTlsConnector
+
+(undocumented)
+
+This overlay cannot be directly specified as a prefix to a positional CLI argument, there may be some other way to access it.
+
+### Datarams
+
+(undocumented)
+
+This overlay cannot be directly specified as a prefix to a positional CLI argument, there may be some other way to access it.
+
+### ResolveHostname
+
+(undocumented)
+
+This overlay cannot be directly specified as a prefix to a positional CLI argument, there may be some other way to access it.
+
+### StreamChunks
+
+(undocumented)
+
+This overlay cannot be directly specified as a prefix to a positional CLI argument, there may be some other way to access it.
+
+### TlsClient
+
+(undocumented)
+
+This overlay cannot be directly specified as a prefix to a positional CLI argument, there may be some other way to access it.
+
+### WsAccept
+
+(undocumented)
+
+This overlay cannot be directly specified as a prefix to a positional CLI argument, there may be some other way to access it.
+
+### WsFramer
+
+(undocumented)
+
+This overlay cannot be directly specified as a prefix to a positional CLI argument, there may be some other way to access it.
+
+### WsUpgrade
+
+(undocumented)
+
+This overlay cannot be directly specified as a prefix to a positional CLI argument, there may be some other way to access it.
 
 # Scenario functions
 
@@ -413,4 +513,25 @@ Options:
 * no_flush_after_each_message (`bool`)
 * no_close_frame (`bool`)
 * shutdown_socket_on_eof (`bool`)
+
+
+# Glossary
+
+* Specifier - WebSocket URL, TCP socket address or other connection type Websocat recognizes, 
+or an overlay that transforms other Specifier.
+* Endpoint - leaf-level specifier that directly creates some sort of Socket
+* Overlay - intermediate specifier that transforms inner specifier
+* Socket - a pair of byte stream- or datagram-oriented data flows: write 
+(to socket) and read (from socket), optionally with a hangup signal
+* Scenario = Websocat Rhai Script - detailed instruction of how Websocat would perform its operation.
+Normally it is generated automatically from CLI arguments, then executed; but you can separate 
+those steps and customize the scenario to fine tune of how Websocat operates. Just like usual CLI API, 
+Rhai functions API is also intended to be semver-stable API of Websocat.
+* Scenario function - Rhai native function that Websocat registers with Rhai engine that can be used 
+in Scenarios.
+* Scenario Planner - part of Websocat implementation that parses command line arguments and prepares a Scenario
+* Scenario Executor - part of Websocat implementation that executes a Scenario.
+* CLI arguments - combination of a positional arguments (typically Specifiers) and various 
+flags (e.g. `--binary`) and options (e.g. `--buffer-size 4096`) that affect Scenario Planner.
+
 

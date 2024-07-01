@@ -125,6 +125,7 @@ def read_executor_file(ll: List[str]) -> List[ExecutorFunc]:
     for l in ll:
         if x := DOCCOMMENT_LINE.search(l):
             accumulated_doccomment_lines.append(x.group(1))
+            continue
         if active_function_decl is None:
             if active_function_body is None:
                 if x:=E_FN_DECL_ONELINE.search(l):
@@ -268,6 +269,22 @@ def document_executor_function(f: ExecutorFunc) -> None:
 
 ############################################################################################
 
+P_ENDPOINTS_START = re.compile(r"""
+   \s* pub \s+ enum \s+ Endpoint \s* \{
+    """, re.VERBOSE)
+
+P_OVERLAYS_START = re.compile(r"""
+   \s* pub \s+ enum \s+ Overlay \s* \{
+    """, re.VERBOSE)
+
+P_ITEM = re.compile(r"""
+   ^ \s+ (?P<nam> [a-zA-Z0-9_]+ ) \s* [{(,]
+    """, re.VERBOSE)
+
+P_STOP = re.compile(r"""
+     ^ \} \s*
+    """, re.VERBOSE)
+
 
 @dataclass
 class PlannerItem:
@@ -282,10 +299,90 @@ class PlannerContent:
 
 def read_planner_data(planner_types : List[str], planner_fromstr : List[str]) -> PlannerContent:
     c = PlannerContent([], [])
+
+    endpoints : Dict[str, PlannerItem] = {}
+    overlays : Dict[str, PlannerItem] = {}
+
+    accumulated_doccomment_lines : List[str] = []
+
+    def take_comment() -> str:
+        nonlocal accumulated_doccomment_lines
+        ret = "\n".join(accumulated_doccomment_lines)
+        accumulated_doccomment_lines=[]
+        return ret
+
+    inside_endpoint_struct = False
+    inside_overlay_struct = False
+    for l in planner_types:
+        if x := DOCCOMMENT_LINE.search(l):
+            accumulated_doccomment_lines.append(x.group(1))
+            continue
+        if not inside_endpoint_struct and not inside_overlay_struct:
+            if P_ENDPOINTS_START.search(l):
+                inside_endpoint_struct = True
+            if P_OVERLAYS_START.search(l):
+                inside_overlay_struct = True
+        elif inside_endpoint_struct:
+            if P_STOP.search(l):
+                inside_endpoint_struct = False
+            if x:=P_ITEM.search(l):
+                nam = x.group("nam")                
+                endpoints[nam] = PlannerItem(nam, [], take_comment())
+        elif inside_overlay_struct:
+            if P_STOP.search(l):
+                inside_endpoint_struct = False
+            if x:=P_ITEM.search(l):
+                nam = x.group("nam")                
+                overlays[nam] = PlannerItem(nam, [], take_comment())
+        else:
+            raise Exception("unreachable")
+
+
+
+    c.endpoints = [x for x in endpoints.values()]
+    c.endpoints.sort(key=lambda x:x.name)
+    c.overlays = [x for x in overlays.values()]
+    c.overlays.sort(key=lambda x:x.name)
     return c
 
 
 def document_planner_content(c: PlannerContent) -> None:
+
+    def document_item(ep: PlannerItem, typnam: str) -> None:
+        print(f"### {ep.name}") 
+        print()
+        if not ep.doc:
+            print("(undocumented)")
+            print()
+        else:
+            print(ep.doc)
+            print()
+        if not ep.prefixes:
+            print(f"This {typnam} cannot be directly specified as a "+
+                "prefix to a positional CLI argument, "+
+                "there may be some other way to access it.")
+            print()
+        else:
+            print("Prefixes:")
+            print()
+            for prefix in ep.prefixes:
+                print(f"* `{prefix}`")
+            print()
+
+    print()
+    print("## Endpoints")
+    print()
+
+    for ep in c.endpoints:
+        document_item(ep, "endpoint")
+
+    print()
+    print("## Overlays")
+    print()
+    
+    for ep in c.overlays:
+        document_item(ep, "overlay")
+
     pass
 
 ############################################################################################
@@ -313,7 +410,24 @@ def main() -> None:
 
     executor_functions.sort(key=lambda x: x.rhai_function)
 
-    print(r"""# Glossary
+    print("# Command-line interface")
+    print()
+    print("This section describes options, flags and specifiers of Websocat CLI.")
+    print()
+
+    document_planner_content(planner_content)
+
+    print("# Scenario functions")
+    print()
+    print("Those functions are used in Websocat Rhai Scripts (Scenarios):")
+    print()
+
+    for execfn in executor_functions:
+        document_executor_function(execfn)
+
+    
+    print(r"""
+# Glossary
 
 * Specifier - WebSocket URL, TCP socket address or other connection type Websocat recognizes, 
 or an overlay that transforms other Specifier.
@@ -333,23 +447,6 @@ in Scenarios.
 flags (e.g. `--binary`) and options (e.g. `--buffer-size 4096`) that affect Scenario Planner.
 
 """)
-
-
-
-    print("# CLI specifiers")
-    print()
-    print("Things you can use as a (part of a) positional command-line argument in Websocat")
-    print()
-
-    document_planner_content(planner_content)
-
-    print("# Scenario functions")
-    print()
-    print("Those functions are used in Websocat Rhai Scripts (Scenarios):")
-    print()
-
-    for execfn in executor_functions:
-        document_executor_function(execfn)
 
 
 if __name__ == '__main__':
