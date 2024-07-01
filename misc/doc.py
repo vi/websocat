@@ -115,6 +115,13 @@ def read_executor_file(ll: List[str]) -> List[ExecutorFunc]:
     active_function_decl : None | str = None
     active_function_body: None | str = None
     active_options_list = False
+
+    def take_comment() -> str:
+        nonlocal accumulated_doccomment_lines
+        ret = "\n".join(accumulated_doccomment_lines)
+        accumulated_doccomment_lines=[]
+        return ret
+
     for l in ll:
         if x := DOCCOMMENT_LINE.search(l):
             accumulated_doccomment_lines.append(x.group(1))
@@ -125,8 +132,7 @@ def read_executor_file(ll: List[str]) -> List[ExecutorFunc]:
                     nam = g["rust_function"]
                     if nam in funcs:
                         f = funcs[g["rust_function"]]
-                        f.primary_doc = "\n".join(accumulated_doccomment_lines)
-                        accumulated_doccomment_lines=[]
+                        f.primary_doc = take_comment()
                         if "ret" in g:
                             f.ret.typ = g["ret"]
                         params = g["params"]
@@ -139,8 +145,7 @@ def read_executor_file(ll: List[str]) -> List[ExecutorFunc]:
                     nam = x.group("rust_fn")
                     if nam in funcs:
                         active_function_decl = nam
-                        funcs[active_function_decl].primary_doc = "\n".join(accumulated_doccomment_lines)
-                        accumulated_doccomment_lines=[]
+                        funcs[active_function_decl].primary_doc = take_comment()
                         active_function_body = nam
             else:
                 # inside a function body
@@ -168,8 +173,7 @@ def read_executor_file(ll: List[str]) -> List[ExecutorFunc]:
                     elif x := E_FN_OPTS_ENTRY.search(l):
                         nam = x.group("nam")
                         typ = x.group("typ")
-                        doc = "\n".join(accumulated_doccomment_lines)
-                        accumulated_doccomment_lines=[]
+                        doc = take_comment()
                         funcs[active_function_body].options.append((nam, TypeAndDoc(typ, doc)))
         else:
             # inside a function declaration
@@ -178,18 +182,16 @@ def read_executor_file(ll: List[str]) -> List[ExecutorFunc]:
                 typ = x.group("typ")
                 funcs[active_function_decl].params.append((nam, TypeAndDoc(
                     typ,
-                    "\n".join(accumulated_doccomment_lines)
+                    take_comment(),
                 )))
-                accumulated_doccomment_lines=[]
             if x:=E_FN_DECL_END.search(l):
                 typ = ""
                 if "ret" in x.groupdict():
                     typ =  x.group("ret")
                 funcs[active_function_decl].ret = TypeAndDoc(
                     typ,
-                    "\n".join(accumulated_doccomment_lines)
+                    take_comment(),
                 )
-                accumulated_doccomment_lines=[]
                 active_function_decl=None
             
 
