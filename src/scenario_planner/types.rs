@@ -6,9 +6,11 @@ use crate::cli::WebsocatArgs;
 
 #[derive(Debug)]
 pub enum Endpoint {
+    //@ @inhibit_prefixes
     TcpConnectByEarlyHostname {
         varname_for_addrs: String,
     },
+    //@ @inhibit_prefixes
     /// All TCP connections start as late-resolved when parsing CLI argument,
     /// but may be converted to early-resolved by the patcher.
     TcpConnectByLateHostname {

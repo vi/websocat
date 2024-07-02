@@ -285,6 +285,25 @@ P_STOP = re.compile(r"""
      ^ \} \s*
     """, re.VERBOSE)
 
+P_PREFIXES1 = re.compile(r"""
+    strip_prefix_many \s* \( \s* \& \s* \[ \s*
+    (?P<prefixes> [^]]+  )
+    \s* \]
+    """, re.VERBOSE)
+P_PREFIXES2 = re.compile(r"""
+    \. \s* (?: starts_with | strip_prefix )  
+    \s* \( 
+        \s* \" 
+            (?P<prefix> [^"]+  )  
+        \"  \s* 
+    \)
+    """, re.VERBOSE)
+P_FROMSTR_SAVER = re.compile(r"""
+   (?P<typ> Overlay | Endpoint )
+   ::
+   (?P<nam> [a-zA-Z0-9_]+ )
+    """, re.VERBOSE)
+
 
 @dataclass
 class PlannerItem:
@@ -337,7 +356,32 @@ def read_planner_data(planner_types : List[str], planner_fromstr : List[str]) ->
         else:
             raise Exception("unreachable")
 
-
+    prefix_accumuator : List[str] = []
+    def addprefix(y:str)->None:
+        nonlocal prefix_accumuator
+        prefix_accumuator.append(y.strip().removeprefix('"').removesuffix('"'))
+    def take_prefixes() -> List[str]:
+        nonlocal prefix_accumuator
+        ret = prefix_accumuator
+        prefix_accumuator = []
+        return ret
+    for l in planner_fromstr:
+        if x:=P_PREFIXES1.search(l):
+            prefixes = x.group("prefixes")
+            for y in prefixes.split(","):
+                addprefix(y)
+        if x:=P_PREFIXES2.search(l):
+            prefix = x.group("prefix")
+            addprefix(prefix)
+        if x:=P_FROMSTR_SAVER.search(l):
+            typ = x.group("typ")
+            nam = x.group("nam")
+            if typ == "Endpoint":
+                endpoints[nam].prefixes.extend(take_prefixes())
+            elif typ == "Overlay":
+                overlays[nam].prefixes.extend(take_prefixes())
+            else:
+                raise Exception("unreachable")
 
     c.endpoints = [x for x in endpoints.values()]
     c.endpoints.sort(key=lambda x:x.name)
@@ -351,23 +395,29 @@ def document_planner_content(c: PlannerContent) -> None:
     def document_item(ep: PlannerItem, typnam: str) -> None:
         print(f"### {ep.name}") 
         print()
+        inhibit_prefixes = False
         if not ep.doc:
             print("(undocumented)")
             print()
         else:
-            print(ep.doc)
+            d = ep.doc
+            if d.find("@inhibit_prefixes") > -1:
+                inhibit_prefixes = True
+                d = d.replace("@inhibit_prefixes", "")
+            print(d)
             print()
-        if not ep.prefixes:
-            print(f"This {typnam} cannot be directly specified as a "+
-                "prefix to a positional CLI argument, "+
-                "there may be some other way to access it.")
-            print()
-        else:
-            print("Prefixes:")
-            print()
-            for prefix in ep.prefixes:
-                print(f"* `{prefix}`")
-            print()
+        if not inhibit_prefixes:
+            if not ep.prefixes:
+                print(f"This {typnam} cannot be directly specified as a "+
+                    "prefix to a positional CLI argument, "+
+                    "there may be some other way to access it.")
+                print()
+            else:
+                print("Prefixes:")
+                print()
+                for prefix in ep.prefixes:
+                    print(f"* `{prefix}`")
+                print()
 
     print()
     print("## Endpoints")

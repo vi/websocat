@@ -1,6 +1,9 @@
 use std::net::SocketAddr;
 
-use super::types::{Endpoint, Overlay, SpecifierStack};
+use super::{
+    types::{Endpoint, Overlay, SpecifierStack},
+    utils::StripPrefixMany,
+};
 
 impl SpecifierStack {
     pub fn from_str(mut x: &str) -> anyhow::Result<SpecifierStack> {
@@ -48,7 +51,9 @@ impl ParseStrChunkResult<'_> {
                 anyhow::bail!("wss:// URL without authority");
             }
             Ok(ParseStrChunkResult::Endpoint(Endpoint::WssUrl(u)))
-        } else if let Some(rest) = x.strip_prefix("tcp:") {
+        } else if let Some(rest) =
+            x.strip_prefix_many(&["tcp:", "tcp-connect:", "connect-tcp:", "tcp-c:", "c-tcp:"])
+        {
             let a: Result<SocketAddr, _> = rest.parse();
             match a {
                 Ok(a) => Ok(ParseStrChunkResult::Endpoint(Endpoint::TcpConnectByIp(a))),
@@ -58,7 +63,9 @@ impl ParseStrChunkResult<'_> {
                     },
                 )),
             }
-        } else if let Some(rest) = x.strip_prefix("tcp-l:") {
+        } else if let Some(rest) =
+            x.strip_prefix_many(&["tcp-listen:", "listen-tcp:", "tcp-l:", "l-tcp:"])
+        {
             let a: SocketAddr = rest.parse()?;
             Ok(ParseStrChunkResult::Endpoint(Endpoint::TcpListen(a)))
         } else if x == "-" || x == "stdio:" {

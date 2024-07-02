@@ -16,3 +16,17 @@ impl IdentifierGenerator {
         return format!("{prefix}{}", *e);
     }
 }
+
+pub trait StripPrefixMany {
+    fn strip_prefix_many<'a>(&'a self, prefixes: &'static [&'static str]) -> Option<&'a str>;
+}
+impl StripPrefixMany for str {
+    fn strip_prefix_many<'a>(&'a self, prefixes: &'static [&'static str]) -> Option<&'a str> {
+        for p in prefixes {
+            if let Some(x) = self.strip_prefix(p) {
+                return Some(x)
+            }
+        }
+        None
+    }
+}

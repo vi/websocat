@@ -13,27 +13,34 @@ This endpoint cannot be directly specified as a prefix to a positional CLI argum
 
 ### TcpConnectByEarlyHostname
 
-(undocumented)
 
-This endpoint cannot be directly specified as a prefix to a positional CLI argument, there may be some other way to access it.
 
 ### TcpConnectByIp
 
 (undocumented)
 
-This endpoint cannot be directly specified as a prefix to a positional CLI argument, there may be some other way to access it.
+Prefixes:
+
+* `tcp:`
+* `tcp-connect:`
+* `connect-tcp:`
+* `tcp-c:`
+* `c-tcp:`
 
 ### TcpConnectByLateHostname
 
-(undocumented)
 
-This endpoint cannot be directly specified as a prefix to a positional CLI argument, there may be some other way to access it.
 
 ### TcpListen
 
 (undocumented)
 
-This endpoint cannot be directly specified as a prefix to a positional CLI argument, there may be some other way to access it.
+Prefixes:
+
+* `tcp-listen:`
+* `listen-tcp:`
+* `tcp-l:`
+* `l-tcp:`
 
 ### UdpBind
 
@@ -51,19 +58,25 @@ This endpoint cannot be directly specified as a prefix to a positional CLI argum
 
 (undocumented)
 
-This endpoint cannot be directly specified as a prefix to a positional CLI argument, there may be some other way to access it.
+Prefixes:
+
+* `ws-l:`
 
 ### WsUrl
 
 (undocumented)
 
-This endpoint cannot be directly specified as a prefix to a positional CLI argument, there may be some other way to access it.
+Prefixes:
+
+* `ws://`
 
 ### WssUrl
 
 (undocumented)
 
-This endpoint cannot be directly specified as a prefix to a positional CLI argument, there may be some other way to access it.
+Prefixes:
+
+* `wss://`
 
 
 ## Overlays
@@ -102,19 +115,26 @@ This overlay cannot be directly specified as a prefix to a positional CLI argume
 
 (undocumented)
 
-This overlay cannot be directly specified as a prefix to a positional CLI argument, there may be some other way to access it.
+Prefixes:
+
+* `tls:`
 
 ### WsAccept
 
 (undocumented)
 
-This overlay cannot be directly specified as a prefix to a positional CLI argument, there may be some other way to access it.
+Prefixes:
+
+* `ws-accept:`
 
 ### WsFramer
 
 (undocumented)
 
-This overlay cannot be directly specified as a prefix to a positional CLI argument, there may be some other way to access it.
+Prefixes:
+
+* `ws-ll-client:`
+* `ws-ll-server:`
 
 ### WsUpgrade
 
