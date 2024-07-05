@@ -420,6 +420,7 @@ impl PacketRead for WsDecoder {
             *this.offset += ret.consumed_bytes;
             *this.unprocessed_bytes -= ret.consumed_bytes;
             if *this.unprocessed_bytes == 0 {
+                *this.offset = 0;
                 trace!("fully processed this read chunk")
             }
 
