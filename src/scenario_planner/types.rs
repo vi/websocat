@@ -42,6 +42,10 @@ pub enum Overlay {
         varname_for_connector: String,
     },
     StreamChunks,
+    //@ Print encountered data to stderr for debugging
+    Log {
+        datagram_mode: bool,
+    },
 }
 
 #[derive(Debug)]

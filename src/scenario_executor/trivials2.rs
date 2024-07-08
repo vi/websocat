@@ -2,13 +2,18 @@ use std::{pin::Pin, task::Poll};
 
 use bytes::BytesMut;
 use pin_project::pin_project;
-use rhai::{Engine, NativeCallContext};
-use tokio::io::{AsyncRead, ReadBuf};
-use tracing::debug;
+use rhai::{Dynamic, Engine, NativeCallContext};
+use tokio::io::{AsyncRead, AsyncWrite, ReadBuf};
+use tracing::{debug, debug_span};
 
 use crate::scenario_executor::{
     types::{Handle, StreamRead},
     utils::{ExtractHandleOrFail, RhResult},
+};
+
+use super::{
+    types::{BufferFlag, DatagramRead, DatagramSocket, DatagramWrite, PacketRead, PacketReadResult, PacketWrite, StreamSocket, StreamWrite},
+    utils::HandleExt,
 };
 
 #[pin_project]
@@ -100,6 +105,96 @@ impl AsyncRead for CacheBeforeStartingReading {
     }
 }
 
+//@ Create stream socket with null read, write and hangup handles.
+//@ Use `put_read_part` and `put_write_part` to fill in the data transfer directions.
+fn null_stream_socket() -> Handle<StreamSocket> {
+    Some(StreamSocket {
+        read: None,
+        write: None,
+        close: None,
+    })
+    .wrap()
+}
+
+//@ Create datagram socket with null read, write and hangup handles.
+//@ Use `put_source_part` and `put_sink_part` to fill in the data transfer directions.
+fn null_datagram_socket() -> Handle<DatagramSocket> {
+    Some(DatagramSocket {
+        read: None,
+        write: None,
+        close: None,
+    })
+    .wrap()
+}
+
+//@ Create stream socket with a read handle that emits EOF immediately,
+//@ write handle that ignores all incoming data and null hangup handle.
+//@
+//@ Can also be used a source of dummies for individual directions, with
+//@ `take_read_part` and `take_write_part` functions
+fn dummy_stream_socket() -> Handle<StreamSocket> {
+    Some(StreamSocket {
+        read: Some(StreamRead {
+            reader: Box::pin(tokio::io::empty()),
+            prefix: Default::default(),
+        }),
+        write: Some(StreamWrite {
+            writer: Box::pin(tokio::io::empty()),
+        }),
+        close: None,
+    })
+    .wrap()
+}
+
+struct DummyPkt;
+
+impl PacketRead for DummyPkt {
+    fn poll_read(
+        self: Pin<&mut Self>,
+        _cx: &mut std::task::Context<'_>,
+        _buf: &mut [u8],
+    ) -> Poll<std::io::Result<PacketReadResult>> {
+        Poll::Ready(Ok(PacketReadResult {
+            flags: BufferFlag::Eof.into(),
+            buffer_subset: 0..0,
+        }))
+    }
+}
+
+impl PacketWrite for DummyPkt {
+    fn poll_write(
+        self: Pin<&mut Self>,
+        _cx: &mut std::task::Context<'_>,
+        _buf: &mut [u8],
+        _flags: super::types::BufferFlags,
+    ) -> Poll<std::io::Result<()>> {
+        Poll::Ready(Ok(()))
+    }
+}
+
+//@ Create datagram socket with a source handle that continuously emits
+//@ EOF-marked empty buffers and a sink  handle that ignores all incoming data
+//@ and null hangup handle.
+//@
+//@ Can also be used a source of dummies for individual directions, with
+//@ `take_sink_part` and `take_source_part` functions
+fn dummy_datagram_socket() -> Handle<DatagramSocket> {
+    Some(DatagramSocket {
+        read: Some(DatagramRead {
+            src: Box::pin(DummyPkt),
+        }),
+        write: Some(DatagramWrite {
+            snk: Box::pin(DummyPkt),
+        }),
+        close: None,
+    })
+    .wrap()
+}
+
 pub fn register(engine: &mut Engine) {
     engine.register_fn("read_chunk_limiter", read_chunk_limiter);
+    engine.register_fn("null_stream_socket", null_stream_socket);
+    engine.register_fn("null_datagram_socket", null_datagram_socket);
+    engine.register_fn("dummy_stream_socket", dummy_stream_socket);
+    engine.register_fn("dummy_datagram_socket", dummy_datagram_socket);
 }

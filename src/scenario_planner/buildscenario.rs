@@ -20,13 +20,13 @@ impl WebsocatInvocation {
         left = self.left.innermost.begin_print(&mut printer, vars)?;
 
         for ovl in &self.left.overlays {
-            left = ovl.begin_print(&mut printer, &left, vars)?;
+            left = ovl.begin_print(&mut printer, &left, vars, &self.opts)?;
         }
 
         right = self.right.innermost.begin_print(&mut printer, vars)?;
 
         for ovl in &self.right.overlays {
-            right = ovl.begin_print(&mut printer, &right, vars)?;
+            right = ovl.begin_print(&mut printer, &right, vars, &self.opts)?;
         }
 
         match self.get_copying_type() {
@@ -151,6 +151,7 @@ impl Overlay {
         printer: &mut ScenarioPrinter,
         inner_var: &str,
         vars: &mut IdentifierGenerator,
+        opts: &WebsocatArgs,
     ) -> anyhow::Result<String> {
         match self {
             Overlay::WsUpgrade { uri, host } => {
@@ -204,6 +205,32 @@ impl Overlay {
 
                 Ok(ws)
             }
+            Overlay::Log { datagram_mode } => {
+                let varnam = vars.getnewvarname("log");
+
+                let funcname = if *datagram_mode {
+                    "datagram_logger"
+                } else {
+                    "stream_logger"
+                };
+
+                let maybe_loghex = if opts.log_hex { "hex: true," } else { "" };
+
+                let maybe_log_omit_content = if opts.log_omit_content {
+                    "omit_content: true,"
+                } else {
+                    ""
+                };
+
+                let maybe_log_verbose = if opts.log_verbose {
+                    "verbose: true,"
+                } else {
+                    ""
+                };
+
+                printer.print_line(&format!("let {varnam} = {funcname}(#{{{maybe_loghex}{maybe_log_omit_content}{maybe_log_verbose}}}, {inner_var});"));
+                Ok(varnam)
+            }
         }
     }
     fn end_print(&self, printer: &mut ScenarioPrinter) {
@@ -225,6 +252,7 @@ impl Overlay {
                 printer.decrease_indent();
                 printer.print_line("})");
             }
+            Overlay::Log { .. } => (),
         }
     }
 }

@@ -99,6 +99,14 @@ This overlay cannot be directly specified as a prefix to a positional CLI argume
 
 This overlay cannot be directly specified as a prefix to a positional CLI argument, there may be some other way to access it.
 
+### Log
+
+Print encountered data to stderr for debugging
+
+Prefixes:
+
+* `log:`
+
 ### ResolveHostname
 
 (undocumented)
@@ -197,6 +205,27 @@ Returns `StreamSocket`
 
 Returns `DatagramWrite`
 
+## dummy_datagram_socket
+
+Create datagram socket with a source handle that continuously emits
+EOF-marked empty buffers and a sink  handle that ignores all incoming data
+and null hangup handle.
+
+Can also be used a source of dummies for individual directions, with
+`take_sink_part` and `take_source_part` functions
+
+Returns `DatagramSocket`
+
+## dummy_stream_socket
+
+Create stream socket with a read handle that emits EOF immediately,
+write handle that ignores all incoming data and null hangup handle.
+
+Can also be used a source of dummies for individual directions, with
+`take_read_part` and `take_write_part` functions
+
+Returns `StreamSocket`
+
 ## dummy_task
 
 Returns `Task`
@@ -244,6 +273,14 @@ Parameters:
 
 Returns `Task`
 
+## line_chunks
+
+Parameters:
+
+* x (`StreamSocket`)
+
+Returns `DatagramSocket`
+
 ## listen_tcp
 
 Parameters:
@@ -266,6 +303,20 @@ Parameters:
 * continuation (`Fn(Vec<SocketAddr>) -> Task`) - Rhai function that will be called to continue processing
 
 Returns `Task`
+
+## null_datagram_socket
+
+Create datagram socket with null read, write and hangup handles.
+Use `put_source_part` and `put_sink_part` to fill in the data transfer directions.
+
+Returns `DatagramSocket`
+
+## null_stream_socket
+
+Create stream socket with null read, write and hangup handles.
+Use `put_read_part` and `put_write_part` to fill in the data transfer directions.
+
+Returns `StreamSocket`
 
 ## parallel
 
@@ -329,6 +380,14 @@ Parameters:
 
 Returns `StreamRead`
 
+## read_line_chunks
+
+Parameters:
+
+* x (`StreamWrite`)
+
+Returns `DatagramWrite`
+
 ## read_stream_chunks
 
 Parameters:
@@ -368,6 +427,34 @@ Parameters:
 * x (`StreamSocket`)
 
 Returns `DatagramSocket`
+
+## stream_logger
+
+Wrap stream socket in an overlay that logs every inner read and write to stderr.
+Stderr is assumed to be always available. Backpressure would cause
+whole process to stop serving connections and inability to log
+may abort the process.
+
+It is OK if read or write handle of the source socket is null - resulting socket
+would also be incomplete. This allows to access the logger having only reader
+or writer instead of a complete socket.
+
+This component is not performance-optimised and is intended for mostly for debugging.
+
+Parameters:
+
+* opts (`Dynamic`) - object map containing dynamic options to the function
+* inner (`StreamSocket`)
+
+Returns `StreamSocket`
+
+Options:
+
+* verbose (`bool`) - Show more messages and more info within messages
+* read_prefix (`Option<String>`) - Prepend this instead of "READ " to each line printed to stderr
+* write_prefix (`Option<String>`) - Prepend this instead of "WRITE " to each line printed to stderr
+* omit_content (`bool`) - Do not log full content of the stream, just the chunk lengths.
+* hex (`bool`) - Use hex lines instead of string literals with espaces
 
 ## take_hangup_part
 
@@ -445,6 +532,14 @@ Options:
 * no_sni (`bool`)
 
 ## trivial_pkts
+
+Returns `DatagramRead`
+
+## write_line_chunks
+
+Parameters:
+
+* x (`StreamRead`)
 
 Returns `DatagramRead`
 

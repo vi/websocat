@@ -96,6 +96,14 @@ impl ParseStrChunkResult<'_> {
         } else if let Some(rest) = x.strip_prefix("ws-l:") {
             let a: SocketAddr = rest.parse()?;
             Ok(ParseStrChunkResult::Endpoint(Endpoint::WsListen(a)))
+        } else if let Some(rest) = x.strip_prefix("log:") {
+            Ok(ParseStrChunkResult::Overlay {
+                ovl: Overlay::Log {
+                    // real value is filled in in the patcher
+                    datagram_mode: false,
+                },
+                rest,
+            })
         } else {
             anyhow::bail!("Unknown specifier: {x}")
         }

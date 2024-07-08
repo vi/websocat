@@ -13,6 +13,8 @@ use super::types::{
 pub fn register_functions(engine: &mut Engine) {
     super::trivials1::register(engine);
     super::trivials2::register(engine);
+    super::linemode::register(engine);
+    super::logoverlay::register(engine);
     super::copydata::register(engine);
     super::misc::register(engine);
     super::tcp::register(engine);

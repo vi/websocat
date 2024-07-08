@@ -48,4 +48,16 @@ pub struct WebsocatArgs {
     /// listen for WebSocket conenctions instead of establishing client WebSocket connection
     #[argh(switch, short = 's')]
     pub server: bool,
+    
+    /// log more data from `log:` overlay
+    #[argh(switch)]
+    pub log_verbose: bool,
+
+    /// do not log full content of the data from `log:` overlay, just chunk lengths
+    #[argh(switch)]
+    pub log_omit_content: bool,
+
+    /// use hex lines instead of escaped characters for `log:`` overlay.
+    #[argh(switch)]
+    pub log_hex: bool,
 }

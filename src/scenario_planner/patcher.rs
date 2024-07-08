@@ -1,7 +1,7 @@
 use std::net::{IpAddr, SocketAddr};
 
 use http::Uri;
-use tracing::warn;
+use tracing::{debug, warn};
 
 use super::{
     types::{
@@ -12,6 +12,8 @@ use super::{
 
 impl WebsocatInvocation {
     pub fn patches(&mut self, vars: &mut IdentifierGenerator) -> anyhow::Result<()> {
+        self.left.fill_in_log_overlay_type();
+        self.right.fill_in_log_overlay_type();
         self.left.maybe_splitup_client_ws_endpoint()?;
         self.right.maybe_splitup_client_ws_endpoint()?;
         self.left.maybe_splitup_server_ws_endpoint()?;
@@ -114,6 +116,7 @@ impl SpecifierStack {
         match self.innermost {
             Endpoint::WsUrl(ref u) | Endpoint::WssUrl(ref u) => {
                 let mut parts = u.clone().into_parts();
+
                 let auth = parts.authority.take().unwrap();
                 if auth.as_str().contains('@') {
                     anyhow::bail!("Usernames in URLs not supported");
@@ -146,7 +149,12 @@ impl SpecifierStack {
                 };
 
                 parts.scheme = None;
-                let newurl = Uri::from_parts(parts).unwrap();
+                let mut newurl = Uri::from_parts(parts).unwrap();
+
+                if newurl.path().is_empty() {
+                    debug!("Patching empty URL to be /");
+                    newurl = Uri::from_static("/");
+                }
 
                 self.overlays.insert(
                     0,
@@ -204,6 +212,18 @@ impl SpecifierStack {
             _ => (),
         }
     }
+
+    fn fill_in_log_overlay_type(&mut self) {
+        let mut typ = self.innermost.get_copying_type();
+        for ovl in &mut self.overlays {
+            match ovl {
+                Overlay::Log { datagram_mode } => {
+                    *datagram_mode = typ == CopyingType::Datarams;
+                }
+                x => typ = x.get_copying_type(),
+            }
+        }
+    }
 }
 
 impl WebsocatInvocation {
@@ -222,13 +242,7 @@ impl SpecifierStack {
     fn get_copying_type(&self) -> CopyingType {
         let mut typ = self.innermost.get_copying_type();
         for ovl in &self.overlays {
-            match ovl {
-                Overlay::WsUpgrade { .. } => typ = CopyingType::ByteStream,
-                Overlay::WsFramer { .. } => typ = CopyingType::Datarams,
-                Overlay::StreamChunks => typ = CopyingType::Datarams,
-                Overlay::TlsClient { .. } => typ = CopyingType::ByteStream,
-                Overlay::WsAccept {} => typ = CopyingType::ByteStream,
-            }
+            typ = ovl.get_copying_type();
         }
         typ
     }
@@ -247,6 +261,23 @@ impl Endpoint {
             Endpoint::UdpConnect(_) => CopyingType::Datarams,
             Endpoint::UdpBind(_) => CopyingType::Datarams,
             Endpoint::WsListen(_) => CopyingType::Datarams,
+        }
+    }
+}
+
+impl Overlay {
+    fn get_copying_type(&self) -> CopyingType {
+        match self {
+            Overlay::WsUpgrade { .. } => CopyingType::ByteStream,
+            Overlay::WsFramer { .. } => CopyingType::Datarams,
+            Overlay::StreamChunks => CopyingType::Datarams,
+            Overlay::TlsClient { .. } =>  CopyingType::ByteStream,
+            Overlay::WsAccept {} => CopyingType::ByteStream,
+            Overlay::Log { datagram_mode } => if *datagram_mode {
+                CopyingType::Datarams
+            } else {
+                CopyingType::ByteStream
+            }
         }
     }
 }

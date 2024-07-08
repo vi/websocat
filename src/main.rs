@@ -23,6 +23,8 @@ pub mod scenario_executor {
     pub mod utils;
     pub mod wsframer;
     pub mod wswithpings;
+    pub mod linemode;
+    pub mod logoverlay;
 
     pub mod all_functions;
 }
