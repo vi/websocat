@@ -1,7 +1,5 @@
 use std::{ops::Deref, pin::Pin, task::Poll};
 
-use bytes::BytesMut;
-use pin_project::pin_project;
 use rhai::{Dynamic, Engine, NativeCallContext};
 use tokio::io::{AsyncRead, AsyncWrite, ReadBuf};
 use tracing::{debug, debug_span};
@@ -13,10 +11,10 @@ use crate::scenario_executor::{
 
 use super::{
     types::{
-        BufferFlag, DatagramRead, DatagramSocket, DatagramWrite, PacketRead, PacketReadResult,
+        DatagramRead, DatagramSocket, DatagramWrite, PacketRead, PacketReadResult,
         PacketWrite, StreamSocket, StreamWrite,
     },
-    utils::HandleExt,
+    utils::{DisplayBufferFlags, HandleExt},
 };
 
 // Duplicated to aid auto-documenter script
@@ -264,7 +262,7 @@ impl AsyncWrite for StreamWriteLogger {
 //@ whole process to stop serving connections and inability to log
 //@ may abort the process.
 //@
-//@ It is OK if read or write handle of the source socket is null - resulting socket
+//@ It is OK a if read or write handle of the source socket is null - resulting socket
 //@ would also be incomplete. This allows to access the logger having only reader
 //@ or writer instead of a complete socket.
 //@
@@ -343,6 +341,209 @@ fn stream_logger(
     Ok(Some(wrapped).wrap())
 }
 
+struct DatagramReadLogger {
+    inner: DatagramRead,
+    opts: LoggerOptsShared,
+}
+
+impl PacketRead for DatagramReadLogger {
+    fn poll_read(
+        self: Pin<&mut Self>,
+        cx: &mut std::task::Context<'_>,
+        buf: &mut [u8],
+    ) -> Poll<std::io::Result<PacketReadResult>> {
+        let this = self.get_mut();
+        let log_prefix: &str = &this.opts.prefix;
+        let maybebufcap_storage;
+        let maybebufcap: &str = if this.opts.verbose {
+            maybebufcap_storage = format!("bufcap={} ", buf.len());
+            maybebufcap_storage.as_ref()
+        } else {
+            ""
+        };
+        let verbose = this.opts.verbose;
+        match PacketRead::poll_read(this.inner.src.as_mut(), cx, buf) {
+            Poll::Ready(Ok(x)) => {
+                let maybe_flags_storge;
+                let maybe_flags = if verbose {
+                    maybe_flags_storge=format!(" [{}]", DisplayBufferFlags(x.flags));
+                    &maybe_flags_storge
+                } else {
+                    ""
+                };
+                if !this.opts.omit_content {
+                    eprintln!(
+                        "{log_prefix}{maybebufcap}{} {}{maybe_flags}",
+                        x.buffer_subset.len(),
+                        render_content(&buf[x.buffer_subset.clone()], this.opts.hex)
+                    );
+                } else {
+                    eprintln!("{log_prefix}{maybebufcap}{}{maybe_flags}", x.buffer_subset.len());
+                }
+                Poll::Ready(Ok(x))
+            }
+            Poll::Ready(Err(e)) => {
+                eprintln!("{log_prefix}{maybebufcap}error {e}");
+                Poll::Ready(Err(e))
+            }
+            Poll::Pending => {
+                if verbose {
+                    eprintln!("{log_prefix}{maybebufcap}pending");
+                }
+                Poll::Pending
+            }
+        }
+    }
+}
+
+struct DatagramWriteLogger {
+    inner: DatagramWrite,
+    opts: LoggerOptsShared,
+    already_logged_this_write: bool,
+}
+
+impl PacketWrite for DatagramWriteLogger {
+    fn poll_write(
+        self: Pin<&mut Self>,
+        cx: &mut std::task::Context<'_>,
+        buf: &mut [u8],
+        flags: super::types::BufferFlags,
+    ) -> Poll<std::io::Result<()>> {
+        let this = self.get_mut();
+        let log_prefix: &str = &this.opts.prefix;
+        let maybebufcap_storage;
+        let maybebufcap: &str = if this.opts.verbose {
+            maybebufcap_storage = format!("bufcap={} ", buf.len());
+            maybebufcap_storage.as_ref()
+        } else {
+            ""
+        };
+        let verbose = this.opts.verbose;
+
+        if !this.already_logged_this_write {
+            let maybe_flags_storge;
+            let maybe_flags = if verbose {
+                maybe_flags_storge=format!(" [{}]", DisplayBufferFlags(flags));
+                &maybe_flags_storge
+            } else {
+                ""
+            };
+            if !this.opts.omit_content {
+                eprintln!(
+                    "{log_prefix}{maybebufcap}{} {}{maybe_flags}",
+                    buf.len(),
+                    render_content(buf, this.opts.hex)
+                );
+            } else {
+                eprintln!("{log_prefix}{maybebufcap}{}{maybe_flags}", buf.len());
+            }
+            this.already_logged_this_write = true;
+        }
+
+        match PacketWrite::poll_write(this.inner.snk.as_mut(), cx, buf, flags) {
+            Poll::Ready(Ok(())) => {
+                this.already_logged_this_write=false;
+                Poll::Ready(Ok(()))
+            }
+            Poll::Ready(Err(e)) => {
+                eprintln!("{log_prefix}error {e}");
+                Poll::Ready(Err(e))
+            }
+            Poll::Pending => {
+                if verbose {
+                    eprintln!("{log_prefix}pending");
+                }
+                Poll::Pending
+            }
+        }
+    }
+}
+
+//@ Wrap datagram socket in an overlay that logs every inner read and write to stderr.
+//@ Stderr is assumed to be always available. Backpressure would cause
+//@ whole process to stop serving connections and inability to log
+//@ may abort the process.
+//@
+//@ It is OK if a read or write handle of the source socket is null - resulting socket
+//@ would also be incomplete. This allows to access the logger having only reader
+//@ or writer instead of a complete socket.
+//@
+//@ This component is not performance-optimised and is intended for mostly for debugging.
+fn datagram_logger(
+    ctx: NativeCallContext,
+    opts: Dynamic,
+    inner: Handle<DatagramSocket>,
+) -> RhResult<Handle<DatagramSocket>> {
+    let span = debug_span!("datagram_logger");
+    #[derive(serde::Deserialize)]
+    struct LoggerOpts {
+        //@ Show more messages and more info within messages
+        #[serde(default)]
+        verbose: bool,
+
+        //@ Prepend this instead of "READ " to each line printed to stderr
+        read_prefix: Option<String>,
+
+        //@ Prepend this instead of "WRITE " to each line printed to stderr
+        write_prefix: Option<String>,
+
+        //@ Do not log full content of the stream, just the chunk lengths.
+        #[serde(default)]
+        omit_content: bool,
+
+        //@ Use hex lines instead of string literals with espaces
+        #[serde(default)]
+        hex: bool,
+    }
+    let opts: LoggerOpts = rhai::serde::from_dynamic(&opts)?;
+    let inner = ctx.lutbar(inner)?;
+    debug!(parent: &span, inner=?inner, "options parsed");
+    let mut wrapped = inner;
+
+    let read_prefix = opts.read_prefix.unwrap_or("READ ".to_owned());
+    let write_prefix = opts.write_prefix.unwrap_or("WRITE ".to_owned());
+
+    if let Some(r) = wrapped.read.take() {
+        wrapped.read = Some(DatagramRead {
+            src: (Box::pin(DatagramReadLogger {
+                inner: r,
+                opts: LoggerOptsShared {
+                    verbose: opts.verbose,
+                    prefix: read_prefix,
+                    omit_content: opts.omit_content,
+                    hex: opts.hex,
+                },
+            })),
+        });
+    } else {
+        if opts.verbose {
+            eprintln!("{read_prefix}There is no read handle in this socket");
+        }
+    }
+
+    if let Some(w) = wrapped.write.take() {
+        wrapped.write = Some(DatagramWrite {
+            snk: (Box::pin(DatagramWriteLogger {
+                inner: w,
+                opts: LoggerOptsShared {
+                    verbose: opts.verbose,
+                    prefix: write_prefix,
+                    omit_content: opts.omit_content,
+                    hex: opts.hex,
+                },
+                already_logged_this_write: false,
+            })),
+        });
+    } else {
+        if opts.verbose {
+            eprintln!("{write_prefix}There is no read handle in this socket");
+        }
+    }
+
+    Ok(Some(wrapped).wrap())
+}
+
 pub fn register(engine: &mut Engine) {
     engine.register_fn("stream_logger", stream_logger);
+    engine.register_fn("datagram_logger", datagram_logger);
 }

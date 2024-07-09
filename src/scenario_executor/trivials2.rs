@@ -2,9 +2,9 @@ use std::{pin::Pin, task::Poll};
 
 use bytes::BytesMut;
 use pin_project::pin_project;
-use rhai::{Dynamic, Engine, NativeCallContext};
-use tokio::io::{AsyncRead, AsyncWrite, ReadBuf};
-use tracing::{debug, debug_span};
+use rhai::{Engine, NativeCallContext};
+use tokio::io::{AsyncRead, ReadBuf};
+use tracing::debug;
 
 use crate::scenario_executor::{
     types::{Handle, StreamRead},

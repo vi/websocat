@@ -9,7 +9,7 @@ use std::{
     task::Poll,
 };
 
-use super::types::{DatagramSocket, StreamRead, StreamWrite};
+use super::types::{BufferFlag, BufferFlags, DatagramSocket, StreamRead, StreamWrite};
 
 pub trait TaskHandleExt {
     fn wrap_noerr(self) -> Handle<Task>;
@@ -152,5 +152,22 @@ pub trait SimpleErr {
 impl SimpleErr for NativeCallContext<'_> {
     fn err(&self, v: impl Into<rhai::Dynamic>) -> Box<EvalAltResult> {
         Box::new(EvalAltResult::ErrorRuntime(v.into(), self.position()))
+    }
+}
+
+pub struct DisplayBufferFlags(pub BufferFlags);
+
+impl std::fmt::Display for DisplayBufferFlags {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        for x in self.0 {
+            match x {
+                BufferFlag::NonFinalChunk => f.write_str("C")?,
+                BufferFlag::Text  => f.write_str("T")?,
+                BufferFlag::Eof  => f.write_str("E")?,
+                BufferFlag::Ping  => f.write_str("P")?,
+                BufferFlag::Pong  => f.write_str("O")?,
+            }
+        }
+        Ok(())
     }
 }
