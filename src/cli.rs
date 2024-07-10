@@ -60,4 +60,8 @@ pub struct WebsocatArgs {
     /// use hex lines instead of escaped characters for `log:`` overlay.
     #[argh(switch)]
     pub log_hex: bool,
+
+    /// automatically insert `log:` overlay in an apprioriate place to debug issues by displaying traffic chunks
+    #[argh(switch)]
+    pub log_traffic: bool,
 }

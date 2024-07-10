@@ -12,8 +12,6 @@ use super::{
 
 impl WebsocatInvocation {
     pub fn patches(&mut self, vars: &mut IdentifierGenerator) -> anyhow::Result<()> {
-        self.left.fill_in_log_overlay_type();
-        self.right.fill_in_log_overlay_type();
         self.left.maybe_splitup_client_ws_endpoint()?;
         self.right.maybe_splitup_client_ws_endpoint()?;
         self.left.maybe_splitup_server_ws_endpoint()?;
@@ -23,6 +21,15 @@ impl WebsocatInvocation {
             self.right.maybe_early_resolve(&mut self.beginning, vars);
         }
         self.maybe_fill_in_tls_details(vars)?;
+        if self.opts.log_traffic {
+            if !self.right.insert_log_overlay() {
+                if ! self.left.insert_log_overlay() {
+                    warn!("Failed to automaticelly insert log: overlay");
+                }
+            }
+        }
+        self.left.fill_in_log_overlay_type();
+        self.right.fill_in_log_overlay_type();
         self.maybe_insert_chunker();
         Ok(())
     }
@@ -222,6 +229,46 @@ impl SpecifierStack {
                 }
                 x => typ = x.get_copying_type(),
             }
+        }
+    }
+
+    /// returns true if it was inserted (or `log:` already present)
+    fn insert_log_overlay(&mut self) -> bool {
+        let mut index = None;
+        for (i, ovl) in self.overlays.iter().enumerate() {
+            match ovl {
+                Overlay::WsUpgrade { .. }  => (),
+                Overlay::WsAccept { .. }  => (),
+                Overlay::WsFramer { .. }  => (),
+                Overlay::TlsClient { .. } => {
+                    index = Some(i);
+                    break;
+                }
+                Overlay::StreamChunks => (),
+                Overlay::Log { .. } => return true,
+            }
+        }
+        if let Some(i) = index {
+            self.overlays.insert(i+1, Overlay::Log { datagram_mode: false });
+            true
+        } else {
+            let do_insert = match &self.innermost {
+                Endpoint::TcpConnectByEarlyHostname { .. } => true,
+                Endpoint::TcpConnectByLateHostname { .. } => true,
+                Endpoint::TcpConnectByIp(_) => true,
+                Endpoint::TcpListen(_) => true,
+                Endpoint::WsUrl(_) => false,
+                Endpoint::WssUrl(_) => false,
+                Endpoint::WsListen(_) => false,
+                Endpoint::Stdio => false,
+                Endpoint::UdpConnect(_) => true,
+                Endpoint::UdpBind(_) => true,
+            };
+            if do_insert {
+                // datagram mode may be patched later
+                self.overlays.insert(0, Overlay::Log { datagram_mode: false })
+            }
+            do_insert
         }
     }
 }

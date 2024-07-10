@@ -153,7 +153,7 @@ impl AsyncWrite for StreamWriteLogger {
         let this = self.get_mut();
         let log_prefix: &str = &this.opts.prefix;
         let verbose = this.opts.verbose;
-        match AsyncWrite::poll_shutdown(Pin::new(&mut this.inner.writer), cx) {
+        match AsyncWrite::poll_flush(Pin::new(&mut this.inner.writer), cx) {
             Poll::Ready(Ok(())) => {
                 if verbose {
                     eprintln!("{log_prefix}flush");
@@ -230,7 +230,7 @@ impl AsyncWrite for StreamWriteLogger {
                         }
                     }
                     eprintln!(
-                        "{log_prefix}{maybebufcap} {} {}",
+                        "{log_prefix}{maybebufcap}{} {}",
                         nbytes,
                         render_content(&content, this.opts.hex)
                     );
