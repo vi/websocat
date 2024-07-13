@@ -299,6 +299,8 @@ impl SpecifierStack {
                 Overlay::Log { .. } => return true,
                 Overlay::LineChunks => (),
                 Overlay::WsClient => (),
+                Overlay::ReadChunkLimiter => (),
+                Overlay::WriteChunkLimiter  => (),
             }
         }
         if let Some(i) = index {
@@ -392,6 +394,8 @@ impl Overlay {
                 }
             }
             Overlay::WsClient => CopyingType::Datarams,
+            Overlay::ReadChunkLimiter  => CopyingType::ByteStream,
+            Overlay::WriteChunkLimiter => CopyingType::ByteStream,
         }
     }
 }

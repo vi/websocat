@@ -109,6 +109,16 @@ impl ParseStrChunkResult<'_> {
                 },
                 rest,
             })
+        } else if let Some(rest) = x.strip_prefix("read_chunk_limiter:") {
+            Ok(ParseStrChunkResult::Overlay {
+                ovl: Overlay::ReadChunkLimiter,
+                rest,
+            })
+        } else if let Some(rest) = x.strip_prefix("write_chunk_limiter:") {
+            Ok(ParseStrChunkResult::Overlay {
+                ovl: Overlay::WriteChunkLimiter,
+                rest,
+            })
         } else {
             anyhow::bail!("Unknown specifier: {x}")
         }

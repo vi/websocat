@@ -68,4 +68,12 @@ pub struct WebsocatArgs {
     /// URI for `ws-c:` overlay.
     #[argh(option)]
     pub ws_c_uri: Option<String>,
+
+    /// paramemter for read_chunk_limiter: overlay, defaults to 1
+    #[argh(option)]
+    pub read_buffer_limit: Option<usize>,
+
+    /// paramemter for write_chunk_limiter: overlay, defaults to 1
+    #[argh(option)]
+    pub write_buffer_limit: Option<usize>,
 }

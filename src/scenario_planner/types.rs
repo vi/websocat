@@ -51,6 +51,14 @@ pub enum Overlay {
     Log {
         datagram_mode: bool,
     },
+    //@ Limit this stream's read buffer size to --read-buffer-limit
+    //@ By splitting reads to many (e.g. single byte) chunks, we can
+    //@ test and debug trickier code paths in various overlays
+    ReadChunkLimiter,
+    //@ Limit this stream's write buffer size to --write-buffer-limit
+    //@ By enforcing short writes, we can
+    //@ test and debug trickier code paths in various overlays
+    WriteChunkLimiter,
 }
 
 #[derive(Debug)]

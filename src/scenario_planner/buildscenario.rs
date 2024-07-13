@@ -252,6 +252,16 @@ impl Overlay {
                     "This overlay is supposed to be split up by specifier stack patcher before."
                 );
             }
+            Overlay::ReadChunkLimiter => {
+                let n = opts.read_buffer_limit.unwrap_or(1);
+                printer.print_line(&format!("put_read_part({inner_var}, read_chunk_limiter(take_read_part({inner_var}), {n}));"));
+                Ok(inner_var.to_owned())
+            }
+            Overlay::WriteChunkLimiter => {
+                let n = opts.write_buffer_limit.unwrap_or(1);
+                printer.print_line(&format!("put_write_part({inner_var}, write_chunk_limiter(take_write_part({inner_var}), {n}));"));
+                Ok(inner_var.to_owned())
+            }
         }
     }
     fn end_print(&self, printer: &mut ScenarioPrinter) {
@@ -276,6 +286,8 @@ impl Overlay {
             }
             Overlay::Log { .. } => (),
             Overlay::WsClient => panic!(),
+            Overlay::ReadChunkLimiter => (),
+            Overlay::WriteChunkLimiter => (),
         }
     }
 }

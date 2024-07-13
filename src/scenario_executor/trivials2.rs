@@ -3,7 +3,7 @@ use std::{pin::Pin, task::Poll};
 use bytes::BytesMut;
 use pin_project::pin_project;
 use rhai::{Engine, NativeCallContext};
-use tokio::io::{AsyncRead, ReadBuf};
+use tokio::io::{AsyncRead, AsyncWrite, ReadBuf};
 use tracing::debug;
 
 use crate::scenario_executor::{
@@ -63,6 +63,52 @@ fn read_chunk_limiter(
         prefix: BytesMut::new(),
     };
     debug!(wrapped=?x, "read_chunk_limiter");
+    Ok(x.wrap())
+}
+
+struct WriteChunkLimiter {
+    inner: StreamWrite,
+    limit: usize,
+}
+
+impl AsyncWrite for WriteChunkLimiter {
+    fn poll_write(
+        self: Pin<&mut Self>,
+        cx: &mut std::task::Context<'_>,
+        mut buf: &[u8],
+    ) -> Poll<Result<usize, std::io::Error>> {
+        let this = self.get_mut();
+        if buf.len() > this.limit {
+            buf = &buf[..this.limit];
+        }
+        AsyncWrite::poll_write(Pin::new(&mut this.inner.writer), cx, buf)
+    }
+
+    fn poll_flush(self: Pin<&mut Self>, cx: &mut std::task::Context<'_>) -> Poll<Result<(), std::io::Error>> {
+        let this = self.get_mut();
+        AsyncWrite::poll_flush(Pin::new(&mut this.inner.writer), cx)
+    }
+
+    fn poll_shutdown(self: Pin<&mut Self>, cx: &mut std::task::Context<'_>) -> Poll<Result<(), std::io::Error>> {
+        let this = self.get_mut();
+        AsyncWrite::poll_shutdown(Pin::new(&mut this.inner.writer), cx)
+    }
+}
+
+fn write_chunk_limiter(
+    ctx: NativeCallContext,
+    x: Handle<StreamWrite>,
+    limit: i64,
+) -> RhResult<Handle<StreamWrite>> {
+    let x = ctx.lutbar(x)?;
+    debug!(inner=?x, "write_chunk_limiter");
+    let x = StreamWrite {
+        writer: Box::pin(WriteChunkLimiter {
+            inner: x,
+            limit: limit as usize,
+        }),
+    };
+    debug!(wrapped=?x, "write_chunk_limiter");
     Ok(x.wrap())
 }
 
@@ -193,6 +239,7 @@ fn dummy_datagram_socket() -> Handle<DatagramSocket> {
 
 pub fn register(engine: &mut Engine) {
     engine.register_fn("read_chunk_limiter", read_chunk_limiter);
+    engine.register_fn("write_chunk_limiter", write_chunk_limiter);
     engine.register_fn("null_stream_socket", null_stream_socket);
     engine.register_fn("null_datagram_socket", null_datagram_socket);
     engine.register_fn("dummy_stream_socket", dummy_stream_socket);
