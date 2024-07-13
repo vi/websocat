@@ -99,6 +99,12 @@ This overlay cannot be directly specified as a prefix to a positional CLI argume
 
 This overlay cannot be directly specified as a prefix to a positional CLI argument, there may be some other way to access it.
 
+### LineChunks
+
+(undocumented)
+
+This overlay cannot be directly specified as a prefix to a positional CLI argument, there may be some other way to access it.
+
 ### Log
 
 Print encountered data to stderr for debugging
@@ -106,6 +112,16 @@ Print encountered data to stderr for debugging
 Prefixes:
 
 * `log:`
+
+### ReadChunkLimiter
+
+Limit this stream's read buffer size to --read-buffer-limit
+By splitting reads to many (e.g. single byte) chunks, we can
+test and debug trickier code paths in various overlays
+
+Prefixes:
+
+* `read_chunk_limiter:`
 
 ### ResolveHostname
 
@@ -127,6 +143,16 @@ Prefixes:
 
 * `tls:`
 
+### WriteChunkLimiter
+
+Limit this stream's write buffer size to --write-buffer-limit
+By enforcing short writes, we can
+test and debug trickier code paths in various overlays
+
+Prefixes:
+
+* `write_chunk_limiter:`
+
 ### WsAccept
 
 (undocumented)
@@ -134,6 +160,16 @@ Prefixes:
 Prefixes:
 
 * `ws-accept:`
+
+### WsClient
+
+Combined WebSocket upgrader and framer, but without TCP or TLS things
+URI is taked from --ws-c-uri CLI argument
+If it is not specified, it defaults to `/`, with a missing `host:` header
+
+Prefixes:
+
+* `ws-c:`
 
 ### WsFramer
 
@@ -200,6 +236,34 @@ Returns `Task`
 ## create_stdio
 
 Returns `StreamSocket`
+
+## datagram_logger
+
+Wrap datagram socket in an overlay that logs every inner read and write to stderr.
+Stderr is assumed to be always available. Backpressure would cause
+whole process to stop serving connections and inability to log
+may abort the process.
+
+It is OK if a read or write handle of the source socket is null - resulting socket
+would also be incomplete. This allows to access the logger having only reader
+or writer instead of a complete socket.
+
+This component is not performance-optimised and is intended for mostly for debugging.
+
+Parameters:
+
+* opts (`Dynamic`) - object map containing dynamic options to the function
+* inner (`DatagramSocket`)
+
+Returns `DatagramSocket`
+
+Options:
+
+* verbose (`bool`) - Show more messages and more info within messages
+* read_prefix (`Option<String>`) - Prepend this instead of "READ " to each line printed to stderr
+* write_prefix (`Option<String>`) - Prepend this instead of "WRITE " to each line printed to stderr
+* omit_content (`bool`) - Do not log full content of the stream, just the chunk lengths.
+* hex (`bool`) - Use hex lines instead of string literals with espaces
 
 ## display_pkts
 
@@ -277,9 +341,15 @@ Returns `Task`
 
 Parameters:
 
+* opts (`Dynamic`) - object map containing dynamic options to the function
 * x (`StreamSocket`)
 
 Returns `DatagramSocket`
+
+Options:
+
+* separator (`Option<u8>`) - Use this byte as a separator. Defaults to 10 (\n).
+* separator_n (`Option<usize>`) - Use this number of repetitions of the specified byte to consider it as a separator. Defaults to 1.
 
 ## listen_tcp
 
@@ -380,14 +450,6 @@ Parameters:
 
 Returns `StreamRead`
 
-## read_line_chunks
-
-Parameters:
-
-* x (`StreamWrite`)
-
-Returns `DatagramWrite`
-
 ## read_stream_chunks
 
 Parameters:
@@ -435,7 +497,7 @@ Stderr is assumed to be always available. Backpressure would cause
 whole process to stop serving connections and inability to log
 may abort the process.
 
-It is OK if read or write handle of the source socket is null - resulting socket
+It is OK a if read or write handle of the source socket is null - resulting socket
 would also be incomplete. This allows to access the logger having only reader
 or writer instead of a complete socket.
 
@@ -535,13 +597,14 @@ Options:
 
 Returns `DatagramRead`
 
-## write_line_chunks
+## write_chunk_limiter
 
 Parameters:
 
-* x (`StreamRead`)
+* x (`StreamWrite`)
+* limit (`i64`)
 
-Returns `DatagramRead`
+Returns `StreamWrite`
 
 ## write_stream_chunks
 
