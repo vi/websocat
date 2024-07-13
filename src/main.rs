@@ -61,6 +61,9 @@ async fn main() -> anyhow::Result<()> {
     } else {
         if args.spec2.is_none() {
             args.spec2 = Some("stdio:".to_owned());
+            if !args.binary && !args.text {
+                args.text = true;
+            }
         }
 
         if !args.binary && !args.text {

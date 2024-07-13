@@ -42,14 +42,14 @@ impl WebsocatInvocation {
                 if self.opts.binary {
                     self.left.overlays.push(Overlay::StreamChunks);
                 } else {
-                    todo!()
+                    self.left.overlays.push(Overlay::LineChunks);
                 }
             }
             (CopyingType::Datarams, CopyingType::ByteStream) => {
                 if self.opts.binary {
                     self.right.overlays.push(Overlay::StreamChunks);
                 } else {
-                    todo!()
+                    self.right.overlays.push(Overlay::LineChunks);
                 }
             }
         }
@@ -246,6 +246,7 @@ impl SpecifierStack {
                 }
                 Overlay::StreamChunks => (),
                 Overlay::Log { .. } => return true,
+                Overlay::LineChunks => (),
             }
         }
         if let Some(i) = index {
@@ -318,6 +319,7 @@ impl Overlay {
             Overlay::WsUpgrade { .. } => CopyingType::ByteStream,
             Overlay::WsFramer { .. } => CopyingType::Datarams,
             Overlay::StreamChunks => CopyingType::Datarams,
+            Overlay::LineChunks => CopyingType::Datarams,
             Overlay::TlsClient { .. } =>  CopyingType::ByteStream,
             Overlay::WsAccept {} => CopyingType::ByteStream,
             Overlay::Log { datagram_mode } => if *datagram_mode {

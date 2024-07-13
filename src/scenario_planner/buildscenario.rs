@@ -180,6 +180,11 @@ impl Overlay {
                 printer.print_line(&format!("let {varnam} = stream_chunks({inner_var});"));
                 Ok(varnam)
             }
+            Overlay::LineChunks => {
+                let varnam = vars.getnewvarname("chunks");
+                printer.print_line(&format!("let {varnam} = line_chunks(#{{}}, {inner_var});"));
+                Ok(varnam)
+            }
             Overlay::TlsClient {
                 domain,
                 varname_for_connector,
@@ -241,6 +246,7 @@ impl Overlay {
             }
             Overlay::WsFramer { .. } => (),
             Overlay::StreamChunks => (),
+            Overlay::LineChunks => (),
             Overlay::TlsClient { .. } => {
                 printer.decrease_indent();
                 printer.print_line("})");

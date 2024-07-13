@@ -338,6 +338,7 @@ fn stream_logger(
         }
     }
 
+    debug!(parent: &span, ?wrapped, "wrapped");
     Ok(Some(wrapped).wrap())
 }
 
@@ -540,6 +541,7 @@ fn datagram_logger(
         }
     }
 
+    debug!(parent: &span, ?wrapped, "wrapped");
     Ok(Some(wrapped).wrap())
 }
 
