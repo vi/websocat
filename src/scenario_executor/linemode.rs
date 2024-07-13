@@ -73,6 +73,8 @@ impl PacketRead for ReadLineChunks {
                     // where we have put in-middle-of-possible-separator debt
                     this.unprocessed_bytes += this.separator_bytes_in_a_row;
                     this.offset = 0;
+                    // we have turned those bytes into actual separator characters in the buffer
+                    this.separator_bytes_in_a_row = 0;
                 }
                 Poll::Ready(Err(e)) => return Poll::Ready(Err(e)),
                 Poll::Pending => return Poll::Pending,

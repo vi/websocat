@@ -76,4 +76,13 @@ pub struct WebsocatArgs {
     /// paramemter for write_chunk_limiter: overlay, defaults to 1
     #[argh(option)]
     pub write_buffer_limit: Option<usize>,
+
+    /// override byte value that separates stdin-supplied text WebSocket messages
+    /// from each othe from default '\n'.
+    #[argh(option)]
+    pub separator: Option<u8>,
+
+    /// require this number of newline (or other) bytes to separate WebSocket messages
+    #[argh(option)]
+    pub separator_n: Option<usize>,
 }

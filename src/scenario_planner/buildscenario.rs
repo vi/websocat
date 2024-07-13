@@ -193,7 +193,14 @@ impl Overlay {
             }
             Overlay::LineChunks => {
                 let varnam = vars.getnewvarname("chunks");
-                printer.print_line(&format!("let {varnam} = line_chunks(#{{}}, {inner_var});"));
+                let mut oo = String::new();
+                if let Some(ref x) = opts.separator {
+                    oo.push_str(&format!("separator: {x},"));
+                }
+                if let Some(ref x) = opts.separator_n {
+                    oo.push_str(&format!("separator_n: {x},"));
+                }
+                printer.print_line(&format!("let {varnam} = line_chunks(#{{{oo}}}, {inner_var});"));
                 Ok(varnam)
             }
             Overlay::TlsClient {
