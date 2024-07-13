@@ -1,4 +1,4 @@
-use std::{io::IoSlice, pin::Pin, task::Poll};
+use std::{io::IoSlice, ops::Range, pin::Pin, task::Poll};
 
 use rhai::{Dynamic, Engine, NativeCallContext};
 use tokio::io::ReadBuf;
@@ -114,17 +114,37 @@ impl PacketRead for ReadLineChunks {
 struct WriteLineChunks {
     w: StreamWrite,
     separator: Vec<u8>,
+    intramessage_separator_substitution: Option<u8>,
     buffer_offset: usize,
     separator_offset: usize,
+
+    /// message_has_currently_this_number_of_repeated_separator_bytes_at_the_last_chunk_end
+    mhctnorsbatlce: usize,
+    nonfirst_chunk: bool,
+    /// Separator bytes redacted from the chunk that may needed to be reinserted at the beginning of the next chunk
+    indebted_separator_bytes: usize,
+    chunk_already_processed: bool,
+    debt: Option<Vec<u8>>,
+    trim_bytes_from_start: usize,
+    trim_bytes_from_end: usize,
 }
 
 impl WriteLineChunks {
-    pub fn new(inner: StreamWrite, separator: u8, separator_n: usize) -> Self {
+    pub fn new(inner: StreamWrite, separator: u8, separator_n: usize, subst: Option<u8>) -> Self {
+        assert!(separator_n>0);
         Self {
             w: inner,
             separator: vec![separator; separator_n],
             buffer_offset: 0,
             separator_offset: 0,
+            intramessage_separator_substitution: subst,
+            mhctnorsbatlce: 0,
+            nonfirst_chunk: false,
+            indebted_separator_bytes: 0,
+            chunk_already_processed: false,
+            debt: None,
+            trim_bytes_from_start: 0,
+            trim_bytes_from_end: 0,
         }
     }
 }
@@ -145,7 +165,70 @@ impl PacketWrite for WriteLineChunks {
             this.separator.len()
         };
 
+        if let (Some(subst), false) = (this.intramessage_separator_substitution, this.chunk_already_processed) {
+            let sb = this.separator[0];
+
+            this.trim_bytes_from_start = 0;
+            this.trim_bytes_from_end = 0;
+
+            if !this.nonfirst_chunk {
+                while buf[this.trim_bytes_from_start..].first() == Some(&sb) {
+                    this.trim_bytes_from_start+=1;
+                }
+                if !buf[this.trim_bytes_from_start..].is_empty() {
+                    this.nonfirst_chunk = true;
+                }
+            }
+
+            let mut there_is_nonseparator_byte = false;
+            for x in buf.iter_mut() {
+                if *x == sb {
+                    this.mhctnorsbatlce += 1;
+                    if this.mhctnorsbatlce >= this.separator.len() {
+                        *x = subst;
+                        there_is_nonseparator_byte = true;
+                        this.mhctnorsbatlce=0;
+                    }
+                } else {
+                    this.mhctnorsbatlce = 0;
+                    there_is_nonseparator_byte = true;
+                }
+            }
+
+            if there_is_nonseparator_byte && this.indebted_separator_bytes > 0 {
+                this.debt = Some(vec![sb; this.indebted_separator_bytes]);
+                this.indebted_separator_bytes = 0;
+            }
+
+            while buf[this.trim_bytes_from_start..(buf.len()-this.trim_bytes_from_end)].last() == Some(&sb) {
+                this.indebted_separator_bytes += 1;
+                this.trim_bytes_from_end+=1;
+            }
+            assert!(this.indebted_separator_bytes < this.separator.len());
+
+            if !flags.contains(BufferFlag::NonFinalChunk) {
+                this.nonfirst_chunk = false;
+                this.indebted_separator_bytes = 0;
+            }
+
+            this.chunk_already_processed = true;
+        }
+
         loop {
+            if let Some(ref debt) = this.debt {
+                match tokio::io::AsyncWrite::poll_write(Pin::new(&mut this.w.writer), cx, &debt) {
+                    Poll::Ready(Ok(n)) => {
+                        if n >= debt.len() {
+                            this.debt = None;
+                        } else {
+                            this.debt = Some(debt[n..].to_vec());
+                        }
+                    }
+                    Poll::Ready(Err(e)) => return Poll::Ready(Err(e)),
+                    Poll::Pending => return Poll::Pending,
+                }
+            }
+            let buf = &buf[this.trim_bytes_from_start..(buf.len()-this.trim_bytes_from_end)];
             assert!(buf.len() >= this.buffer_offset);
             let buf_chunk = &buf[this.buffer_offset..];
             if buf_chunk.is_empty() && this.separator_offset == required_separator_len {
@@ -182,6 +265,7 @@ impl PacketWrite for WriteLineChunks {
                 Poll::Pending => return Poll::Pending,
             }
         }
+        this.chunk_already_processed = false;
         return Poll::Ready(Ok(()));
     }
 }
@@ -200,6 +284,12 @@ fn line_chunks(
 
         //@ Use this number of repetitions of the specified byte to consider it as a separator. Defaults to 1.
         separator_n: Option<usize>,
+
+        //@ When framing messages, look for byte sequences within the message that may alias with
+        //@ the separator and substitute last byte of such pseudo-separators with this byte value.
+        //@
+        //@ If active, leading and trailing separator bytes are also removed from the datagrams
+        substitute: Option<u8>,
     }
     let opts: LineChunksOpts = rhai::serde::from_dynamic(&opts)?;
 
@@ -225,7 +315,7 @@ fn line_chunks(
 
     if let Some(w) = x.write {
         wrapped.write = Some(DatagramWrite {
-            snk: Box::pin(WriteLineChunks::new(w, separator, separator_n)),
+            snk: Box::pin(WriteLineChunks::new(w, separator, separator_n, opts.substitute)),
         })
     }
 

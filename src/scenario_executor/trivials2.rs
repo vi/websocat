@@ -31,6 +31,7 @@ impl AsyncRead for ReadChunkLimiter {
     ) -> Poll<std::io::Result<()>> {
         let this = self.project();
 
+        buf.initialize_unfilled();
         let b = buf.initialized_mut();
         let limit = b.len().min(*this.limit);
         let b = &mut b[0..limit];

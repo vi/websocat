@@ -85,4 +85,9 @@ pub struct WebsocatArgs {
     /// require this number of newline (or other) bytes to separate WebSocket messages
     #[argh(option)]
     pub separator_n: Option<usize>,
+
+    /// prevent mangling incoming text WebSocket by replacing `\n`  (or other
+    /// separator sequence) with spaces (and trimming leading and trailing separator bytes)
+    #[argh(switch)]
+    pub separator_inhibit_substitution: bool,
 }
