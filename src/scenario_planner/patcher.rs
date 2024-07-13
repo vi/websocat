@@ -1,7 +1,9 @@
 use std::net::{IpAddr, SocketAddr};
 
-use http::Uri;
+use http::{uri::Authority, Uri};
 use tracing::{debug, warn};
+
+use crate::cli::WebsocatArgs;
 
 use super::{
     types::{
@@ -14,6 +16,8 @@ impl WebsocatInvocation {
     pub fn patches(&mut self, vars: &mut IdentifierGenerator) -> anyhow::Result<()> {
         self.left.maybe_splitup_client_ws_endpoint()?;
         self.right.maybe_splitup_client_ws_endpoint()?;
+        self.left.maybe_splitup_ws_c_overlay(&self.opts)?;
+        self.right.maybe_splitup_ws_c_overlay(&self.opts)?;
         self.left.maybe_splitup_server_ws_endpoint()?;
         self.right.maybe_splitup_server_ws_endpoint()?;
         if !self.opts.late_resolve {
@@ -23,7 +27,7 @@ impl WebsocatInvocation {
         self.maybe_fill_in_tls_details(vars)?;
         if self.opts.log_traffic {
             if !self.right.insert_log_overlay() {
-                if ! self.left.insert_log_overlay() {
+                if !self.left.insert_log_overlay() {
                     warn!("Failed to automaticelly insert log: overlay");
                 }
             }
@@ -118,21 +122,50 @@ impl WebsocatInvocation {
     }
 }
 
+struct MyUrlParts {
+    auth: Option<Authority>,
+    /// just the path part
+    newurl: Uri,
+}
+
+impl MyUrlParts {
+    fn process_url(u: &Uri) -> anyhow::Result<Self> {
+        let mut parts = u.clone().into_parts();
+
+        let auth = parts.authority.take();
+        if let Some(ref auth) = auth {
+            if auth.as_str().contains('@') {
+                anyhow::bail!("Usernames in URLs not supported");
+            }
+        }
+
+        parts.scheme = None;
+        let mut newurl = Uri::from_parts(parts).unwrap();
+
+        if newurl.path().is_empty() {
+            debug!("Patching empty URL to be /");
+            newurl = Uri::from_static("/");
+        }
+        Ok(MyUrlParts { auth, newurl })
+    }
+}
+
+
 impl SpecifierStack {
     fn maybe_splitup_client_ws_endpoint(&mut self) -> anyhow::Result<()> {
         match self.innermost {
             Endpoint::WsUrl(ref u) | Endpoint::WssUrl(ref u) => {
-                let mut parts = u.clone().into_parts();
+                let MyUrlParts{auth, newurl} = MyUrlParts::process_url(u)?;
 
-                let auth = parts.authority.take().unwrap();
-                if auth.as_str().contains('@') {
-                    anyhow::bail!("Usernames in URLs not supported");
-                }
+                // URI should be checked to be a full one in `fromstr.rs`.
+                let auth = auth.unwrap();
+
                 let wss_mode = match self.innermost {
                     Endpoint::WsUrl(_) => false,
                     Endpoint::WssUrl(_) => true,
                     _ => unreachable!(),
                 };
+                
                 let default_port = if wss_mode { 443 } else { 80 };
                 let (mut host, port) = (auth.host(), auth.port_u16().unwrap_or(default_port));
 
@@ -155,19 +188,11 @@ impl SpecifierStack {
                     }
                 };
 
-                parts.scheme = None;
-                let mut newurl = Uri::from_parts(parts).unwrap();
-
-                if newurl.path().is_empty() {
-                    debug!("Patching empty URL to be /");
-                    newurl = Uri::from_static("/");
-                }
-
                 self.overlays.insert(
                     0,
                     Overlay::WsUpgrade {
                         uri: newurl,
-                        host: auth.to_string(),
+                        host: Some(auth.to_string()),
                     },
                 );
                 self.overlays
@@ -185,6 +210,32 @@ impl SpecifierStack {
             }
             _ => (),
         }
+        Ok(())
+    }
+
+    fn maybe_splitup_ws_c_overlay(&mut self, opts: &WebsocatArgs) -> anyhow::Result<()> {
+        let Some((position_to_redact, _)) = self
+            .overlays
+            .iter()
+            .enumerate()
+            .find(|(_, ovl)| matches!(ovl, Overlay::WsClient))
+        else {
+            return Ok(());
+        };
+
+        let uri = Uri::try_from(opts.ws_c_uri.as_deref().unwrap_or("/"))?;
+        let MyUrlParts{auth, newurl} = MyUrlParts::process_url(&uri)?;
+
+        self.overlays.remove(position_to_redact);
+        self.overlays.insert(
+            position_to_redact,
+            Overlay::WsUpgrade {
+                uri: newurl,
+                host: auth.map(|x|x.to_string()),
+            },
+        );
+        self.overlays.insert(position_to_redact+1, Overlay::WsFramer { client_mode: true });
+
         Ok(())
     }
 
@@ -237,9 +288,9 @@ impl SpecifierStack {
         let mut index = None;
         for (i, ovl) in self.overlays.iter().enumerate() {
             match ovl {
-                Overlay::WsUpgrade { .. }  => (),
-                Overlay::WsAccept { .. }  => (),
-                Overlay::WsFramer { .. }  => (),
+                Overlay::WsUpgrade { .. } => (),
+                Overlay::WsAccept { .. } => (),
+                Overlay::WsFramer { .. } => (),
                 Overlay::TlsClient { .. } => {
                     index = Some(i);
                     break;
@@ -247,10 +298,16 @@ impl SpecifierStack {
                 Overlay::StreamChunks => (),
                 Overlay::Log { .. } => return true,
                 Overlay::LineChunks => (),
+                Overlay::WsClient => (),
             }
         }
         if let Some(i) = index {
-            self.overlays.insert(i+1, Overlay::Log { datagram_mode: false });
+            self.overlays.insert(
+                i + 1,
+                Overlay::Log {
+                    datagram_mode: false,
+                },
+            );
             true
         } else {
             let do_insert = match &self.innermost {
@@ -267,7 +324,12 @@ impl SpecifierStack {
             };
             if do_insert {
                 // datagram mode may be patched later
-                self.overlays.insert(0, Overlay::Log { datagram_mode: false })
+                self.overlays.insert(
+                    0,
+                    Overlay::Log {
+                        datagram_mode: false,
+                    },
+                )
             }
             do_insert
         }
@@ -320,13 +382,16 @@ impl Overlay {
             Overlay::WsFramer { .. } => CopyingType::Datarams,
             Overlay::StreamChunks => CopyingType::Datarams,
             Overlay::LineChunks => CopyingType::Datarams,
-            Overlay::TlsClient { .. } =>  CopyingType::ByteStream,
+            Overlay::TlsClient { .. } => CopyingType::ByteStream,
             Overlay::WsAccept {} => CopyingType::ByteStream,
-            Overlay::Log { datagram_mode } => if *datagram_mode {
-                CopyingType::Datarams
-            } else {
-                CopyingType::ByteStream
+            Overlay::Log { datagram_mode } => {
+                if *datagram_mode {
+                    CopyingType::Datarams
+                } else {
+                    CopyingType::ByteStream
+                }
             }
+            Overlay::WsClient => CopyingType::Datarams,
         }
     }
 }

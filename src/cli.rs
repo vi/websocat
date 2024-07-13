@@ -64,4 +64,8 @@ pub struct WebsocatArgs {
     /// automatically insert `log:` overlay in an apprioriate place to debug issues by displaying traffic chunks
     #[argh(switch)]
     pub log_traffic: bool,
+
+    /// URI for `ws-c:` overlay.
+    #[argh(option)]
+    pub ws_c_uri: Option<String>,
 }

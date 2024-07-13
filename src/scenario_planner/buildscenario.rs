@@ -162,7 +162,18 @@ impl Overlay {
                     "let {httpclient} = http1_client(#{{}}, {inner_var});"
                 ));
 
-                printer.print_line(&format!("ws_upgrade(#{{host: \"{host}\", url: \"{uri}\"}}, {httpclient}, |{wsframes}| {{"));
+                let mut opts = String::with_capacity(64);
+                opts.push_str("url: \"");
+                opts.push_str(&format!("{}", uri));
+                opts.push_str("\",");
+
+                if let Some(host) = host {
+                    opts.push_str("host: \"");
+                    opts.push_str(&host);
+                    opts.push_str("\",");
+                }
+
+                printer.print_line(&format!("ws_upgrade(#{{{opts}}}, {httpclient}, |{wsframes}| {{"));
                 printer.increase_indent();
 
                 Ok(wsframes)
@@ -236,6 +247,11 @@ impl Overlay {
                 printer.print_line(&format!("let {varnam} = {funcname}(#{{{maybe_loghex}{maybe_log_omit_content}{maybe_log_verbose}}}, {inner_var});"));
                 Ok(varnam)
             }
+            Overlay::WsClient => {
+                panic!(
+                    "This overlay is supposed to be split up by specifier stack patcher before."
+                );
+            }
         }
     }
     fn end_print(&self, printer: &mut ScenarioPrinter) {
@@ -259,6 +275,7 @@ impl Overlay {
                 printer.print_line("})");
             }
             Overlay::Log { .. } => (),
+            Overlay::WsClient => panic!(),
         }
     }
 }

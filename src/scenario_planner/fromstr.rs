@@ -83,6 +83,11 @@ impl ParseStrChunkResult<'_> {
                 ovl: Overlay::WsAccept {},
                 rest,
             })
+        } else if let Some(rest) = x.strip_prefix("ws-c:") {
+            Ok(ParseStrChunkResult::Overlay {
+                ovl: Overlay::WsClient {},
+                rest,
+            })
         } else if let Some(rest) = x.strip_prefix("ws-ll-client:") {
             Ok(ParseStrChunkResult::Overlay {
                 ovl: Overlay::WsFramer { client_mode: true },

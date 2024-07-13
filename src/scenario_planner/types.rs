@@ -31,12 +31,16 @@ pub enum Endpoint {
 pub enum Overlay {
     WsUpgrade {
         uri: Uri,
-        host: String,
+        host: Option<String>,
     },
     WsAccept {},
     WsFramer {
         client_mode: bool,
     },
+    //@ Combined WebSocket upgrader and framer, but without TCP or TLS things
+    //@ URI is taked from --ws-c-uri CLI argument
+    //@ If it is not specified, it defaults to `/`, with a missing `host:` header
+    WsClient,
     TlsClient {
         domain: String,
         varname_for_connector: String,
