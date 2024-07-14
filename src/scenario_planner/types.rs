@@ -59,6 +59,8 @@ pub enum Overlay {
     //@ By enforcing short writes, we can
     //@ test and debug trickier code paths in various overlays
     WriteChunkLimiter,
+    //@ Insert write buffering layer that combines multiple write calls to one bigger
+    WriteBuffer,
 }
 
 #[derive(Debug)]

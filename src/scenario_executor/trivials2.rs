@@ -12,7 +12,10 @@ use crate::scenario_executor::{
 };
 
 use super::{
-    types::{BufferFlag, DatagramRead, DatagramSocket, DatagramWrite, PacketRead, PacketReadResult, PacketWrite, StreamSocket, StreamWrite},
+    types::{
+        BufferFlag, DatagramRead, DatagramSocket, DatagramWrite, PacketRead, PacketReadResult,
+        PacketWrite, StreamSocket, StreamWrite,
+    },
     utils::HandleExt,
 };
 
@@ -85,12 +88,18 @@ impl AsyncWrite for WriteChunkLimiter {
         AsyncWrite::poll_write(Pin::new(&mut this.inner.writer), cx, buf)
     }
 
-    fn poll_flush(self: Pin<&mut Self>, cx: &mut std::task::Context<'_>) -> Poll<Result<(), std::io::Error>> {
+    fn poll_flush(
+        self: Pin<&mut Self>,
+        cx: &mut std::task::Context<'_>,
+    ) -> Poll<Result<(), std::io::Error>> {
         let this = self.get_mut();
         AsyncWrite::poll_flush(Pin::new(&mut this.inner.writer), cx)
     }
 
-    fn poll_shutdown(self: Pin<&mut Self>, cx: &mut std::task::Context<'_>) -> Poll<Result<(), std::io::Error>> {
+    fn poll_shutdown(
+        self: Pin<&mut Self>,
+        cx: &mut std::task::Context<'_>,
+    ) -> Poll<Result<(), std::io::Error>> {
         let this = self.get_mut();
         AsyncWrite::poll_shutdown(Pin::new(&mut this.inner.writer), cx)
     }
@@ -238,6 +247,22 @@ fn dummy_datagram_socket() -> Handle<DatagramSocket> {
     .wrap()
 }
 
+//@ Wrap stream writer in a buffering overlay that may accumulate data,
+//@ e.g. to write in one go on flush
+fn write_buffer(
+    ctx: NativeCallContext,
+    inner: Handle<StreamWrite>,
+    capacity: i64,
+) -> RhResult<Handle<StreamWrite>> {
+    Ok(Some(StreamWrite {
+        writer: Box::pin(tokio::io::BufWriter::with_capacity(
+            capacity as usize,
+            ctx.lutbar(inner)?.writer,
+        )),
+    })
+    .wrap())
+}
+
 pub fn register(engine: &mut Engine) {
     engine.register_fn("read_chunk_limiter", read_chunk_limiter);
     engine.register_fn("write_chunk_limiter", write_chunk_limiter);
@@ -245,4 +270,5 @@ pub fn register(engine: &mut Engine) {
     engine.register_fn("null_datagram_socket", null_datagram_socket);
     engine.register_fn("dummy_stream_socket", dummy_stream_socket);
     engine.register_fn("dummy_datagram_socket", dummy_datagram_socket);
+    engine.register_fn("write_buffer", write_buffer);
 }

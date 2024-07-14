@@ -246,7 +246,7 @@ impl PacketWrite for WsEncoder {
                         }
                     } else {
                         debug!("Not shutting down the socket for writing");
-                        this.state = WsEncoderState::PacketCompleted;
+                        this.state = WsEncoderState::Flushing;
                     }
                 }
                 WsEncoderState::PacketCompleted => {

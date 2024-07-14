@@ -272,6 +272,10 @@ impl Overlay {
                 printer.print_line(&format!("put_write_part({inner_var}, write_chunk_limiter(take_write_part({inner_var}), {n}));"));
                 Ok(inner_var.to_owned())
             }
+            Overlay::WriteBuffer => {
+                printer.print_line(&format!("put_write_part({inner_var}, write_buffer(take_write_part({inner_var}), 8192));"));
+                Ok(inner_var.to_owned())
+            }
         }
     }
     fn end_print(&self, printer: &mut ScenarioPrinter) {
@@ -298,6 +302,7 @@ impl Overlay {
             Overlay::WsClient => panic!(),
             Overlay::ReadChunkLimiter => (),
             Overlay::WriteChunkLimiter => (),
+            Overlay::WriteBuffer => (),
         }
     }
 }
