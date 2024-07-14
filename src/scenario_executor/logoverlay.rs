@@ -1,4 +1,8 @@
-use std::{ops::Deref, pin::Pin, task::Poll};
+use std::{
+    ops::{Deref, Range},
+    pin::Pin,
+    task::Poll,
+};
 
 use rhai::{Dynamic, Engine, NativeCallContext};
 use tokio::io::{AsyncRead, AsyncWrite, ReadBuf};
@@ -11,8 +15,8 @@ use crate::scenario_executor::{
 
 use super::{
     types::{
-        DatagramRead, DatagramSocket, DatagramWrite, PacketRead, PacketReadResult,
-        PacketWrite, StreamSocket, StreamWrite,
+        BufferFlag, BufferFlags, DatagramRead, DatagramSocket, DatagramWrite, PacketRead,
+        PacketReadResult, PacketWrite, StreamSocket, StreamWrite,
     },
     utils::{DisplayBufferFlags, HandleExt},
 };
@@ -345,6 +349,82 @@ fn stream_logger(
 struct DatagramReadLogger {
     inner: DatagramRead,
     opts: LoggerOptsShared,
+    printer: DatagramPrinter,
+}
+
+struct DatagramPrinter {
+    accumulated_size: Option<usize>,
+}
+
+impl DatagramPrinter {
+    fn new() -> Self {
+        Self {
+            accumulated_size: None,
+        }
+    }
+
+    fn print(
+        &mut self,
+        log_prefix: &str,
+        maybebufcap: &str,
+        buf: &mut [u8],
+        buffer_subset: Range<usize>,
+        flags: BufferFlags,
+        opts: &LoggerOptsShared,
+    ) {
+        let maybe_flags_storge;
+        let maybe_flags = if opts.verbose {
+            maybe_flags_storge = format!(" [{}]", DisplayBufferFlags(flags));
+            &maybe_flags_storge
+        } else {
+            ""
+        };
+        let control = flags.contains(BufferFlag::Ping)
+            || flags.contains(BufferFlag::Pong)
+            || flags.contains(BufferFlag::Eof);
+        let maybe_leading_plus = if !control && self.accumulated_size.is_some() {
+            "+"
+        } else {
+            ""
+        };
+        let trailing_plus_buf;
+        let maybe_trailing_plus = if flags.contains(BufferFlag::NonFinalChunk) {
+            *self.accumulated_size.get_or_insert_with(Default::default) += buffer_subset.len();
+            "+"
+        } else {
+            if !control && self.accumulated_size.is_some() {
+                let mut accumulated_size = self.accumulated_size.take().unwrap();
+                accumulated_size += buffer_subset.len();
+                trailing_plus_buf = format!("={accumulated_size}");
+                &trailing_plus_buf
+            } else {
+                ""
+            }
+        };
+        let maybe_leading_ellipsis = if !maybe_leading_plus.is_empty() {
+            "..."
+        } else {
+            ""
+        };
+        let maybe_trailing_ellipsis = if flags.contains(BufferFlag::NonFinalChunk) {
+            "..."
+        } else {
+            ""
+        };
+
+        if !opts.omit_content {
+            eprintln!(
+                "{log_prefix}{maybebufcap}{maybe_leading_plus}{}{maybe_trailing_plus} {maybe_leading_ellipsis}{}{maybe_trailing_ellipsis}{maybe_flags}",
+                buffer_subset.len(),
+                render_content(&buf[buffer_subset.clone()], opts.hex)
+            );
+        } else {
+            eprintln!(
+                "{log_prefix}{maybebufcap}{maybe_leading_plus}{}{maybe_trailing_plus}{maybe_flags}",
+                buffer_subset.len()
+            );
+        }
+    }
 }
 
 impl PacketRead for DatagramReadLogger {
@@ -365,22 +445,7 @@ impl PacketRead for DatagramReadLogger {
         let verbose = this.opts.verbose;
         match PacketRead::poll_read(this.inner.src.as_mut(), cx, buf) {
             Poll::Ready(Ok(x)) => {
-                let maybe_flags_storge;
-                let maybe_flags = if verbose {
-                    maybe_flags_storge=format!(" [{}]", DisplayBufferFlags(x.flags));
-                    &maybe_flags_storge
-                } else {
-                    ""
-                };
-                if !this.opts.omit_content {
-                    eprintln!(
-                        "{log_prefix}{maybebufcap}{} {}{maybe_flags}",
-                        x.buffer_subset.len(),
-                        render_content(&buf[x.buffer_subset.clone()], this.opts.hex)
-                    );
-                } else {
-                    eprintln!("{log_prefix}{maybebufcap}{}{maybe_flags}", x.buffer_subset.len());
-                }
+                this.printer.print(log_prefix, maybebufcap, buf, x.buffer_subset.clone(), x.flags, &this.opts);
                 Poll::Ready(Ok(x))
             }
             Poll::Ready(Err(e)) => {
@@ -401,6 +466,7 @@ struct DatagramWriteLogger {
     inner: DatagramWrite,
     opts: LoggerOptsShared,
     already_logged_this_write: bool,
+    printer: DatagramPrinter,
 }
 
 impl PacketWrite for DatagramWriteLogger {
@@ -422,28 +488,13 @@ impl PacketWrite for DatagramWriteLogger {
         let verbose = this.opts.verbose;
 
         if !this.already_logged_this_write {
-            let maybe_flags_storge;
-            let maybe_flags = if verbose {
-                maybe_flags_storge=format!(" [{}]", DisplayBufferFlags(flags));
-                &maybe_flags_storge
-            } else {
-                ""
-            };
-            if !this.opts.omit_content {
-                eprintln!(
-                    "{log_prefix}{maybebufcap}{} {}{maybe_flags}",
-                    buf.len(),
-                    render_content(buf, this.opts.hex)
-                );
-            } else {
-                eprintln!("{log_prefix}{maybebufcap}{}{maybe_flags}", buf.len());
-            }
+            this.printer.print(log_prefix, maybebufcap, buf, 0..buf.len(), flags, &this.opts);
             this.already_logged_this_write = true;
         }
 
         match PacketWrite::poll_write(this.inner.snk.as_mut(), cx, buf, flags) {
             Poll::Ready(Ok(())) => {
-                this.already_logged_this_write=false;
+                this.already_logged_this_write = false;
                 Poll::Ready(Ok(()))
             }
             Poll::Ready(Err(e)) => {
@@ -514,6 +565,7 @@ fn datagram_logger(
                     omit_content: opts.omit_content,
                     hex: opts.hex,
                 },
+                printer: DatagramPrinter::new(),
             })),
         });
     } else {
@@ -533,6 +585,7 @@ fn datagram_logger(
                     hex: opts.hex,
                 },
                 already_logged_this_write: false,
+                printer: DatagramPrinter::new(),
             })),
         });
     } else {
