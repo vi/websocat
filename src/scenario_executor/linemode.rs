@@ -1,4 +1,4 @@
-use std::{io::IoSlice, ops::Range, pin::Pin, task::Poll};
+use std::{io::IoSlice, pin::Pin, task::Poll};
 
 use rhai::{Dynamic, Engine, NativeCallContext};
 use tokio::io::ReadBuf;

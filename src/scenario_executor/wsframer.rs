@@ -1,4 +1,4 @@
-use std::{ops::Range, task::Poll};
+use std::{io::IoSlice, ops::Range, task::Poll};
 
 use bytes::BytesMut;
 use pin_project::pin_project;
@@ -154,18 +154,26 @@ impl PacketWrite for WsEncoder {
                         reserved: 0,
                     };
                     let header = this.fe.start_frame(&fi);
+                    this.fe.transform_frame_payload(buf);
                     this.state = WsEncoderState::WritingHeader(header);
                 }
                 WsEncoderState::WritingHeader(mut header) => {
-                    match tokio::io::AsyncWrite::poll_write(this.inner.writer.as_mut(), cx, &header)
+                    let iovec : [IoSlice; 2] = if this.buffer_for_split_control_frames.is_empty() {
+                        [IoSlice::new(&header), IoSlice::new(&buf[..])]
+                    } else {
+                        [IoSlice::new(&header), IoSlice::new(&this.buffer_for_split_control_frames)]
+                    };
+                    match tokio::io::AsyncWrite::poll_write_vectored(this.inner.writer.as_mut(), cx, &iovec)
                     {
                         Poll::Ready(Ok(n)) => {
-                            let remaining_header = header.split_off(n);
+                            let written_header_n = n.min(header.len());
+                            let extra_n = n - written_header_n;
+                            let remaining_header = header.split_off(written_header_n);
                             if remaining_header.is_empty() {
-                                this.fe.transform_frame_payload(buf);
                                 if this.buffer_for_split_control_frames.is_empty() {
-                                    this.state = WsEncoderState::WritingData(0);
+                                    this.state = WsEncoderState::WritingData(extra_n);
                                 } else {
+                                    let _ = this.buffer_for_split_control_frames.split_to(extra_n);
                                     this.state = WsEncoderState::WritingDataFromAltBuffer;
                                 }
                             } else {
@@ -176,6 +184,15 @@ impl PacketWrite for WsEncoder {
                         Poll::Pending => return Poll::Pending,
                     }
                 }
+                WsEncoderState::WritingData(offset) if offset == buf.len() => {
+                    if this.terminate_pending {
+                        this.state = WsEncoderState::Terminating;
+                    } else if this.flush_pending {
+                        this.state = WsEncoderState::Flushing;
+                    } else {
+                        this.state = WsEncoderState::PacketCompleted;
+                    }
+                }
                 WsEncoderState::WritingData(offset) => {
                     match tokio::io::AsyncWrite::poll_write(
                         this.inner.writer.as_mut(),
@@ -184,17 +201,7 @@ impl PacketWrite for WsEncoder {
                     ) {
                         Poll::Ready(Ok(n)) => {
                             let new_offset = offset + n;
-                            if new_offset == buf.len() {
-                                if this.terminate_pending {
-                                    this.state = WsEncoderState::Terminating;
-                                } else if this.flush_pending {
-                                    this.state = WsEncoderState::Flushing;
-                                } else {
-                                    this.state = WsEncoderState::PacketCompleted;
-                                }
-                            } else {
-                                this.state = WsEncoderState::WritingData(new_offset);
-                            }
+                            this.state = WsEncoderState::WritingData(new_offset);
                         }
                         Poll::Ready(Err(e)) => return Poll::Ready(Err(e)),
                         Poll::Pending => return Poll::Pending,
