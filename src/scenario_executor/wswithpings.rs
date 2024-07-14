@@ -7,6 +7,7 @@ use tokio_util::sync::PollSemaphore;
 use tracing::{debug, debug_span, trace};
 
 use crate::scenario_executor::{
+    types::StreamWrite,
     utils::{ExtractHandleOrFail, SimpleErr},
     wsframer::{WsDecoder, WsEncoder},
 };
@@ -141,6 +142,12 @@ fn ws_wrap(
 
         #[serde(default)]
         shutdown_socket_on_eof: bool,
+
+        //@ Do not automatically wrap WebSocket frames writer
+        //@ in a write_buffer: overlay when it detects missing
+        //@ vectored writes support
+        #[serde(default)]
+        no_auto_buffer_wrap: bool,
     }
     let opts: WsDecoderOpts = rhai::serde::from_dynamic(&opts)?;
     let inner = ctx.lutbar(inner)?;
@@ -161,11 +168,19 @@ fn ws_wrap(
         }
     };
 
+    let mut maybe_buffered_write = inner_write;
+
+    if !opts.no_auto_buffer_wrap && !maybe_buffered_write.writer.is_write_vectored() {
+        maybe_buffered_write = StreamWrite {
+            writer: Box::pin(tokio::io::BufWriter::new(maybe_buffered_write.writer)),
+        }
+    }
+
     let usual_encoder = WsEncoder::new(
         span.clone(),
         opts.client,
         !opts.no_flush_after_each_message,
-        inner_write,
+        maybe_buffered_write,
         !opts.no_close_frame,
         opts.shutdown_socket_on_eof,
     );
