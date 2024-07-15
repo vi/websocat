@@ -116,9 +116,9 @@ def read_executor_file(ll: List[str]) -> List[ExecutorFunc]:
     active_function_body: None | str = None
     active_options_list = False
 
-    def take_comment() -> str:
+    def take_comment(sep: str) -> str:
         nonlocal accumulated_doccomment_lines
-        ret = "\n".join(accumulated_doccomment_lines)
+        ret = sep.join(accumulated_doccomment_lines)
         accumulated_doccomment_lines=[]
         return ret
 
@@ -133,7 +133,7 @@ def read_executor_file(ll: List[str]) -> List[ExecutorFunc]:
                     nam = g["rust_function"]
                     if nam in funcs:
                         f = funcs[g["rust_function"]]
-                        f.primary_doc = take_comment()
+                        f.primary_doc = take_comment("\n")
                         if "ret" in g:
                             f.ret.typ = g["ret"]
                         params = g["params"]
@@ -146,7 +146,7 @@ def read_executor_file(ll: List[str]) -> List[ExecutorFunc]:
                     nam = x.group("rust_fn")
                     if nam in funcs:
                         active_function_decl = nam
-                        funcs[active_function_decl].primary_doc = take_comment()
+                        funcs[active_function_decl].primary_doc = take_comment("\n")
                         active_function_body = nam
             else:
                 # inside a function body
@@ -174,7 +174,7 @@ def read_executor_file(ll: List[str]) -> List[ExecutorFunc]:
                     elif x := E_FN_OPTS_ENTRY.search(l):
                         nam = x.group("nam")
                         typ = x.group("typ")
-                        doc = take_comment()
+                        doc = take_comment(" ")
                         funcs[active_function_body].options.append((nam, TypeAndDoc(typ, doc)))
         else:
             # inside a function declaration
@@ -183,7 +183,7 @@ def read_executor_file(ll: List[str]) -> List[ExecutorFunc]:
                 typ = x.group("typ")
                 funcs[active_function_decl].params.append((nam, TypeAndDoc(
                     typ,
-                    take_comment(),
+                    take_comment(" "),
                 )))
             if x:=E_FN_DECL_END.search(l):
                 typ = ""
@@ -191,7 +191,7 @@ def read_executor_file(ll: List[str]) -> List[ExecutorFunc]:
                     typ =  x.group("ret")
                 funcs[active_function_decl].ret = TypeAndDoc(
                     typ,
-                    take_comment(),
+                    take_comment(" "),
                 )
                 active_function_decl=None
             
@@ -324,9 +324,9 @@ def read_planner_data(planner_types : List[str], planner_fromstr : List[str]) ->
 
     accumulated_doccomment_lines : List[str] = []
 
-    def take_comment() -> str:
+    def take_comment(sep: str) -> str:
         nonlocal accumulated_doccomment_lines
-        ret = "\n".join(accumulated_doccomment_lines)
+        ret = sep.join(accumulated_doccomment_lines)
         accumulated_doccomment_lines=[]
         return ret
 
@@ -346,13 +346,13 @@ def read_planner_data(planner_types : List[str], planner_fromstr : List[str]) ->
                 inside_endpoint_struct = False
             if x:=P_ITEM.search(l):
                 nam = x.group("nam")                
-                endpoints[nam] = PlannerItem(nam, [], take_comment())
+                endpoints[nam] = PlannerItem(nam, [], take_comment("\n"))
         elif inside_overlay_struct:
             if P_STOP.search(l):
                 inside_endpoint_struct = False
             if x:=P_ITEM.search(l):
                 nam = x.group("nam")                
-                overlays[nam] = PlannerItem(nam, [], take_comment())
+                overlays[nam] = PlannerItem(nam, [], take_comment("\n"))
         else:
             raise Exception("unreachable")
 

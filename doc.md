@@ -143,6 +143,14 @@ Prefixes:
 
 * `tls:`
 
+### WriteBuffer
+
+Insert write buffering layer that combines multiple write calls to one bigger
+
+Prefixes:
+
+* `write_buffer:`
+
 ### WriteChunkLimiter
 
 Limit this stream's write buffer size to --write-buffer-limit
@@ -350,6 +358,7 @@ Options:
 
 * separator (`Option<u8>`) - Use this byte as a separator. Defaults to 10 (\n).
 * separator_n (`Option<usize>`) - Use this number of repetitions of the specified byte to consider it as a separator. Defaults to 1.
+* substitute (`Option<u8>`) - When framing messages, look for byte sequences within the message that may alias with the separator and substitute last byte of such pseudo-separators with this byte value.  If active, leading and trailing separator bytes are also removed from the datagrams
 
 ## listen_tcp
 
@@ -597,6 +606,18 @@ Options:
 
 Returns `DatagramRead`
 
+## write_buffer
+
+Wrap stream writer in a buffering overlay that may accumulate data,
+e.g. to write in one go on flush
+
+Parameters:
+
+* inner (`StreamWrite`)
+* capacity (`i64`)
+
+Returns `StreamWrite`
+
 ## write_chunk_limiter
 
 Parameters:
@@ -691,6 +712,7 @@ Options:
 * no_flush_after_each_message (`bool`)
 * no_close_frame (`bool`)
 * shutdown_socket_on_eof (`bool`)
+* no_auto_buffer_wrap (`bool`) - Do not automatically wrap WebSocket frames writer in a write_buffer: overlay when it detects missing vectored writes support
 
 
 # Glossary
