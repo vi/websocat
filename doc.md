@@ -198,6 +198,16 @@ This overlay cannot be directly specified as a prefix to a positional CLI argume
 
 Those functions are used in Websocat Rhai Scripts (Scenarios):
 
+## b64str
+
+Decode base64 string to another string
+
+Parameters:
+
+* x (`&str`)
+
+Returns `String`
+
 ## connect_tcp
 
 Parameters:

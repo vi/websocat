@@ -1,5 +1,6 @@
 use std::{pin::Pin, task::Poll};
 
+use base64::Engine as _;
 use bytes::BytesMut;
 use pin_project::pin_project;
 use rhai::{Engine, NativeCallContext};
@@ -16,7 +17,7 @@ use super::{
         BufferFlag, DatagramRead, DatagramSocket, DatagramWrite, PacketRead, PacketReadResult,
         PacketWrite, StreamSocket, StreamWrite,
     },
-    utils::HandleExt,
+    utils::{HandleExt, SimpleErr},
 };
 
 #[pin_project]
@@ -263,6 +264,17 @@ fn write_buffer(
     .wrap())
 }
 
+//@ Decode base64 string to another string
+fn b64str(ctx:NativeCallContext, x: &str) -> RhResult<String> {
+    let Ok(buf) = base64::prelude::BASE64_STANDARD.decode(x) else {
+        return Err(ctx.err("Failed to base64-decode the argument"))
+    };
+    let Ok(s) = String::from_utf8(buf) else {
+        return Err(ctx.err("Base64-encoded content is not a valid UTF-8"))
+    };
+    Ok(s)
+}
+
 pub fn register(engine: &mut Engine) {
     engine.register_fn("read_chunk_limiter", read_chunk_limiter);
     engine.register_fn("write_chunk_limiter", write_chunk_limiter);
@@ -271,4 +283,5 @@ pub fn register(engine: &mut Engine) {
     engine.register_fn("dummy_stream_socket", dummy_stream_socket);
     engine.register_fn("dummy_datagram_socket", dummy_datagram_socket);
     engine.register_fn("write_buffer", write_buffer);
+    engine.register_fn("b64str", b64str);
 }

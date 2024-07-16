@@ -1,7 +1,7 @@
 use crate::cli::WebsocatArgs;
 
 use super::{
-    scenarioprinter::ScenarioPrinter,
+    scenarioprinter::{ScenarioPrinter, StrLit},
     types::{CopyingType, Endpoint, Overlay, PreparatoryAction, WebsocatInvocation},
     utils::IdentifierGenerator,
 };
@@ -67,7 +67,10 @@ impl Endpoint {
         match self {
             Endpoint::TcpConnectByIp(addr) => {
                 let varnam = vars.getnewvarname("tcp");
-                printer.print_line(&format!("connect_tcp(#{{addr: \"{addr}\"}}, |{varnam}| {{"));
+                printer.print_line(&format!(
+                    "connect_tcp(#{{addr: {a}}}, |{varnam}| {{",
+                    a = StrLit(addr)
+                ));
                 printer.increase_indent();
                 Ok(varnam)
             }
@@ -81,7 +84,10 @@ impl Endpoint {
             }
             Endpoint::TcpConnectByLateHostname { hostname } => {
                 let addrs = vars.getnewvarname("addrs");
-                printer.print_line(&format!("lookup_host(\"{hostname}\", |{addrs}| {{"));
+                printer.print_line(&format!(
+                    "lookup_host({h}, |{addrs}| {{",
+                    h = StrLit(hostname)
+                ));
                 printer.increase_indent();
 
                 let varnam = vars.getnewvarname("tcp");
@@ -93,7 +99,8 @@ impl Endpoint {
                 let varnam = vars.getnewvarname("tcp");
                 let fromaddr = vars.getnewvarname("from");
                 printer.print_line(&format!(
-                    "listen_tcp(#{{autospawn: true, addr: \"{addr}\"}}, |{varnam}, {fromaddr}| {{"
+                    "listen_tcp(#{{autospawn: true, addr: {a}}}, |{varnam}, {fromaddr}| {{",
+                    a = StrLit(addr),
                 ));
                 printer.increase_indent();
                 Ok(varnam)
@@ -163,17 +170,19 @@ impl Overlay {
                 ));
 
                 let mut opts = String::with_capacity(64);
-                opts.push_str("url: \"");
-                opts.push_str(&format!("{}", uri));
-                opts.push_str("\",");
+                opts.push_str("url: ");
+                opts.push_str(&format!("{}", StrLit(uri)));
+                opts.push_str(",");
 
                 if let Some(host) = host {
-                    opts.push_str("host: \"");
-                    opts.push_str(&host);
-                    opts.push_str("\",");
+                    opts.push_str("host: ");
+                    opts.push_str(&format!("{}", StrLit(&host)));
+                    opts.push_str(",");
                 }
 
-                printer.print_line(&format!("ws_upgrade(#{{{opts}}}, {httpclient}, |{wsframes}| {{"));
+                printer.print_line(&format!(
+                    "ws_upgrade(#{{{opts}}}, {httpclient}, |{wsframes}| {{"
+                ));
                 printer.increase_indent();
 
                 Ok(wsframes)
@@ -200,10 +209,12 @@ impl Overlay {
                 if let Some(ref x) = opts.separator_n {
                     oo.push_str(&format!("separator_n: {x},"));
                 }
-                if ! opts.separator_inhibit_substitution {
+                if !opts.separator_inhibit_substitution {
                     oo.push_str(&format!("substitute: 32,"));
                 }
-                printer.print_line(&format!("let {varnam} = line_chunks(#{{{oo}}}, {inner_var});"));
+                printer.print_line(&format!(
+                    "let {varnam} = line_chunks(#{{{oo}}}, {inner_var});"
+                ));
                 Ok(varnam)
             }
             Overlay::TlsClient {
@@ -213,7 +224,7 @@ impl Overlay {
                 assert!(!varname_for_connector.is_empty());
                 let outer_var = vars.getnewvarname("tls");
 
-                printer.print_line(&format!("tls_client(#{{domain: \"{domain}\"}}, {varname_for_connector}, {inner_var}, |{outer_var}| {{"));
+                printer.print_line(&format!("tls_client(#{{domain: {dom}}}, {varname_for_connector}, {inner_var}, |{outer_var}| {{", dom=StrLit(domain)));
                 printer.increase_indent();
 
                 Ok(outer_var)
@@ -320,7 +331,8 @@ impl PreparatoryAction {
                 varname_for_addrs,
             } => {
                 printer.print_line(&format!(
-                    "lookup_host(\"{hostname}\", |{varname_for_addrs}| {{"
+                    "lookup_host({hn}, |{varname_for_addrs}| {{",
+                    hn = StrLit(hostname),
                 ));
                 printer.increase_indent();
             }
