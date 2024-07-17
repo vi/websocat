@@ -1,10 +1,10 @@
 # For alpha release
 
-* basic UDP
 * subprocesses
 * unidirectional mode
 * --protocol / --server-protocol
 * custom request/response headers
+* UNIX sockets
 
 # Later
 
@@ -14,12 +14,12 @@
 * one message mode
 * Advanced UDP options
 * Advanced TCP options
-* DTLS
 * More datagram tools (reusers, autoreconnect, foreachmsg)
 * More datagram tools (literalreply, combine/fanout, limit)
 * (non-Websocket) HTTP games
 * HTTP/2 games
 * Proxies
+* UDP server (multiple connections based on peer addresses)
 * TCP reset monitoring
 * Rich console with history
 * Compression overlay
@@ -32,7 +32,7 @@
 * print ping rtts
 * timestamp overlay
 * accept-from-fd
-* export more TLS options to high-level UI
+* expose more TLS options to high-level UI
 * just-generate-accept and just-generate-key
 * max messages
 * speed limit
@@ -52,3 +52,6 @@
 * left-to-right features to set envvars based on incoming request
 * Good, helpful `-v` logs
 * Automatic percent-encoding of URLs instead of `invalid uri character`.
+* DTLS
+* SCTP
+* QUIC
