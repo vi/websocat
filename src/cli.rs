@@ -1,3 +1,5 @@
+use std::net::SocketAddr;
+
 use argh::FromArgs;
 
 #[derive(FromArgs, Debug)]
@@ -90,4 +92,27 @@ pub struct WebsocatArgs {
     /// separator sequence) with spaces (and trimming leading and trailing separator bytes)
     #[argh(switch)]
     pub separator_inhibit_substitution: bool,
+
+    /// initial target sendto address for `udp-bind:` mode.
+    /// If unset, it will try to send to neutral address (unsuccessfully).
+    #[argh(option)]
+    pub udp_bind_target_addr: Option<SocketAddr>,
+
+    /// only allow incoming datagrams from specified target address for `upd-bind:` mode.
+    #[argh(switch)]
+    pub udp_bind_restrict_to_one_address: bool,
+
+    /// automatically change target address for `udp-bind:` mode based in coming datagrams
+    #[argh(switch)]
+    pub udp_bind_redirect_to_last_seen_address: bool,
+
+    /// turn `udp-bind:` into `udp-connect:` as soon as we receive some datagram.
+    /// Implied when `--udp-bind-target-addr` is not specified
+    #[argh(switch)]
+    pub udp_bind_connect_to_first_seen_address: bool,
+
+    /// ignore failed `sendto` calls.
+    /// Attempts to send without a configured target address are ignored implicitly.
+    #[argh(switch)]
+    pub udp_bind_inhibit_send_errors: bool,
 }

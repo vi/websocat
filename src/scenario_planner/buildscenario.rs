@@ -1,4 +1,4 @@
-use crate::cli::WebsocatArgs;
+use crate::{cli::WebsocatArgs, scenario_executor::utils::ToNeutralAddress};
 
 use super::{
     scenarioprinter::{ScenarioPrinter, StrLit},
@@ -17,13 +17,19 @@ impl WebsocatInvocation {
             prepare_action.begin_print(&mut printer, &self.opts, vars)?;
         }
 
-        left = self.left.innermost.begin_print(&mut printer, vars)?;
+        left = self
+            .left
+            .innermost
+            .begin_print(&mut printer, vars, &self.opts)?;
 
         for ovl in &self.left.overlays {
             left = ovl.begin_print(&mut printer, &left, vars, &self.opts)?;
         }
 
-        right = self.right.innermost.begin_print(&mut printer, vars)?;
+        right = self
+            .right
+            .innermost
+            .begin_print(&mut printer, vars, &self.opts)?;
 
         for ovl in &self.right.overlays {
             right = ovl.begin_print(&mut printer, &right, vars, &self.opts)?;
@@ -63,6 +69,7 @@ impl Endpoint {
         &self,
         printer: &mut ScenarioPrinter,
         vars: &mut IdentifierGenerator,
+        opts: &WebsocatArgs,
     ) -> anyhow::Result<String> {
         match self {
             Endpoint::TcpConnectByIp(addr) => {
@@ -115,8 +122,64 @@ impl Endpoint {
                 printer.print_line(&format!("let {varnam} = create_stdio();"));
                 Ok(varnam)
             }
-            Endpoint::UdpConnect(_) => todo!(),
-            Endpoint::UdpBind(_) => todo!(),
+            Endpoint::UdpConnect(a) => {
+                let varnam = vars.getnewvarname("udp");
+                let maybetextmode = if opts.text { ", tag_as_text: true" } else { "" };
+                printer.print_line(&format!(
+                    "let {varnam} = udp_socket(#{{addr: \"{a}\"{maybetextmode}}});"
+                ));
+                Ok(varnam)
+            }
+            Endpoint::UdpBind(a) => {
+                let varnam = vars.getnewvarname("udp");
+
+                let mut udp_bind_redirect_to_last_seen_address = opts.udp_bind_redirect_to_last_seen_address;
+                let mut udp_bind_connect_to_first_seen_address = opts.udp_bind_connect_to_first_seen_address;
+
+                if opts.udp_bind_restrict_to_one_address && opts.udp_bind_target_addr.is_none() {
+                    anyhow::bail!("It is meaningless to --udp-bind-restrict-to-one-address without also specifying --udp-bind-target-addr")
+                }
+                if opts.udp_bind_restrict_to_one_address
+                    && (opts.udp_bind_connect_to_first_seen_address
+                        || opts.udp_bind_redirect_to_last_seen_address)
+                {
+                    anyhow::bail!("It is meaningless to use --udp-bind-restrict-to-one-address with another option to react at new incoming addresses")
+                }
+
+                if opts.udp_bind_target_addr.is_none() {
+                    udp_bind_connect_to_first_seen_address = true;
+                }
+                if udp_bind_connect_to_first_seen_address {
+                    udp_bind_redirect_to_last_seen_address = true;
+                }
+
+                let toaddr = opts.udp_bind_target_addr.unwrap_or(a.to_neutral_address());
+
+                let mut o = String::with_capacity(64);
+                o.push_str(&format!("bind: \"{a}\","));
+                o.push_str(&format!("addr: \"{toaddr}\","));
+                o.push_str(&format!("sendto_mode: true,"));
+
+                if !opts.udp_bind_restrict_to_one_address {
+                    o.push_str(&format!("allow_other_addresses: true,"));
+                }
+                if udp_bind_redirect_to_last_seen_address {
+                    o.push_str(&format!("redirect_to_last_seen_address: true,"));
+                }
+                if udp_bind_connect_to_first_seen_address {
+                    o.push_str(&format!("connect_to_first_seen_address: true,"));
+                }
+                if opts.udp_bind_inhibit_send_errors {
+                    o.push_str(&format!("inhibit_send_errors: true,"));
+                }
+
+                if opts.text {
+                    o.push_str(&format!("tag_as_text: true,"));
+                }
+
+                printer.print_line(&format!("let {varnam} = udp_socket(#{{{o}}});"));
+                Ok(varnam)
+            }
         }
     }
     fn end_print(&self, printer: &mut ScenarioPrinter) {
@@ -139,8 +202,8 @@ impl Endpoint {
                 );
             }
             Endpoint::Stdio => {}
-            Endpoint::UdpConnect(_) => todo!(),
-            Endpoint::UdpBind(_) => todo!(),
+            Endpoint::UdpConnect(_) => {}
+            Endpoint::UdpBind(_) => (),
             Endpoint::TcpConnectByLateHostname { hostname: _ } => {
                 printer.decrease_indent();
                 printer.print_line("})");

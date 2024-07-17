@@ -23,7 +23,10 @@ pub enum Endpoint {
     WsListen(SocketAddr),
     //@ Console, terminal: read bytes from stdin, write bytes to stdout.
     Stdio,
+    //@ Connect to this UDP socket. Note affected by `--udp-bind-*`` CLI options.
     UdpConnect(SocketAddr),
+    //@ Bind UDP socket to this address.
+    //@ Commmand line options greatly affect this endpoint. It can be turned into a flexible UdpConnect analogue.
     UdpBind(SocketAddr),
 }
 

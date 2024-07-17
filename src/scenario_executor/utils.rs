@@ -5,8 +5,7 @@ use tracing::{error, trace};
 
 use crate::scenario_executor::types::{DatagramRead, DatagramWrite, Handle, StreamSocket, Task};
 use std::{
-    sync::{Arc, Mutex},
-    task::Poll,
+    net::SocketAddr, sync::{Arc, Mutex}, task::Poll
 };
 
 use super::types::{BufferFlag, BufferFlags, DatagramSocket, StreamRead, StreamWrite};
@@ -169,5 +168,29 @@ impl std::fmt::Display for DisplayBufferFlags {
             }
         }
         Ok(())
+    }
+}
+
+pub trait ToNeutralAddress {
+    /// Convert socket address to 0.0.0.0:0 (or `[::]:0`) based on AF_FAMILY of other socket address
+    fn to_neutral_address(&self) -> Self;
+}
+
+impl ToNeutralAddress for SocketAddr {
+    fn to_neutral_address(&self) -> Self {
+        match self {
+            SocketAddr::V4(_) => SocketAddr::new(std::net::IpAddr::V4(std::net::Ipv4Addr::UNSPECIFIED), 0),
+            SocketAddr::V6(_) => SocketAddr::new(std::net::IpAddr::V6(std::net::Ipv6Addr::UNSPECIFIED), 0),
+        }
+    }
+}
+
+pub trait IsControlFrame {
+    fn is_control(&self) -> bool;
+}
+
+impl IsControlFrame for BufferFlags {
+    fn is_control(&self) -> bool {
+        self.contains(BufferFlag::Eof) || self.contains(BufferFlag::Ping) || self.contains(BufferFlag::Pong)
     }
 }

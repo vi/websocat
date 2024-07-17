@@ -18,7 +18,7 @@ use super::{
         BufferFlag, BufferFlags, DatagramRead, DatagramSocket, DatagramWrite, PacketRead,
         PacketReadResult, PacketWrite, StreamSocket, StreamWrite,
     },
-    utils::{DisplayBufferFlags, HandleExt},
+    utils::{DisplayBufferFlags, HandleExt, IsControlFrame},
 };
 
 // Duplicated to aid auto-documenter script
@@ -379,9 +379,7 @@ impl DatagramPrinter {
         } else {
             ""
         };
-        let control = flags.contains(BufferFlag::Ping)
-            || flags.contains(BufferFlag::Pong)
-            || flags.contains(BufferFlag::Eof);
+        let control = flags.is_control();
         let maybe_leading_plus = if !control && self.accumulated_size.is_some() {
             "+"
         } else {

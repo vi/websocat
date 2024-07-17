@@ -124,6 +124,21 @@ impl ParseStrChunkResult<'_> {
                 ovl: Overlay::WriteBuffer,
                 rest,
             })
+        } else if let Some(rest) =
+            x.strip_prefix_many(&["udp:", "udp-connect:", "connect-udp:", "udp-c:", "c-udp:"])
+        {
+            let a: SocketAddr = rest.parse()?;
+            Ok(ParseStrChunkResult::Endpoint(Endpoint::UdpConnect(a)))
+        } else if let Some(rest) = x.strip_prefix_many(&[
+            "udp-bind:",
+            "bind-udp:",
+            "udp-listen:",
+            "listen-udp:",
+            "udp-l:",
+            "l-udp:",
+        ]) {
+            let a: SocketAddr = rest.parse()?;
+            Ok(ParseStrChunkResult::Endpoint(Endpoint::UdpBind(a)))
         } else {
             anyhow::bail!("Unknown specifier: {x}")
         }

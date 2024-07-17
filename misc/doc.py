@@ -298,6 +298,15 @@ P_PREFIXES2 = re.compile(r"""
         \"  \s* 
     \)
     """, re.VERBOSE)
+P_PREFIXES_MANY_START = re.compile(r"""
+    strip_prefix_many \s* \( \s* \& \s* \[ \s* $
+    """, re.VERBOSE)
+P_PREFIXES_MANY_ITEM = re.compile(r"""
+    ^ \s* \" (?P<prefix> [^"]+ )  \" \s* , \s* $
+    """, re.VERBOSE)
+P_PREFIXES_MANY_STOP = re.compile(r"""
+     ^ \s* \] \s* \)
+    """, re.VERBOSE)
 P_FROMSTR_SAVER = re.compile(r"""
    (?P<typ> Overlay | Endpoint )
    ::
@@ -365,7 +374,15 @@ def read_planner_data(planner_types : List[str], planner_fromstr : List[str]) ->
         ret = prefix_accumuator
         prefix_accumuator = []
         return ret
+    inside_multiline_prefixes_list = False
     for l in planner_fromstr:
+        if inside_multiline_prefixes_list:
+            if x:=P_PREFIXES_MANY_ITEM.search(l):
+                prefix = x.group("prefix")
+                addprefix(prefix)
+            if x:=P_PREFIXES_MANY_STOP.search(l):
+                inside_multiline_prefixes_list = False
+            continue
         if x:=P_PREFIXES1.search(l):
             prefixes = x.group("prefixes")
             for y in prefixes.split(","):
@@ -373,6 +390,8 @@ def read_planner_data(planner_types : List[str], planner_fromstr : List[str]) ->
         if x:=P_PREFIXES2.search(l):
             prefix = x.group("prefix")
             addprefix(prefix)
+        if x:=P_PREFIXES_MANY_START.search(l):
+            inside_multiline_prefixes_list = True
         if x:=P_FROMSTR_SAVER.search(l):
             typ = x.group("typ")
             nam = x.group("nam")

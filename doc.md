@@ -44,15 +44,29 @@ Prefixes:
 
 ### UdpBind
 
-(undocumented)
+Bind UDP socket to this address.
+Commmand line options greatly affect this endpoint. It can be turned into a flexible UdpConnect analogue.
 
-This endpoint cannot be directly specified as a prefix to a positional CLI argument, there may be some other way to access it.
+Prefixes:
+
+* `udp-bind:`
+* `bind-udp:`
+* `udp-listen:`
+* `listen-udp:`
+* `udp-l:`
+* `l-udp:`
 
 ### UdpConnect
 
-(undocumented)
+Connect to this UDP socket. Note affected by `--udp-bind-*`` CLI options.
 
-This endpoint cannot be directly specified as a prefix to a positional CLI argument, there may be some other way to access it.
+Prefixes:
+
+* `udp:`
+* `udp-connect:`
+* `connect-udp:`
+* `udp-c:`
+* `c-udp:`
 
 ### WsListen
 
@@ -615,6 +629,28 @@ Options:
 ## trivial_pkts
 
 Returns `DatagramRead`
+
+## udp_socket
+
+Create a single Datagram Socket that is bound to a UDP port,
+typically for connecting to a specific UDP endpoint
+
+Parameters:
+
+* opts (`Dynamic`) - object map containing dynamic options to the function
+
+Returns `DatagramSocket`
+
+Options:
+
+* addr (`SocketAddr`) - Send datagrams to and expect datagrams from this address.
+* bind (`Option<SocketAddr>`) - Specify address to bind the socket to. By default it binds to `0.0.0.0:0` or `[::]:0`
+* sendto_mode (`bool`) - Use `sendto` instead of `connect` + `send`. This mode ignores ICMP reports that target is not reachable.
+* allow_other_addresses (`bool`) - Do not filter out incoming datagrams from addresses other than `addr`. Useless without `sendto_mode`.
+* redirect_to_last_seen_address (`bool`) - Send datagrams to address of the last seen incoming datagrams, using `addr` only as initial address until more data is received. Useless without `allow_other_addresses`. May have security implications.
+* connect_to_first_seen_address (`bool`) - When using `redirect_to_last_seen_address`, lock the socket to that address, preventing more changes and providing disconnects. Useless without `redirect_to_last_seen_address`.
+* tag_as_text (`bool`) - Tag incoming UDP datagrams to be sent as text WebSocket messages instead of binary. Note that Websocat does not check for UTF-8 correctness and may send non-compiant text WebSocket messages.
+* inhibit_send_errors (`bool`) - Do not exit if `sendto` returned an error.
 
 ## write_buffer
 
