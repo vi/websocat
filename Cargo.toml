@@ -7,10 +7,10 @@ edition = "2021"
 
 [dependencies]
 anyhow = "1.0.75"
-argh = "0.1.12"
 base64 = "0.22.1"
 bytes = "1.5.0"
 catty = "0.1.5"
+clap = { version = "4.5.9", default-features = false, features = ["help", "usage", "std", "derive"] }
 flagset = "0.4.4"
 futures = "0.3.28"
 hex = "0.4.3"

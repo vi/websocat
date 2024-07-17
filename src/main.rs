@@ -7,6 +7,8 @@ use scenario_planner::{types::WebsocatInvocation, utils::IdentifierGenerator};
 
 use crate::scenario_planner::types::SpecifierStack;
 
+use clap::Parser;
+
 pub mod scenario_executor {
     pub mod copydata;
 
@@ -46,7 +48,7 @@ async fn main() -> anyhow::Result<()> {
     //tracing_subscriber::fmt().json().with_max_level(tracing::Level::DEBUG).init();
     tracing_subscriber::fmt::init();
 
-    let mut args: cli::WebsocatArgs = argh::from_env();
+    let mut args =  cli::WebsocatArgs::parse();
     let dump_spec = args.dump_spec;
 
     let global_scenario: &str;
