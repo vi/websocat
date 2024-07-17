@@ -9,7 +9,6 @@ edition = "2021"
 anyhow = "1.0.75"
 base64 = "0.22.1"
 bytes = "1.5.0"
-catty = "0.1.5"
 clap = { version = "4.5.9", default-features = false, features = ["help", "usage", "std", "derive"] }
 flagset = "0.4.4"
 futures = "0.3.28"
@@ -19,14 +18,11 @@ http-body-util = "0.1.1"
 hyper = { version = "1.3.1", features = ["client", "server", "http1"] }
 hyper-util = { version = "0.1.5", features = ["tokio"] }
 native-tls = { version = "0.2.12", features = [] }
-object-pool = "0.5.4"
 pin-project = "1.1.5"
 rand = "0.8.5"
 rhai = { version = "1.16.2", features = ["serde", "internals", "sync", "no_custom_syntax", "no_float", "no_time", "no_module", "no_optimize", "unchecked"] }
 serde = { version = "1.0.188", features = ["derive"] }
 sha1 = "0.10.6"
-sharded-slab = "0.1.7"
-smallvec = "1.11.1"
 tinyvec = "1.6.0"
 tokio = { version = "1.32.0", features = ["sync", "net", "rt", "macros", "io-util", "io-std", "time"] }
 tokio-native-tls = "0.3.1"
