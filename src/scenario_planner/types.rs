@@ -28,6 +28,8 @@ pub enum Endpoint {
     //@ Bind UDP socket to this address.
     //@ Commmand line options greatly affect this endpoint. It can be turned into a flexible UdpConnect analogue.
     UdpBind(SocketAddr),
+    //@ Bind UDP socket and spawn a separate task for each client
+    UdpServer(SocketAddr),
 }
 
 #[derive(Debug)]

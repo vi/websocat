@@ -23,15 +23,15 @@ pub struct WebsocatArgs {
     pub dump_spec_phase2: bool,
 
     /// execute specified file as Rhai script (e.g. resutling from --dump-spec option output)
-    #[arg(long,short = 'x')]
+    #[arg(long, short = 'x')]
     pub scenario: bool,
 
     /// use text mode (one line = one WebSocket text message)
-    #[arg(long,short = 't')]
+    #[arg(long, short = 't')]
     pub text: bool,
 
     /// use binary mode (arbitrary byte chunk = one WebSocket binary message)
-    #[arg(long,short = 'b')]
+    #[arg(long, short = 'b')]
     pub binary: bool,
 
     /// resolve hostnames to IP addresses late (every time when forwarding a connection) instead of one time at the beginning
@@ -39,7 +39,7 @@ pub struct WebsocatArgs {
     pub late_resolve: bool,
 
     /// accept invalid domains and root certificates for TLS client connections
-    #[arg(long,short = 'k')]
+    #[arg(long, short = 'k')]
     pub insecure: bool,
 
     /// manually specify domain for `tls:` overlay or override domain for `wss://` URLs
@@ -47,9 +47,9 @@ pub struct WebsocatArgs {
     pub tls_domain: Option<String>,
 
     /// listen for WebSocket conenctions instead of establishing client WebSocket connection
-    #[arg(long,short = 's')]
+    #[arg(long, short = 's')]
     pub server: bool,
-    
+
     /// log more data from `log:` overlay
     #[arg(long)]
     pub log_verbose: bool,
@@ -114,4 +114,25 @@ pub struct WebsocatArgs {
     /// Attempts to send without a configured target address are ignored implicitly.
     #[arg(long)]
     pub udp_bind_inhibit_send_errors: bool,
+
+    /// Client timeout of udp-server: mode
+    #[arg(long)]
+    pub udp_server_timeout_ms: Option<u64>,
+
+    /// Maximum number of parallel handlers in udp-server: mode
+    #[arg(long)]
+    pub udp_server_max_clients: Option<usize>,
+
+    /// Size of receive buffer for udp-server: mode.
+    /// `-B` is distinct, but can also affect operation.
+    #[arg(long)]
+    pub udp_server_buffer_size: Option<usize>,
+
+    /// Queue length for udp-server: mode
+    #[arg(long)]
+    pub udp_server_qlen: Option<usize>,
+
+    /// Delay receiving more datagrams in udp-server: mode instead of dropping them in case of slow handlers
+    #[arg(long)]
+    pub udp_server_backpressure: bool,
 }

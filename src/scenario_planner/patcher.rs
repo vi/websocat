@@ -324,6 +324,7 @@ impl SpecifierStack {
                 Endpoint::Stdio => false,
                 Endpoint::UdpConnect(_) => true,
                 Endpoint::UdpBind(_) => true,
+                Endpoint::UdpServer(_) => true,
             };
             if do_insert {
                 // datagram mode may be patched later
@@ -374,6 +375,7 @@ impl Endpoint {
             Endpoint::UdpConnect(_) => CopyingType::Datarams,
             Endpoint::UdpBind(_) => CopyingType::Datarams,
             Endpoint::WsListen(_) => CopyingType::Datarams,
+            Endpoint::UdpServer(_) => CopyingType::Datarams,
         }
     }
 }

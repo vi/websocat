@@ -19,6 +19,7 @@ pub fn register_functions(engine: &mut Engine) {
     super::misc::register(engine);
     super::tcp::register(engine);
     super::udp::register(engine);
+    super::udpserver::register(engine);
     super::fluff::register(engine);
     super::http1::register(engine);
     super::wsframer::register(engine);

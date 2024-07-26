@@ -220,6 +220,8 @@ impl PacketRead for UdpRecv {
 
 //@ Create a single Datagram Socket that is bound to a UDP port,
 //@ typically for connecting to a specific UDP endpoint
+//@
+//@ The node does not have it's own buffer size - the buffer is supplied externally
 fn udp_socket(ctx: NativeCallContext, opts: Dynamic) -> RhResult<Handle<DatagramSocket>> {
     let original_span = tracing::Span::current();
     let span = debug_span!(parent: original_span, "udp_socket");

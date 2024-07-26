@@ -180,6 +180,40 @@ impl Endpoint {
                 printer.print_line(&format!("let {varnam} = udp_socket(#{{{o}}});"));
                 Ok(varnam)
             }
+            Endpoint::UdpServer(a) => {
+                let varnam = vars.getnewvarname("udp");
+                let fromaddr = vars.getnewvarname("from");
+
+                let mut o = String::with_capacity(64);
+                o.push_str(&format!("bind: \"{a}\","));
+                if opts.udp_bind_inhibit_send_errors {
+                    o.push_str(&format!("inhibit_send_errors: true,"));
+                }
+                if opts.text {
+                    o.push_str(&format!("tag_as_text: true,"));
+                }
+                if opts.udp_server_backpressure {
+                    o.push_str(&format!("backpressure: true,"));
+                }
+                if let Some(x) = opts.udp_server_timeout_ms {
+                    o.push_str(&format!("timeout_ms: {x},"));
+                }
+                if let Some(x) = opts.udp_server_max_clients {
+                    o.push_str(&format!("max_clients: {x},"));
+                }
+                if let Some(x) = opts.udp_server_buffer_size {
+                    o.push_str(&format!("buffer_size: {x},"));
+                }
+                if let Some(x) = opts.udp_server_qlen {
+                    o.push_str(&format!("qlen: {x},"));
+                }
+
+                printer.print_line(&format!(
+                    "udp_server(#{{{o}}}, |{varnam}, {fromaddr}| {{",
+                ));
+                printer.increase_indent();
+                Ok(varnam)
+            }
         }
     }
     fn end_print(&self, printer: &mut ScenarioPrinter) {
@@ -208,6 +242,10 @@ impl Endpoint {
                 printer.decrease_indent();
                 printer.print_line("})");
 
+                printer.decrease_indent();
+                printer.print_line("})");
+            }
+            Endpoint::UdpServer(_) => {
                 printer.decrease_indent();
                 printer.print_line("})");
             }

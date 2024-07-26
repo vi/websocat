@@ -43,6 +43,8 @@
 * inetd mode
 * readfile/writefile/appendfile
 * clogged
+* socks5 proxy
+* http proxy
 * seqpacket
 * random
 * Prometheus intergration

@@ -139,6 +139,9 @@ impl ParseStrChunkResult<'_> {
         ]) {
             let a: SocketAddr = rest.parse()?;
             Ok(ParseStrChunkResult::Endpoint(Endpoint::UdpBind(a)))
+        } else if let Some(rest) = x.strip_prefix("udp-server:") {
+            let a: SocketAddr = rest.parse()?;
+            Ok(ParseStrChunkResult::Endpoint(Endpoint::UdpServer(a)))
         } else {
             anyhow::bail!("Unknown specifier: {x}")
         }

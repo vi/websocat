@@ -20,6 +20,7 @@ pub mod scenario_executor {
     pub mod scenario;
     pub mod tcp;
     pub mod udp;
+    pub mod udpserver;
     pub mod trivials1;
     pub mod trivials2;
     pub mod types;

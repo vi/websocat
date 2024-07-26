@@ -68,6 +68,14 @@ Prefixes:
 * `udp-c:`
 * `c-udp:`
 
+### UdpServer
+
+Bind UDP socket and spawn a separate task for each client
+
+Prefixes:
+
+* `udp-server:`
+
 ### WsListen
 
 (undocumented)
@@ -630,10 +638,35 @@ Options:
 
 Returns `DatagramRead`
 
+## udp_server
+
+Create a single Datagram Socket that is bound to a UDP port,
+typically for connecting to a specific UDP endpoint
+
+Parameters:
+
+* opts (`Dynamic`) - object map containing dynamic options to the function
+* continuation (`Fn(DatagramSocket, SocketAddr) -> Task`) - Rhai function that will be called to continue processing
+
+Returns `Task`
+
+Options:
+
+* bind (`SocketAddr`) - Specify address to bind the socket to.
+* timeout_ms (`Option<u64>`) - Mark the conection as closed when this number of milliseconds elapse without a new datagram from associated peer address
+* max_clients (`Option<usize>`) - Maximum number of simultaneously connected clients. If exceed, stale clients (based on the last received datagram) will be hung up.
+* buffer_size (`Option<usize>`) - Buffer size for receiving UDP datagrams. Default is 4096 bytes.
+* qlen (`Option<usize>`) - Queue length for distributing received UDP datagrams among spawned DatagramSocekts Defaults to 1.
+* tag_as_text (`bool`) - Tag incoming UDP datagrams to be sent as text WebSocket messages instead of binary. Note that Websocat does not check for UTF-8 correctness and may send non-compiant text WebSocket messages.
+* backpressure (`bool`) - In case of one slow client handler, delay incoming UDP datagrams instead of dropping them
+* inhibit_send_errors (`bool`) - Do not exit if `sendto` returned an error.
+
 ## udp_socket
 
 Create a single Datagram Socket that is bound to a UDP port,
 typically for connecting to a specific UDP endpoint
+
+The node does not have it's own buffer size - the buffer is supplied externally
 
 Parameters:
 
