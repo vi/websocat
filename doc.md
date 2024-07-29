@@ -429,6 +429,28 @@ Use `put_read_part` and `put_write_part` to fill in the data transfer directions
 
 Returns `StreamSocket`
 
+## osstr_base64_unix_bytes
+
+Decode base64 buffer and interpret using Rust's `OsString::from_encoded_bytes_unchecked`.
+This format is not intended to be portable and is mostly for internal use within Websocat.
+On Unix or WASI platforms, decode base64 buffer and convert it OsString.
+
+Parameters:
+
+* x (`String`)
+
+Returns `OsString`
+
+## osstr_base64_windows_utf16le
+
+On Windows, decode base64 buffer and convert it OsString.
+
+Parameters:
+
+* x (`String`)
+
+Returns `OsString`
+
 ## parallel
 
 Parameters:
@@ -558,6 +580,43 @@ Options:
 * write_prefix (`Option<String>`) - Prepend this instead of "WRITE " to each line printed to stderr
 * omit_content (`bool`) - Do not log full content of the stream, just the chunk lengths.
 * hex (`bool`) - Use hex lines instead of string literals with espaces
+
+## subprocess
+
+Start child process and interpret its stdin/stdout as a StreamSocket.
+
+Parameters:
+
+* opts (`Dynamic`) - object map containing dynamic options to the function
+* continuation (`Fn(StreamSocket) -> Task`) - Rhai function that will be called to continue processing
+
+Returns `Task`
+
+Options:
+
+* program (`String`)
+* argv (`Vec<String>`)
+* base64_args (`bool`) - Interpret `argv` as base64-encoded buffers instead of direct strings.
+
+## subprocess_new
+
+Prepare subprocess, setting up executable name.
+
+Parameters:
+
+* program_name (`String`)
+
+Returns `Command`
+
+## subprocess_new_osstr
+
+Prepare subprocess, setting up possibly non-UTF8 executable name
+
+Parameters:
+
+* program_name (`OsString`)
+
+Returns `Command`
 
 ## take_hangup_part
 

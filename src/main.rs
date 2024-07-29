@@ -29,6 +29,8 @@ pub mod scenario_executor {
     pub mod wswithpings;
     pub mod linemode;
     pub mod logoverlay;
+    pub mod subprocess;
+    pub mod osstr;
 
     pub mod all_functions;
 }

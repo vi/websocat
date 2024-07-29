@@ -9,6 +9,8 @@ use super::types::{
     DatagramRead, DatagramSocket, DatagramWrite, Handle, Hangup, StreamRead, StreamSocket,
     StreamWrite, Task,
 };
+use tokio::process::Command;
+use std::ffi::OsString;
 
 pub fn register_functions(engine: &mut Engine) {
     super::trivials1::register(engine);
@@ -25,6 +27,8 @@ pub fn register_functions(engine: &mut Engine) {
     super::wsframer::register(engine);
     super::wswithpings::register(engine);
     super::nativetls::register(engine);
+    super::subprocess::register(engine);
+    super::osstr::register(engine);
 }
 
 pub fn register_types(engine: &mut Engine) {
@@ -47,4 +51,6 @@ pub fn register_types(engine: &mut Engine) {
     regtyp!(OutgoingRequest);
     regtyp!(IncomingResponse);
     regtyp!(Http1Client);
+    regtyp!(Command);
+    regtyp!(OsString);
 }
