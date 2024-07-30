@@ -1,67 +1,29 @@
-import re
+# /// script
+# requires-python = ">=3.11"
+# dependencies = [
+#   "tree-sitter~=0.22.3",
+#   "tree-sitter-rust~=0.21.2",
+# ]
+# ///
+
+
 import os
 
-from typing import List, Dict, Tuple
+from typing import Generator, Tuple, List, Dict, Set
 from dataclasses import dataclass
-from enum import Enum
+from tree_sitter import Language, Parser, Tree, Node
+from collections import defaultdict
+import tree_sitter_rust  # type: ignore
+import re
+from enum import Enum, unique, auto
+from pprint import pprint
 
-E_REGISTER_FN_START = re.compile(r"^pub fn register\s*\(")
-E_REGISTER_FN_ENTRY = re.compile(r"""
-    register_fn \s* \( \s*
-       " (?P<rhai_function> [^"]+ ) " \s* , \s*
-       (?P<rust_function> [a-zA-Z0-9_]+)
-    \s* \) \s* ;
-    """, re.VERBOSE)
-E_REGISTER_FN_STOP = re.compile(r"^}")
+RUST_LANGUAGE = Language(tree_sitter_rust.language()) # type: ignore
 
-DOCCOMMENT_LINE = re.compile(r'^\s*//@\s*(.*)');
+parser = Parser()
+parser.language = RUST_LANGUAGE  # type: ignore
 
-E_FN_DECL_START = re.compile(r"""
-    ^\s* fn \s*  (?P<rust_fn> [a-zA-Z0-9_]+ ) \s* \(
-    """, re.VERBOSE)
-E_FN_DECL_PARAM = re.compile(r"""
-    (?P<name> [a-zA-Z0-9_]+ ) \s* : \s* (?P<typ> .* ) \s* ,
-    """, re.VERBOSE)
-E_FN_DECL_END = re.compile(r"""
-    \) \s* (?P<ret>  -> (.*) )? { $
-    """, re.VERBOSE)
-E_FN_DECL_ONELINE = re.compile(r"""
-    \b fn \s* 
-    (?P<rust_function> [a-zA-Z0-9_]+  )
-    \s* \( \s*
-        (?P<params> [^)]* )
-    \s* \) \s*
-    (?P<ret>  -> (.*) )?
-    \s* {
-    """, re.VERBOSE)
-E_FN_BODY_CALLBACK1 = re.compile(r"""
-   callback_and_continue \s* ::< \s* \(
-    (?P<cbparams>  .* )
-    \s* \) \s* > \s* \(
-    """, re.VERBOSE)
-E_FN_BODY_CALLBACK2 = re.compile(r"""
-   callback \s* ::< 
-       (?P<cbret> [^,]+? )
-    \s* \, \s* \(
-       (?P<cbparams>  .* )
-    \s* \) \s* > \s* \(
-    """, re.VERBOSE)
-E_FN_OPTS_START = re.compile(r"""
-   ^ \s* struct \s* [a-zA-Z0-9_]+ \s* { \s* $
-    """, re.VERBOSE)
-E_FN_OPTS_ENTRY = re.compile(r"""
-   ^ \s* 
-        (?P<nam> [a-zA-Z0-9_]+ )
-   \s* : \s*  
-        (?P<typ>  [^,]+  )
-   \s* , \s* $
-    """, re.VERBOSE)
-E_FN_OPTS_END = re.compile(r"""
-   ^ \s* } \s* $
-    """, re.VERBOSE)
-
-E_FN_BODY_END = re.compile('^}\s*$')
-
+DOCCOMMENT_LINE = re.compile(r'^\s*//@\s*(.*)')
 
 E_FN_COOK_RET1 = re.compile(r"""
     \s* -> \s* (.*)
@@ -72,6 +34,320 @@ E_FN_COOK_RET2 = re.compile(r"""
 E_STRIP_HANDLE = re.compile(r"""
     ^ Handle \s* < \s* (.*) \s* > \s* $
     """, re.VERBOSE)
+
+############################################################################################
+
+############################################################################################
+
+############################################################################################
+
+
+@dataclass
+class FunctionArg:
+    name: str
+    doc: List[str]
+    typ: str
+
+@dataclass
+class RegisterCall:
+    rhname: str
+    fnname: str
+
+@dataclass
+class StructArg:
+    name: str
+    doc: List[str]
+    typ: str
+
+@dataclass
+class Callback:
+    rettyp: str
+    argtyps: List[str]
+
+@dataclass
+class Function:
+    name: str
+    doc: List[str]
+    rettyp: str
+    retdoc: List[str]
+    args: List[FunctionArg]
+    reg_calls: List[RegisterCall]
+    opts: List[StructArg]
+    callbacks : List[Callback]
+
+@dataclass
+class DocumentedIdent:
+    ident: str
+    doc: List[str]
+
+@dataclass
+class ThingWithListOfPrefixes:
+    name: str
+    prefixes: List[str]
+
+@dataclass
+class Outline:
+    functions: List[Function]
+    endpoints: List[DocumentedIdent]
+    overlays: List[DocumentedIdent]
+    endpoint_prefixes: List[ThingWithListOfPrefixes]
+    overlay_prefixes: List[ThingWithListOfPrefixes]
+
+############################################################################################
+
+############################################################################################
+
+############################################################################################
+
+
+def outline(n: Tree) -> Outline:
+    a : Node = n.root_node
+
+    funcs : List[Function] = []
+    endpoints : List[DocumentedIdent] = []
+    overlays: List[DocumentedIdent] = []
+
+    endpoint_prefixes: List[ThingWithListOfPrefixes] = []
+    overlay_prefixes: List[ThingWithListOfPrefixes] = []
+
+    doc : List[str] = []
+
+    def maybe_doccomment(c : Node) -> bool:
+        if c.type == 'line_comment':
+            if x:=DOCCOMMENT_LINE.search(c.text.decode()):
+                doc.append(x.group(1))
+            return True
+        return False
+
+    for c in a.children:
+        if maybe_doccomment(c): pass
+        elif c.type == 'line_comment':
+            if x:=DOCCOMMENT_LINE.search(c.text.decode()):
+                doc.append(x.group(1))
+        elif c.type == 'function_item':
+            funcdoc = doc
+            doc=[]
+            namenode = c.child_by_field_name("name")
+            assert namenode
+            name = namenode.text.decode()
+            rettyp = "()"
+            retdoc : List[str] = []
+
+            for cc in c.children:
+                if maybe_doccomment(cc): pass
+                elif cc.type=='parameters':
+                    doc=[]
+                elif cc.type=='type_identifier':
+                    retdoc.extend(doc)
+
+            if xx:=c.child_by_field_name("return_type"):
+                rettyp = xx.text.decode()
+            args : List[FunctionArg] = []
+
+            params = c.child_by_field_name("parameters")
+            assert params
+            doc=[]
+            for cc in params.children:
+                if maybe_doccomment(cc): pass
+                elif cc.type == 'parameter':
+                    pat = cc.child_by_field_name("pattern")
+                    assert pat
+                    t = cc.child_by_field_name("type")
+                    assert t
+                    if pat.type=="identifier":
+                        pn = pat.text.decode()
+                        args.append(FunctionArg(pn,doc,t.text.decode()))
+                        doc=[]
+            retdoc.extend(doc)
+
+            reg_calls : List[RegisterCall] = []
+            struct_opts : List[StructArg] = []
+            callbacks : List[Callback] = []
+
+            b = c.child_by_field_name('body')
+            if b:
+                def check_body(n : Node) -> None:
+                    nonlocal doc
+                    if n.type == 'call_expression':
+                        funct_node = n.child_by_field_name('function')
+                        args_node = n.child_by_field_name('arguments')
+                        assert funct_node
+                        assert args_node
+                        fff : str = funct_node.text.decode()
+                        aaa = n.child_by_field_name('arguments')
+                        assert aaa
+                        argtyps : List[str] = []
+                        if fff == 'engine.register_fn' and len(aaa.named_children)==2:
+                            rhname = args_node.named_children[0].named_children[0].text.decode()
+                            fnname = args_node.named_children[1].text.decode()
+                            reg_calls.append(RegisterCall(rhname, fnname))
+                        elif "callback_and_continue" in fff and funct_node.type=='generic_function':
+                            typargs_node = funct_node.child_by_field_name('type_arguments')
+                            assert typargs_node
+                            rettyp='Handle<Task>'
+
+                            for tuple_node in typargs_node.named_children[0].named_children:
+                                argtyps.append(tuple_node.text.decode())
+                            
+                            callbacks.append(Callback(rettyp,argtyps))
+                        elif "callback" in fff and funct_node.type=='generic_function':
+                            typargs_node = funct_node.child_by_field_name('type_arguments')
+                            assert typargs_node
+                            rettyp=typargs_node.named_children[0].text.decode()
+
+                            for tuple_node in typargs_node.named_children[1].named_children:
+                                argtyps.append(tuple_node.text.decode())
+                            
+                            callbacks.append(Callback(rettyp,argtyps))
+                            
+                    elif n.type == 'struct_item':
+                        name_node = n.child_by_field_name('name')
+                        body_node = n.child_by_field_name('body')
+                        assert name_node
+                        assert body_node
+                        name : str = name_node.text.decode()
+                        if name.endswith("Opts"):
+                            doc = []
+                            for nn in body_node.children:
+                                if maybe_doccomment(nn): pass
+                                elif nn.type == 'field_declaration':
+                                    name_node = nn.child_by_field_name('name')
+                                    type_node = nn.child_by_field_name('type')
+                                    assert name_node
+                                    assert type_node
+                                    struct_opts.append(StructArg(name_node.text.decode(), doc, type_node.text.decode()))
+                                    doc=[]
+                    for nc in n.named_children:
+                        check_body(nc)
+                check_body(b)
+            doc=[]
+            funcs.append(Function(name,funcdoc,rettyp, retdoc, args, reg_calls, struct_opts, callbacks))
+        elif c.type == 'enum_item':
+            name_node = c.child_by_field_name('name')
+            assert name_node
+            body_node = c.child_by_field_name('body')
+            assert body_node
+            enumnam = name_node.text.decode()
+
+            if enumnam != 'Endpoint' and enumnam != 'Overlay': continue
+
+            doc=[]
+            for cc in body_node.children:
+                if maybe_doccomment(cc): pass
+                elif cc.type=='enum_variant':
+                    variant_name_node=cc.child_by_field_name('name')
+                    assert variant_name_node
+                    variant_name = variant_name_node.text.decode()
+                    if enumnam == 'Endpoint':
+                        endpoints.append(DocumentedIdent(variant_name, doc))
+                    elif enumnam == 'Overlay':
+                        overlays.append(DocumentedIdent(variant_name, doc))
+                    doc=[]
+        elif c.type == 'impl_item':
+            type_node = c.child_by_field_name('type')
+            assert type_node
+            body_node = c.child_by_field_name('body')
+            assert body_node
+            typename = type_node.text.decode()
+            
+            if not typename.startswith('ParseStrChunkResult'): continue
+
+            prefixes : List[str] = []
+            def check_body(n : Node) -> None:
+                nonlocal prefixes
+                if n.type == 'call_expression':
+                    funct_node = n.child_by_field_name('function')
+                    args_node = n.child_by_field_name('arguments')
+                    assert funct_node
+                    assert args_node
+                    fff : str = funct_node.text.decode()
+                    aaa = n.child_by_field_name('arguments')
+                    assert aaa
+                    argtyps : List[str] = []
+                    if (fff.endswith('.starts_with') or fff.endswith('.strip_prefix')) and len(aaa.named_children)==1:
+                        prefix = args_node.named_children[0].named_children[0].text.decode()
+                        prefixes.append(prefix)
+                    elif "strip_prefix_many" in fff:
+                        for prefix_node in aaa.named_children[0].named_children[0].named_children:
+                            assert prefix_node.type == 'string_literal'
+                            prefixes.append(prefix_node.named_children[0].text.decode())
+                    elif fff == "ParseStrChunkResult::Endpoint":
+                        inner = aaa.named_children[0]
+                        endpoint_name : str
+                        match inner.type:
+                            case 'call_expression':
+                                endpoint_name = inner.named_children[0].named_children[1].text.decode()
+                            case 'struct_expression':
+                                endpoint_name = inner.named_children[0].named_children[1].text.decode()
+                            case 'scoped_identifier':
+                                endpoint_name = inner.named_children[1].text.decode()
+                            case _: 
+                                print(inner.type)
+                                assert False
+                        if prefixes:
+                            endpoint_prefixes.append(ThingWithListOfPrefixes(endpoint_name, prefixes))
+                            prefixes=[]
+                elif n.type == 'struct_expression':
+                    name_node = n.child_by_field_name('name')
+                    assert name_node
+                    name = name_node.text.decode()
+                    body_node = n.child_by_field_name('body')
+                    if name == 'ParseStrChunkResult::Overlay':
+                        assert body_node
+                        for nn in body_node.named_children:
+                            if nn.type != 'field_initializer': continue
+                            field_node = nn.child_by_field_name('field')
+                            assert field_node
+                            if field_node.text.decode() != 'ovl': continue
+                            value_node = nn.child_by_field_name('value')
+                            assert value_node
+                            overlay_name : str
+                            if value_node.type=='struct_expression':
+                                overlay_name = value_node.named_children[0].named_children[1].text.decode()
+                            elif value_node.type == 'call_expression':
+                                overlay_name = value_node.named_children[0].named_children[1].text.decode()
+                            elif value_node.type == 'scoped_identifier':
+                                overlay_name = value_node.named_children[1].text.decode()
+                            else:
+                                assert False
+                            if prefixes:
+                                overlay_prefixes.append(ThingWithListOfPrefixes(overlay_name, prefixes))
+                                prefixes=[]
+                            
+                    
+                for nc in n.named_children:
+                    check_body(nc)
+            check_body(body_node)
+
+    return Outline(funcs, endpoints, overlays, endpoint_prefixes, overlay_prefixes)
+
+def get_merged_outline() -> Outline:
+    outlines : List[Outline] = []
+    def readfile(fn : str) -> None:
+        with open(fn, "rb") as f:
+            content : bytes = f.read()
+            tree : Tree = parser.parse(content)
+            q: Outline = outline(tree)
+            outlines.append(q)
+    readfile("src/scenario_planner/types.rs")
+    readfile("src/scenario_planner/fromstr.rs")
+
+    for root, dir, files in os.walk("src/scenario_executor"):
+        for fn in files:
+            readfile(os.path.join(root, fn))
+    
+    functions = [x for xs in outlines for x in xs.functions]
+    endpoints = [x for xs in outlines for x in xs.endpoints]
+    overlays = [x for xs in outlines for x in xs.overlays]
+    endpoint_prefixes = [x for xs in outlines for x in xs.endpoint_prefixes]
+    overlay_prefixes = [x for xs in outlines for x in xs.overlay_prefixes]
+    return Outline(functions, endpoints, overlays, endpoint_prefixes, overlay_prefixes)
+
+############################################################################################
+
+############################################################################################
+
+############################################################################################
 
 @dataclass
 class TypeAndDoc:
@@ -88,115 +364,6 @@ class ExecutorFunc:
     callback_params: List[str]
     callback_return: str
     options: List[Tuple[str, TypeAndDoc]]
-
-def read_executor_file(ll: List[str]) -> List[ExecutorFunc]:
-    funcs : Dict[str, ExecutorFunc] = {}
-
-    # Step 1: find and parse `pub fn register`
-
-    found = False
-    for l in ll:
-        if not found:
-            if E_REGISTER_FN_START.search(l):
-                found=True
-        else:
-            if E_REGISTER_FN_STOP.search(l):
-                break
-            if m := E_REGISTER_FN_ENTRY.search(l):
-                rs = m.group('rust_function')
-                rh = m.group('rhai_function')
-                funcs[rs] = ExecutorFunc(
-                    rs,rh,'',[],TypeAndDoc('',''),[],"",[]
-                )
-
-    # Step 2: extract each fuction's documentation, parameters and return type
-
-    accumulated_doccomment_lines : List[str] = []
-    active_function_decl : None | str = None
-    active_function_body: None | str = None
-    active_options_list = False
-
-    def take_comment(sep: str) -> str:
-        nonlocal accumulated_doccomment_lines
-        ret = sep.join(accumulated_doccomment_lines)
-        accumulated_doccomment_lines=[]
-        return ret
-
-    for l in ll:
-        if x := DOCCOMMENT_LINE.search(l):
-            accumulated_doccomment_lines.append(x.group(1))
-            continue
-        if active_function_decl is None:
-            if active_function_body is None:
-                if x:=E_FN_DECL_ONELINE.search(l):
-                    g = x.groupdict()
-                    nam = g["rust_function"]
-                    if nam in funcs:
-                        f = funcs[g["rust_function"]]
-                        f.primary_doc = take_comment("\n")
-                        if "ret" in g:
-                            f.ret.typ = g["ret"]
-                        params = g["params"]
-                        if params:
-                            for param in params.split(","):
-                                d = param.split(":")
-                                f.params.append((d[0].strip(), TypeAndDoc(d[1].strip(),"")))
-                        active_function_body = nam
-                elif x:=E_FN_DECL_START.search(l):
-                    nam = x.group("rust_fn")
-                    if nam in funcs:
-                        active_function_decl = nam
-                        funcs[active_function_decl].primary_doc = take_comment("\n")
-                        active_function_body = nam
-            else:
-                # inside a function body
-                if not active_options_list:
-                    def process_cbparams(cbp: str, ret:str) -> None:
-                        if active_function_body is None: raise Exception("!")
-                        if len(funcs[active_function_body].callback_params) == 0:
-                            for p in cbp.split(","):
-                                if p.strip() == "": continue
-                                funcs[active_function_body].callback_params.append(p)
-                        if funcs[active_function_body].callback_return == "":
-                            funcs[active_function_body].callback_return = ret
-                    if E_FN_BODY_END.search(l):
-                        active_function_body = None
-                    elif x:= E_FN_BODY_CALLBACK1.search(l):
-                        process_cbparams(x.group("cbparams"), "Task")
-                    elif x:= E_FN_BODY_CALLBACK2.search(l):
-                        process_cbparams(x.group("cbparams"), x.group("cbret"))
-                    elif E_FN_OPTS_START.search(l):
-                        active_options_list = True
-                else:
-                    # inside options list
-                    if E_FN_OPTS_END.search(l):
-                        active_options_list = False
-                    elif x := E_FN_OPTS_ENTRY.search(l):
-                        nam = x.group("nam")
-                        typ = x.group("typ")
-                        doc = take_comment(" ")
-                        funcs[active_function_body].options.append((nam, TypeAndDoc(typ, doc)))
-        else:
-            # inside a function declaration
-            if x:=E_FN_DECL_PARAM.search(l):
-                nam = x.group("name")
-                typ = x.group("typ")
-                funcs[active_function_decl].params.append((nam, TypeAndDoc(
-                    typ,
-                    take_comment(" "),
-                )))
-            if x:=E_FN_DECL_END.search(l):
-                typ = ""
-                if "ret" in x.groupdict():
-                    typ =  x.group("ret")
-                funcs[active_function_decl].ret = TypeAndDoc(
-                    typ,
-                    take_comment(" "),
-                )
-                active_function_decl=None
-            
-
-    return [x for x in funcs.values()]
 
 def strip_handle(s : str) -> str:
     if x:=E_STRIP_HANDLE.search(s):
@@ -238,7 +405,7 @@ def document_executor_function(f: ExecutorFunc) -> None:
         print()
 
     s=""
-    if not f.ret.typ:
+    if not f.ret.typ or f.ret.typ == '()':
         s="Does not return anything."
     else:
         r = f.ret.typ
@@ -269,51 +436,6 @@ def document_executor_function(f: ExecutorFunc) -> None:
 
 ############################################################################################
 
-P_ENDPOINTS_START = re.compile(r"""
-   \s* pub \s+ enum \s+ Endpoint \s* \{
-    """, re.VERBOSE)
-
-P_OVERLAYS_START = re.compile(r"""
-   \s* pub \s+ enum \s+ Overlay \s* \{
-    """, re.VERBOSE)
-
-P_ITEM = re.compile(r"""
-   ^ \s+ (?P<nam> [a-zA-Z0-9_]+ ) \s* [{(,]
-    """, re.VERBOSE)
-
-P_STOP = re.compile(r"""
-     ^ \} \s*
-    """, re.VERBOSE)
-
-P_PREFIXES1 = re.compile(r"""
-    strip_prefix_many \s* \( \s* \& \s* \[ \s*
-    (?P<prefixes> [^]]+  )
-    \s* \]
-    """, re.VERBOSE)
-P_PREFIXES2 = re.compile(r"""
-    \. \s* (?: starts_with | strip_prefix )  
-    \s* \( 
-        \s* \" 
-            (?P<prefix> [^"]+  )  
-        \"  \s* 
-    \)
-    """, re.VERBOSE)
-P_PREFIXES_MANY_START = re.compile(r"""
-    strip_prefix_many \s* \( \s* \& \s* \[ \s* $
-    """, re.VERBOSE)
-P_PREFIXES_MANY_ITEM = re.compile(r"""
-    ^ \s* \" (?P<prefix> [^"]+ )  \" \s* , \s* $
-    """, re.VERBOSE)
-P_PREFIXES_MANY_STOP = re.compile(r"""
-     ^ \s* \] \s* \)
-    """, re.VERBOSE)
-P_FROMSTR_SAVER = re.compile(r"""
-   (?P<typ> Overlay | Endpoint )
-   ::
-   (?P<nam> [a-zA-Z0-9_]+ )
-    """, re.VERBOSE)
-
-
 @dataclass
 class PlannerItem:
     name: str
@@ -324,90 +446,6 @@ class PlannerItem:
 class PlannerContent:
     endpoints: List[PlannerItem]
     overlays: List[PlannerItem]
-
-def read_planner_data(planner_types : List[str], planner_fromstr : List[str]) -> PlannerContent:
-    c = PlannerContent([], [])
-
-    endpoints : Dict[str, PlannerItem] = {}
-    overlays : Dict[str, PlannerItem] = {}
-
-    accumulated_doccomment_lines : List[str] = []
-
-    def take_comment(sep: str) -> str:
-        nonlocal accumulated_doccomment_lines
-        ret = sep.join(accumulated_doccomment_lines)
-        accumulated_doccomment_lines=[]
-        return ret
-
-    inside_endpoint_struct = False
-    inside_overlay_struct = False
-    for l in planner_types:
-        if x := DOCCOMMENT_LINE.search(l):
-            accumulated_doccomment_lines.append(x.group(1))
-            continue
-        if not inside_endpoint_struct and not inside_overlay_struct:
-            if P_ENDPOINTS_START.search(l):
-                inside_endpoint_struct = True
-            if P_OVERLAYS_START.search(l):
-                inside_overlay_struct = True
-        elif inside_endpoint_struct:
-            if P_STOP.search(l):
-                inside_endpoint_struct = False
-            if x:=P_ITEM.search(l):
-                nam = x.group("nam")                
-                endpoints[nam] = PlannerItem(nam, [], take_comment("\n"))
-        elif inside_overlay_struct:
-            if P_STOP.search(l):
-                inside_endpoint_struct = False
-            if x:=P_ITEM.search(l):
-                nam = x.group("nam")                
-                overlays[nam] = PlannerItem(nam, [], take_comment("\n"))
-        else:
-            raise Exception("unreachable")
-
-    prefix_accumuator : List[str] = []
-    def addprefix(y:str)->None:
-        nonlocal prefix_accumuator
-        prefix_accumuator.append(y.strip().removeprefix('"').removesuffix('"'))
-    def take_prefixes() -> List[str]:
-        nonlocal prefix_accumuator
-        ret = prefix_accumuator
-        prefix_accumuator = []
-        return ret
-    inside_multiline_prefixes_list = False
-    for l in planner_fromstr:
-        if inside_multiline_prefixes_list:
-            if x:=P_PREFIXES_MANY_ITEM.search(l):
-                prefix = x.group("prefix")
-                addprefix(prefix)
-            if x:=P_PREFIXES_MANY_STOP.search(l):
-                inside_multiline_prefixes_list = False
-            continue
-        if x:=P_PREFIXES1.search(l):
-            prefixes = x.group("prefixes")
-            for y in prefixes.split(","):
-                addprefix(y)
-        if x:=P_PREFIXES2.search(l):
-            prefix = x.group("prefix")
-            addprefix(prefix)
-        if x:=P_PREFIXES_MANY_START.search(l):
-            inside_multiline_prefixes_list = True
-        if x:=P_FROMSTR_SAVER.search(l):
-            typ = x.group("typ")
-            nam = x.group("nam")
-            if typ == "Endpoint":
-                endpoints[nam].prefixes.extend(take_prefixes())
-            elif typ == "Overlay":
-                overlays[nam].prefixes.extend(take_prefixes())
-            else:
-                raise Exception("unreachable")
-
-    c.endpoints = [x for x in endpoints.values()]
-    c.endpoints.sort(key=lambda x:x.name)
-    c.overlays = [x for x in overlays.values()]
-    c.overlays.sort(key=lambda x:x.name)
-    return c
-
 
 def document_planner_content(c: PlannerContent) -> None:
 
@@ -460,24 +498,64 @@ def document_planner_content(c: PlannerContent) -> None:
 
 ############################################################################################
 
+def process_outline(o: Outline) -> Tuple[PlannerContent, List[ExecutorFunc]]:
+    endpoints : List[PlannerItem] = []
+    overlays : List[PlannerItem] = []
+    funcs : List[ExecutorFunc] = []
+
+    approved_functitons : Dict[str, str] = {}
+    for f in o.functions:
+        if f.name == 'register':
+            for rc in f.reg_calls:
+                approved_functitons[rc.fnname] = rc.rhname
+    for f in o.functions:
+        if f.name in approved_functitons:
+            cbparams : List[str] = []
+            cbret : str = ""
+            if f.callbacks:
+                cbret = f.callbacks[0].rettyp
+                cbparams = f.callbacks[0].argtyps
+            funcs.append(ExecutorFunc(
+                f.name,
+                approved_functitons[f.name],
+                "\n".join(f.doc),
+                [ (x.name, TypeAndDoc(x.typ, " ".join(x.doc))) for x in f.args  ],
+                TypeAndDoc(f.rettyp, " ".join(f.retdoc)),
+                cbparams,
+                cbret,
+                [(x.name, TypeAndDoc(x.typ, " ".join(x.doc))) for x in f.opts]
+            ))
+
+
+    endpoint_prefixes : Dict[str, List[str]] = defaultdict(list)
+    overlay_prefixes : Dict[str, List[str]] = defaultdict(list)
+    for t in o.endpoint_prefixes:
+        endpoint_prefixes[t.name].extend(t.prefixes)
+    for t in o.overlay_prefixes:
+        overlay_prefixes[t.name].extend(t.prefixes)
+
+    for x in o.endpoints:
+        endpoints.append(PlannerItem(x.ident, endpoint_prefixes.get(x.ident) or [], "\n".join(x.doc)))
+    for x in o.overlays:
+        overlays.append(PlannerItem(x.ident, overlay_prefixes.get(x.ident) or [], "\n".join(x.doc)))
+
+
+    return (PlannerContent(endpoints, overlays), funcs)
+
+
 def main() -> None:
-    executor_functions : List[ExecutorFunc] = []
+    executor_functions : List[ExecutorFunc]
+    planner_content: PlannerContent
 
-    planner_types : List[str]
-    planner_fromstr : List[str]
-    with open("src/scenario_planner/types.rs", "r") as f:
-        planner_types = [x for x in f.readlines()]
-    with open("src/scenario_planner/fromstr.rs", "r") as f:
-        planner_fromstr = [x for x in f.readlines()]
+    outline : Outline = get_merged_outline()
+    
+    (planner_content,executor_functions) =  process_outline(outline)
 
-    planner_content = read_planner_data(planner_types, planner_fromstr)
-
-    for root, dir, files in os.walk("src/scenario_executor"):
-        for fn in files:
-            with open(os.path.join(root, fn), "r") as f:
-                executor_functions.extend(read_executor_file([line.rstrip() for line in f.readlines()]))
+    #pprint(outline)
 
     executor_functions.sort(key=lambda x: x.rhai_function)
+    planner_content.endpoints.sort(key=lambda x:x.name)
+    planner_content.overlays.sort(key=lambda x:x.name)
 
     print("# Command-line interface")
     print()

@@ -103,24 +103,6 @@ Prefixes:
 
 ## Overlays
 
-### ByteStream
-
-(undocumented)
-
-This overlay cannot be directly specified as a prefix to a positional CLI argument, there may be some other way to access it.
-
-### CreateTlsConnector
-
-(undocumented)
-
-This overlay cannot be directly specified as a prefix to a positional CLI argument, there may be some other way to access it.
-
-### Datarams
-
-(undocumented)
-
-This overlay cannot be directly specified as a prefix to a positional CLI argument, there may be some other way to access it.
-
 ### LineChunks
 
 (undocumented)
@@ -144,12 +126,6 @@ test and debug trickier code paths in various overlays
 Prefixes:
 
 * `read_chunk_limiter:`
-
-### ResolveHostname
-
-(undocumented)
-
-This overlay cannot be directly specified as a prefix to a positional CLI argument, there may be some other way to access it.
 
 ### StreamChunks
 
@@ -429,10 +405,19 @@ Use `put_read_part` and `put_write_part` to fill in the data transfer directions
 
 Returns `StreamSocket`
 
-## osstr_base64_unix_bytes
+## osstr_base64_unchecked_encoded_bytes
 
 Decode base64 buffer and interpret using Rust's `OsString::from_encoded_bytes_unchecked`.
 This format is not intended to be portable and is mostly for internal use within Websocat.
+
+Parameters:
+
+* x (`String`)
+
+Returns `OsString`
+
+## osstr_base64_unix_bytes
+
 On Unix or WASI platforms, decode base64 buffer and convert it OsString.
 
 Parameters:
@@ -610,7 +595,7 @@ Returns `Command`
 
 ## subprocess_new_osstr
 
-Prepare subprocess, setting up possibly non-UTF8 executable name
+Prepare subprocess, setting up possibly non-UTF8 executable name 
 
 Parameters:
 
