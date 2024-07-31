@@ -9,9 +9,10 @@
 
 import os
 
-from typing import Generator, Tuple, List, Dict, Set
+from typing import Generator, Tuple, List, Dict, Set, TypeVar
 from dataclasses import dataclass
 from tree_sitter import Language, Parser, Tree, Node
+from tree_sitter import Query
 from collections import defaultdict
 import tree_sitter_rust  # type: ignore
 import re
@@ -99,6 +100,139 @@ class Outline:
 
 ############################################################################################
 
+def qq(x: str) -> Query:
+    return Query(RUST_LANGUAGE, x)
+
+
+REGFN_QUERY = qq('''
+(
+  call_expression 
+  	function:_ @fnc
+    (#match? @fnc "engine.register_fn")
+    arguments: (arguments(
+    	(string_literal (string_content)@rhaifn)
+        (identifier) @rustfn
+        ))
+) @reg
+''')
+
+CB1_QUERY = qq('''(
+  call_expression 
+  	function: (generic_function
+        function:(identifier)@fnc
+        type_arguments:(type_arguments
+        	(tuple_type)@params
+        )
+    )
+    (#eq? @fnc "callback_and_continue")
+)''')
+
+CB2_QUERY = qq('''(
+  call_expression 
+  function: (generic_function
+  	function: _@fnc
+    (#matches? @fnc "\.callback$")
+    type_arguments: (type_arguments . (_)@ret (tuple_type)@params)
+  )
+)''')
+
+OPTS_QUERY = qq('''(
+  struct_item  
+    name:_@nam
+    (#match? @nam "Opts$")
+  body: _@content
+)''')
+
+
+FROMSTR_IMPL_QUERY=qq('''(impl_item 
+  type:_@typ 
+  body:_@content
+  (#match? @typ "ParseStrChunkResult")
+)''')
+# (#match? @typ "ParseStrChunkResult")
+
+STRIP_PREFIX_MANY_QUERY = qq('''(if_expression  
+  condition: [
+  	(let_condition
+    	value: (call_expression
+    		function: _@f
+            (#match? @f "strip_prefix_many$")
+            arguments: (arguments . 
+            	(reference_expression
+                	value: _@variants
+                )
+            .)
+    	)
+  	)
+  ]
+  consequence: _@content
+)''')
+
+STRIP_PREFIX_QUERY = qq('''(if_expression  
+  condition: [
+  	(let_condition
+    	value: (call_expression
+    		function: _@f
+            
+            arguments: (arguments . 
+               (string_literal (string_content)@variant)
+            .)
+    	)
+  	)
+    (call_expression
+        function: _@f
+        
+        arguments: (arguments . 
+        (string_literal (string_content)@variant)
+        .)
+    )
+  ]
+  (#match? @f "strip_prefix$|starts_with$")
+  consequence: _@content
+)''')
+
+LOOKUP_FROMSTR_RESULT_QUERY=qq('''[
+    (call_expression 
+      function:(scoped_identifier)@variant
+      arguments:_@content
+     )
+    (struct_expression 
+    	name:(scoped_type_identifier)@variant
+        body:(field_initializer_list
+            (field_initializer
+              field:_@fieldname
+              value:_@content
+            )
+        )
+       (#eq? @fieldname "ovl")
+    )
+    
+    (#match? @variant "^ParseStrChunkResult::Endpoint$|^ParseStrChunkResult::Overlay$")
+]''')
+
+FROMSTR_GETNAME_QUERY=qq('''[
+    (call_expression 
+        function:(scoped_identifier
+        path: (identifier)
+        name: _@name
+    ))
+    (scoped_identifier
+        path: (identifier)
+        name: _@name
+    )
+    (struct_expression
+        name:(scoped_type_identifier
+        path: (identifier)
+        name: _@name
+    ))
+]''')
+
+T = TypeVar('T')
+def get1match(x: List[Tuple[int, Dict[str, Node]]]) -> None | Dict[str, Node]:
+    for xx in x:
+        if xx[1]:
+            return xx[1]
+    return None
 
 def outline(n: Tree) -> Outline:
     a : Node = n.root_node
@@ -111,6 +245,41 @@ def outline(n: Tree) -> Outline:
     overlay_prefixes: List[ThingWithListOfPrefixes] = []
 
     doc : List[str] = []
+
+    def process_possible_from_str(a: Node) -> None:
+        nonlocal endpoint_prefixes
+        nonlocal overlay_prefixes
+        if m:=get1match(FROMSTR_IMPL_QUERY.matches(a)):
+            def handle_prefixes(prefixes: List[str], content: Node) -> None:
+                if m:=get1match(LOOKUP_FROMSTR_RESULT_QUERY.matches(content)):
+                    variant=m['variant'].text.decode()
+                    content=m['content']
+
+                    name : str = ""
+                    if mm:=get1match(FROMSTR_GETNAME_QUERY.matches(content)):
+                        name=mm['name'].text.decode()
+                    if variant == 'ParseStrChunkResult::Overlay':
+                        assert name
+                        overlay_prefixes.append(ThingWithListOfPrefixes(name, prefixes))
+                    elif variant == 'ParseStrChunkResult::Endpoint':
+                        assert name
+                        endpoint_prefixes.append(ThingWithListOfPrefixes(name, prefixes))
+                    else:
+                        print("Something wrong with prefix " + str(prefixes))
+                else:
+                    print("Error: cannot find match A for prefixes " + str(prefixes))
+            for pr in STRIP_PREFIX_MANY_QUERY.matches(m['content']):
+                variants=pr[1]['variants']
+                content=pr[1]['content']
+                prefixes=[t.named_children[0].text.decode() for t in variants.named_children]
+                handle_prefixes(prefixes, content)
+            for pr in STRIP_PREFIX_QUERY.matches(m['content']):
+                variant=pr[1]['variant']
+                content=pr[1]['content']
+                prefixes=[variant.text.decode()]
+                handle_prefixes(prefixes, content)
+
+    process_possible_from_str(a)
 
     def maybe_doccomment(c : Node) -> bool:
         if c.type == 'line_comment':
@@ -132,6 +301,55 @@ def outline(n: Tree) -> Outline:
             name = namenode.text.decode()
             rettyp = "()"
             retdoc : List[str] = []
+
+            reg_calls : List[RegisterCall] = []
+            struct_opts : List[StructArg] = []
+            callbacks : List[Callback] = []
+
+            if regfncalls:=REGFN_QUERY.matches(c):
+                for regfncall in regfncalls:    
+                    rustfnname = regfncall[1]['rustfn'].text.decode()
+                    rhaifnname = regfncall[1]['rhaifn'].text.decode()
+
+                    reg_calls.append(RegisterCall(rhaifnname, rustfnname))
+            if cb1calls := CB1_QUERY.matches(c):
+                for cb1call in cb1calls:
+                    params = cb1call[1]['params']
+
+                    argtyps : List[str] = []
+                    rettyp='Handle<Task>'
+
+                    for tuple_node in params.named_children:
+                        argtyps.append(tuple_node.text.decode())
+                            
+                    callbacks.append(Callback(rettyp,argtyps))
+            if cb2calls := CB2_QUERY.matches(c):
+                for cb2call in cb2calls:
+                    ret = cb2call[1]['ret']
+                    params = cb2call[1]['params']
+
+                    argtyps = []
+                    rettyp= ret.text.decode()
+
+                    for tuple_node in params.named_children:
+                        argtyps.append(tuple_node.text.decode())
+                            
+                    callbacks.append(Callback(rettyp,argtyps))
+            
+            if opts_structs := OPTS_QUERY.matches(c):
+                for opts_struct in opts_structs:
+                    content = opts_struct[1]['content']
+                    doc = []
+                    for nn in content.children:
+                        if maybe_doccomment(nn): pass
+                        elif nn.type == 'field_declaration':
+                            name_node = nn.child_by_field_name('name')
+                            type_node = nn.child_by_field_name('type')
+                            assert name_node
+                            assert type_node
+                            struct_opts.append(StructArg(name_node.text.decode(), doc, type_node.text.decode()))
+                            doc=[]
+
 
             for cc in c.children:
                 if maybe_doccomment(cc): pass
@@ -160,66 +378,6 @@ def outline(n: Tree) -> Outline:
                         doc=[]
             retdoc.extend(doc)
 
-            reg_calls : List[RegisterCall] = []
-            struct_opts : List[StructArg] = []
-            callbacks : List[Callback] = []
-
-            b = c.child_by_field_name('body')
-            if b:
-                def check_body(n : Node) -> None:
-                    nonlocal doc
-                    if n.type == 'call_expression':
-                        funct_node = n.child_by_field_name('function')
-                        args_node = n.child_by_field_name('arguments')
-                        assert funct_node
-                        assert args_node
-                        fff : str = funct_node.text.decode()
-                        aaa = n.child_by_field_name('arguments')
-                        assert aaa
-                        argtyps : List[str] = []
-                        if fff == 'engine.register_fn' and len(aaa.named_children)==2:
-                            rhname = args_node.named_children[0].named_children[0].text.decode()
-                            fnname = args_node.named_children[1].text.decode()
-                            reg_calls.append(RegisterCall(rhname, fnname))
-                        elif "callback_and_continue" in fff and funct_node.type=='generic_function':
-                            typargs_node = funct_node.child_by_field_name('type_arguments')
-                            assert typargs_node
-                            rettyp='Handle<Task>'
-
-                            for tuple_node in typargs_node.named_children[0].named_children:
-                                argtyps.append(tuple_node.text.decode())
-                            
-                            callbacks.append(Callback(rettyp,argtyps))
-                        elif "callback" in fff and funct_node.type=='generic_function':
-                            typargs_node = funct_node.child_by_field_name('type_arguments')
-                            assert typargs_node
-                            rettyp=typargs_node.named_children[0].text.decode()
-
-                            for tuple_node in typargs_node.named_children[1].named_children:
-                                argtyps.append(tuple_node.text.decode())
-                            
-                            callbacks.append(Callback(rettyp,argtyps))
-                            
-                    elif n.type == 'struct_item':
-                        name_node = n.child_by_field_name('name')
-                        body_node = n.child_by_field_name('body')
-                        assert name_node
-                        assert body_node
-                        name : str = name_node.text.decode()
-                        if name.endswith("Opts"):
-                            doc = []
-                            for nn in body_node.children:
-                                if maybe_doccomment(nn): pass
-                                elif nn.type == 'field_declaration':
-                                    name_node = nn.child_by_field_name('name')
-                                    type_node = nn.child_by_field_name('type')
-                                    assert name_node
-                                    assert type_node
-                                    struct_opts.append(StructArg(name_node.text.decode(), doc, type_node.text.decode()))
-                                    doc=[]
-                    for nc in n.named_children:
-                        check_body(nc)
-                check_body(b)
             doc=[]
             funcs.append(Function(name,funcdoc,rettyp, retdoc, args, reg_calls, struct_opts, callbacks))
         elif c.type == 'enum_item':
@@ -243,81 +401,6 @@ def outline(n: Tree) -> Outline:
                     elif enumnam == 'Overlay':
                         overlays.append(DocumentedIdent(variant_name, doc))
                     doc=[]
-        elif c.type == 'impl_item':
-            type_node = c.child_by_field_name('type')
-            assert type_node
-            body_node = c.child_by_field_name('body')
-            assert body_node
-            typename = type_node.text.decode()
-            
-            if not typename.startswith('ParseStrChunkResult'): continue
-
-            prefixes : List[str] = []
-            def check_body(n : Node) -> None:
-                nonlocal prefixes
-                if n.type == 'call_expression':
-                    funct_node = n.child_by_field_name('function')
-                    args_node = n.child_by_field_name('arguments')
-                    assert funct_node
-                    assert args_node
-                    fff : str = funct_node.text.decode()
-                    aaa = n.child_by_field_name('arguments')
-                    assert aaa
-                    argtyps : List[str] = []
-                    if (fff.endswith('.starts_with') or fff.endswith('.strip_prefix')) and len(aaa.named_children)==1:
-                        prefix = args_node.named_children[0].named_children[0].text.decode()
-                        prefixes.append(prefix)
-                    elif "strip_prefix_many" in fff:
-                        for prefix_node in aaa.named_children[0].named_children[0].named_children:
-                            assert prefix_node.type == 'string_literal'
-                            prefixes.append(prefix_node.named_children[0].text.decode())
-                    elif fff == "ParseStrChunkResult::Endpoint":
-                        inner = aaa.named_children[0]
-                        endpoint_name : str
-                        match inner.type:
-                            case 'call_expression':
-                                endpoint_name = inner.named_children[0].named_children[1].text.decode()
-                            case 'struct_expression':
-                                endpoint_name = inner.named_children[0].named_children[1].text.decode()
-                            case 'scoped_identifier':
-                                endpoint_name = inner.named_children[1].text.decode()
-                            case _: 
-                                print(inner.type)
-                                assert False
-                        if prefixes:
-                            endpoint_prefixes.append(ThingWithListOfPrefixes(endpoint_name, prefixes))
-                            prefixes=[]
-                elif n.type == 'struct_expression':
-                    name_node = n.child_by_field_name('name')
-                    assert name_node
-                    name = name_node.text.decode()
-                    body_node = n.child_by_field_name('body')
-                    if name == 'ParseStrChunkResult::Overlay':
-                        assert body_node
-                        for nn in body_node.named_children:
-                            if nn.type != 'field_initializer': continue
-                            field_node = nn.child_by_field_name('field')
-                            assert field_node
-                            if field_node.text.decode() != 'ovl': continue
-                            value_node = nn.child_by_field_name('value')
-                            assert value_node
-                            overlay_name : str
-                            if value_node.type=='struct_expression':
-                                overlay_name = value_node.named_children[0].named_children[1].text.decode()
-                            elif value_node.type == 'call_expression':
-                                overlay_name = value_node.named_children[0].named_children[1].text.decode()
-                            elif value_node.type == 'scoped_identifier':
-                                overlay_name = value_node.named_children[1].text.decode()
-                            else:
-                                assert False
-                            if prefixes:
-                                overlay_prefixes.append(ThingWithListOfPrefixes(overlay_name, prefixes))
-                                prefixes=[]
-                            
-                    
-                for nc in n.named_children:
-                    check_body(nc)
-            check_body(body_node)
 
     return Outline(funcs, endpoints, overlays, endpoint_prefixes, overlay_prefixes)
 
