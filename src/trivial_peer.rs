@@ -499,3 +499,72 @@ impl Read for ExitOnSpecificByteReader {
     }
 }
 
+#[derive(Debug)]
+pub struct DropOnBackpressure<T: Specifier>(pub T);
+impl<T: Specifier> Specifier for DropOnBackpressure<T> {
+    fn construct(&self, cp: ConstructParams) -> PeerConstructor {
+        let inner = self.0.construct(cp.clone());
+        inner.map(move |p, _l2r| {
+            Box::new(futures::future::ok(Peer(p.0, Box::new(DropOnBackpressureWriter { 
+                inner: p.1
+            }), p.2)))
+        })
+    }
+    specifier_boilerplate!(noglobalstate has_subspec);
+    self_0_is_subspecifier!(proxy_is_multiconnect);
+}
+specifier_class!(
+    name = DropOnBackpressureClass,
+    target = DropOnBackpressure,
+    prefixes = ["drop_on_backpressure:"],
+    arg_handling = subspec,
+    overlay = true,
+    MessageBoundaryStatusDependsOnInnerType,
+    MulticonnectnessDependsOnInnerType,
+    help = r#"
+[A] Prevent writing from ever blocking, drop writes instead.
+
+Does not affect reading part.
+when terminal is set to raw mode. Works only bytes read from the overlay, not on the written bytes.
+
+Default byte is 1C which is typically triggered by Ctrl+\.
+
+Example (attachable log observer):
+
+    some_program | websocat -b -u asyncstdio: drop_on_backpressure:autoreconnect:ws-l:127.0.0.1:1234
+
+"#
+);
+pub struct DropOnBackpressureWriter { 
+    inner: Box<dyn AsyncWrite>,
+}
+
+impl Write for DropOnBackpressureWriter {
+    fn write(&mut self, buf: &[u8]) -> IoResult<usize> {
+        match self.inner.write(buf) {
+            Ok(n) => Ok(n),
+            Err(e) if e.kind() == std::io::ErrorKind::WouldBlock => {
+                log::debug!("Dropping {} bytes due to backpressure", buf.len());
+                Ok(buf.len())
+            }
+            Err(e) => Err(e),
+        }
+    }
+
+    fn flush(&mut self) -> IoResult<()> {
+        match self.inner.flush() {
+            Ok(()) => Ok(()),
+            Err(e) if e.kind() == std::io::ErrorKind::WouldBlock => {
+                log::debug!("Dropping flush due to backpressure");
+                Ok(())
+            }
+            Err(e) => Err(e),
+        }
+    }
+}
+
+impl AsyncWrite for DropOnBackpressureWriter {
+    fn shutdown(&mut self) -> tokio::prelude::Poll<(), std::io::Error> {
+        self.inner.shutdown()
+    }
+}
