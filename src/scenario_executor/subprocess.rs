@@ -45,7 +45,6 @@ fn subprocess(
         base64_args: bool,
     }
     let opts: SubprocessOpts = rhai::serde::from_dynamic(&opts)?;
-    let opts: SubprocessOpts = rhai::serde::from_dynamic(&opts)?;
     
     let program_name = opts.program;
 
