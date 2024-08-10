@@ -1,4 +1,4 @@
-use std::{ffi::OsString, net::SocketAddr};
+use std::{ffi::OsString, net::SocketAddr, path::PathBuf};
 
 use clap::Parser;
 
@@ -142,4 +142,31 @@ pub struct WebsocatArgs {
     /// uses everything after it as a part of the command line
     #[arg(long, num_args(..), allow_hyphen_values(true))]
     pub exec_args: Vec<OsString>,
+
+    /// Immediately expire `cmd:` or `exec:` endpoints if child process terminates.
+    /// 
+    /// This may discard some data that remained buffered in a pipe.
+    #[arg(long)]
+    pub exec_monitor_exits: bool,
+
+    /// On Unix, try to set uid to this numeric value for the subprocess
+    #[arg(long)]
+    pub exec_uid: Option<u32>,
+
+    /// On Unix, try to set uid to this numeric value for the subprocess
+    #[arg(long)]
+    pub exec_gid: Option<u32>,
+
+    /// Try to change current directory to this value for the subprocess
+    #[arg(long)]
+    pub exec_chdir: Option<PathBuf>,
+
+    /// On Windows, try to set this numeric process creation flags
+    #[arg(long)]
+    pub exec_windows_creation_flags: Option<u32>,
+
+    /// On Unix, set first subprocess's argv[0] to this value
+    #[arg(long)]
+    pub exec_arg0: Option<OsString>,
+
 }

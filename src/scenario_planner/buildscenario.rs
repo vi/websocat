@@ -1,3 +1,5 @@
+use std::ffi::OsStr;
+
 use base64::Engine as _;
 
 use crate::{cli::WebsocatArgs, scenario_executor::utils::ToNeutralAddress};
@@ -63,6 +65,35 @@ impl WebsocatInvocation {
         }
 
         Ok(printer.into_result())
+    }
+}
+
+fn format_osstr(arg: &OsStr) -> String {
+    #[cfg(any(unix, target_os = "wasi"))]
+    {
+        #[cfg(unix)]
+        use std::os::unix::ffi::OsStrExt;
+        #[cfg(all(not(unix), target_os = "wasi"))]
+        use std::os::wasi::ffi::OsStrExt;
+
+        let x = base64::prelude::BASE64_STANDARD.encode(arg.as_bytes());
+        return format!("osstr_base64_unix_bytes(\"{}\")", x);
+    }
+    #[cfg(windows)]
+    {
+        use std::os::windows::ffi::OsStrExt;
+
+        let b: Vec<u16> = arg.encode_wide().collect();
+        let bb: Vec<u8> =
+            Vec::from_iter(b.into_iter().map(|x| u16::to_le_bytes(x))).into_flattened();
+        let x = base64::prelude::BASE64_STANDARD.encode(bb);
+
+        return format!("osstr_base64_windows_utf16le(\"{}\")", x);
+    }
+    #[allow(unreachable_code)]
+    {
+        let x = base64::prelude::BASE64_STANDARD.encode(arg.as_encoded_bytes());
+        return format!("osstr_base64_unchecked_encoded_bytes(\"{}\")", x);
     }
 }
 
@@ -224,42 +255,7 @@ impl Endpoint {
                     if let Some(s) = arg.to_str() {
                         printer.print_line(&format!("{var_cmd}.arg({});", StrLit(s)));
                     } else {
-                        #[cfg(any(unix, target_os = "wasi"))]
-                        {
-                            #[cfg(unix)]
-                            use std::os::unix::ffi::OsStrExt;
-                            #[cfg(all(not(unix), target_os = "wasi"))]
-                            use std::os::wasi::ffi::OsStrExt;
-
-                            let x = base64::prelude::BASE64_STANDARD.encode(arg.as_bytes());
-                            printer.print_line(&format!(
-                                "{var_cmd}.arg_osstr(osstr_base64_unix_bytes(\"{}\"));",
-                                x
-                            ));
-                            continue;
-                        }
-                        #[cfg(windows)]
-                        {
-                            use std::os::windows::ffi::OsStrExt;
-
-                            let b: Vec<u16> = arg.encode_wide().collect();
-                            let bb: Vec<u8> =
-                                Vec::from_iter(b.into_iter().map(|x| u16::to_le_bytes(x)))
-                                    .into_flattened();
-                            let x = base64::prelude::BASE64_STANDARD.encode(bb);
-
-                            printer.print_line(&format!(
-                                "{var_cmd}.arg_osstr(osstr_base64_windows_utf16le(\"{}\"));",
-                                x
-                            ));
-                            continue;
-                        }
-                        #[allow(unreachable_code)]
-                        {
-                            let x = base64::prelude::BASE64_STANDARD.encode(arg.as_encoded_bytes());
-                            printer.print_line(&format!("{var_cmd}.arg_osstr(osstr_base64_unchecked_encoded_bytes(\"{}\"));", x));
-                            continue;
-                        }
+                        printer.print_line(&format!("{var_cmd}.arg_osstr({});", format_osstr(arg)));
                     }
                 }
 
@@ -291,12 +287,44 @@ impl Endpoint {
         var_cmd: String,
         opts: &WebsocatArgs,
     ) -> anyhow::Result<String> {
+
+        if let Some(ref x) = opts.exec_chdir {
+            if let Some(s) = x.to_str() {
+                printer.print_line(&format!("{var_cmd}.chdir({});", StrLit(s)));
+            } else {
+                printer.print_line(&format!("{var_cmd}.chdir_osstr({});", format_osstr(x.as_os_str())));
+            }
+        }
+       
+        if let Some(ref x) = opts.exec_arg0 {
+            if let Some(s) = x.to_str() {
+                printer.print_line(&format!("{var_cmd}.arg0({});", StrLit(s)));
+            } else {
+                printer.print_line(&format!("{var_cmd}.arg0_osstr({});", format_osstr(x.as_os_str())));
+            }
+        }
+
+        if let Some(x) = opts.exec_uid {
+            printer.print_line(&format!("{var_cmd}.uid({x});"));
+        }
+        if let Some(x) = opts.exec_gid {
+            printer.print_line(&format!("{var_cmd}.gid({x});"));
+        }
+        if let Some(x) = opts.exec_windows_creation_flags {
+            printer.print_line(&format!("{var_cmd}.windows_creation_flags({x});"));
+        }
+
         let var_chld = vars.getnewvarname("chld");
         let var_s = vars.getnewvarname("pstdio");
 
         printer.print_line(&format!("{var_cmd}.configure_fds(2, 2, 1);"));
         printer.print_line(&format!("let {var_chld} = {var_cmd}.execute();"));
         printer.print_line(&format!("let {var_s} = {var_chld}.socket();"));
+
+        if opts.exec_monitor_exits {
+            printer.print_line(&format!("put_hangup_part({var_s}, {var_chld}.wait());"));
+        }
+
         Ok(var_s)
     }
     fn end_print(&self, printer: &mut ScenarioPrinter) {
