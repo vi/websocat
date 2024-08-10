@@ -1,6 +1,6 @@
 use std::net::SocketAddr;
 
-use rhai::Engine;
+use rhai::{Dynamic, Engine};
 
 use super::http1::{
     Http1Client, IncomingRequest, IncomingResponse, OutgoingRequest, OutgoingResponse,
@@ -9,7 +9,7 @@ use super::types::{
     DatagramRead, DatagramSocket, DatagramWrite, Handle, Hangup, StreamRead, StreamSocket,
     StreamWrite, Task,
 };
-use tokio::process::Command;
+use tokio::process::{Command,Child};
 use std::ffi::OsString;
 
 pub fn register_functions(engine: &mut Engine) {
@@ -29,6 +29,30 @@ pub fn register_functions(engine: &mut Engine) {
     super::nativetls::register(engine);
     super::subprocess::register(engine);
     super::osstr::register(engine);
+    engine.register_fn("is_null", is_null);
+}
+
+#[macro_export]
+macro_rules! all_types {
+    ($x:ident) => {
+        $x!(Task);
+        $x!(Hangup);
+        $x!(StreamRead);
+        $x!(StreamWrite);
+        $x!(StreamSocket);
+        $x!(DatagramRead);
+        $x!(DatagramWrite);
+        $x!(DatagramSocket);
+        $x!(SocketAddr);
+        $x!(IncomingRequest);
+        $x!(OutgoingResponse);
+        $x!(OutgoingRequest);
+        $x!(IncomingResponse);
+        $x!(Http1Client);
+        $x!(Command);
+        $x!(Child);
+        $x!(OsString);
+    };
 }
 
 pub fn register_types(engine: &mut Engine) {
@@ -37,20 +61,19 @@ pub fn register_types(engine: &mut Engine) {
             engine.register_type_with_name::<Handle<$t>>(stringify!($t));
         };
     }
-    regtyp!(Task);
-    regtyp!(Hangup);
-    regtyp!(StreamRead);
-    regtyp!(StreamWrite);
-    regtyp!(StreamSocket);
-    regtyp!(DatagramRead);
-    regtyp!(DatagramWrite);
-    regtyp!(DatagramSocket);
-    regtyp!(SocketAddr);
-    regtyp!(IncomingRequest);
-    regtyp!(OutgoingResponse);
-    regtyp!(OutgoingRequest);
-    regtyp!(IncomingResponse);
-    regtyp!(Http1Client);
-    regtyp!(Command);
-    regtyp!(OsString);
+    all_types!(regtyp);
+}
+
+//@ Check if given handle is null.
+fn is_null(x: Dynamic) -> bool {
+    macro_rules! check_for_type {
+        ($t:ty) => {
+            if let Some(x) = x.clone().try_cast::<Handle<$t>>() {
+                return x.lock().unwrap().is_none()
+            }
+        };
+    }
+    crate::all_types!(check_for_type);
+
+    false
 }

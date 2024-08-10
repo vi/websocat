@@ -30,7 +30,7 @@ struct LoggerOptsShared {
     hex: bool,
 }
 
-fn render_content(buf: &[u8], hex_mode: bool) -> String {
+pub fn render_content(buf: &[u8], hex_mode: bool) -> String {
     if hex_mode {
         hex::encode(buf)
     } else {

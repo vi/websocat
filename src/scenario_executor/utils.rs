@@ -95,25 +95,22 @@ impl DatagramSocket {
     }
 }
 
-/*
-pub trait Anyhow2EvalAltResult<T> {
-    fn tbar(self) -> Result<T, Box<EvalAltResult>>;
-}
-impl<T> Anyhow2EvalAltResult<T> for anyhow::Result<T> {
-    fn tbar(self) -> Result<T, Box<EvalAltResult>> {
-        match self {
-            Ok(x) => Ok(x),
-            Err(e) => Err(Box::new(EvalAltResult::ErrorRuntime(
-                rhai::Dynamic::from(format!("{e}")),
-                rhai::Position::NONE,
-            ))),
-        }
+#[must_use]
+pub struct PutItBack<T>(pub Handle<T>);
+
+impl<T> PutItBack<T> {
+    pub fn put(self, x: T) {
+        *self.0.lock().unwrap() = Some(x)
     }
 }
-*/
+
 pub trait ExtractHandleOrFail {
     /// Lock mutex, Unwrapping possible poison error, Take the thing from option contained inside, fail if is is none and convert the error to BoxAltResult.
     fn lutbar<T>(&self, h: Handle<T>) -> Result<T, Box<EvalAltResult>>;
+    fn lutbar2<T>(&self, h: Handle<T>) -> Result<(T, PutItBack<T>), Box<EvalAltResult>> {
+        let hh = h.clone();
+        Ok((self.lutbar(h)?, PutItBack(hh)))
+    }
 }
 impl ExtractHandleOrFail for NativeCallContext<'_> {
     fn lutbar<T>(&self, h: Handle<T>) -> Result<T, Box<EvalAltResult>> {
