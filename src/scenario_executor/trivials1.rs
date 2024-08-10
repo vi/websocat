@@ -1,4 +1,4 @@
-use std::{pin::Pin, task::Poll};
+use std::{pin::Pin, task::Poll, time::Duration};
 
 use pin_project::pin_project;
 use rhai::{Dynamic, Engine, NativeCallContext};
@@ -342,13 +342,21 @@ fn stream_chunks(
     }
 }
 
+//@ Create null Hangup handle
 fn empty_close_handle() -> Handle<Hangup> {
     None.wrap()
 }
 
+//@ Create a Hangup handle that immediately resolves (i.e. signals hangup)
 fn pre_triggered_hangup_handle() -> Handle<Hangup> {
     use super::utils::HangupHandleExt;
-    async move { }.wrap()
+    async move {}.wrap()
+}
+
+//@ Create a Hangup handle that results after specific number of milliseconds
+fn timeout_ms_hangup_handle(ms: i64) -> Handle<Hangup> {
+    use super::utils::HangupHandleExt;
+    async move { tokio::time::sleep(Duration::from_millis(ms as u64)).await }.wrap()
 }
 
 pub fn register(engine: &mut Engine) {
@@ -375,4 +383,5 @@ pub fn register(engine: &mut Engine) {
 
     engine.register_fn("empty_hangup_handle", empty_close_handle);
     engine.register_fn("pre_triggered_hangup_handle", pre_triggered_hangup_handle);
+    engine.register_fn("timeout_ms_hangup_handle", timeout_ms_hangup_handle);
 }

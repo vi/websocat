@@ -43,6 +43,22 @@ Prefixes:
 
 * `exec:`
 
+### Literal
+
+Byte stream socket that produces specified content and ignores incoming data
+
+Prefixes:
+
+* `literal:`
+
+### LiteralBase64
+
+Byte stream socket that produces specified content (base64-encoded) and ignores incoming data
+
+Prefixes:
+
+* `literal-base64:`
+
 ### Stdio
 
 Console, terminal: read bytes from stdin, write bytes to stdout.
@@ -586,6 +602,8 @@ Returns `Task`
 
 ## empty_hangup_handle
 
+Create null Hangup handle
+
 Returns `Hangup`
 
 ## exchange_bytes
@@ -655,6 +673,28 @@ Options:
 
 * addr (`SocketAddr`)
 * autospawn (`bool`)
+
+## literal_socket
+
+Create stream socket with a read handle emits specified data, then EOF; and
+write handle that ignores all incoming data and null hangup handle.
+
+Parameters:
+
+* data (`String`)
+
+Returns `StreamSocket`
+
+## literal_socket_base64
+
+Create stream socket with a read handle emits specified data, then EOF; and
+write handle that ignores all incoming data and null hangup handle.
+
+Parameters:
+
+* data (`String`)
+
+Returns `StreamSocket`
 
 ## lookup_host
 
@@ -729,6 +769,8 @@ Parameters:
 Returns `Task`
 
 ## pre_triggered_hangup_handle
+
+Create a Hangup handle that immediately resolves (i.e. signals hangup)
 
 Returns `Hangup`
 
@@ -913,6 +955,16 @@ Parameters:
 * h (`StreamSocket`)
 
 Returns `StreamWrite`
+
+## timeout_ms_hangup_handle
+
+Create a Hangup handle that results after specific number of milliseconds
+
+Parameters:
+
+* ms (`i64`)
+
+Returns `Hangup`
 
 ## tls_client
 

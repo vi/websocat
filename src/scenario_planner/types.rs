@@ -39,6 +39,10 @@ pub enum Endpoint {
     DummyStream,
     //@ Datagram socket that ignores all incoming data and signals EOF immediately
     DummyDatagrams,
+    //@ Byte stream socket that produces specified content and ignores incoming data
+    Literal(String),
+    //@ Byte stream socket that produces specified content (base64-encoded) and ignores incoming data
+    LiteralBase64(String),
 }
 
 #[derive(Debug)]

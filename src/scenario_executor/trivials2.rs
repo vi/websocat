@@ -8,7 +8,9 @@ use tokio::io::{AsyncRead, AsyncWrite, ReadBuf};
 use tracing::debug;
 
 use crate::scenario_executor::{
-    logoverlay::render_content, types::{Handle, StreamRead}, utils::{ExtractHandleOrFail, RhResult}
+    logoverlay::render_content,
+    types::{Handle, StreamRead},
+    utils::{ExtractHandleOrFail, RhResult},
 };
 
 use super::{
@@ -285,6 +287,41 @@ fn debug_print(x: Dynamic) {
     }
 }
 
+//@ Create stream socket with a read handle emits specified data, then EOF; and
+//@ write handle that ignores all incoming data and null hangup handle.
+fn literal_socket(data: String) -> Handle<StreamSocket> {
+    Some(StreamSocket {
+        read: Some(StreamRead {
+            reader: Box::pin(tokio::io::empty()),
+            prefix: BytesMut::from(data.as_bytes()),
+        }),
+        write: Some(StreamWrite {
+            writer: Box::pin(tokio::io::empty()),
+        }),
+        close: None,
+    })
+    .wrap()
+}
+
+//@ Create stream socket with a read handle emits specified data, then EOF; and
+//@ write handle that ignores all incoming data and null hangup handle.
+fn literal_socket_base64(ctx: NativeCallContext, data: String) -> RhResult<Handle<StreamSocket>> {
+    let Ok(d) = base64::prelude::BASE64_STANDARD.decode(data) else {
+        return Err(ctx.err("Invalid base64 data"));
+    };
+    Ok(Some(StreamSocket {
+        read: Some(StreamRead {
+            reader: Box::pin(tokio::io::empty()),
+            prefix: BytesMut::from(&d[..]),
+        }),
+        write: Some(StreamWrite {
+            writer: Box::pin(tokio::io::empty()),
+        }),
+        close: None,
+    })
+    .wrap())
+}
+
 pub fn register(engine: &mut Engine) {
     engine.register_fn("read_chunk_limiter", read_chunk_limiter);
     engine.register_fn("write_chunk_limiter", write_chunk_limiter);
@@ -295,4 +332,6 @@ pub fn register(engine: &mut Engine) {
     engine.register_fn("write_buffer", write_buffer);
     engine.register_fn("b64str", b64str);
     engine.register_fn("dbg", debug_print);
+    engine.register_fn("literal_socket", literal_socket);
+    engine.register_fn("literal_socket_base64", literal_socket_base64);
 }

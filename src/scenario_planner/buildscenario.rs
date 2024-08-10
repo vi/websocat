@@ -282,7 +282,9 @@ impl Endpoint {
                 let varnam = vars.getnewvarname("dummy");
                 printer.print_line(&format!("let {varnam} = dummy_stream_socket();"));
                 if opts.dummy_hangup {
-                    printer.print_line(&format!("put_hangup_part({varnam}, pre_triggered_hangup_handle());"));
+                    printer.print_line(&format!(
+                        "put_hangup_part({varnam}, pre_triggered_hangup_handle());"
+                    ));
                 }
                 Ok(varnam)
             }
@@ -290,8 +292,20 @@ impl Endpoint {
                 let varnam = vars.getnewvarname("dummy");
                 printer.print_line(&format!("let {varnam} = dummy_datagram_socket();"));
                 if opts.dummy_hangup {
-                    printer.print_line(&format!("put_hangup_part({varnam}, pre_triggered_hangup_handle());"));
+                    printer.print_line(&format!(
+                        "put_hangup_part({varnam}, pre_triggered_hangup_handle());"
+                    ));
                 }
+                Ok(varnam)
+            }
+            Endpoint::Literal(s) => {
+                let varnam = vars.getnewvarname("lit");
+                printer.print_line(&format!("let {varnam} = literal_socket({});", StrLit(s)));
+                Ok(varnam)
+            }
+            Endpoint::LiteralBase64(s) => {
+                let varnam = vars.getnewvarname("lit");
+                printer.print_line(&format!("let {varnam} = literal_socket_base64({});", StrLit(s)));
                 Ok(varnam)
             }
         }
@@ -385,6 +399,8 @@ impl Endpoint {
             Endpoint::Cmd(_) => {}
             Endpoint::DummyStream => {}
             Endpoint::DummyDatagrams => {}
+            Endpoint::Literal(_) => {}
+            Endpoint::LiteralBase64(_) => {}
         }
     }
 }

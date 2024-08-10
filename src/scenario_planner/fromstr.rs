@@ -167,6 +167,14 @@ impl ParseStrChunkResult<'_> {
                 anyhow::bail!("devnull: endpoint does not take any argument");
             }
             Ok(ParseStrChunkResult::Endpoint(Endpoint::DummyStream))
+        } else if let Some(rest) = x.strip_prefix("literal:") {
+            Ok(ParseStrChunkResult::Endpoint(Endpoint::Literal(
+                rest.to_owned(),
+            )))
+        } else if let Some(rest) = x.strip_prefix("literal-base64:") {
+            Ok(ParseStrChunkResult::Endpoint(Endpoint::LiteralBase64(
+                rest.to_owned(),
+            )))
         } else {
             anyhow::bail!("Unknown specifier: {x}")
         }

@@ -329,6 +329,8 @@ impl SpecifierStack {
                 Endpoint::Cmd(_) => true,
                 Endpoint::DummyStream => false,
                 Endpoint::DummyDatagrams => false,
+                Endpoint::Literal(_) => false,
+                Endpoint::LiteralBase64(_) => false,
             };
             if do_insert {
                 // datagram mode may be patched later
@@ -384,6 +386,8 @@ impl Endpoint {
             Endpoint::Cmd(_) => CopyingType::ByteStream,
             Endpoint::DummyStream => CopyingType::ByteStream,
             Endpoint::DummyDatagrams => CopyingType::Datarams,
+            Endpoint::Literal(_) => CopyingType::ByteStream,
+            Endpoint::LiteralBase64(_)=> CopyingType::ByteStream,
         }
     }
 }
