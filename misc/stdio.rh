@@ -1,2 +1,0 @@
-let s = create_stdio();
-copy_bytes(take_read_part(s), take_write_part(s))

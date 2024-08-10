@@ -1,6 +1,0 @@
-let c = create_stdio();
-let r = take_read_part(c);
-connect_tcp(#{addr: "127.0.0.1:1234"}, |s| {
-    let w = take_write_part(s);
-    copydata(r,w)
-});

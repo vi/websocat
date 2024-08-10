@@ -1,1 +1,0 @@
-copy_packets(trivial_pkts(), display_pkts())
