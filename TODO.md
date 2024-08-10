@@ -4,7 +4,7 @@
 * --protocol / --server-protocol
 * custom request/response headers
 * UNIX sockets
-* Document things written before the creation of the documentation generation script
+* Document things written before the creation of the documentation generation script. Manually the doc.md fully. 
 
 # Later
 

@@ -346,6 +346,11 @@ fn empty_close_handle() -> Handle<Hangup> {
     None.wrap()
 }
 
+fn pre_triggered_hangup_handle() -> Handle<Hangup> {
+    use super::utils::HangupHandleExt;
+    async move { }.wrap()
+}
+
 pub fn register(engine: &mut Engine) {
     engine.register_fn("take_read_part", take_read_part);
     engine.register_fn("take_write_part", take_write_part);
@@ -369,4 +374,5 @@ pub fn register(engine: &mut Engine) {
     engine.register_fn("stream_chunks", stream_chunks);
 
     engine.register_fn("empty_hangup_handle", empty_close_handle);
+    engine.register_fn("pre_triggered_hangup_handle", pre_triggered_hangup_handle);
 }

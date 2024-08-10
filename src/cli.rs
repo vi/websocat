@@ -169,4 +169,7 @@ pub struct WebsocatArgs {
     #[arg(long)]
     pub exec_arg0: Option<OsString>,
 
+    /// Make dummy notes also immediately signal hangup.
+    #[arg(long)]
+    pub dummy_hangup: bool,
 }

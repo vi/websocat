@@ -278,6 +278,22 @@ impl Endpoint {
 
                 self.continue_printing_cmd_or_exec(printer, vars, var_cmd, opts)
             }
+            Endpoint::DummyStream => {
+                let varnam = vars.getnewvarname("dummy");
+                printer.print_line(&format!("let {varnam} = dummy_stream_socket();"));
+                if opts.dummy_hangup {
+                    printer.print_line(&format!("put_hangup_part({varnam}, pre_triggered_hangup_handle());"));
+                }
+                Ok(varnam)
+            }
+            Endpoint::DummyDatagrams => {
+                let varnam = vars.getnewvarname("dummy");
+                printer.print_line(&format!("let {varnam} = dummy_datagram_socket();"));
+                if opts.dummy_hangup {
+                    printer.print_line(&format!("put_hangup_part({varnam}, pre_triggered_hangup_handle());"));
+                }
+                Ok(varnam)
+            }
         }
     }
     fn continue_printing_cmd_or_exec(
@@ -287,20 +303,25 @@ impl Endpoint {
         var_cmd: String,
         opts: &WebsocatArgs,
     ) -> anyhow::Result<String> {
-
         if let Some(ref x) = opts.exec_chdir {
             if let Some(s) = x.to_str() {
                 printer.print_line(&format!("{var_cmd}.chdir({});", StrLit(s)));
             } else {
-                printer.print_line(&format!("{var_cmd}.chdir_osstr({});", format_osstr(x.as_os_str())));
+                printer.print_line(&format!(
+                    "{var_cmd}.chdir_osstr({});",
+                    format_osstr(x.as_os_str())
+                ));
             }
         }
-       
+
         if let Some(ref x) = opts.exec_arg0 {
             if let Some(s) = x.to_str() {
                 printer.print_line(&format!("{var_cmd}.arg0({});", StrLit(s)));
             } else {
-                printer.print_line(&format!("{var_cmd}.arg0_osstr({});", format_osstr(x.as_os_str())));
+                printer.print_line(&format!(
+                    "{var_cmd}.arg0_osstr({});",
+                    format_osstr(x.as_os_str())
+                ));
             }
         }
 
@@ -362,6 +383,8 @@ impl Endpoint {
             }
             Endpoint::Exec(_) => {}
             Endpoint::Cmd(_) => {}
+            Endpoint::DummyStream => {}
+            Endpoint::DummyDatagrams => {}
         }
     }
 }

@@ -8,13 +8,16 @@ use std::{
     net::SocketAddr, sync::{Arc, Mutex}, task::Poll
 };
 
-use super::types::{BufferFlag, BufferFlags, DatagramSocket, StreamRead, StreamWrite};
+use super::types::{BufferFlag, BufferFlags, DatagramSocket, Hangup, StreamRead, StreamWrite};
 
 pub trait TaskHandleExt {
     fn wrap_noerr(self) -> Handle<Task>;
 }
 pub trait TaskHandleExt2 {
     fn wrap(self) -> Handle<Task>;
+}
+pub trait HangupHandleExt {
+    fn wrap(self) -> Handle<Hangup>;
 }
 
 impl<T: Future<Output = ()> + Send + 'static> TaskHandleExt for T {
@@ -25,6 +28,11 @@ impl<T: Future<Output = ()> + Send + 'static> TaskHandleExt for T {
 }
 impl<T: Future<Output = anyhow::Result<()>> + Send + 'static> TaskHandleExt2 for T {
     fn wrap(self) -> Handle<Task> {
+        Arc::new(Mutex::new(Some(Box::pin(self))))
+    }
+}
+impl<T: Future<Output = ()> + Send + 'static> HangupHandleExt for T {
+    fn wrap(self) -> Handle<Hangup> {
         Arc::new(Mutex::new(Some(Box::pin(self))))
     }
 }

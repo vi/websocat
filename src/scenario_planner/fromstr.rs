@@ -68,7 +68,12 @@ impl ParseStrChunkResult<'_> {
         {
             let a: SocketAddr = rest.parse()?;
             Ok(ParseStrChunkResult::Endpoint(Endpoint::TcpListen(a)))
-        } else if x == "-" || x == "stdio:" {
+        } else if x == "-" {
+            Ok(ParseStrChunkResult::Endpoint(Endpoint::Stdio))
+        } else if let Some(rest) = x.strip_prefix("stdio:") {
+            if !rest.is_empty() {
+                anyhow::bail!("stdio: endpoint does not take any argument");
+            }
             Ok(ParseStrChunkResult::Endpoint(Endpoint::Stdio))
         } else if let Some(rest) = x.strip_prefix("tls:") {
             Ok(ParseStrChunkResult::Overlay {
@@ -150,6 +155,18 @@ impl ParseStrChunkResult<'_> {
             Ok(ParseStrChunkResult::Endpoint(Endpoint::Cmd(
                 rest.to_owned(),
             )))
+        } else if let Some(rest) =
+            x.strip_prefix_many(&["empty:", "null:", "dummy-datagrams:", "dummy:"])
+        {
+            if !rest.is_empty() {
+                anyhow::bail!("empty: endpoint does not take any argument");
+            }
+            Ok(ParseStrChunkResult::Endpoint(Endpoint::DummyDatagrams))
+        } else if let Some(rest) = x.strip_prefix_many(&["devnull:", "dummy-stream:"]) {
+            if !rest.is_empty() {
+                anyhow::bail!("devnull: endpoint does not take any argument");
+            }
+            Ok(ParseStrChunkResult::Endpoint(Endpoint::DummyStream))
         } else {
             anyhow::bail!("Unknown specifier: {x}")
         }

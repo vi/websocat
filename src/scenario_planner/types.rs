@@ -35,6 +35,10 @@ pub enum Endpoint {
     Exec(String),
     //@ Execute given command line and use its stdin/stdout as a socket.
     Cmd(String),
+    //@ Byte stream socket that ignores all incoming data and immediately EOF-s read attempts
+    DummyStream,
+    //@ Datagram socket that ignores all incoming data and signals EOF immediately
+    DummyDatagrams,
 }
 
 #[derive(Debug)]

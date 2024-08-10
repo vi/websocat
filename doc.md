@@ -14,6 +14,26 @@ Prefixes:
 * `cmd:`
 * `sh-c:`
 
+### DummyDatagrams
+
+Datagram socket that ignores all incoming data and signals EOF immediately
+
+Prefixes:
+
+* `empty:`
+* `null:`
+* `dummy-datagrams:`
+* `dummy:`
+
+### DummyStream
+
+Byte stream socket that ignores all incoming data and immediately EOF-s read attempts
+
+Prefixes:
+
+* `devnull:`
+* `dummy-stream:`
+
 ### Exec
 
 Execute given program as subprocess and use its stdin/stdout as a socket.
@@ -27,7 +47,9 @@ Prefixes:
 
 Console, terminal: read bytes from stdin, write bytes to stdout.
 
-This endpoint cannot be directly specified as a prefix to a positional CLI argument, there may be some other way to access it.
+Prefixes:
+
+* `stdio:`
 
 ### TcpConnectByEarlyHostname
 
@@ -705,6 +727,10 @@ Parameters:
 * tasks (`Vec<Dynamic>`)
 
 Returns `Task`
+
+## pre_triggered_hangup_handle
+
+Returns `Hangup`
 
 ## put_hangup_part
 
