@@ -12,6 +12,7 @@ use super::types::{
 use tokio::process::{Command,Child};
 use std::ffi::OsString;
 
+/// Register Rhai functions
 pub fn register_functions(engine: &mut Engine) {
     super::trivials1::register(engine);
     super::trivials2::register(engine);
@@ -55,6 +56,7 @@ macro_rules! all_types {
     };
 }
 
+/// Register most custom Rhai types.
 pub fn register_types(engine: &mut Engine) {
     macro_rules! regtyp {
         ($t:ty) => {

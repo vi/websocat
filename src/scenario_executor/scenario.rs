@@ -22,8 +22,8 @@ pub trait ScenarioAccess {
 pub fn load_scenario(s: &str) -> anyhow::Result<Arc<Scenario>> {
     let mut engine = Engine::RAW;
 
-    crate::scenario_executor::all_functions::register_functions(&mut engine);
     crate::scenario_executor::all_functions::register_types(&mut engine);
+    crate::scenario_executor::all_functions::register_functions(&mut engine);
 
     let ast = engine.compile(s)?;
     let mut scenario = Scenario { ast, engine };

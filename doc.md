@@ -196,6 +196,88 @@ This overlay cannot be directly specified as a prefix to a positional CLI argume
 
 Those functions are used in Websocat Rhai Scripts (Scenarios):
 
+## Child::socket
+
+Convert the child process handle to a Stream Socket of its stdin and stdout (but not stderr).
+In case of non-piped (`2`) fds, the resulting socket would be incomplete.
+
+Returns `StreamSocket`
+
+## Child::take_stderr
+
+Take stderr handle as a Stream Reader (i.e. half-socket).
+In case of non-piped (`2`) fds, the handle would be null
+
+Returns `StreamRead`
+
+## Command::arg
+
+Add one command line argument to the array
+
+Parameters:
+
+* arg (`String`)
+
+Returns `()`
+
+## Command::arg_osstr
+
+Add one possibly non-UTF8 command line argument to the array
+
+Parameters:
+
+* arg (`OsString`)
+
+Returns `()`
+
+## Command::configure_fds
+
+Configure what to do with subprocess's stdin, stdout and stderr
+
+Each numeric argument accepts the following values:
+* `0` meaning the fd will be /dev/null-ed.
+* `1` meaning leave it connected to Websocat's fds.
+* `2` meaning we can capture process's input or output.
+
+Parameters:
+
+* stdin (`i64`)
+* stdout (`i64`)
+* stderr (`i64`)
+
+Returns `()`
+
+## Command::execute
+
+Spawn the prepared subprocess. What happens next depends on used `child_` function.
+
+Returns `Child`
+
+## Command::execute_for_output
+
+Execute the prepared subprocess and wait for its exit, storing
+output of stdout and stderr in memory.
+Status code the callback receives follows similar rules as in `subprocess_execute_for_status`.
+Second and third arguments of the callback are stdout and stderr respectively.
+
+Parameters:
+
+* continuation (`Fn(i64, Vec<u8>, Vec<u8>) -> Task`) - Rhai function that will be called to continue processing
+
+Returns `Task`
+
+## Command::execute_for_status
+
+Execute the prepared subprocess and wait for its exit code
+Callback receives exit code or `-1` meaning that starting failed
+or `-2` meaning the process exited because of signal
+
+Parameters:
+
+* continuation (`Fn(i64) -> Task`) - Rhai function that will be called to continue processing
+
+Returns `Task`
+
 ## b64str
 
 Decode base64 string to another string
@@ -205,28 +287,6 @@ Parameters:
 * x (`&str`)
 
 Returns `String`
-
-## child_socket
-
-Convert the child process handle to a Stream Socket of its stdin and stdout (but not stderr).
-In case of non-piped (`2`) fds, the resulting socket would be incomplete.
-
-Parameters:
-
-* chld (`Child`)
-
-Returns `StreamSocket`
-
-## child_take_stderr
-
-Take stderr handle as a Stream Reader (i.e. half-socket).
-In case of non-piped (`2`) fds, the handle would be null
-
-Parameters:
-
-* chld (`Child`)
-
-Returns `StreamRead`
 
 ## connect_tcp
 
@@ -598,73 +658,6 @@ Options:
 * omit_content (`bool`) - Do not log full content of the stream, just the chunk lengths.
 * hex (`bool`) - Use hex lines instead of string literals with espaces
 
-## subprocess_arg
-
-Add one command line argument to the array
-
-Parameters:
-
-* cmd (`Command`)
-* arg (`String`)
-
-Returns `()`
-
-## subprocess_arg_osstr
-
-Add one possibly non-UTF8 command line argument to the array
-
-Parameters:
-
-* cmd (`Command`)
-* arg (`OsString`)
-
-Returns `()`
-
-## subprocess_configure_fds
-
-Configure what to do with subprocess's stdin, stdout and stderr
-
-Each numeric argument accepts the following values:
-* `0` meaning the fd will be /dev/null-ed.
-* `1` meaning leave it connected to Websocat's fds.
-* `2` meaning we can capture process's input or output.
-
-Parameters:
-
-* cmd (`Command`)
-* stdin (`i64`)
-* stdout (`i64`)
-* stderr (`i64`)
-
-Returns `()`
-
-## subprocess_execute_for_output
-
-Execute the prepared subprocess and wait for its exit, storing
-output of stdout and stderr in memory.
-Status code the callback receives follows similar rules as in `subprocess_execute_for_status`.
-Second and third arguments of the callback are stdout and stderr respectively.
-
-Parameters:
-
-* cmd (`Command`)
-* continuation (`Fn(i64, Vec<u8>, Vec<u8>) -> Task`) - Rhai function that will be called to continue processing
-
-Returns `Task`
-
-## subprocess_execute_for_status
-
-Execute the prepared subprocess and wait for its exit code
-Callback receives exit code or `-1` meaning that starting failed
-or `-2` meaning the process exited because of signal
-
-Parameters:
-
-* cmd (`Command`)
-* continuation (`Fn(i64) -> Task`) - Rhai function that will be called to continue processing
-
-Returns `Task`
-
 ## subprocess_new
 
 Prepare subprocess, setting up executable name.
@@ -684,16 +677,6 @@ Parameters:
 * program_name (`OsString`)
 
 Returns `Command`
-
-## subprocess_spawn
-
-Spawn the prepared subprocess. What happens next depends on used `child_` function.
-
-Parameters:
-
-* cmd (`Command`)
-
-Returns `Child`
 
 ## take_hangup_part
 

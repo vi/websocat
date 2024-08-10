@@ -106,14 +106,21 @@ impl<T> PutItBack<T> {
 
 pub trait ExtractHandleOrFail {
     /// Lock mutex, Unwrapping possible poison error, Take the thing from option contained inside, fail if is is none and convert the error to BoxAltResult.
-    fn lutbar<T>(&self, h: Handle<T>) -> Result<T, Box<EvalAltResult>>;
+    fn lutbar<T>(&self, mut h: Handle<T>) -> Result<T, Box<EvalAltResult>> {
+        self.lutbarm(&mut h)
+    }
     fn lutbar2<T>(&self, h: Handle<T>) -> Result<(T, PutItBack<T>), Box<EvalAltResult>> {
         let hh = h.clone();
         Ok((self.lutbar(h)?, PutItBack(hh)))
     }
+    fn lutbarm<T>(&self, h: &mut Handle<T>) -> Result<T, Box<EvalAltResult>>;
+    fn lutbar2m<T>(&self, h: &mut Handle<T>) -> Result<(T, PutItBack<T>), Box<EvalAltResult>> {
+        let hh = h.clone();
+        Ok((self.lutbar(h.clone())?, PutItBack(hh)))
+    }
 }
 impl ExtractHandleOrFail for NativeCallContext<'_> {
-    fn lutbar<T>(&self, h: Handle<T>) -> Result<T, Box<EvalAltResult>> {
+    fn lutbarm<T>(&self, h: &mut Handle<T>) -> Result<T, Box<EvalAltResult>> {
         match h.lut() {
             Some(x) => Ok(x),
             None => Err(self.err("Null handle")),

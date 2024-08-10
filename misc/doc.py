@@ -36,6 +36,10 @@ E_STRIP_HANDLE = re.compile(r"""
     ^ Handle \s* < \s* (.*) \s* > \s* $
     """, re.VERBOSE)
 
+E_METHOD_SELF = re.compile(r"""
+    ^ \& \s* mut \s* Handle \s* < \s* (.*) \s* > \s* $
+    """, re.VERBOSE)
+
 ############################################################################################
 
 ############################################################################################
@@ -459,7 +463,6 @@ def document_executor_function(f: ExecutorFunc) -> None:
     if f.primary_doc != "":
         print(f.primary_doc)
         print()
-    f.params = [x for x in f.params if x[0] != "ctx"]
     if len(f.params) > 0:
         print("Parameters:")
         print()
@@ -598,11 +601,22 @@ def process_outline(o: Outline) -> Tuple[PlannerContent, List[ExecutorFunc]]:
             if f.callbacks:
                 cbret = f.callbacks[0].rettyp
                 cbparams = f.callbacks[0].argtyps
+            params = [ (x.name, TypeAndDoc(x.typ, " ".join(x.doc))) for x in f.args  ]
+            params = [x for x in params if x[0] != "ctx"]
+            displayname = approved_functitons[f.name]
+
+            if params:
+                firstparam = params[0]
+                if mn := E_METHOD_SELF.search(firstparam[1].typ):
+                    x = mn.group(1)
+                    params.pop(0)
+                    displayname=x + "::" + displayname
+
             funcs.append(ExecutorFunc(
                 f.name,
-                approved_functitons[f.name],
+                displayname,
                 "\n".join(f.doc),
-                [ (x.name, TypeAndDoc(x.typ, " ".join(x.doc))) for x in f.args  ],
+                params,
                 TypeAndDoc(f.rettyp, " ".join(f.retdoc)),
                 cbparams,
                 cbret,

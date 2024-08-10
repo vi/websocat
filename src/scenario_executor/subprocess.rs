@@ -1,10 +1,11 @@
-use std::{
-    ffi::OsString, io::ErrorKind, pin::Pin, task::Poll
-};
+use std::{ffi::OsString, io::ErrorKind, pin::Pin, task::Poll};
 
 use crate::scenario_executor::utils::TaskHandleExt2;
 use rhai::{Engine, FnPtr, NativeCallContext};
-use tokio::{io::AsyncWrite, process::{Child, ChildStdin, Command}};
+use tokio::{
+    io::AsyncWrite,
+    process::{Child, ChildStdin, Command},
+};
 use tracing::{debug, warn};
 
 use crate::scenario_executor::{
@@ -25,8 +26,8 @@ fn subprocess_new_osstr(program_name: OsString) -> Handle<Command> {
 }
 
 //@ Add one command line argument to the array
-fn subprocess_arg(ctx: NativeCallContext, cmd: Handle<Command>, arg: String) -> RhResult<()> {
-    let (mut c, cmd) = ctx.lutbar2(cmd)?;
+fn subprocess_arg(ctx: NativeCallContext, cmd: &mut Handle<Command>, arg: String) -> RhResult<()> {
+    let (mut c, cmd) = ctx.lutbar2m(cmd)?;
     c.arg(arg);
     cmd.put(c);
     Ok(())
@@ -35,10 +36,10 @@ fn subprocess_arg(ctx: NativeCallContext, cmd: Handle<Command>, arg: String) -> 
 //@ Add one possibly non-UTF8 command line argument to the array
 fn subprocess_arg_osstr(
     ctx: NativeCallContext,
-    cmd: Handle<Command>,
+    cmd: &mut Handle<Command>,
     arg: OsString,
 ) -> RhResult<()> {
-    let (mut c, cmd) = ctx.lutbar2(cmd)?;
+    let (mut c, cmd) = ctx.lutbar2m(cmd)?;
     c.arg(arg);
     cmd.put(c);
     Ok(())
@@ -52,13 +53,13 @@ fn subprocess_arg_osstr(
 //@ * `2` meaning we can capture process's input or output.
 fn subprocess_configure_fds(
     ctx: NativeCallContext,
-    cmd: Handle<Command>,
+    cmd: &mut Handle<Command>,
     stdin: i64,
     stdout: i64,
     stderr: i64,
 ) -> RhResult<()> {
     use std::process::Stdio;
-    let (mut c, cmd) = ctx.lutbar2(cmd)?;
+    let (mut c, cmd) = ctx.lutbar2m(cmd)?;
     let gets = |x: i64| -> RhResult<Stdio> {
         Ok(match x {
             0 => Stdio::null(),
@@ -80,10 +81,10 @@ fn subprocess_configure_fds(
 //@ or `-2` meaning the process exited because of signal
 fn subprocess_execute_for_status(
     ctx: NativeCallContext,
-    cmd: Handle<Command>,
+    cmd: &mut Handle<Command>,
     continuation: FnPtr,
 ) -> RhResult<Handle<Task>> {
-    let mut c = ctx.lutbar(cmd)?;
+    let mut c = ctx.lutbarm(cmd)?;
     let the_scenario = ctx.get_scenario()?;
     Ok(async move {
         debug!("starting subprocess");
@@ -113,10 +114,10 @@ fn subprocess_execute_for_status(
 //@ Second and third arguments of the callback are stdout and stderr respectively.
 fn subprocess_execute_for_output(
     ctx: NativeCallContext,
-    cmd: Handle<Command>,
+    cmd: &mut Handle<Command>,
     continuation: FnPtr,
 ) -> RhResult<Handle<Task>> {
-    let mut c = ctx.lutbar(cmd)?;
+    let mut c = ctx.lutbarm(cmd)?;
     let the_scenario = ctx.get_scenario()?;
     Ok(async move {
         debug!("starting subprocess");
@@ -148,7 +149,7 @@ fn subprocess_execute_for_output(
     .wrap())
 }
 
-struct StdinWrapper (Option<ChildStdin>);
+struct StdinWrapper(Option<ChildStdin>);
 
 impl AsyncWrite for StdinWrapper {
     fn poll_write(
@@ -157,13 +158,16 @@ impl AsyncWrite for StdinWrapper {
         buf: &[u8],
     ) -> Poll<Result<usize, std::io::Error>> {
         if let Some(ref mut x) = self.get_mut().0 {
-            Pin::new(x).poll_write(cx,buf)
+            Pin::new(x).poll_write(cx, buf)
         } else {
             Poll::Ready(Err(ErrorKind::BrokenPipe.into()))
         }
     }
 
-    fn poll_flush(self: std::pin::Pin<&mut Self>, cx: &mut std::task::Context<'_>) -> Poll<Result<(), std::io::Error>> {
+    fn poll_flush(
+        self: std::pin::Pin<&mut Self>,
+        cx: &mut std::task::Context<'_>,
+    ) -> Poll<Result<(), std::io::Error>> {
         if let Some(ref mut x) = self.get_mut().0 {
             Pin::new(x).poll_flush(cx)
         } else {
@@ -171,7 +175,10 @@ impl AsyncWrite for StdinWrapper {
         }
     }
 
-    fn poll_shutdown(mut self: std::pin::Pin<&mut Self>, _cx: &mut std::task::Context<'_>) -> Poll<Result<(), std::io::Error>> {
+    fn poll_shutdown(
+        self: std::pin::Pin<&mut Self>,
+        _cx: &mut std::task::Context<'_>,
+    ) -> Poll<Result<(), std::io::Error>> {
         if let Some(x) = self.get_mut().0.take() {
             drop(x);
             Poll::Ready(Ok(()))
@@ -179,20 +186,19 @@ impl AsyncWrite for StdinWrapper {
             Poll::Ready(Err(ErrorKind::BrokenPipe.into()))
         }
     }
-    
+
     fn poll_write_vectored(
         self: Pin<&mut Self>,
         cx: &mut std::task::Context<'_>,
         bufs: &[std::io::IoSlice<'_>],
     ) -> Poll<Result<usize, std::io::Error>> {
-        
         if let Some(ref mut x) = self.get_mut().0 {
-            Pin::new(x).poll_write_vectored(cx,bufs)
+            Pin::new(x).poll_write_vectored(cx, bufs)
         } else {
             Poll::Ready(Err(ErrorKind::BrokenPipe.into()))
         }
     }
-    
+
     fn is_write_vectored(&self) -> bool {
         if let Some(ref x) = self.0 {
             x.is_write_vectored()
@@ -202,15 +208,14 @@ impl AsyncWrite for StdinWrapper {
     }
 }
 
-
 //@ Convert the child process handle to a Stream Socket of its stdin and stdout (but not stderr).
 //@ In case of non-piped (`2`) fds, the resulting socket would be incomplete.
 fn child_socket(
     ctx: NativeCallContext,
-    chld: Handle<Child>,
+    chld: &mut Handle<Child>,
 ) -> RhResult<Handle<StreamSocket>> {
-    let c = ctx.lutbar(chld)?;
-   
+    let c = ctx.lutbarm(chld)?;
+
     let s = StreamSocket {
         read: c.stdout.map(|x| StreamRead {
             reader: Box::pin(x),
@@ -223,7 +228,7 @@ fn child_socket(
     };
 
     debug!(s=?s, "subprocess socket");
-         
+
     Ok(Some(s).wrap())
 }
 
@@ -231,25 +236,22 @@ fn child_socket(
 //@ In case of non-piped (`2`) fds, the handle would be null
 fn child_take_stderr(
     ctx: NativeCallContext,
-    chld: Handle<Child>,
+    chld: &mut Handle<Child>,
 ) -> RhResult<Handle<StreamRead>> {
-    let (mut c, chld) = ctx.lutbar2(chld)?;
-   
+    let (mut c, chld) = ctx.lutbar2m(chld)?;
+
     let s = c.stderr.take().map(|x| StreamRead {
-            reader: Box::pin(x),
-            prefix: bytes::BytesMut::new(),
-        });
-         
+        reader: Box::pin(x),
+        prefix: bytes::BytesMut::new(),
+    });
+
     chld.put(c);
     Ok(s.wrap())
 }
 
 //@ Spawn the prepared subprocess. What happens next depends on used `child_` function.
-fn subprocess_spawn(
-    ctx: NativeCallContext,
-    cmd: Handle<Command>,
-) -> RhResult<Handle<Child>> {
-    let mut c = ctx.lutbar(cmd)?;
+fn subprocess_spawn(ctx: NativeCallContext, cmd: &mut Handle<Command>) -> RhResult<Handle<Child>> {
+    let mut c = ctx.lutbarm(cmd)?;
     match c.spawn() {
         Ok(x) => {
             debug!("spawned subprocess");
@@ -262,22 +264,15 @@ fn subprocess_spawn(
     }
 }
 
-
 pub fn register(engine: &mut Engine) {
     engine.register_fn("subprocess_new", subprocess_new);
     engine.register_fn("subprocess_new_osstr", subprocess_new_osstr);
-    engine.register_fn("subprocess_arg", subprocess_arg);
-    engine.register_fn("subprocess_arg_osstr", subprocess_arg_osstr);
-    engine.register_fn("subprocess_configure_fds", subprocess_configure_fds);
-    engine.register_fn(
-        "subprocess_execute_for_status",
-        subprocess_execute_for_status,
-    );
-    engine.register_fn(
-        "subprocess_execute_for_output",
-        subprocess_execute_for_output,
-    );
-    engine.register_fn("subprocess_spawn", subprocess_spawn);
-    engine.register_fn("child_socket", child_socket);
-    engine.register_fn("child_take_stderr", child_take_stderr);
+    engine.register_fn("arg", subprocess_arg);
+    engine.register_fn("arg_osstr", subprocess_arg_osstr);
+    engine.register_fn("configure_fds", subprocess_configure_fds);
+    engine.register_fn("execute_for_status", subprocess_execute_for_status);
+    engine.register_fn("execute_for_output", subprocess_execute_for_output);
+    engine.register_fn("execute", subprocess_spawn);
+    engine.register_fn("socket", child_socket);
+    engine.register_fn("take_stderr", child_take_stderr);
 }
