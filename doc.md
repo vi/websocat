@@ -196,6 +196,13 @@ This overlay cannot be directly specified as a prefix to a positional CLI argume
 
 Those functions are used in Websocat Rhai Scripts (Scenarios):
 
+## Child::kill
+
+Terminate a child process.
+`Child` instance cannot be used after this.
+
+Returns `Hangup`
+
 ## Child::socket
 
 Convert the child process handle to a Stream Socket of its stdin and stdout (but not stderr).
@@ -210,6 +217,13 @@ In case of non-piped (`2`) fds, the handle would be null
 
 Returns `StreamRead`
 
+## Child::wait
+
+Obtain a Hangup handle that resovles when child process terminates.
+`Child` instance cannot be used after this.
+
+Returns `Hangup`
+
 ## Command::arg
 
 Add one command line argument to the array
@@ -220,6 +234,26 @@ Parameters:
 
 Returns `()`
 
+## Command::arg0
+
+Override process's name / zeroeth command line argument on Unix.
+
+Parameters:
+
+* arg0 (`String`)
+
+Returns `()`
+
+## Command::arg0_osstr
+
+Override process's name / zeroeth command line argument on Unix.
+
+Parameters:
+
+* arg0 (`OsString`)
+
+Returns `()`
+
 ## Command::arg_osstr
 
 Add one possibly non-UTF8 command line argument to the array
@@ -227,6 +261,26 @@ Add one possibly non-UTF8 command line argument to the array
 Parameters:
 
 * arg (`OsString`)
+
+Returns `()`
+
+## Command::chdir
+
+Change current directory for the subprocess.
+
+Parameters:
+
+* dir (`String`)
+
+Returns `()`
+
+## Command::chdir_osstr
+
+Change current directory for the subprocess.
+
+Parameters:
+
+* dir (`OsString`)
 
 Returns `()`
 
@@ -244,6 +298,54 @@ Parameters:
 * stdin (`i64`)
 * stdout (`i64`)
 * stderr (`i64`)
+
+Returns `()`
+
+## Command::env
+
+Add or set environtment variable for the subprocess
+
+Parameters:
+
+* key (`String`)
+* value (`String`)
+
+Returns `()`
+
+## Command::env_clear
+
+Clear all environment variables for the subprocess.
+
+Returns `()`
+
+## Command::env_osstr
+
+Add or set environtment variable for the subprocess (possibly non-UTF8)
+
+Parameters:
+
+* key (`OsString`)
+* value (`OsString`)
+
+Returns `()`
+
+## Command::env_remove
+
+Add or set environtment variable for the subprocess.
+
+Parameters:
+
+* key (`String`)
+
+Returns `()`
+
+## Command::env_remove_osstr
+
+Add or set environtment variable for the subprocess.
+
+Parameters:
+
+* key (`OsString`)
 
 Returns `()`
 
@@ -277,6 +379,46 @@ Parameters:
 * continuation (`Fn(i64) -> Task`) - Rhai function that will be called to continue processing
 
 Returns `Task`
+
+## Command::gid
+
+Set subprocess's uid on Unix.
+
+Parameters:
+
+* gid (`i64`)
+
+Returns `()`
+
+## Command::raw_windows_arg
+
+Add literal, unescaped text to Window's command line
+
+Parameters:
+
+* arg (`OsString`)
+
+Returns `()`
+
+## Command::uid
+
+Set subprocess's uid on Unix.
+
+Parameters:
+
+* uid (`i64`)
+
+Returns `()`
+
+## Command::windows_creation_flags
+
+Set Window's process creation flags.
+
+Parameters:
+
+* flags (`i64`)
+
+Returns `()`
 
 ## b64str
 
@@ -521,6 +663,16 @@ Returns `OsString`
 ## osstr_base64_windows_utf16le
 
 On Windows, decode base64 buffer and convert it OsString.
+
+Parameters:
+
+* x (`String`)
+
+Returns `OsString`
+
+## osstr_str
+
+Convert a usual UTF-8 string to an OsString
 
 Parameters:
 

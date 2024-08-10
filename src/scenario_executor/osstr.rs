@@ -62,6 +62,11 @@ fn osstr_base64_windows_utf16le(ctx: NativeCallContext, x: String) -> RhResult<O
     }
 }
 
+//@ Convert a usual UTF-8 string to an OsString
+fn osstr_str(x: String) -> OsString {
+    x.into()
+}
+
 pub fn register(engine: &mut Engine) {
     engine.register_fn(
         "osstr_base64_unchecked_encoded_bytes",
@@ -69,4 +74,5 @@ pub fn register(engine: &mut Engine) {
     );
     engine.register_fn("osstr_base64_unix_bytes", osstr_base64_unix_bytes);
     engine.register_fn("osstr_base64_windows_utf16le", osstr_base64_windows_utf16le);
+    engine.register_fn("osstr_str", osstr_str);
 }
