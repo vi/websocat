@@ -30,6 +30,11 @@ pub enum Endpoint {
     UdpBind(SocketAddr),
     //@ Bind UDP socket and spawn a separate task for each client
     UdpServer(SocketAddr),
+    //@ Execute given program as subprocess and use its stdin/stdout as a socket.
+    //@ Specify command line arguments using `--exec-args` command line option.
+    Exec(String),
+    //@ Execute given command line and use its stdin/stdout as a socket.
+    Cmd(String),
 }
 
 #[derive(Debug)]

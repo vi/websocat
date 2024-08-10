@@ -1,4 +1,4 @@
-use std::net::SocketAddr;
+use std::{ffi::OsString, net::SocketAddr};
 
 use clap::Parser;
 
@@ -135,4 +135,11 @@ pub struct WebsocatArgs {
     /// Delay receiving more datagrams in udp-server: mode instead of dropping them in case of slow handlers
     #[arg(long)]
     pub udp_server_backpressure: bool,
+
+    /// Command line arguments for `exec:` endpoint.
+    /// 
+    /// This option is interpreted specially: it stops processing all other options
+    /// uses everything after it as a part of the command line
+    #[arg(long, num_args(..), allow_hyphen_values(true))]
+    pub exec_args: Vec<OsString>,
 }

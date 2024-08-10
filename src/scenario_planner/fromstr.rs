@@ -142,6 +142,14 @@ impl ParseStrChunkResult<'_> {
         } else if let Some(rest) = x.strip_prefix("udp-server:") {
             let a: SocketAddr = rest.parse()?;
             Ok(ParseStrChunkResult::Endpoint(Endpoint::UdpServer(a)))
+        } else if let Some(rest) = x.strip_prefix("exec:") {
+            Ok(ParseStrChunkResult::Endpoint(Endpoint::Exec(
+                rest.to_owned(),
+            )))
+        } else if let Some(rest) = x.strip_prefix_many(&["cmd:", "sh-c:"]) {
+            Ok(ParseStrChunkResult::Endpoint(Endpoint::Cmd(
+                rest.to_owned(),
+            )))
         } else {
             anyhow::bail!("Unknown specifier: {x}")
         }

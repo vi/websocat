@@ -5,6 +5,24 @@ This section describes options, flags and specifiers of Websocat CLI.
 
 ## Endpoints
 
+### Cmd
+
+Execute given command line and use its stdin/stdout as a socket.
+
+Prefixes:
+
+* `cmd:`
+* `sh-c:`
+
+### Exec
+
+Execute given program as subprocess and use its stdin/stdout as a socket.
+Specify command line arguments using `--exec-args` command line option.
+
+Prefixes:
+
+* `exec:`
+
 ### Stdio
 
 Console, terminal: read bytes from stdin, write bytes to stdout.

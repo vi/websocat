@@ -1,3 +1,5 @@
+use base64::Engine as _;
+
 use crate::{cli::WebsocatArgs, scenario_executor::utils::ToNeutralAddress};
 
 use super::{
@@ -133,8 +135,10 @@ impl Endpoint {
             Endpoint::UdpBind(a) => {
                 let varnam = vars.getnewvarname("udp");
 
-                let mut udp_bind_redirect_to_last_seen_address = opts.udp_bind_redirect_to_last_seen_address;
-                let mut udp_bind_connect_to_first_seen_address = opts.udp_bind_connect_to_first_seen_address;
+                let mut udp_bind_redirect_to_last_seen_address =
+                    opts.udp_bind_redirect_to_last_seen_address;
+                let mut udp_bind_connect_to_first_seen_address =
+                    opts.udp_bind_connect_to_first_seen_address;
 
                 if opts.udp_bind_restrict_to_one_address && opts.udp_bind_target_addr.is_none() {
                     anyhow::bail!("It is meaningless to --udp-bind-restrict-to-one-address without also specifying --udp-bind-target-addr")
@@ -208,13 +212,92 @@ impl Endpoint {
                     o.push_str(&format!("qlen: {x},"));
                 }
 
-                printer.print_line(&format!(
-                    "udp_server(#{{{o}}}, |{varnam}, {fromaddr}| {{",
-                ));
+                printer.print_line(&format!("udp_server(#{{{o}}}, |{varnam}, {fromaddr}| {{",));
                 printer.increase_indent();
                 Ok(varnam)
             }
+            Endpoint::Exec(s) => {
+                let var_cmd = vars.getnewvarname("cmd");
+                printer.print_line(&format!("let {var_cmd} = subprocess_new({});", StrLit(s)));
+
+                for arg in &opts.exec_args {
+                    if let Some(s) = arg.to_str() {
+                        printer.print_line(&format!("{var_cmd}.arg({});", StrLit(s)));
+                    } else {
+                        #[cfg(any(unix, target_os = "wasi"))]
+                        {
+                            #[cfg(unix)]
+                            use std::os::unix::ffi::OsStrExt;
+                            #[cfg(all(not(unix), target_os = "wasi"))]
+                            use std::os::wasi::ffi::OsStrExt;
+
+                            let x = base64::prelude::BASE64_STANDARD.encode(arg.as_bytes());
+                            printer.print_line(&format!(
+                                "{var_cmd}.arg_osstr(osstr_base64_unix_bytes(\"{}\"));",
+                                x
+                            ));
+                            continue;
+                        }
+                        #[cfg(windows)]
+                        {
+                            use std::os::windows::ffi::OsStrExt;
+
+                            let b: Vec<u16> = arg.encode_wide().collect();
+                            let bb: Vec<u8> =
+                                Vec::from_iter(b.into_iter().map(|x| u16::to_le_bytes(x)))
+                                    .into_flattened();
+                            let x = base64::prelude::BASE64_STANDARD.encode(bb);
+
+                            printer.print_line(&format!(
+                                "{var_cmd}.arg_osstr(osstr_base64_windows_utf16le(\"{}\"));",
+                                x
+                            ));
+                            continue;
+                        }
+                        #[allow(unreachable_code)]
+                        {
+                            let x = base64::prelude::BASE64_STANDARD.encode(arg.as_encoded_bytes());
+                            printer.print_line(&format!("{var_cmd}.arg_osstr(osstr_base64_unchecked_encoded_bytes(\"{}\"));", x));
+                            continue;
+                        }
+                    }
+                }
+
+                self.continue_printing_cmd_or_exec(printer, vars, var_cmd, opts)
+            }
+            Endpoint::Cmd(s) => {
+                let var_cmd = vars.getnewvarname("cmd");
+                if cfg!(windows) {
+                    printer.print_line(&format!("let {var_cmd} = subprocess_new(\"cmd\");"));
+                    printer.print_line(&format!("{var_cmd}.arg(\"/C\");",));
+                    printer.print_line(&format!(
+                        "{var_cmd}.raw_windows_arg(osstr_str({}));",
+                        StrLit(s)
+                    ));
+                } else {
+                    printer.print_line(&format!("let {var_cmd} = subprocess_new(\"sh\");"));
+                    printer.print_line(&format!("{var_cmd}.arg(\"-c\");",));
+                    printer.print_line(&format!("{var_cmd}.arg({});", StrLit(s)));
+                }
+
+                self.continue_printing_cmd_or_exec(printer, vars, var_cmd, opts)
+            }
         }
+    }
+    fn continue_printing_cmd_or_exec(
+        &self,
+        printer: &mut ScenarioPrinter,
+        vars: &mut IdentifierGenerator,
+        var_cmd: String,
+        opts: &WebsocatArgs,
+    ) -> anyhow::Result<String> {
+        let var_chld = vars.getnewvarname("chld");
+        let var_s = vars.getnewvarname("pstdio");
+
+        printer.print_line(&format!("{var_cmd}.configure_fds(2, 2, 1);"));
+        printer.print_line(&format!("let {var_chld} = {var_cmd}.execute();"));
+        printer.print_line(&format!("let {var_s} = {var_chld}.socket();"));
+        Ok(var_s)
     }
     fn end_print(&self, printer: &mut ScenarioPrinter) {
         match self {
@@ -249,6 +332,8 @@ impl Endpoint {
                 printer.decrease_indent();
                 printer.print_line("})");
             }
+            Endpoint::Exec(_) => {}
+            Endpoint::Cmd(_) => {}
         }
     }
 }

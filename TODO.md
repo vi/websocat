@@ -1,13 +1,14 @@
 # For alpha release
 
-* subprocesses
 * unidirectional mode
 * --protocol / --server-protocol
 * custom request/response headers
 * UNIX sockets
+* Document things written before the creation of the documentation generation script
 
 # Later
 
+* Lints for unused options
 * TLS server
 * outgoing pings
 * oneshot mode
