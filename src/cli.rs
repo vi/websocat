@@ -169,7 +169,11 @@ pub struct WebsocatArgs {
     #[arg(long)]
     pub exec_arg0: Option<OsString>,
 
-    /// Make dummy notes also immediately signal hangup.
+    /// Make dummy nodes also immediately signal hangup.
     #[arg(long)]
     pub dummy_hangup: bool,
+    
+    /// Exit the whole process if hangup is detected.
+    #[arg(long)]
+    pub exit_on_hangup: bool,
 }

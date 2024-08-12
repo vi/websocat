@@ -39,6 +39,15 @@ impl WebsocatInvocation {
             right = ovl.begin_print(&mut printer, &right, vars, &self.opts)?;
         }
 
+        if self.opts.exit_on_hangup {
+            printer.print_line(&format!(
+                "try {{ handle_hangup(take_hangup_part({left}), || {{  sleep_ms(50); exit_process(0); }} ); }} catch {{}}")
+            );
+            printer.print_line(&format!(
+                "try {{ handle_hangup(take_hangup_part({right}), || {{  sleep_ms(50); exit_process(0); }} ); }} catch {{}}")
+            );
+        }
+
         match self.get_copying_type() {
             CopyingType::ByteStream => {
                 printer.print_line(&format!("exchange_bytes(#{{}}, {left}, {right})"));

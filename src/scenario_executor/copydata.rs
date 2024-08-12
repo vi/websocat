@@ -145,17 +145,17 @@ fn exchange_bytes(
             let c2o: OptionFuture<_> = c2.into();
 
             tokio::select! { biased;
-                Some(()) = c1o, if c1p => {
-                    debug!(parent: &span, "hangup1");
-                }
-                Some(()) = c2o, if c2p => {
-                    debug!(parent: &span, "hangup2");
-                }
                 ret = copier  => {
                     match ret {
                         Ok((n1,n2)) => debug!(parent: &span, nbytes1=n1, nbytes2=n2, "finished"),
                         Err(e) =>  debug!(parent: &span, error=%e, "error"),
                     }
+                }
+                Some(()) = c1o, if c1p => {
+                    debug!(parent: &span, "hangup1");
+                }
+                Some(()) = c2o, if c2p => {
+                    debug!(parent: &span, "hangup2");
                 }
             }
         } else {
@@ -318,14 +318,14 @@ fn exchange_packets(
             let c2o: OptionFuture<_> = c2.into();
 
             tokio::select! { biased;
+                ((),()) = both_copiers => {
+                    debug!("all directions finished");
+                }
                 Some(()) = c1o, if c1p => {
                     debug!(parent: &span, "hangup1");
                 }
                 Some(()) = c2o, if c2p => {
                     debug!(parent: &span, "hangup2");
-                }
-                ((),()) = both_copiers => {
-                    debug!("all directions finished");
                 }
             }
         } else {

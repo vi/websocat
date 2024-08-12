@@ -1,22 +1,18 @@
-use std::{pin::Pin, task::Poll, time::Duration};
+use std::time::Duration;
 
-use pin_project::pin_project;
-use rhai::{Dynamic, Engine, NativeCallContext};
-use tokio::io::ReadBuf;
+use rhai::{Dynamic, Engine, FnPtr, NativeCallContext};
 use tracing::{debug, debug_span, error, field, Instrument};
 
 use crate::scenario_executor::{
     debugfluff::PtrDbg,
-    types::{
-        BufferFlag, BufferFlags, DatagramRead, DatagramWrite, Handle, PacketRead, PacketWrite,
-        StreamRead, StreamSocket, StreamWrite, Task,
-    },
-    utils::{run_task, ExtractHandleOrFail, HandleExt, RhResult, TaskHandleExt},
+    types::{DatagramRead, DatagramWrite, Handle, StreamRead, StreamSocket, StreamWrite, Task},
+    utils::{run_task, HandleExt, RhResult, TaskHandleExt},
 };
 
 use super::{
-    types::{DatagramSocket, Hangup, PacketReadResult},
-    utils::{HandleExt2, SimpleErr},
+    scenario::{callback_and_continue, ScenarioAccess},
+    types::{DatagramSocket, Hangup},
+    utils::{ExtractHandleOrFail, HandleExt2, HangupHandleExt, SimpleErr, TaskHandleExt2},
 };
 
 fn take_read_part(ctx: NativeCallContext, h: Handle<StreamSocket>) -> RhResult<Handle<StreamRead>> {
@@ -204,144 +200,6 @@ fn spawn_task(task: Handle<Task>) {
     );
 }
 
-#[pin_project]
-struct ReadStreamChunks(#[pin] StreamRead);
-
-impl PacketRead for ReadStreamChunks {
-    fn poll_read(
-        self: Pin<&mut Self>,
-        cx: &mut std::task::Context<'_>,
-        buf: &mut [u8],
-    ) -> Poll<std::io::Result<PacketReadResult>> {
-        let sr: Pin<&mut StreamRead> = self.project().0;
-
-        let mut rb = ReadBuf::new(buf);
-
-        match tokio::io::AsyncRead::poll_read(sr, cx, &mut rb) {
-            Poll::Ready(Ok(())) => {
-                let new_len = rb.filled().len();
-                let flags = if new_len > 0 {
-                    BufferFlags::default()
-                } else {
-                    BufferFlag::Eof.into()
-                };
-                Poll::Ready(Ok(PacketReadResult {
-                    flags,
-                    buffer_subset: 0..new_len,
-                }))
-            }
-            Poll::Ready(Err(e)) => Poll::Ready(Err(e)),
-            Poll::Pending => Poll::Pending,
-        }
-    }
-}
-
-fn read_stream_chunks(
-    ctx: NativeCallContext,
-    x: Handle<StreamRead>,
-) -> RhResult<Handle<DatagramRead>> {
-    let x = ctx.lutbar(x)?;
-    debug!(inner=?x, "read_stream_chunks");
-    let x = DatagramRead {
-        src: Box::pin(ReadStreamChunks(x)),
-    };
-    debug!(wrapped=?x, "read_stream_chunks");
-    Ok(x.wrap())
-}
-
-#[pin_project]
-struct WriteStreamChunks {
-    w: StreamWrite,
-    debt: usize,
-}
-
-impl PacketWrite for WriteStreamChunks {
-    fn poll_write(
-        self: Pin<&mut Self>,
-        cx: &mut std::task::Context<'_>,
-        buf: &mut [u8],
-        flags: BufferFlags,
-    ) -> Poll<std::io::Result<()>> {
-        let p = self.project();
-        let sw: &mut StreamWrite = p.w;
-
-        loop {
-            assert!(buf.len() >= *p.debt);
-            let buf_chunk = &buf[*p.debt..];
-            if buf_chunk.is_empty() {
-                if !flags.contains(BufferFlag::NonFinalChunk) {
-                    match tokio::io::AsyncWrite::poll_flush(sw.writer.as_mut(), cx) {
-                        Poll::Ready(Ok(())) => (),
-                        Poll::Ready(Err(e)) => return Poll::Ready(Err(e)),
-                        Poll::Pending => return Poll::Pending,
-                    }
-                }
-                if flags.contains(BufferFlag::Eof) {
-                    match tokio::io::AsyncWrite::poll_shutdown(sw.writer.as_mut(), cx) {
-                        Poll::Ready(Ok(())) => (),
-                        Poll::Ready(Err(e)) => return Poll::Ready(Err(e)),
-                        Poll::Pending => return Poll::Pending,
-                    }
-                }
-                *p.debt = 0;
-                break;
-            }
-            match tokio::io::AsyncWrite::poll_write(sw.writer.as_mut(), cx, buf_chunk) {
-                Poll::Ready(Ok(n)) => {
-                    *p.debt += n;
-                }
-                Poll::Ready(Err(e)) => return Poll::Ready(Err(e)),
-                Poll::Pending => return Poll::Pending,
-            }
-        }
-        return Poll::Ready(Ok(()));
-    }
-}
-
-fn write_stream_chunks(
-    ctx: NativeCallContext,
-    x: Handle<StreamWrite>,
-) -> RhResult<Handle<DatagramWrite>> {
-    let x = ctx.lutbar(x)?;
-    debug!(inner=?x, "write_stream_chunks");
-    let x = DatagramWrite {
-        snk: Box::pin(WriteStreamChunks { w: x, debt: 0 }),
-    };
-    debug!(wrapped=?x, "write_stream_chunks");
-    Ok(x.wrap())
-}
-
-fn stream_chunks(
-    ctx: NativeCallContext,
-    x: Handle<StreamSocket>,
-) -> RhResult<Handle<DatagramSocket>> {
-    let x = ctx.lutbar(x)?;
-    debug!(inner=?x, "stream_chunks");
-
-    if let StreamSocket {
-        read: Some(r),
-        write: Some(w),
-        close,
-    } = x
-    {
-        let write = DatagramWrite {
-            snk: Box::pin(WriteStreamChunks { w: w, debt: 0 }),
-        };
-        let read = DatagramRead {
-            src: Box::pin(ReadStreamChunks(r)),
-        };
-        let x = DatagramSocket {
-            read: Some(read),
-            write: Some(write),
-            close,
-        };
-        debug!(wrapped=?x, "stream_chunks");
-        Ok(x.wrap())
-    } else {
-        Err(ctx.err(""))
-    }
-}
-
 //@ Create null Hangup handle
 fn empty_close_handle() -> Handle<Hangup> {
     None.wrap()
@@ -357,6 +215,73 @@ fn pre_triggered_hangup_handle() -> Handle<Hangup> {
 fn timeout_ms_hangup_handle(ms: i64) -> Handle<Hangup> {
     use super::utils::HangupHandleExt;
     async move { tokio::time::sleep(Duration::from_millis(ms as u64)).await }.wrap()
+}
+
+//@ Exit Websocat process
+fn exit_process(code: i64) {
+    std::process::exit(code as i32)
+}
+
+//@ Spawn a task that calls `continuation` when specified socket hangup handle fires
+fn handle_hangup(
+    ctx: NativeCallContext,
+    hangup: Handle<Hangup>,
+    continuation: FnPtr,
+) -> RhResult<()> {
+    let the_scenario = ctx.get_scenario()?;
+    let hh = ctx.lutbar(hangup)?;
+    tokio::spawn(async move {
+        hh.await;
+        debug!("handle_hangup");
+        callback_and_continue::<()>(the_scenario, continuation, ()).await;
+    });
+    Ok(())
+}
+
+//@ Create hangup handle that gets triggered when specified task finishes.
+fn task2hangup(
+    ctx: NativeCallContext,
+    task: Handle<Task>,
+    //@ 0 means unconditionally, 1 means only when task has failed, 2 means only when task has succeeded.
+    mode: i64,
+) -> RhResult<Handle<Hangup>> {
+    let x = ctx.lutbar(task)?;
+    if mode < 0 || mode > 2 {
+        return Err(ctx.err("Invalid mode"));
+    }
+    let y = async move {
+        let do_hangup = match (x.await, mode) {
+            (Ok(()), 0 | 2) => {
+                debug!("task compelted, triggering the hangup handle");
+                true
+            }
+            (Err(e), 0 | 1) => {
+                debug!("task errored ({e}), triggering the hangup handle");
+                true
+            }
+            (Ok(()), _) => false,
+            (Err(e), _) => {
+                debug!("task errored ({e})");
+                false
+            }
+        };
+        if !do_hangup {
+            debug!("Locking this hangup handle infinitely");
+            futures::future::pending().await
+        }
+    }
+    .wrap();
+    Ok(y)
+}
+//@ Convert a hangup token into a task.
+fn hangup2task(ctx: NativeCallContext, hangup: Handle<Hangup>) -> RhResult<Handle<Task>> {
+    let x = ctx.lutbar(hangup)?;
+    let y = async move {
+        x.await;
+        Ok(())
+    }
+    .wrap();
+    Ok(y)
 }
 
 pub fn register(engine: &mut Engine) {
@@ -377,11 +302,14 @@ pub fn register(engine: &mut Engine) {
     engine.register_fn("sequential", sequential);
     engine.register_fn("parallel", parallel);
     engine.register_fn("spawn_task", spawn_task);
-    engine.register_fn("read_stream_chunks", read_stream_chunks);
-    engine.register_fn("write_stream_chunks", write_stream_chunks);
-    engine.register_fn("stream_chunks", stream_chunks);
 
     engine.register_fn("empty_hangup_handle", empty_close_handle);
     engine.register_fn("pre_triggered_hangup_handle", pre_triggered_hangup_handle);
     engine.register_fn("timeout_ms_hangup_handle", timeout_ms_hangup_handle);
+
+    engine.register_fn("exit_process", exit_process);
+    engine.register_fn("handle_hangup", handle_hangup);
+
+    engine.register_fn("task2hangup", task2hangup);
+    engine.register_fn("hangup2task", hangup2task);
 }

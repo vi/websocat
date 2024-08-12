@@ -21,7 +21,7 @@ lru = "0.12.3"
 native-tls = { version = "0.2.12", features = [] }
 pin-project = "1.1.5"
 rand = "0.8.5"
-rhai = { version = "1.16.2", features = ["serde", "internals", "sync", "no_custom_syntax", "no_float", "no_time", "no_module", "no_optimize", "unchecked"] }
+rhai = { version = "1.16.2", features = ["serde", "internals", "sync", "no_custom_syntax", "no_float", "no_time", "no_module"] }
 serde = { version = "1.0.188", features = ["derive"] }
 sha1 = "0.10.6"
 tinyvec = "1.6.0"
