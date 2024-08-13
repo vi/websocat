@@ -1,6 +1,5 @@
 # For alpha release
 
-* unidirectional mode
 * --protocol / --server-protocol
 * custom request/response headers
 * UNIX sockets

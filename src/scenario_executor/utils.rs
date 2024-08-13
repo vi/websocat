@@ -5,10 +5,15 @@ use tracing::{error, trace};
 
 use crate::scenario_executor::types::{DatagramRead, DatagramWrite, Handle, StreamSocket, Task};
 use std::{
-    net::SocketAddr, sync::{Arc, Mutex}, task::Poll
+    net::SocketAddr,
+    pin::Pin,
+    sync::{Arc, Mutex},
+    task::Poll,
 };
 
-use super::types::{BufferFlag, BufferFlags, DatagramSocket, Hangup, StreamRead, StreamWrite};
+use super::types::{
+    BufferFlag, BufferFlags, DatagramSocket, Hangup, PacketWrite, StreamRead, StreamWrite,
+};
 
 pub trait TaskHandleExt {
     fn wrap_noerr(self) -> Handle<Task>;
@@ -173,10 +178,10 @@ impl std::fmt::Display for DisplayBufferFlags {
         for x in self.0 {
             match x {
                 BufferFlag::NonFinalChunk => f.write_str("C")?,
-                BufferFlag::Text  => f.write_str("T")?,
-                BufferFlag::Eof  => f.write_str("E")?,
-                BufferFlag::Ping  => f.write_str("P")?,
-                BufferFlag::Pong  => f.write_str("O")?,
+                BufferFlag::Text => f.write_str("T")?,
+                BufferFlag::Eof => f.write_str("E")?,
+                BufferFlag::Ping => f.write_str("P")?,
+                BufferFlag::Pong => f.write_str("O")?,
             }
         }
         Ok(())
@@ -191,8 +196,12 @@ pub trait ToNeutralAddress {
 impl ToNeutralAddress for SocketAddr {
     fn to_neutral_address(&self) -> Self {
         match self {
-            SocketAddr::V4(_) => SocketAddr::new(std::net::IpAddr::V4(std::net::Ipv4Addr::UNSPECIFIED), 0),
-            SocketAddr::V6(_) => SocketAddr::new(std::net::IpAddr::V6(std::net::Ipv6Addr::UNSPECIFIED), 0),
+            SocketAddr::V4(_) => {
+                SocketAddr::new(std::net::IpAddr::V4(std::net::Ipv4Addr::UNSPECIFIED), 0)
+            }
+            SocketAddr::V6(_) => {
+                SocketAddr::new(std::net::IpAddr::V6(std::net::Ipv6Addr::UNSPECIFIED), 0)
+            }
         }
     }
 }
@@ -203,6 +212,21 @@ pub trait IsControlFrame {
 
 impl IsControlFrame for BufferFlags {
     fn is_control(&self) -> bool {
-        self.contains(BufferFlag::Eof) || self.contains(BufferFlag::Ping) || self.contains(BufferFlag::Pong)
+        self.contains(BufferFlag::Eof)
+            || self.contains(BufferFlag::Ping)
+            || self.contains(BufferFlag::Pong)
+    }
+}
+
+pub trait PacketWriteExt {
+    fn send_eof(self) -> impl std::future::Future<Output = std::io::Result<()>> + Send;
+}
+
+impl<T: PacketWrite + Send + ?Sized> PacketWriteExt for Pin<&mut T> {
+    fn send_eof(mut self) -> impl std::future::Future<Output = std::io::Result<()>> + Send {
+        std::future::poll_fn(move |cx| {
+            let mut b = [];
+            PacketWrite::poll_write(self.as_mut(), cx, &mut b, BufferFlag::Eof.into())
+        })
     }
 }

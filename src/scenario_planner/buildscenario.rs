@@ -48,29 +48,29 @@ impl WebsocatInvocation {
             );
         }
 
+        let mut opts = String::with_capacity(64);
+        if self.opts.unidirectional {
+            opts.push_str("unidirectional: true,");
+        }
+        if self.opts.unidirectional_reverse {
+            opts.push_str("unidirectional_reverse: true,");
+        }
+        if self.opts.exit_on_eof {
+            opts.push_str("exit_on_eof: true,");
+        }
+        if self.opts.unidirectional_late_drop {
+            opts.push_str("unidirectional_late_drop: true,");
+        }
+        if let Some(ref bs) = self.opts.buffer_size {
+            opts.push_str(&format!("buffer_size_forward: {bs},"));
+            opts.push_str(&format!("buffer_size_reverse: {bs},"));
+        }
         match self.get_copying_type() {
             CopyingType::ByteStream => {
-                let mut opts = String::with_capacity(64);
-                if self.opts.unidirectional {
-                    opts.push_str("unidirectional: true,");
-                }
-                if self.opts.unidirectional_reverse {
-                    opts.push_str("unidirectional_reverse: true,");
-                }
-                if self.opts.exit_on_eof {
-                    opts.push_str("exit_on_eof: true,");
-                }
-                if self.opts.unidirectional_late_drop {
-                    opts.push_str("unidirectional_late_drop: true,");
-                }
-                if let Some(ref bs) = self.opts.buffer_size {
-                    opts.push_str(&format!("buffer_size_forward: {bs},"));
-                    opts.push_str(&format!("buffer_size_reverse: {bs},"));
-                }
                 printer.print_line(&format!("exchange_bytes(#{{{opts}}}, {left}, {right})"));
             }
             CopyingType::Datarams => {
-                printer.print_line(&format!("exchange_packets(#{{}}, {left}, {right})"));
+                printer.print_line(&format!("exchange_packets(#{{{opts}}}, {left}, {right})"));
             }
         }
 
@@ -468,8 +468,27 @@ impl Overlay {
             }
             Overlay::WsFramer { client_mode } => {
                 let ws = vars.getnewvarname("ws");
+
+                
+                let mut oo = String::with_capacity(0);
+                if opts.no_close {
+                    oo.push_str("no_close_frame: true,")
+                }
+                if opts.ws_no_flush {
+                    oo.push_str("no_flush_after_each_message: true,")
+                }
+                if opts.ws_ignore_invalid_masks {
+                    oo.push_str("ignore_masks: true,")
+                }
+                if opts.ws_no_auto_buffer {
+                    oo.push_str("no_auto_buffer_wrap: true,")
+                }
+                if opts.ws_shutdown_socket_on_eof {
+                    oo.push_str("shutdown_socket_on_eof: true,")
+                }
+
                 printer.print_line(&format!(
-                    "let {ws} = ws_wrap(#{{client: {client_mode}}}, {inner_var});"
+                    "let {ws} = ws_wrap(#{{{oo}client: {client_mode}}}, {inner_var});"
                 ));
 
                 Ok(ws)

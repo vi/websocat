@@ -197,4 +197,24 @@ pub struct WebsocatArgs {
     /// Note that some overlays and endpoints may have separate buffers with sepaparately adjustable sizes.
     #[arg(long,short='B')]
     pub buffer_size: Option<usize>,
+
+    /// Do not send WebSocket close message when there is no more data to send there.
+    #[arg(long, short='n')]
+    pub no_close: bool,
+
+    /// Do not flush after each WebSocket frame.
+    #[arg(long)]
+    pub ws_no_flush: bool,
+
+    /// Shutdown write direction of the underlying socket backing a WebSocket on EOF.
+    #[arg(long)]
+    pub ws_shutdown_socket_on_eof: bool,
+
+    /// Do not fail WebSocket connections if maksed frame arrives instead of unmasked or vice versa.
+    #[arg(long)]
+    pub ws_ignore_invalid_masks: bool,
+
+    /// Do not automatically insert buffering layer after WebSocket if underlying connections does not support `writev`.
+    #[arg(long)]
+    pub ws_no_auto_buffer: bool,
 }

@@ -4,7 +4,7 @@ use std::{
     task::{Context, Poll},
 };
 
-use futures::future::OptionFuture;
+use futures::{future::OptionFuture, FutureExt};
 use rhai::{Dynamic, Engine, NativeCallContext};
 use tokio::io::AsyncWriteExt;
 use tracing::{debug, debug_span, error, field, warn, Instrument, Span};
@@ -14,7 +14,7 @@ use crate::scenario_executor::{
         BufferFlag, BufferFlags, DatagramRead, DatagramWrite, Handle, StreamRead, StreamSocket,
         StreamWrite, Task,
     },
-    utils::{ExtractHandleOrFail, HandleExt2, TaskHandleExt},
+    utils::{ExtractHandleOrFail, HandleExt2, PacketWriteExt, TaskHandleExt},
 };
 
 use super::{types::DatagramSocket, utils::RhResult};
@@ -73,6 +73,42 @@ fn copy_bytes(
     }
     .wrap_noerr()
 }
+
+struct ForwardingDirection<R, W> {
+    r: R,
+    w: W,
+    bufsize: usize,
+}
+struct ForwardingChoiceOutcome<R, W> {
+    d: Option<ForwardingDirection<R, W>>,
+    unneeded_r: Option<R>,
+    unneeded_w: Option<W>,
+}
+impl<R, W> ForwardingChoiceOutcome<R, W> {
+    fn decide(r: Option<R>, w: Option<W>, enabled: bool, bufsize: usize) -> Self {
+        match (enabled, r, w) {
+            (true, Some(r), Some(w)) => Self {
+                d: Some(ForwardingDirection { r, w, bufsize }),
+                unneeded_r: None,
+                unneeded_w: None,
+            },
+            (true, r, w) => {
+                warn!("Incomplete socket specified");
+                Self {
+                    d: None,
+                    unneeded_r: r,
+                    unneeded_w: w,
+                }
+            }
+            (false, r, w) => Self {
+                d: None,
+                unneeded_r: r,
+                unneeded_w: w,
+            },
+        }
+    }
+}
+
 fn exchange_bytes(
     ctx: NativeCallContext,
     opts: Dynamic,
@@ -114,46 +150,6 @@ fn exchange_bytes(
         span.record("s2", tracing::field::debug(&s2));
 
         debug!(parent: &span, "node started");
-
-        struct ForwardingDirection {
-            r: StreamRead,
-            w: StreamWrite,
-            bufsize: usize,
-        }
-        struct ForwardingChoiceOutcome {
-            d: Option<ForwardingDirection>,
-            unneeded_r: Option<StreamRead>,
-            unneeded_w: Option<StreamWrite>,
-        }
-        impl ForwardingChoiceOutcome {
-            fn decide(
-                r: Option<StreamRead>,
-                w: Option<StreamWrite>,
-                enabled: bool,
-                bufsize: usize,
-            ) -> Self {
-                match (enabled, r, w) {
-                    (true, Some(r), Some(w)) => Self {
-                        d: Some(ForwardingDirection { r, w, bufsize }),
-                        unneeded_r: None,
-                        unneeded_w: None,
-                    },
-                    (true, r, w) => {
-                        warn!("Incomplete socket specified");
-                        Self {
-                            d: None,
-                            unneeded_r: r,
-                            unneeded_w: w,
-                        }
-                    }
-                    (false, r, w) => Self {
-                        d: None,
-                        unneeded_r: r,
-                        unneeded_w: w,
-                    },
-                }
-            }
-        }
 
         let c1 = s1.close;
         let c2 = s2.close;
@@ -213,7 +209,7 @@ fn exchange_bytes(
 
         match (dir1.d, dir2.d) {
             (Some(d1), Some(d2)) => {
-                if ! opts.exit_on_eof {
+                if !opts.exit_on_eof {
                     s1 = tokio::io::join(d1.r, d2.w.writer);
                     s2 = tokio::io::join(d2.r, d1.w.writer);
                     copier_duplex = Some(
@@ -230,19 +226,18 @@ fn exchange_bytes(
                     w2 = d1.w.writer;
                     w1 = d2.w.writer;
                     copier1 = Some(tokio::io::copy_buf(&mut rb1, &mut w2)).into();
-                    copier1_present=true;
+                    copier1_present = true;
                     copier2 = Some(tokio::io::copy_buf(&mut rb2, &mut w1)).into();
-                    copier2_present=true;
+                    copier2_present = true;
                 }
             }
-            (None, Some(d)) |
-            (Some(d), None) => {
+            (None, Some(d)) | (Some(d), None) => {
                 rb1 = tokio::io::BufReader::with_capacity(d.bufsize, d.r);
                 w2 = d.w.writer;
                 copier1 = Some(tokio::io::copy_buf(&mut rb1, &mut w2)).into();
-                copier1_present=true;
+                copier1_present = true;
             }
-            (None, None) => skip_whole=true,
+            (None, None) => skip_whole = true,
         }
 
         if !skip_whole {
@@ -299,6 +294,7 @@ struct CopyPackets {
     phase: Phase,
     flags: BufferFlags,
     b: Box<[u8]>,
+    counter: u64,
 }
 
 impl CopyPackets {
@@ -316,14 +312,15 @@ impl CopyPackets {
             phase,
             flags,
             b,
+            counter: 0,
         }
     }
 }
 
 impl std::future::Future for CopyPackets {
-    type Output = ();
+    type Output = u64;
 
-    fn poll(self: std::pin::Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<()> {
+    fn poll(self: std::pin::Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<u64> {
         let this = self.get_mut();
 
         if this.first_poll {
@@ -345,7 +342,7 @@ impl std::future::Future for CopyPackets {
                         }
                         Poll::Ready(Err(e)) => {
                             error!(parent: &this.span, "error reading from stream: {e}");
-                            return Poll::Ready(());
+                            return Poll::Ready(this.counter);
                         }
                         Poll::Pending => return Poll::Pending,
                     }
@@ -360,13 +357,14 @@ impl std::future::Future for CopyPackets {
                         Poll::Ready(Ok(())) => {
                             if this.flags.contains(BufferFlag::Eof) {
                                 debug!(parent: &this.span, "finished");
-                                return Poll::Ready(());
+                                return Poll::Ready(this.counter);
                             }
                             this.phase = Phase::ReadFromStream;
+                            this.counter += 1;
                         }
                         Poll::Ready(Err(e)) => {
                             error!(parent: &this.span, "error writing to sink: {e}");
-                            return Poll::Ready(());
+                            return Poll::Ready(this.counter);
                         }
                         Poll::Pending => return Poll::Pending,
                     }
@@ -386,7 +384,9 @@ fn copy_packets(from: Handle<DatagramRead>, to: Handle<DatagramWrite>) -> Handle
     }
 
     if let (Some(r), Some(w)) = (f, t) {
-        CopyPackets::new(r, w, span, 65536).wrap_noerr()
+        CopyPackets::new(r, w, span, 65536)
+            .map(|npkts| debug!(npkts, "finished copying packets"))
+            .wrap_noerr()
     } else {
         warn!(parent: &span, "Nothing to copy");
         Arc::new(Mutex::new(None))
@@ -394,6 +394,7 @@ fn copy_packets(from: Handle<DatagramRead>, to: Handle<DatagramWrite>) -> Handle
 }
 
 fn exchange_packets(
+    ctx: NativeCallContext,
     opts: Dynamic,
     s1: Handle<DatagramSocket>,
     s2: Handle<DatagramSocket>,
@@ -401,20 +402,145 @@ fn exchange_packets(
     let span = debug_span!("exchange_packets",);
 
     #[derive(serde::Deserialize)]
-    struct ExchangeBytesOpts {}
-    let _opts: ExchangeBytesOpts = rhai::serde::from_dynamic(&opts)?;
+    struct ExchangePacketsOpts {
+        //@ Transfer data only from s1 to s2
+        #[serde(default)]
+        pub unidirectional: bool,
+
+        //@ Transfer data only from s2 to s1
+        #[serde(default)]
+        pub unidirectional_reverse: bool,
+
+        //@ abort one transfer direction when the other reached EOF
+        #[serde(default)]
+        pub exit_on_eof: bool,
+
+        //@ keep inactive transfer direction handles open
+        #[serde(default)]
+        pub unidirectional_late_drop: bool,
+
+        //@ allocate this amount of buffers for transfer from s1 to s2
+        pub buffer_size_forward: Option<usize>,
+
+        //@ allocate this amount of buffers for transfer from s2 to s1
+        pub buffer_size_reverse: Option<usize>,
+    }
+    let s1 = ctx.lutbar(s1)?;
+    let s2 = ctx.lutbar(s2)?;
+    let opts: ExchangePacketsOpts = rhai::serde::from_dynamic(&opts)?;
     debug!(parent: &span, "node created");
     Ok(async move {
-        let (s1, s2) = (s1.lut(), s2.lut());
-
-        if let (Some(s1), Some(s2)) = (s1.as_ref(), s2.as_ref()) {
-            span.record("s1", tracing::field::debug(s1));
-            span.record("s2", tracing::field::debug(s2));
-            debug!(?s1, ?s2, "input sockets");
-        }
+        span.record("s1", tracing::field::debug(&s1));
+        span.record("s2", tracing::field::debug(&s2));
 
         debug!(parent: &span, "node started");
 
+        let c1 = s1.close;
+        let c2 = s2.close;
+
+        let bufsize_forward = opts.buffer_size_forward.unwrap_or(32768);
+        let bufsize_reverse = opts.buffer_size_reverse.unwrap_or(32768);
+        let dir1 = ForwardingChoiceOutcome::decide(
+            s1.read,
+            s2.write,
+            !opts.unidirectional_reverse,
+            bufsize_forward,
+        );
+        let dir2 = ForwardingChoiceOutcome::decide(
+            s2.read,
+            s1.write,
+            !opts.unidirectional,
+            bufsize_reverse,
+        );
+
+        let late_writers_shutdown = if !opts.unidirectional_late_drop {
+            if let Some(x) = dir1.unneeded_r {
+                drop(x)
+            }
+            if let Some(x) = dir2.unneeded_r {
+                drop(x)
+            }
+            if let Some(mut x) = dir1.unneeded_w {
+                let _ = x.snk.as_mut().send_eof().await;
+                drop(x)
+            }
+            if let Some(mut x) = dir2.unneeded_w {
+                let _ = x.snk.as_mut().send_eof().await;
+                drop(x)
+            }
+            (None, None)
+        } else {
+            (dir1.unneeded_w, dir2.unneeded_w)
+        };
+
+        let copier1_;
+        let copier2_;
+        let mut copier_duplex: OptionFuture<_> = None.into();
+        let mut copier_duplex_present = false;
+        let mut copier1: OptionFuture<_> = None.into();
+        let mut copier1_present = false;
+        let mut copier2: OptionFuture<_> = None.into();
+        let mut copier2_present = false;
+        let hangup1_present = c1.is_some();
+        let hangup1: OptionFuture<_> = c1.into();
+        let hangup2_present = c2.is_some();
+        let hangup2: OptionFuture<_> = c2.into();
+        let mut skip_whole = false;
+
+        match (dir1.d, dir2.d) {
+            (Some(d1), Some(d2)) => {
+                copier1_ = CopyPackets::new(d1.r, d1.w, span.clone(), d1.bufsize);
+                copier2_ = CopyPackets::new(d2.r, d2.w, span.clone(), d2.bufsize);
+                if !opts.exit_on_eof {
+                    let both_copiers = futures::future::join(copier1_, copier2_);
+
+                    copier_duplex = Some(both_copiers).into();
+                    copier_duplex_present = true;
+                } else {
+                    copier1 = Some(copier1_).into();
+                    copier1_present = true;
+                    copier2 = Some(copier2_).into();
+                    copier2_present = true;
+                }
+            }
+            (None, Some(d)) | (Some(d), None) => {
+                copier1_ = CopyPackets::new(d.r, d.w, span.clone(), d.bufsize);
+                copier1 = Some(copier1_).into();
+                copier1_present = true;
+            }
+            (None, None) => skip_whole = true,
+        }
+
+        if !skip_whole {
+            tokio::select! { biased;
+                Some((n1, n2)) = copier_duplex, if copier_duplex_present  => {
+                    debug!(parent: &span, npkts1=n1, npkts2=n2, "finished")
+                }
+                Some(n) = copier1, if copier1_present  => {
+                   debug!(parent: &span, npkts1=n, "finished")
+                }
+                Some(n) = copier2, if copier2_present  => {
+                   debug!(parent: &span, npkts2=n, "finished")
+                }
+                Some(()) = hangup1, if hangup1_present => {
+                    debug!(parent: &span, "hangup1");
+                }
+                Some(()) = hangup2, if hangup2_present => {
+                    debug!(parent: &span, "hangup1");
+                }
+            }
+        }
+
+        if let Some(mut x) = late_writers_shutdown.0 {
+            let _ = x.snk.as_mut().send_eof().await;
+            drop(x)
+        }
+        if let Some(mut x) = late_writers_shutdown.1 {
+            let _ = x.snk.as_mut().send_eof().await;
+            drop(x)
+        }
+
+        /*
         if let (
             Some(DatagramSocket {
                 read: Some(r1),
@@ -432,26 +558,29 @@ fn exchange_packets(
             let copier2 = CopyPackets::new(r2, w1, span.clone(), 65536);
             let both_copiers = futures::future::join(copier1, copier2);
 
-            let c1p = c1.is_some();
-            let c1o: OptionFuture<_> = c1.into();
+            let hangup1_present = c1.is_some();
+            let hangup1: OptionFuture<_> = c1.into();
+            let hangup2_present = c2.is_some();
+            let hangup2: OptionFuture<_> = c2.into();
+            let mut skip_whole = false;
 
-            let c2p = c2.is_some();
-            let c2o: OptionFuture<_> = c2.into();
-
-            tokio::select! { biased;
-                ((),()) = both_copiers => {
-                    debug!("all directions finished");
-                }
-                Some(()) = c1o, if c1p => {
-                    debug!(parent: &span, "hangup1");
-                }
-                Some(()) = c2o, if c2p => {
-                    debug!(parent: &span, "hangup2");
+            if !skip_whole {
+                tokio::select! { biased;
+                    (npkts1,npkts2) = both_copiers => {
+                        debug!(npkts1, npkts2, "all directions finished");
+                    }
+                    Some(()) = hangup1, if hangup1_present => {
+                        debug!(parent: &span, "hangup1");
+                    }
+                    Some(()) = hangup2, if hangup2_present => {
+                        debug!(parent: &span, "hangup1");
+                    }
                 }
             }
         } else {
             error!(parent: &span, "Incomplete datagram sockets specified");
         }
+        */
     }
     .wrap_noerr())
 }

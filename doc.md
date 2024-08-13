@@ -635,6 +635,15 @@ Parameters:
 
 Returns `Task`
 
+Options:
+
+* unidirectional (`bool`) - Transfer data only from s1 to s2
+* unidirectional_reverse (`bool`) - Transfer data only from s2 to s1
+* exit_on_eof (`bool`) - abort one transfer direction when the other reached EOF
+* unidirectional_late_drop (`bool`) - keep inactive transfer direction handles open
+* buffer_size_forward (`Option<usize>`) - allocate this amount of buffers for transfer from s1 to s2
+* buffer_size_reverse (`Option<usize>`) - allocate this amount of buffers for transfer from s2 to s1
+
 ## exit_process
 
 Exit Websocat process
