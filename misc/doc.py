@@ -342,6 +342,8 @@ def outline(n: Tree) -> Outline:
             
             if opts_structs := OPTS_QUERY.matches(c):
                 for opts_struct in opts_structs:
+                    if 'content' not in opts_struct[1]:
+                        continue
                     content = opts_struct[1]['content']
                     doc = []
                     for nn in content.children:

@@ -50,7 +50,24 @@ impl WebsocatInvocation {
 
         match self.get_copying_type() {
             CopyingType::ByteStream => {
-                printer.print_line(&format!("exchange_bytes(#{{}}, {left}, {right})"));
+                let mut opts = String::with_capacity(64);
+                if self.opts.unidirectional {
+                    opts.push_str("unidirectional: true,");
+                }
+                if self.opts.unidirectional_reverse {
+                    opts.push_str("unidirectional_reverse: true,");
+                }
+                if self.opts.exit_on_eof {
+                    opts.push_str("exit_on_eof: true,");
+                }
+                if self.opts.unidirectional_late_drop {
+                    opts.push_str("unidirectional_late_drop: true,");
+                }
+                if let Some(ref bs) = self.opts.buffer_size {
+                    opts.push_str(&format!("buffer_size_forward: {bs},"));
+                    opts.push_str(&format!("buffer_size_reverse: {bs},"));
+                }
+                printer.print_line(&format!("exchange_bytes(#{{{opts}}}, {left}, {right})"));
             }
             CopyingType::Datarams => {
                 printer.print_line(&format!("exchange_packets(#{{}}, {left}, {right})"));

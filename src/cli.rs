@@ -176,4 +176,25 @@ pub struct WebsocatArgs {
     /// Exit the whole process if hangup is detected.
     #[arg(long)]
     pub exit_on_hangup: bool,
+
+    /// Transfer data only from left to right specifier
+    #[arg(long, short='u')]
+    pub unidirectional: bool,
+
+    /// Transfer data only from right to left specifier
+    #[arg(long, short='U')]
+    pub unidirectional_reverse: bool,
+
+    /// Do not shutdown inactive directions when using `-u` or `-U`.
+    #[arg(long)]
+    pub unidirectional_late_drop: bool,
+
+    /// Stop transferring data when one of the transfer directions reached EOF.
+    #[arg(long, short='E')]
+    pub exit_on_eof: bool,
+
+    /// Override buffer size for main data transfer session.
+    /// Note that some overlays and endpoints may have separate buffers with sepaparately adjustable sizes.
+    #[arg(long,short='B')]
+    pub buffer_size: Option<usize>,
 }

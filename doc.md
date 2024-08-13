@@ -616,6 +616,15 @@ Parameters:
 
 Returns `Task`
 
+Options:
+
+* unidirectional (`bool`) - Transfer data only from s1 to s2
+* unidirectional_reverse (`bool`) - Transfer data only from s2 to s1
+* exit_on_eof (`bool`) - abort one transfer direction when the other reached EOF
+* unidirectional_late_drop (`bool`) - keep inactive transfer direction handles open
+* buffer_size_forward (`Option<usize>`) - allocate this amount of buffers for transfer from s1 to s2
+* buffer_size_reverse (`Option<usize>`) - allocate this amount of buffers for transfer from s2 to s1
+
 ## exchange_packets
 
 Parameters:
@@ -623,6 +632,37 @@ Parameters:
 * opts (`Dynamic`) - object map containing dynamic options to the function
 * s1 (`DatagramSocket`)
 * s2 (`DatagramSocket`)
+
+Returns `Task`
+
+## exit_process
+
+Exit Websocat process
+
+Parameters:
+
+* code (`i64`)
+
+Does not return anything.
+
+## handle_hangup
+
+Spawn a task that calls `continuation` when specified socket hangup handle fires
+
+Parameters:
+
+* hangup (`Hangup`)
+* continuation (`Fn()`) - Rhai function that will be called to continue processing
+
+Returns `()`
+
+## hangup2task
+
+Convert a hangup token into a task.
+
+Parameters:
+
+* hangup (`Hangup`)
 
 Returns `Task`
 
@@ -955,6 +995,17 @@ Parameters:
 * h (`StreamSocket`)
 
 Returns `StreamWrite`
+
+## task2hangup
+
+Create hangup handle that gets triggered when specified task finishes.
+
+Parameters:
+
+* task (`Task`)
+* mode (`i64`) - 0 means unconditionally, 1 means only when task has failed, 2 means only when task has succeeded.
+
+Returns `Hangup`
 
 ## timeout_ms_hangup_handle
 
