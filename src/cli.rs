@@ -2,6 +2,23 @@ use std::{ffi::OsString, net::SocketAddr, path::PathBuf};
 
 use clap::Parser;
 
+#[derive(Clone, Debug)]
+pub struct CustomHeader {
+    pub name: String,
+    pub value: String,
+}
+impl CustomHeader {
+    fn interpret(x: &str) -> Result<CustomHeader, anyhow::Error> {
+        let Some((name, value)) = x.split_once(':') else {
+            anyhow::bail!("Custom header requires ':' to separate name and value")
+        };
+        Ok(CustomHeader {
+            name: name.trim().to_owned(),
+            value: value.trim().to_owned(),
+        })
+    }
+}
+
 #[derive(Parser, Debug)]
 /// Tool to connect to WebSocket, listen them and do other network tricks
 #[command(version, about)]
@@ -137,14 +154,14 @@ pub struct WebsocatArgs {
     pub udp_server_backpressure: bool,
 
     /// Command line arguments for `exec:` endpoint.
-    /// 
+    ///
     /// This option is interpreted specially: it stops processing all other options
     /// uses everything after it as a part of the command line
     #[arg(long, num_args(..), allow_hyphen_values(true))]
     pub exec_args: Vec<OsString>,
 
     /// Immediately expire `cmd:` or `exec:` endpoints if child process terminates.
-    /// 
+    ///
     /// This may discard some data that remained buffered in a pipe.
     #[arg(long)]
     pub exec_monitor_exits: bool,
@@ -172,17 +189,17 @@ pub struct WebsocatArgs {
     /// Make dummy nodes also immediately signal hangup.
     #[arg(long)]
     pub dummy_hangup: bool,
-    
+
     /// Exit the whole process if hangup is detected.
     #[arg(long)]
     pub exit_on_hangup: bool,
 
     /// Transfer data only from left to right specifier
-    #[arg(long, short='u')]
+    #[arg(long, short = 'u')]
     pub unidirectional: bool,
 
     /// Transfer data only from right to left specifier
-    #[arg(long, short='U')]
+    #[arg(long, short = 'U')]
     pub unidirectional_reverse: bool,
 
     /// Do not shutdown inactive directions when using `-u` or `-U`.
@@ -190,16 +207,16 @@ pub struct WebsocatArgs {
     pub unidirectional_late_drop: bool,
 
     /// Stop transferring data when one of the transfer directions reached EOF.
-    #[arg(long, short='E')]
+    #[arg(long, short = 'E')]
     pub exit_on_eof: bool,
 
     /// Override buffer size for main data transfer session.
     /// Note that some overlays and endpoints may have separate buffers with sepaparately adjustable sizes.
-    #[arg(long,short='B')]
+    #[arg(long, short = 'B')]
     pub buffer_size: Option<usize>,
 
     /// Do not send WebSocket close message when there is no more data to send there.
-    #[arg(long, short='n')]
+    #[arg(long, short = 'n')]
     pub no_close: bool,
 
     /// Do not flush after each WebSocket frame.
@@ -221,4 +238,37 @@ pub struct WebsocatArgs {
     /// Do not automatically insert buffering layer after WebSocket if underlying connections does not support `writev`.
     #[arg(long)]
     pub ws_no_auto_buffer: bool,
+
+    /// Skip request or response headers for Websocket upgrade
+    #[arg(long)]
+    pub ws_omit_headers: bool,
+
+    /// Add this custom header to WebSocket upgrade request when connecting to a Websocket.
+    /// Colon separates name and value.
+    #[arg(long, short='H', value_parser=CustomHeader::interpret)]
+    pub header: Vec<CustomHeader>,
+
+    /// Add this custom header to WebSocket upgrade response when serving a Websocket connection.
+    /// Colon separates name and value.
+    #[arg(long, value_parser=CustomHeader::interpret)]
+    pub server_header: Vec<CustomHeader>,
+
+    /// Specify this Sec-WebSocket-Protocol: header when connecting to a WebSocket.
+    #[arg(long)]
+    pub protocol: Option<String>,
+
+    /// Use this `Sec-WebSocket-Protocol:` value when serving a Websocket,
+    /// and reject incoming connections if the don't specify this protocol.
+    #[arg(long)]
+    pub server_protocol: Option<String>,
+
+    /// Don't reject incoming connections that fail to specify proper `Sec-WebSocket-Protocol`
+    /// header. The header would be omitted from the response in this case.
+    #[arg(long)]
+    pub server_protocol_lax: bool,
+
+    /// If client specifies Sec-WebSocket-Protocol, choose the first mentioned protocol
+    /// and use if for response's Sec-WebSocket-Protocol.
+    #[arg(long)]
+    pub server_protocol_choose_first: bool,
 }

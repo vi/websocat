@@ -82,6 +82,8 @@ fn http1_client(
 fn ws_upgrade(
     ctx: NativeCallContext,
     opts: Dynamic,
+    //@ Additional request headers to include
+    custom_headers: rhai::Map,
     client: Handle<Http1Client>,
     continuation: FnPtr,
 ) -> RhResult<Handle<Task>> {
@@ -93,8 +95,15 @@ fn ws_upgrade(
     struct WsUpgradeOpts {
         url: String,
         host: Option<String>,
+
+        //@ Do not check response headers for correctness.
+        //@ Note that some `Upgrade:` header is required to continue connecting.
         #[serde(default)]
         lax: bool,
+
+        //@ Do not include any headers besides 'Host' (if any) in request
+        #[serde(default)]
+        omit_headers: bool,
     }
     let opts: WsUpgradeOpts = rhai::serde::from_dynamic(&opts)?;
     debug!(parent: &span, url=opts.url, "options parsed");
@@ -112,15 +121,24 @@ fn ws_upgrade(
             base64::prelude::BASE64_STANDARD.encode(array)
         };
 
-        let mut rqb = http::Request::builder()
-            .uri(opts.url)
-            .header(header::CONNECTION, "upgrade")
-            .header(header::UPGRADE, "websocket")
-            .header(header::CONTENT_LENGTH, "0")
-            .header(header::SEC_WEBSOCKET_VERSION, "13")
-            .header(header::SEC_WEBSOCKET_KEY, key.clone());
+        let mut rqb = http::Request::builder().uri(opts.url);
+        if !opts.omit_headers {
+            rqb = rqb
+                .header(header::CONNECTION, "upgrade")
+                .header(header::UPGRADE, "websocket")
+                .header(header::CONTENT_LENGTH, "0")
+                .header(header::SEC_WEBSOCKET_VERSION, "13")
+                .header(header::SEC_WEBSOCKET_KEY, key.clone());
+        }
         if let Some(hh) = opts.host {
             rqb = rqb.header(header::HOST, hh);
+        }
+        for (chn, chv) in custom_headers {
+            if chv.is_blob() {
+                rqb = rqb.header(chn.as_str(), chv.into_blob().unwrap());
+            } else {
+                rqb = rqb.header(chn.as_str(), format!("{}", chv));
+            }
         }
         let rq = rqb.body(http_body_util::Empty::<Bytes>::new())?;
 
@@ -268,6 +286,7 @@ fn http1_serve(
 fn ws_accept(
     ctx: NativeCallContext,
     opts: Dynamic,
+    custom_headers: rhai::Map,
     rq: Handle<IncomingRequest>,
     close_handle: Handle<Hangup>,
     continuation: FnPtr,
@@ -277,10 +296,34 @@ fn ws_accept(
     let the_scenario = ctx.get_scenario()?;
     #[derive(serde::Deserialize)]
     struct WsAcceptOpts {
+        //@ Do not check incoming headers for correctness
         #[serde(default)]
         lax: bool,
+
+        //@ Do not include any headers in response
+        #[serde(default)]
+        omit_headers: bool,
+
+        //@ If client supplies Sec-WebSocket-Protocol and it contains this one,
+        //@ include the header in response.
+        choose_protocol: Option<String>,
+
+        //@ Fail incoming connection if Sec-WebSocket-Protocol lacks the value specified in
+        //@ `choose_protocol` field (or any protocol if `protocol_choose_first` is active).
+        #[serde(default)]
+        require_protocol: bool,
+
+        //@ Round trip Sec-WebSocket-Protocol from request to response,
+        //@ choosing the first protocol if there are multiple
+        #[serde(default)]
+        protocol_choose_first: bool,
     }
     let opts: WsAcceptOpts = rhai::serde::from_dynamic(&opts)?;
+
+    if opts.require_protocol && opts.choose_protocol.is_none() {
+        return Err(ctx.err("`require_protocol` cannot be used without `choose_protocol`"));
+    }
+
     debug!(parent: &span, "options parsed");
 
     let c: Option<Hangup> = close_handle.lut();
@@ -309,38 +352,78 @@ fn ws_accept(
             return bail();
         }
         let Some(wsver) = rq.headers().get(header::SEC_WEBSOCKET_VERSION) else {
-            warn!("Incoming WebSocket connection's lacks Websocket-Sec-Version: header");
+            warn!("Incoming WebSocket connection's lacks Sec-Websocket-Version: header");
             return bail();
         };
         if wsver != "13" {
-            warn!("Incoming WebSocket connection's  Websocket-Sec-Version: header is not `13`");
+            warn!("Incoming WebSocket connection's  Sec-Websocket-Version: header is not `13`");
             return bail();
         }
     }
-
-    let mut response_builder = Response::builder()
-        .status(StatusCode::SWITCHING_PROTOCOLS)
-        .header(header::CONNECTION, "upgrade")
-        .header(header::UPGRADE, "websocket");
-
-    match rq.headers().get(header::SEC_WEBSOCKET_KEY) {
-        Some(wskey) => {
-            let mut concat_key = Vec::with_capacity(wskey.len() + 36);
-            concat_key.extend_from_slice(wskey.as_bytes());
-            concat_key.extend_from_slice(MAGIC_GUID.as_bytes());
-            let hash = Sha1::digest(concat_key);
-
-            let accept = base64::engine::general_purpose::STANDARD.encode(hash);
-
-            response_builder = response_builder.header(header::SEC_WEBSOCKET_ACCEPT, accept);
+    let chosen_protocol = 'proto_chose: {
+        if opts.choose_protocol.is_some() || opts.protocol_choose_first {
+            if let Some(p) = rq.headers().get(header::SEC_WEBSOCKET_PROTOCOL) {
+                for pp in p.as_bytes().split(|&x| x == b',') {
+                    let pp = pp.trim_ascii();
+                    if Some(pp) == opts.choose_protocol.as_ref().map(|x| x.as_bytes()) {
+                        break 'proto_chose Some(pp.to_owned());
+                    }
+                }
+                if opts.protocol_choose_first {
+                    for pp in p.as_bytes().split(|&x| x == b',') {
+                        let pp = pp.trim_ascii();
+                        break 'proto_chose Some(pp.to_owned());
+                    }
+                }
+                None
+            } else {
+                None
+            }
+        } else {
+            None
         }
-        None if !opts.lax => {
-            warn!("Incoming WebSocket connection's lacks Sec-Websocket-Key: header");
-            return bail();
+    };
+    if chosen_protocol.is_none() && opts.require_protocol {
+        warn!("Incoming WebSocket connection lacks Sec-Websocket-Protocol value");
+        return bail();
+    }
+
+    let mut response_builder = Response::builder().status(StatusCode::SWITCHING_PROTOCOLS);
+    if !opts.omit_headers {
+        response_builder = response_builder
+            .header(header::CONNECTION, "upgrade")
+            .header(header::UPGRADE, "websocket");
+
+        match rq.headers().get(header::SEC_WEBSOCKET_KEY) {
+            Some(wskey) => {
+                let mut concat_key = Vec::with_capacity(wskey.len() + 36);
+                concat_key.extend_from_slice(wskey.as_bytes());
+                concat_key.extend_from_slice(MAGIC_GUID.as_bytes());
+                let hash = Sha1::digest(concat_key);
+
+                let accept = base64::engine::general_purpose::STANDARD.encode(hash);
+
+                response_builder = response_builder.header(header::SEC_WEBSOCKET_ACCEPT, accept);
+            }
+            None if !opts.lax => {
+                warn!("Incoming WebSocket connection's lacks Sec-Websocket-Key: header");
+                return bail();
+            }
+            None => {
+                debug!("No Sec-Websocket-Key header, so replying  without Sec-Websocket-Accept.")
+            }
         }
-        None => {
-            debug!("No Sec-Websocket-Key header, so replying  without Sec-Websocket-Accept.")
+    }
+
+    for (chn, chv) in custom_headers {
+        if chv.is_blob() {
+            response_builder = response_builder.header(chn.as_str(), chv.into_blob().unwrap());
+        } else {
+            response_builder = response_builder.header(chn.as_str(), format!("{}", chv));
         }
+    }
+    if let Some(chp) = chosen_protocol {
+        response_builder = response_builder.header(header::SEC_WEBSOCKET_PROTOCOL, chp);
     }
 
     let response = response_builder.body(EmptyBody::new()).unwrap();

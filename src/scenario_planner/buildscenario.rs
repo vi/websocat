@@ -2,7 +2,10 @@ use std::ffi::OsStr;
 
 use base64::Engine as _;
 
-use crate::{cli::WebsocatArgs, scenario_executor::utils::ToNeutralAddress};
+use crate::{
+    cli::{CustomHeader, WebsocatArgs},
+    scenario_executor::utils::ToNeutralAddress,
+};
 
 use super::{
     scenarioprinter::{ScenarioPrinter, StrLit},
@@ -331,7 +334,10 @@ impl Endpoint {
             }
             Endpoint::LiteralBase64(s) => {
                 let varnam = vars.getnewvarname("lit");
-                printer.print_line(&format!("let {varnam} = literal_socket_base64({});", StrLit(s)));
+                printer.print_line(&format!(
+                    "let {varnam} = literal_socket_base64({});",
+                    StrLit(s)
+                ));
                 Ok(varnam)
             }
         }
@@ -462,9 +468,20 @@ impl Overlay {
                 if opts.ws_dont_check_headers {
                     oo.push_str("lax: true,")
                 }
+                if opts.ws_omit_headers {
+                    oo.push_str("omit_headers: true,")
+                }
+
+                let mut ch = String::new();
+                for CustomHeader { name, value } in &opts.header {
+                    ch.push_str(&format!("{}:{},", StrLit(name), StrLit(value)))
+                }
+                if let Some(ref proto) = opts.protocol {
+                    ch.push_str(&format!("\"Sec-WebSocket-Protocol\":{},", StrLit(proto)))
+                }
 
                 printer.print_line(&format!(
-                    "ws_upgrade(#{{{oo}}}, {httpclient}, |{wsframes}| {{"
+                    "ws_upgrade(#{{{oo}}}, #{{{ch}}}, {httpclient}, |{wsframes}| {{"
                 ));
                 printer.increase_indent();
 
@@ -473,7 +490,6 @@ impl Overlay {
             Overlay::WsFramer { client_mode } => {
                 let ws = vars.getnewvarname("ws");
 
-                
                 let mut oo = String::with_capacity(0);
                 if opts.no_close {
                     oo.push_str("no_close_frame: true,")
@@ -544,8 +560,27 @@ impl Overlay {
                 if opts.ws_dont_check_headers {
                     oo.push_str("lax: true,")
                 }
+                if opts.ws_omit_headers {
+                    oo.push_str("omit_headers: true,")
+                }
+                if opts.server_protocol_choose_first {
+                    oo.push_str("protocol_choose_first: true,");
+                }
+                if let Some(ref x) = opts.server_protocol {
+                    oo.push_str(&format!("choose_protocol: {},", StrLit(x)));
+                    if !opts.server_protocol_lax {
+                        oo.push_str("require_protocol: true,");
+                    }
+                }
 
-                printer.print_line(&format!("ws_accept(#{{{oo}}}, {rq}, {hup}, |{ws}| {{"));
+                let mut ch = String::new();
+                for CustomHeader { name, value } in &opts.server_header {
+                    ch.push_str(&format!("{}:{},", StrLit(name), StrLit(value)))
+                }
+
+                printer.print_line(&format!(
+                    "ws_accept(#{{{oo}}}, #{{{ch}}}, {rq}, {hup}, |{ws}| {{"
+                ));
                 printer.increase_indent();
 
                 Ok(ws)
