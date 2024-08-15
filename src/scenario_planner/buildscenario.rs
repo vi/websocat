@@ -448,19 +448,23 @@ impl Overlay {
                     "let {httpclient} = http1_client(#{{}}, {inner_var});"
                 ));
 
-                let mut opts = String::with_capacity(64);
-                opts.push_str("url: ");
-                opts.push_str(&format!("{}", StrLit(uri)));
-                opts.push_str(",");
+                let mut oo = String::with_capacity(64);
+                oo.push_str("url: ");
+                oo.push_str(&format!("{}", StrLit(uri)));
+                oo.push_str(",");
 
                 if let Some(host) = host {
-                    opts.push_str("host: ");
-                    opts.push_str(&format!("{}", StrLit(&host)));
-                    opts.push_str(",");
+                    oo.push_str("host: ");
+                    oo.push_str(&format!("{}", StrLit(&host)));
+                    oo.push_str(",");
+                }
+
+                if opts.ws_dont_check_headers {
+                    oo.push_str("lax: true,")
                 }
 
                 printer.print_line(&format!(
-                    "ws_upgrade(#{{{opts}}}, {httpclient}, |{wsframes}| {{"
+                    "ws_upgrade(#{{{oo}}}, {httpclient}, |{wsframes}| {{"
                 ));
                 printer.increase_indent();
 
@@ -535,7 +539,13 @@ impl Overlay {
                 printer.print_line(&format!("http1_serve(#{{}}, {inner_var}, |{rq}, {hup}| {{"));
                 printer.increase_indent();
 
-                printer.print_line(&format!("ws_accept(#{{}}, {rq}, {hup}, |{ws}| {{"));
+                let mut oo = String::new();
+
+                if opts.ws_dont_check_headers {
+                    oo.push_str("lax: true,")
+                }
+
+                printer.print_line(&format!("ws_accept(#{{{oo}}}, {rq}, {hup}, |{ws}| {{"));
                 printer.increase_indent();
 
                 Ok(ws)

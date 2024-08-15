@@ -214,6 +214,10 @@ pub struct WebsocatArgs {
     #[arg(long)]
     pub ws_ignore_invalid_masks: bool,
 
+    /// Ignore absense or invalid values of `Sec-Websocket-*` things and just continue connecting.
+    #[arg(long)]
+    pub ws_dont_check_headers: bool,
+
     /// Do not automatically insert buffering layer after WebSocket if underlying connections does not support `writev`.
     #[arg(long)]
     pub ws_no_auto_buffer: bool,
