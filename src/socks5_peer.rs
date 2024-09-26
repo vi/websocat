@@ -6,9 +6,9 @@ use std::rc::Rc;
 use super::{box_up_err, peer_strerr, BoxedNewPeerFuture, Peer};
 use super::{ConstructParams, L2rUser, PeerConstructor, Specifier};
 use tokio_io::io::{read_exact, write_all};
-
 use std::io::Write;
 use std::net::{IpAddr, Ipv4Addr};
+use tokio_io::{AsyncRead, AsyncWrite};
 
 use std::ffi::OsString;
 
@@ -30,7 +30,7 @@ impl<T: Specifier> Specifier for SocksProxy<T> {
     fn construct(&self, cp: ConstructParams) -> PeerConstructor {
         let inner = self.0.construct(cp.clone());
         inner.map(move |p, l2r| {
-            socks5_peer(p, l2r, false, None, &cp.program_options.socks_destination, false)
+            socks5_peer(p, l2r, false, None, &cp.program_options.socks_destination, cp.program_options.socks5_user_pass.clone(), false)
         })
     }
     specifier_boilerplate!(noglobalstate has_subspec);
@@ -67,6 +67,7 @@ impl<T: Specifier> Specifier for SocksBind<T> {
                 true,
                 cp.program_options.socks5_bind_script.clone(),
                 &cp.program_options.socks_destination,
+                cp.program_options.socks5_user_pass.clone(),
                 cp.program_options.announce_listens,
             )
         })
@@ -197,6 +198,7 @@ pub fn socks5_peer(
     do_bind: bool,
     bind_script: Option<OsString>,
     socks_destination: &Option<SocksSocketAddr>,
+    socks5_user_pass: Option<String>,
     announce_listen: bool,
 ) -> BoxedNewPeerFuture {
     let (desthost, destport) = if let Some(ref sd) = *socks_destination {
@@ -215,78 +217,145 @@ pub fn socks5_peer(
 
     info!("Connecting to SOCKS server");
     let (r, w, hup) = (inner_peer.0, inner_peer.1, inner_peer.2);
-    let f = write_all(w, b"\x05\x01\x00")
+    let f = write_all(w, b"\x05\x02\x00\x02")
         .map_err(box_up_err)
         .and_then(move |(w, _)| {
-            let authmethods = [0; 2];
-            read_exact(r, authmethods)
+            read_exact(r, [0; 2])
                 .map_err(box_up_err)
-                .and_then(move |(r, authmethods)| {
-                    if authmethods[0] != b'\x05' {
+                .and_then(move |(r, reply)| {
+                    if reply[0] != 0x05 {
                         return peer_strerr("Not a SOCKS5 reply");
                     }
-                    if authmethods[1] != b'\x00' {
-                        return peer_strerr("Not a SOCKS5 or auth required");
-                    }
 
-                    let rq = {
-                        let mut c = ::std::io::Cursor::new(Vec::with_capacity(20));
-                        if do_bind {
-                            c.write_all(b"\x05\x02\x00").unwrap();
-                        } else {
-                            c.write_all(b"\x05\x01\x00").unwrap();
-                        };
-                        match desthost {
-                            SocksHostAddr::Ip(IpAddr::V4(ip4)) => {
-                                c.write_all(b"\x01").unwrap();
-                                c.write_all(&ip4.octets()).unwrap();
-                            }
-                            SocksHostAddr::Ip(IpAddr::V6(ip6)) => {
-                                c.write_all(b"\x04").unwrap();
-                                c.write_all(&ip6.octets()).unwrap();
-                            }
-                            SocksHostAddr::Name(name) => {
-                                c.write_all(b"\x03").unwrap();
-                                c.write_all(&[name.len() as u8]).unwrap();
-                                c.write_all(name.as_bytes()).unwrap();
-                            }
-                        };
-                        c.write_all(&[(destport >> 8) as u8]).unwrap();
-                        c.write_all(&[(destport >> 0) as u8]).unwrap();
-                        c.into_inner()
+                    let auth_future: BoxedNewPeerFuture = match reply[1] {
+                        0x00 => {
+                            info!("SOCKS5: Auth method 0, no auth");
+                            authenticate_no_auth(r, w)
+                        }
+                        0x02 => {
+                            authenticate_username_password(r, w, &socks5_user_pass)
+                        }
+                        _ => {
+                            return peer_strerr("SOCKS5: Unknown authentication method");
+                        }
                     };
 
-                    Box::new(
-                        write_all(w, rq)
-                            .map_err(box_up_err)
-                            .and_then(move |(w, _)| {
-                                let _reply = [0; 4];
-
-                                read_socks_reply(Peer(r, w, hup)).and_then(move |(addr, p)| {
-                                    info!("SOCKS5 connect/bind: {:?}", addr);
-
-                                    if do_bind {
-                                        if announce_listen {
-                                            println!("LISTEN proto=tcp,port={}", addr.port);
+                    Box::new(auth_future.and_then(move |Peer(r, w, _)| {
+                        let request = build_socks5_request(do_bind, &desthost, destport).unwrap();
+                        Box::new(
+                            write_all(w, request)
+                                .map_err(box_up_err)
+                                .and_then(move |(w, _)| {
+                                    read_socks_reply(Peer(r, w, hup)).and_then(move |(addr, Peer(r, w, hup))| {
+                                        info!("SOCKS5 connect/bind: {:?}", addr);
+                                        
+                                        if do_bind {
+                                            if announce_listen {
+                                                println!("LISTEN proto=tcp,port={}", addr.port);
+                                            }
+                                            if let Some(bs) = bind_script {
+                                                let _ = ::std::process::Command::new(bs)
+                                                    .arg(format!("{}", addr.port))
+                                                    .spawn();
+                                            }
+        
+                                            Box::new(read_socks_reply(Peer(r, w, hup)).and_then(move |(addr, Peer(r, w, hup))| {
+                                                info!("SOCKS5 remote connected: {:?}", addr);
+                                                Box::new(ok(Peer(r, w, hup)))
+                                            }))
+                                                as BoxedNewPeerFuture
+                                        } else {
+                                            Box::new(ok(Peer(r, w, hup))) as BoxedNewPeerFuture
                                         }
-                                        if let Some(bs) = bind_script {
-                                            let _ = ::std::process::Command::new(bs)
-                                                .arg(format!("{}", addr.port))
-                                                .spawn();
-                                        }
-
-                                        Box::new(read_socks_reply(p).and_then(move |(addr, p)| {
-                                            info!("SOCKS5 remote connected: {:?}", addr);
-                                            Box::new(ok(p))
-                                        }))
-                                            as BoxedNewPeerFuture
-                                    } else {
-                                        Box::new(ok(p)) as BoxedNewPeerFuture
-                                    }
-                                })
-                            }),
-                    ) as BoxedNewPeerFuture
+                                    })
+                                }),
+                        )
+                    }))
                 })
         });
+
     Box::new(f) as BoxedNewPeerFuture
+}
+
+fn authenticate_no_auth(
+    r: Box<dyn AsyncRead>,
+    w: Box<dyn AsyncWrite>
+) -> BoxedNewPeerFuture {
+    Box::new(ok(Peer(r, w, None)))
+}
+
+fn authenticate_username_password(
+    r: Box<dyn AsyncRead>,
+    w: Box<dyn AsyncWrite>,
+    socks5_user_pass: &Option<String>,
+) -> BoxedNewPeerFuture {
+    info!("SOCKS5: Auth method 2, sending username/password");
+
+    let (user, pass) = match socks5_user_pass {
+        Some(ref user_pass) => {
+            let parts: Vec<&str> = user_pass.splitn(2, ':').collect();
+            if parts.len() != 2 {
+                return peer_strerr("SOCKS5: Invalid username:password format");
+            }
+            (parts[0].as_bytes(), parts[1].as_bytes())
+        },
+        None => return peer_strerr("SOCKS5: Username and password required but not provided"),
+    };
+    let mut buffer = Vec::with_capacity(1 + 2 + 1 + user.len() + 1 + pass.len());
+    buffer.write_all(&[0x01]).unwrap(); // Version
+    buffer.write_all(&[user.len() as u8]).unwrap();
+    buffer.write_all(user).unwrap();
+    buffer.write_all(&[pass.len() as u8]).unwrap();
+    buffer.write_all(pass).unwrap();
+
+    Box::new(
+        write_all(w, buffer)
+            .map_err(box_up_err)
+            .and_then(move |(w, _)| {
+                read_exact(r, [0; 2])
+                    .map_err(box_up_err)
+                    .and_then(move |(r, reply)| {
+                        if reply[0] != 0x01 || reply[1] != 0x00 {
+                            return peer_strerr("SOCKS5: Authentication failed");
+                        }
+                        Box::new(ok(Peer(
+                            Box::new(r) as Box<dyn AsyncRead>,
+                            Box::new(w) as Box<dyn AsyncWrite>,
+                            None,
+                        )))
+                    })
+            }),
+    )
+}
+
+fn build_socks5_request(
+    do_bind: bool,
+    desthost: &SocksHostAddr,
+    destport: u16,
+) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
+    let mut request = Vec::with_capacity(20);
+    if do_bind {
+        request.write_all(&[0x05, 0x02, 0x00])?; // SOCKS5, CMD BIND
+    } else {
+        request.write_all(&[0x05, 0x01, 0x00])?; // SOCKS5, CMD CONNECT
+    }
+
+    match desthost {
+        SocksHostAddr::Ip(IpAddr::V4(ip4)) => {
+            request.write_all(&[0x01])?; // ATYP IPv4
+            request.write_all(&ip4.octets())?;
+        }
+        SocksHostAddr::Ip(IpAddr::V6(ip6)) => {
+            request.write_all(&[0x04])?; // ATYP IPv6
+            request.write_all(&ip6.octets())?;
+        }
+        SocksHostAddr::Name(name) => {
+            request.write_all(&[0x03])?; // ATYP DOMAINNAME
+            request.write_all(&[name.len() as u8])?;
+            request.write_all(name.as_bytes())?;
+        }
+    }
+
+    request.write_all(&[(destport >> 8) as u8, (destport & 0xFF) as u8])?;
+    Ok(request)
 }
