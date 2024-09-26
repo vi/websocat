@@ -67,6 +67,7 @@ pub struct Options {
     pub socks_destination: Option<SocksSocketAddr>,
     pub auto_socks5: Option<SocketAddr>,
     pub socks5_bind_script: Option<OsString>,
+    pub socks5_user_pass: Option<String>,
     pub tls_domain: Option<String>,
     #[derivative(Debug = "ignore")]
     pub pkcs12_der: Option<Vec<u8>>,

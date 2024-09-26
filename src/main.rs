@@ -377,6 +377,12 @@ struct Opt {
     socks5_bind_script: Option<OsString>,
 
     #[structopt(
+        long = "socks5-user-pass",
+        help = "[A] Specify username:password for SOCKS5 proxy. If not specified, the default is to use no authentication."
+    )]
+    socks5_user_pass: Option<String>,
+
+    #[structopt(
         long = "tls-domain",
         alias = "ssl-domain",
         help = "[A] Specify domain for SNI or certificate verification when using tls-connect: overlay"
@@ -886,6 +892,7 @@ fn run() -> Result<()> {
             socks_destination
             auto_socks5
             socks5_bind_script
+            socks5_user_pass
             tls_domain
             max_parallel_conns
             ws_ping_interval
