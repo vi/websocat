@@ -1,5 +1,5 @@
 # Build stage
-FROM rust:1.72-alpine3.18 as cargo-build
+FROM rust:1.72-alpine3.18 AS cargo-build
 
 RUN apk add --no-cache musl-dev pkgconfig openssl-dev
 
