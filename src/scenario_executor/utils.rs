@@ -8,7 +8,7 @@ use std::{
     net::SocketAddr,
     pin::Pin,
     sync::{Arc, Mutex},
-    task::Poll,
+    task::{Context, Poll},
 };
 
 use super::types::{
@@ -228,5 +228,44 @@ impl<T: PacketWrite + Send + ?Sized> PacketWriteExt for Pin<&mut T> {
             let mut b = [];
             PacketWrite::poll_write(self.as_mut(), cx, &mut b, BufferFlag::Eof.into())
         })
+    }
+}
+
+
+
+#[derive(Debug, Clone)]
+#[pin_project::pin_project]
+pub struct MyOptionFuture<F> {
+    #[pin]
+    inner: Option<F>,
+}
+
+
+impl<F> Default for MyOptionFuture<F> {
+    fn default() -> Self {
+        Self { inner: None }
+    }
+}
+
+impl<F: Future> Future for MyOptionFuture<F> {
+    type Output = Option<F::Output>;
+
+    fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
+        match self.project().inner.as_pin_mut() {
+            Some(x) => x.poll(cx).map(Some),
+            None => Poll::Ready(None),
+        }
+    }
+}
+
+impl<T> From<Option<T>> for MyOptionFuture<T> {
+    fn from(option: Option<T>) -> Self {
+        Self { inner: option }
+    }
+}
+
+impl<T> MyOptionFuture<T> {
+    pub fn take(&mut self) -> Option<T> {
+        self.inner.take()
     }
 }

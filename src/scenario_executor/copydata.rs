@@ -14,7 +14,7 @@ use crate::scenario_executor::{
         BufferFlag, BufferFlags, DatagramRead, DatagramWrite, Handle, StreamRead, StreamSocket,
         StreamWrite, Task,
     },
-    utils::{ExtractHandleOrFail, HandleExt2, PacketWriteExt, TaskHandleExt},
+    utils::{ExtractHandleOrFail, HandleExt2, MyOptionFuture, PacketWriteExt, TaskHandleExt},
 };
 
 use super::{types::DatagramSocket, utils::RhResult};
@@ -475,17 +475,19 @@ fn exchange_packets(
 
         let copier1_;
         let copier2_;
-        let mut copier_duplex: OptionFuture<_> = None.into();
+        let mut copier_duplex: MyOptionFuture<_> = None.into();
         let mut copier_duplex_present = false;
-        let mut copier1: OptionFuture<_> = None.into();
+        let mut copier1: MyOptionFuture<_> = None.into();
         let mut copier1_present = false;
-        let mut copier2: OptionFuture<_> = None.into();
+        let mut copier2: MyOptionFuture<_> = None.into();
         let mut copier2_present = false;
         let hangup1_present = c1.is_some();
-        let hangup1: OptionFuture<_> = c1.into();
+        let hangup1: MyOptionFuture<_> = c1.into();
         let hangup2_present = c2.is_some();
-        let hangup2: OptionFuture<_> = c2.into();
+        let hangup2: MyOptionFuture<_> = c2.into();
         let mut skip_whole = false;
+        let mut need_copier1_shutdown = false;
+        let mut need_copier2_shutdown = false;
 
         match (dir1.d, dir2.d) {
             (Some(d1), Some(d2)) => {
@@ -516,11 +518,13 @@ fn exchange_packets(
                 Some((n1, n2)) = copier_duplex, if copier_duplex_present  => {
                     debug!(parent: &span, npkts1=n1, npkts2=n2, "finished")
                 }
-                Some(n) = copier1, if copier1_present  => {
-                   debug!(parent: &span, npkts1=n, "finished")
+                Some(n) = &mut copier1, if copier1_present  => {
+                   debug!(parent: &span, npkts1=n, "finished");
+                   need_copier2_shutdown = true;
                 }
-                Some(n) = copier2, if copier2_present  => {
-                   debug!(parent: &span, npkts2=n, "finished")
+                Some(n) = &mut copier2, if copier2_present  => {
+                   debug!(parent: &span, npkts2=n, "finished");
+                   need_copier1_shutdown = true;
                 }
                 Some(()) = hangup1, if hangup1_present => {
                     debug!(parent: &span, "hangup1");
@@ -529,6 +533,17 @@ fn exchange_packets(
                     debug!(parent: &span, "hangup1");
                 }
             }
+        }
+
+        if need_copier1_shutdown && copier1_present {
+            debug!("Shutting down sink 1");
+            let mut c = copier1.take().unwrap();
+            let _ = c.w.snk.as_mut().send_eof().await;
+        }
+        if need_copier2_shutdown && copier2_present {
+            debug!("Shutting down sink 2");
+            let mut c = copier2.take().unwrap();
+            let _ = c.w.snk.as_mut().send_eof().await;
         }
 
         if let Some(mut x) = late_writers_shutdown.0 {
