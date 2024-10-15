@@ -25,6 +25,8 @@ pub fn load_scenario(s: &str) -> anyhow::Result<Arc<Scenario>> {
     crate::scenario_executor::all_functions::register_types(&mut engine);
     crate::scenario_executor::all_functions::register_functions(&mut engine);
 
+    engine.set_max_expr_depths(1000, 1000);
+
     let ast = engine.compile(s)?;
     let mut scenario = Scenario { ast, engine };
 
