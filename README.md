@@ -107,7 +107,7 @@ There are multiple options for installing WebSocat. From easy to hard:
 [MacPorts](https://www.macports.org): `sudo port install websocat`
 
 ## From source
-* Install the [Rust toolchain](https://rustup.rs/) and do `cargo install --features=ssl websocat`. If something fails with a `-sys` crate, try without `--features=ssl`;
+* Install the [Rust toolchain](https://rustup.rs/) and do `cargo install websocat`. If something fails with a `-sys` crate, try without `--features=ssl`;
 * Build Websocat from source code (see below), then move `target/release/websocat` somewhere to the PATH.
 
 ## Pre-built binaries
@@ -118,7 +118,7 @@ Building from source code
 ---
 
 1. Install the [Rust toolchain](https://rustup.rs/). Note that Websocat v1 (i.e. the current stable version) may fail to support too new Rust due to its old dependencies which can be broken by e.g. [this](https://github.com/rust-lang/rust/pull/78802).
-2. `cargo build --release --features=ssl`.
+2. `cargo build --release`.
 3. Find the executable somewhere under `target/`, e.g. in `target/release/websocat`.
 
 ### Rust versions
