@@ -107,7 +107,7 @@ There are multiple options for installing WebSocat. From easy to hard:
 [MacPorts](https://www.macports.org): `sudo port install websocat`
 
 ## From source
-* Install the [Rust toolchain](https://rustup.rs/) and do `cargo install websocat`. If something fails with a `-sys` crate, try without `--features=ssl`;
+* Install the [Rust toolchain](https://rustup.rs/) and do `cargo install websocat`. If something fails with a `-sys` crate, try with `--no-default-features`;
 * Build Websocat from source code (see below), then move `target/release/websocat` somewhere to the PATH.
 
 ## Pre-built binaries
