@@ -335,3 +335,14 @@ WantedBy=multi-user.target
 with `SocketUser=www-data` it can be combined with Nginx setup above.
 
 Example SSH client command: `ssh root@localhost -o 'ProxyCommand=/opt/websocat -E -b - ws-c:unix:/run/qqq.socket'`
+
+
+# Specifying distinct host names for resolving IP address, `Host: ` header and TLS.
+
+Example command line:
+
+    websocat -t - --ws-c-uri=wss://domain-for-host-header/ ws-c:tls:tcp:domain-or-ip-address-for-resolving:443 --tls-domain domain-for-checking-certificate
+
+Or without TLS:
+
+    websocat -t - --ws-c-uri=wss://domain-for-host-header/ ws-c:tcp:domain-or-ip-address-for-resolving:80
