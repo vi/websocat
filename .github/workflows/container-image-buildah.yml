@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       platforms:
-        description: "comma-separated list of platforms to build for, e.g. linux/amd64,linux/s390x,linux/ppc64le,linux/riscv64 (leave empty for defaults)"
+        description: "comma-separated list of platforms to build for, e.g. linux/amd64,linux/arm64,linux/s390x,linux/ppc64le,linux/riscv64 (leave empty for defaults)"
         default: ''
       custom_tag:
         description: optional custom tag on remote repo you want image to be tagged with
@@ -52,7 +52,7 @@ jobs:
       - name: Sanitize Platforms
         id: platforms
         run: |
-          platforms="${{ inputs.platforms == '' && 'linux/amd64,linux/arm64' || inputs.platforms }}"
+          platforms="${{ inputs.platforms == '' && 'linux/amd64' || inputs.platforms }}"
           archs="$( sed -e 's#linux/##g' <<< $platforms )"
           echo "platforms=$platforms" >> $GITHUB_OUTPUT
           echo "archs=$archs" >> $GITHUB_OUTPUT
