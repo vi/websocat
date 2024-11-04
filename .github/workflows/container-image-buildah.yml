@@ -52,7 +52,7 @@ jobs:
       - name: Sanitize Platforms
         id: platforms
         run: |
-          platforms="${{ inputs.platforms == '' && 'linux/amd64' || inputs.platforms }}"
+          platforms="${{ inputs.platforms == '' && 'linux/amd64,linux/arm64' || inputs.platforms }}"
           archs="$( sed -e 's#linux/##g' <<< $platforms )"
           echo "platforms=$platforms" >> $GITHUB_OUTPUT
           echo "archs=$archs" >> $GITHUB_OUTPUT
