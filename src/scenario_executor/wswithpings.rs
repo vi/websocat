@@ -63,8 +63,8 @@ struct WsDecoderThatCoexistsWithPingReplies {
     inner: WsDecoder,
     writer: Arc<Mutex<WsEncoderThatCoexistsWithPongs>>,
     /// Permit to finish writing series of frames that will be assembled as full Pong frame
-    ping_reply_in_progress: Option<PacketReadResult>,
     sem_permit: Option<OwnedSemaphorePermit>,
+    ping_reply_in_progress: Option<PacketReadResult>,
 }
 
 impl PacketRead for WsDecoderThatCoexistsWithPingReplies {
