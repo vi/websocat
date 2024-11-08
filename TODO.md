@@ -14,10 +14,10 @@
 * Advanced TCP options
 * More datagram tools (reusers, autoreconnect, foreachmsg)
 * More datagram tools (literalreply, combine/fanout, limit)
+* Multi-socket listener
 * (non-Websocket) HTTP games
 * HTTP/2 games
 * Proxies
-* UDP server (multiple connections based on peer addresses)
 * TCP reset monitoring
 * Rich console with history
 * Compression overlay

@@ -377,6 +377,7 @@ impl PacketRead for WsDecoder {
             let ret = this.wd.add_data(unprocessed_data);
 
             trace!(?ret, "decoded");
+            #[allow(irrefutable_let_patterns)]
             let Ok(ret) = ret else { invdata!() };
 
             match ret.event {
