@@ -88,9 +88,14 @@ impl ParseStrChunkResult<'_> {
                 ovl: Overlay::WsAccept {},
                 rest,
             })
-        } else if let Some(rest) = x.strip_prefix("ws-c:") {
+        } else if let Some(rest) = x.strip_prefix_many(&["ws-connect:", "connect-ws:", "ws-c:", "c-ws:"]) {
             Ok(ParseStrChunkResult::Overlay {
                 ovl: Overlay::WsClient {},
+                rest,
+            })
+        } else if let Some(rest) = x.strip_prefix_many(&["ws-upgrade:", "upgrade-ws:", "ws-u:", "u-ws:"]) {
+            Ok(ParseStrChunkResult::Overlay {
+                ovl: Overlay::WsServer {},
                 rest,
             })
         } else if let Some(rest) = x.strip_prefix("ws-ll-client:") {
@@ -174,6 +179,14 @@ impl ParseStrChunkResult<'_> {
         } else if let Some(rest) = x.strip_prefix("literal-base64:") {
             Ok(ParseStrChunkResult::Endpoint(Endpoint::LiteralBase64(
                 rest.to_owned(),
+            )))
+        } else if let Some(rest) = x.strip_prefix_many(&["unix:", "unix-connect:", "connect-unix:", "unix-c:", "c-unix:"]) {
+            Ok(ParseStrChunkResult::Endpoint(Endpoint::UnixConnect(
+                rest.to_owned().into(),
+            )))
+        } else if let Some(rest) = x.strip_prefix_many(&["unix-listen:", "listen-unix:", "unix-l:", "l-unix:"]) {
+            Ok(ParseStrChunkResult::Endpoint(Endpoint::UnixListen (
+                rest.to_owned().into(),
             )))
         } else {
             anyhow::bail!("Unknown specifier: {x}")

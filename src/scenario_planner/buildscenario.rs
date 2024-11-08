@@ -340,6 +340,37 @@ impl Endpoint {
                 ));
                 Ok(varnam)
             }
+            Endpoint::UnixConnect(path) => {
+                let varnam = vars.getnewvarname("unix");
+                let pathvar = vars.getnewvarname("path");
+                if let Some(s) = path.to_str() {
+                    printer.print_line(&format!("let {pathvar} = osstr_str({});", StrLit(s)));
+                } else {
+                    printer.print_line(&format!("let {pathvar} = {};", format_osstr(path)));
+                }
+                printer.print_line(&format!("connect_unix(#{{}}, {pathvar}, |{varnam}| {{",));
+                printer.increase_indent();
+                Ok(varnam)
+            }
+            Endpoint::UnixListen(path) => {
+                let pathvar = vars.getnewvarname("path");
+                if let Some(s) = path.to_str() {
+                    printer.print_line(&format!("let {pathvar} = osstr_str({});", StrLit(s)));
+                } else {
+                    printer.print_line(&format!("let {pathvar} = {};", format_osstr(path)));
+                }
+
+                if opts.unlink {
+                    printer.print_line(&format!("unlink_file({pathvar}, false);"));
+                }
+
+                let varnam = vars.getnewvarname("tcp");
+                printer.print_line(&format!(
+                    "listen_unix(#{{autospawn: true}}, {pathvar}, |{varnam}| {{",
+                ));
+                printer.increase_indent();
+                Ok(varnam)
+            }
         }
     }
     fn continue_printing_cmd_or_exec(
@@ -433,6 +464,14 @@ impl Endpoint {
             Endpoint::DummyDatagrams => {}
             Endpoint::Literal(_) => {}
             Endpoint::LiteralBase64(_) => {}
+            Endpoint::UnixConnect(_) => {
+                printer.decrease_indent();
+                printer.print_line("})");
+            }
+            Endpoint::UnixListen(_) => {
+                printer.decrease_indent();
+                printer.print_line("})");
+            }
         }
     }
 }
@@ -616,6 +655,11 @@ impl Overlay {
                     "This overlay is supposed to be split up by specifier stack patcher before."
                 );
             }
+            Overlay::WsServer => {
+                panic!(
+                    "This overlay is supposed to be split up by specifier stack patcher before."
+                );
+            }
             Overlay::ReadChunkLimiter => {
                 let n = opts.read_buffer_limit.unwrap_or(1);
                 printer.print_line(&format!("put_read_part({inner_var}, read_chunk_limiter(take_read_part({inner_var}), {n}));"));
@@ -654,6 +698,7 @@ impl Overlay {
             }
             Overlay::Log { .. } => (),
             Overlay::WsClient => panic!(),
+            Overlay::WsServer => panic!(),
             Overlay::ReadChunkLimiter => (),
             Overlay::WriteChunkLimiter => (),
             Overlay::WriteBuffer => (),

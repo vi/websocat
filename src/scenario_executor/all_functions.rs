@@ -30,6 +30,7 @@ pub fn register_functions(engine: &mut Engine) {
     super::nativetls::register(engine);
     super::subprocess::register(engine);
     super::osstr::register(engine);
+    super::unix::register(engine);
     engine.register_fn("is_null", is_null);
 }
 

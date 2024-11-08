@@ -1,4 +1,4 @@
-use std::net::SocketAddr;
+use std::{ffi::OsString, net::SocketAddr};
 
 use http::Uri;
 
@@ -43,6 +43,11 @@ pub enum Endpoint {
     Literal(String),
     //@ Byte stream socket that produces specified content (base64-encoded) and ignores incoming data
     LiteralBase64(String),
+
+    //@ Connect to the specified UNIX socket path
+    UnixConnect(OsString),
+    //@ Listen specified UNIX socket path
+    UnixListen(OsString),
 }
 
 #[derive(Debug)]
@@ -59,6 +64,8 @@ pub enum Overlay {
     //@ URI is taked from --ws-c-uri CLI argument
     //@ If it is not specified, it defaults to `/`, with a missing `host:` header
     WsClient,
+    //@ Combined WebSocket acceptor and framer.
+    WsServer,
     TlsClient {
         domain: String,
         varname_for_connector: String,

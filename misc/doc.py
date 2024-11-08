@@ -471,6 +471,7 @@ def document_executor_function(f: ExecutorFunc) -> None:
         for (nam, x) in f.params:
             if nam == "opts" and x.typ == "Dynamic" and not x.doc:
                 x.doc = "object map containing dynamic options to the function"
+            nam = nam.removeprefix("r#")
             s = "* " + nam + " (`" 
             if x.typ != "FnPtr":
                 s += strip_handle(x.typ)
@@ -510,6 +511,7 @@ def document_executor_function(f: ExecutorFunc) -> None:
         print("Options:")
         print()
         for (on, od) in f.options:
+            on = on.removeprefix("r#")
             s = "* " + on + " (`" + od.typ + "`)"
             if od.doc:
                 s += ' - '

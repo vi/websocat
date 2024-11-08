@@ -18,6 +18,8 @@ impl WebsocatInvocation {
         self.right.maybe_splitup_client_ws_endpoint()?;
         self.left.maybe_splitup_ws_c_overlay(&self.opts)?;
         self.right.maybe_splitup_ws_c_overlay(&self.opts)?;
+        self.left.maybe_splitup_ws_u_overlay(&self.opts)?;
+        self.right.maybe_splitup_ws_u_overlay(&self.opts)?;
         self.left.maybe_splitup_server_ws_endpoint()?;
         self.right.maybe_splitup_server_ws_endpoint()?;
         if !self.opts.late_resolve {
@@ -239,6 +241,26 @@ impl SpecifierStack {
         Ok(())
     }
 
+    fn maybe_splitup_ws_u_overlay(&mut self, _opts: &WebsocatArgs) -> anyhow::Result<()> {
+        let Some((position_to_redact, _)) = self
+            .overlays
+            .iter()
+            .enumerate()
+            .find(|(_, ovl)| matches!(ovl, Overlay::WsServer))
+        else {
+            return Ok(());
+        };
+
+        self.overlays.remove(position_to_redact);
+        self.overlays.insert(
+            position_to_redact,
+            Overlay::WsAccept {  }
+        );
+        self.overlays.insert(position_to_redact+1, Overlay::WsFramer { client_mode: false });
+
+        Ok(())
+    }
+
     fn maybe_splitup_server_ws_endpoint(&mut self) -> anyhow::Result<()> {
         match self.innermost {
             Endpoint::WsListen(a) => {
@@ -299,6 +321,7 @@ impl SpecifierStack {
                 Overlay::Log { .. } => return true,
                 Overlay::LineChunks => (),
                 Overlay::WsClient => (),
+                Overlay::WsServer => (),
                 Overlay::ReadChunkLimiter => (),
                 Overlay::WriteChunkLimiter  => (),
                 Overlay::WriteBuffer => (),
@@ -331,6 +354,8 @@ impl SpecifierStack {
                 Endpoint::DummyDatagrams => false,
                 Endpoint::Literal(_) => false,
                 Endpoint::LiteralBase64(_) => false,
+                Endpoint::UnixConnect(_) => true,
+                Endpoint::UnixListen(_) => true,
             };
             if do_insert {
                 // datagram mode may be patched later
@@ -387,7 +412,9 @@ impl Endpoint {
             Endpoint::DummyStream => CopyingType::ByteStream,
             Endpoint::DummyDatagrams => CopyingType::Datarams,
             Endpoint::Literal(_) => CopyingType::ByteStream,
-            Endpoint::LiteralBase64(_)=> CopyingType::ByteStream,
+            Endpoint::LiteralBase64(_) => CopyingType::ByteStream,
+            Endpoint::UnixConnect(_) => CopyingType::ByteStream,
+            Endpoint::UnixListen(_) => CopyingType::ByteStream,
         }
     }
 }
@@ -409,6 +436,7 @@ impl Overlay {
                 }
             }
             Overlay::WsClient => CopyingType::Datarams,
+            Overlay::WsServer => CopyingType::Datarams,
             Overlay::ReadChunkLimiter  => CopyingType::ByteStream,
             Overlay::WriteChunkLimiter => CopyingType::ByteStream,
             Overlay::WriteBuffer => CopyingType::ByteStream,

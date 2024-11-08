@@ -271,4 +271,8 @@ pub struct WebsocatArgs {
     /// and use if for response's Sec-WebSocket-Protocol.
     #[arg(long)]
     pub server_protocol_choose_first: bool,
+
+    /// When listening UNIX sockets, attempt to delete the file first to avoid the failure to bind
+    #[arg(long)]
+    pub unlink: bool,
 }

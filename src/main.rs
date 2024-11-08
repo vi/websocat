@@ -31,6 +31,7 @@ pub mod scenario_executor {
     pub mod logoverlay;
     pub mod subprocess;
     pub mod osstr;
+    pub mod unix;
 
     pub mod all_functions;
 }

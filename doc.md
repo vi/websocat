@@ -132,6 +132,29 @@ Prefixes:
 
 * `udp-server:`
 
+### UnixConnect
+
+Connect to the specified UNIX socket path
+
+Prefixes:
+
+* `unix:`
+* `unix-connect:`
+* `connect-unix:`
+* `unix-c:`
+* `c-unix:`
+
+### UnixListen
+
+Listen specified UNIX socket path
+
+Prefixes:
+
+* `unix-listen:`
+* `listen-unix:`
+* `unix-l:`
+* `l-unix:`
+
 ### WsListen
 
 (undocumented)
@@ -231,7 +254,10 @@ If it is not specified, it defaults to `/`, with a missing `host:` header
 
 Prefixes:
 
+* `ws-connect:`
+* `connect-ws:`
 * `ws-c:`
+* `c-ws:`
 
 ### WsFramer
 
@@ -241,6 +267,17 @@ Prefixes:
 
 * `ws-ll-client:`
 * `ws-ll-server:`
+
+### WsServer
+
+Combined WebSocket acceptor and framer.
+
+Prefixes:
+
+* `ws-upgrade:`
+* `upgrade-ws:`
+* `ws-u:`
+* `u-ws:`
 
 ### WsUpgrade
 
@@ -509,6 +546,22 @@ Parameters:
 
 Returns `Task`
 
+## connect_unix
+
+Connect to a UNIX stream socket of some kind
+
+Parameters:
+
+* opts (`Dynamic`) - object map containing dynamic options to the function
+* path (`OsString`)
+* continuation (`Fn(StreamSocket) -> Task`) - Rhai function that will be called to continue processing
+
+Returns `Task`
+
+Options:
+
+* abstract (`bool`) - On Linux, connect ot an abstract-namespaced socket instead of file-based
+
 ## copy_bytes
 
 Forward unframed bytes from source to sink
@@ -722,6 +775,21 @@ Options:
 
 * addr (`SocketAddr`)
 * autospawn (`bool`)
+
+## listen_unix
+
+Parameters:
+
+* opts (`Dynamic`) - object map containing dynamic options to the function
+* path (`OsString`)
+* continuation (`Fn(StreamSocket) -> Task`) - Rhai function that will be called to continue processing
+
+Returns `Task`
+
+Options:
+
+* abstract (`bool`) - On Linux, connect ot an abstract-namespaced socket instead of file-based
+* autospawn (`bool`) - Automatically spawn a task for each accepted connection
 
 ## literal_socket
 
@@ -1112,6 +1180,15 @@ Options:
 * tag_as_text (`bool`) - Tag incoming UDP datagrams to be sent as text WebSocket messages instead of binary. Note that Websocat does not check for UTF-8 correctness and may send non-compiant text WebSocket messages.
 * inhibit_send_errors (`bool`) - Do not exit if `sendto` returned an error.
 
+## unlink_file
+
+Parameters:
+
+* path (`OsString`)
+* bail_if_fails (`bool`) - Emit error if unlinking fails.
+
+Returns `()`
+
 ## write_buffer
 
 Wrap stream writer in a buffering overlay that may accumulate data,
@@ -1146,6 +1223,7 @@ Returns `DatagramWrite`
 Parameters:
 
 * opts (`Dynamic`) - object map containing dynamic options to the function
+* custom_headers (`rhai::Map`)
 * rq (`IncomingRequest`)
 * close_handle (`Hangup`)
 * continuation (`Fn(StreamSocket) -> Task`) - Rhai function that will be called to continue processing
@@ -1154,7 +1232,11 @@ Returns `OutgoingResponse`
 
 Options:
 
-* lax (`bool`)
+* lax (`bool`) - Do not check incoming headers for correctness
+* omit_headers (`bool`) - Do not include any headers in response
+* choose_protocol (`Option<String>`) - If client supplies Sec-WebSocket-Protocol and it contains this one, include the header in response.
+* require_protocol (`bool`) - Fail incoming connection if Sec-WebSocket-Protocol lacks the value specified in `choose_protocol` field (or any protocol if `protocol_choose_first` is active).
+* protocol_choose_first (`bool`) - Round trip Sec-WebSocket-Protocol from request to response, choosing the first protocol if there are multiple
 
 ## ws_decoder
 
@@ -1191,6 +1273,7 @@ Options:
 Parameters:
 
 * opts (`Dynamic`) - object map containing dynamic options to the function
+* custom_headers (`rhai::Map`) - Additional request headers to include
 * client (`Http1Client`)
 * continuation (`Fn(StreamSocket) -> Task`) - Rhai function that will be called to continue processing
 
@@ -1200,7 +1283,8 @@ Options:
 
 * url (`String`)
 * host (`Option<String>`)
-* lax (`bool`)
+* lax (`bool`) - Do not check response headers for correctness. Note that some `Upgrade:` header is required to continue connecting.
+* omit_headers (`bool`) - Do not include any headers besides 'Host' (if any) in request
 
 ## ws_wrap
 
