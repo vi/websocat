@@ -356,6 +356,8 @@ impl SpecifierStack {
                 Endpoint::LiteralBase64(_) => false,
                 Endpoint::UnixConnect(_) => true,
                 Endpoint::UnixListen(_) => true,
+                Endpoint::AbstractConnect(_) => true,
+                Endpoint::AbstractListen(_) => true,
             };
             if do_insert {
                 // datagram mode may be patched later
@@ -415,6 +417,8 @@ impl Endpoint {
             Endpoint::LiteralBase64(_) => CopyingType::ByteStream,
             Endpoint::UnixConnect(_) => CopyingType::ByteStream,
             Endpoint::UnixListen(_) => CopyingType::ByteStream,
+            Endpoint::AbstractConnect(_)=> CopyingType::ByteStream,
+            Endpoint::AbstractListen(_) => CopyingType::ByteStream,
         }
     }
 }

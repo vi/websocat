@@ -199,6 +199,14 @@ impl ParseStrChunkResult<'_> {
             Ok(ParseStrChunkResult::Endpoint(Endpoint::UnixListen (
                 rest.to_owned(),
             )))
+        } else if let Some(rest) = x.strip_prefix_many(&["abstract:", "abstract-connect:", "connect-abstract:", "abstract-c:", "c-abstract:"]) {
+            Ok(ParseStrChunkResult::Endpoint(Endpoint::AbstractConnect(
+                rest.to_owned(),
+            )))
+        } else if let Some(rest) = x.strip_prefix_many(&["abstract-listen:", "listen-abstract:", "abstract-l:", "l-abstract:"]) {
+            Ok(ParseStrChunkResult::Endpoint(Endpoint::AbstractListen (
+                rest.to_owned(),
+            )))
         } else {
             anyhow::bail!("Unknown specifier: {x:?}")
         }

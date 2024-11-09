@@ -1,7 +1,10 @@
 use crate::cli::WebsocatArgs;
 
 use super::{
-    buildscenario_exec::format_osstr, scenarioprinter::{ScenarioPrinter, StrLit}, types::Endpoint, utils::IdentifierGenerator
+    buildscenario_exec::format_osstr,
+    scenarioprinter::{ScenarioPrinter, StrLit},
+    types::Endpoint,
+    utils::IdentifierGenerator,
 };
 
 impl Endpoint {
@@ -36,7 +39,7 @@ impl Endpoint {
                     printer.print_line(&format!("unlink_file({pathvar}, false);"));
                 }
 
-                let varnam = vars.getnewvarname("tcp");
+                let varnam = vars.getnewvarname("unix");
 
                 let mut chmod_option = "";
 
@@ -54,6 +57,34 @@ impl Endpoint {
                 printer.increase_indent();
                 Ok(varnam)
             }
+            Endpoint::AbstractConnect(path) => {
+                let varnam = vars.getnewvarname("unix");
+                let pathvar = vars.getnewvarname("path");
+                if let Some(s) = path.to_str() {
+                    printer.print_line(&format!("let {pathvar} = osstr_str({});", StrLit(s)));
+                } else {
+                    printer.print_line(&format!("let {pathvar} = {};", format_osstr(path)));
+                }
+                printer.print_line(&format!("connect_unix(#{{abstract:true}}, {pathvar}, |{varnam}| {{",));
+                printer.increase_indent();
+                Ok(varnam)
+            }
+            Endpoint::AbstractListen(path) => {
+                let pathvar = vars.getnewvarname("path");
+                if let Some(s) = path.to_str() {
+                    printer.print_line(&format!("let {pathvar} = osstr_str({});", StrLit(s)));
+                } else {
+                    printer.print_line(&format!("let {pathvar} = {};", format_osstr(path)));
+                }
+
+                let varnam = vars.getnewvarname("unix");
+
+                printer.print_line(&format!(
+                    "listen_unix(#{{abstract: true, autospawn: true }}, {pathvar}, |{varnam}| {{",
+                ));
+                printer.increase_indent();
+                Ok(varnam)
+            }
             _ => panic!(),
         }
     }
@@ -65,6 +96,14 @@ impl Endpoint {
                 printer.print_line("})");
             }
             Endpoint::UnixListen(_) => {
+                printer.decrease_indent();
+                printer.print_line("})");
+            }
+            Endpoint::AbstractConnect(_) => {
+                printer.decrease_indent();
+                printer.print_line("})");
+            }
+            Endpoint::AbstractListen(_) => {
                 printer.decrease_indent();
                 printer.print_line("})");
             }

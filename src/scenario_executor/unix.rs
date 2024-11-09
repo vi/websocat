@@ -17,7 +17,7 @@ use super::utils::RhResult;
 fn connect_unix(
     ctx: NativeCallContext,
     opts: Dynamic,
-    path: OsString,
+    mut path: OsString,
     continuation: FnPtr,
 ) -> RhResult<Handle<Task>> {
     let original_span = tracing::Span::current();
@@ -33,6 +33,12 @@ fn connect_unix(
     let opts: UnixOpts = rhai::serde::from_dynamic(&opts)?;
     //span.record("addr", field::display(opts.addr));
     debug!(parent: &span, ?path, r#abstract=opts.r#abstract, "options parsed");
+
+    if opts.r#abstract {
+        let tmp = path;
+        path = std::os::unix::ffi::OsStringExt::from_vec(vec![0]);
+        path.push(tmp);
+    }
 
     Ok(async move {
         debug!("node started");
@@ -61,7 +67,7 @@ fn connect_unix(
 fn listen_unix(
     ctx: NativeCallContext,
     opts: Dynamic,
-    path: OsString,
+    mut path: OsString,
     continuation: FnPtr,
 ) -> RhResult<Handle<Task>> {
     let span = debug_span!("listen_tcp");
@@ -86,6 +92,12 @@ fn listen_unix(
     debug!(parent: &span, listen_addr=?path, r#abstract=opts.r#abstract, "options parsed");
 
     let autospawn = opts.autospawn;
+
+    if opts.r#abstract {
+        let tmp = path;
+        path = std::os::unix::ffi::OsStringExt::from_vec(vec![0]);
+        path.push(tmp);
+    }
 
     Ok(async move {
         debug!("node started");

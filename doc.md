@@ -5,6 +5,29 @@ This section describes options, flags and specifiers of Websocat CLI.
 
 ## Endpoints
 
+### AbstractConnect
+
+Connect to the specified abstract-namespaced UNIX socket (Linux)
+
+Prefixes:
+
+* `abstract:`
+* `abstract-connect:`
+* `connect-abstract:`
+* `abstract-c:`
+* `c-abstract:`
+
+### AbstractListen
+
+Listen UNIX socket on specified abstract path (Linux)
+
+Prefixes:
+
+* `abstract-listen:`
+* `listen-abstract:`
+* `abstract-l:`
+* `l-abstract:`
+
 ### Cmd
 
 Execute given command line and use its stdin/stdout as a socket.
@@ -789,6 +812,7 @@ Returns `Task`
 Options:
 
 * abstract (`bool`) - On Linux, connect ot an abstract-namespaced socket instead of file-based
+* chmod (`Option<u32>`) - Change filesystem mode (permissions) of the file after listening
 * autospawn (`bool`) - Automatically spawn a task for each accepted connection
 
 ## literal_socket

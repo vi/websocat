@@ -48,6 +48,11 @@ pub enum Endpoint {
     UnixConnect(OsString),
     //@ Listen specified UNIX socket path
     UnixListen(OsString),
+
+    //@ Connect to the specified abstract-namespaced UNIX socket (Linux)
+    AbstractConnect(OsString),
+    //@ Listen UNIX socket on specified abstract path (Linux)
+    AbstractListen(OsString),
 }
 
 #[derive(Debug)]
