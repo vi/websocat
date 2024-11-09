@@ -1,10 +1,9 @@
-use crate::{
-    cli::{CustomHeader, WebsocatArgs},
-    scenario_executor::utils::ToNeutralAddress,
-};
+use crate::cli::WebsocatArgs;
 
 use super::{
-    buildscenario_exec::format_osstr, scenarioprinter::{ScenarioPrinter, StrLit}, types::{CopyingType, Endpoint, Overlay, PreparatoryAction, WebsocatInvocation}, utils::IdentifierGenerator
+    scenarioprinter::{ScenarioPrinter, StrLit},
+    types::{CopyingType, Endpoint, Overlay, PreparatoryAction, WebsocatInvocation},
+    utils::IdentifierGenerator,
 };
 
 impl WebsocatInvocation {
@@ -99,154 +98,24 @@ impl Endpoint {
         opts: &WebsocatArgs,
     ) -> anyhow::Result<String> {
         match self {
-            Endpoint::TcpConnectByIp(addr) => {
-                let varnam = vars.getnewvarname("tcp");
-                printer.print_line(&format!(
-                    "connect_tcp(#{{addr: {a}}}, |{varnam}| {{",
-                    a = StrLit(addr)
-                ));
-                printer.increase_indent();
-                Ok(varnam)
-            }
-            Endpoint::TcpConnectByEarlyHostname { varname_for_addrs } => {
-                let varnam = vars.getnewvarname("tcp");
-                printer.print_line(&format!(
-                    "connect_tcp_race(#{{}}, {varname_for_addrs}, |{varnam}| {{"
-                ));
-                printer.increase_indent();
-                Ok(varnam)
-            }
-            Endpoint::TcpConnectByLateHostname { hostname } => {
-                let addrs = vars.getnewvarname("addrs");
-                printer.print_line(&format!(
-                    "lookup_host({h}, |{addrs}| {{",
-                    h = StrLit(hostname)
-                ));
-                printer.increase_indent();
-
-                let varnam = vars.getnewvarname("tcp");
-                printer.print_line(&format!("connect_tcp_race(#{{}}, {addrs}, |{varnam}| {{"));
-                printer.increase_indent();
-                Ok(varnam)
-            }
-            Endpoint::TcpListen(addr) => {
-                let varnam = vars.getnewvarname("tcp");
-                let fromaddr = vars.getnewvarname("from");
-                printer.print_line(&format!(
-                    "listen_tcp(#{{autospawn: true, addr: {a}}}, |{varnam}, {fromaddr}| {{",
-                    a = StrLit(addr),
-                ));
-                printer.increase_indent();
-                Ok(varnam)
+            Endpoint::TcpConnectByIp(..)
+            | Endpoint::TcpConnectByEarlyHostname { .. }
+            | Endpoint::TcpListen { .. }
+            | Endpoint::TcpConnectByLateHostname { .. } => {
+                self.begin_print_tcp(printer, vars, opts)
             }
             Endpoint::WsUrl(..) | Endpoint::WssUrl(..) | Endpoint::WsListen(..) => {
-                panic!(
-                    "This endpoint is supposed to be split up by specifier stack patcher before."
-                );
+                self.begin_print_ws(printer, vars, opts)
             }
             Endpoint::Stdio => {
                 let varnam = vars.getnewvarname("stdio");
                 printer.print_line(&format!("let {varnam} = create_stdio();"));
                 Ok(varnam)
             }
-            Endpoint::UdpConnect(a) => {
-                let varnam = vars.getnewvarname("udp");
-                let maybetextmode = if opts.text { ", tag_as_text: true" } else { "" };
-                printer.print_line(&format!(
-                    "let {varnam} = udp_socket(#{{addr: \"{a}\"{maybetextmode}}});"
-                ));
-                Ok(varnam)
+            Endpoint::UdpConnect(..) | Endpoint::UdpBind(..) | Endpoint::UdpServer(..) => {
+                self.begin_print_udp(printer, vars, opts)
             }
-            Endpoint::UdpBind(a) => {
-                let varnam = vars.getnewvarname("udp");
-
-                let mut udp_bind_redirect_to_last_seen_address =
-                    opts.udp_bind_redirect_to_last_seen_address;
-                let mut udp_bind_connect_to_first_seen_address =
-                    opts.udp_bind_connect_to_first_seen_address;
-
-                if opts.udp_bind_restrict_to_one_address && opts.udp_bind_target_addr.is_none() {
-                    anyhow::bail!("It is meaningless to --udp-bind-restrict-to-one-address without also specifying --udp-bind-target-addr")
-                }
-                if opts.udp_bind_restrict_to_one_address
-                    && (opts.udp_bind_connect_to_first_seen_address
-                        || opts.udp_bind_redirect_to_last_seen_address)
-                {
-                    anyhow::bail!("It is meaningless to use --udp-bind-restrict-to-one-address with another option to react at new incoming addresses")
-                }
-
-                if opts.udp_bind_target_addr.is_none() {
-                    udp_bind_connect_to_first_seen_address = true;
-                }
-                if udp_bind_connect_to_first_seen_address {
-                    udp_bind_redirect_to_last_seen_address = true;
-                }
-
-                let toaddr = opts.udp_bind_target_addr.unwrap_or(a.to_neutral_address());
-
-                let mut o = String::with_capacity(64);
-                o.push_str(&format!("bind: \"{a}\","));
-                o.push_str(&format!("addr: \"{toaddr}\","));
-                o.push_str(&format!("sendto_mode: true,"));
-
-                if !opts.udp_bind_restrict_to_one_address {
-                    o.push_str(&format!("allow_other_addresses: true,"));
-                }
-                if udp_bind_redirect_to_last_seen_address {
-                    o.push_str(&format!("redirect_to_last_seen_address: true,"));
-                }
-                if udp_bind_connect_to_first_seen_address {
-                    o.push_str(&format!("connect_to_first_seen_address: true,"));
-                }
-                if opts.udp_bind_inhibit_send_errors {
-                    o.push_str(&format!("inhibit_send_errors: true,"));
-                }
-
-                if opts.text {
-                    o.push_str(&format!("tag_as_text: true,"));
-                }
-
-                printer.print_line(&format!("let {varnam} = udp_socket(#{{{o}}});"));
-                Ok(varnam)
-            }
-            Endpoint::UdpServer(a) => {
-                let varnam = vars.getnewvarname("udp");
-                let fromaddr = vars.getnewvarname("from");
-
-                let mut o = String::with_capacity(64);
-                o.push_str(&format!("bind: \"{a}\","));
-                if opts.udp_bind_inhibit_send_errors {
-                    o.push_str(&format!("inhibit_send_errors: true,"));
-                }
-                if opts.text {
-                    o.push_str(&format!("tag_as_text: true,"));
-                }
-                if opts.udp_server_backpressure {
-                    o.push_str(&format!("backpressure: true,"));
-                }
-                if let Some(x) = opts.udp_server_timeout_ms {
-                    o.push_str(&format!("timeout_ms: {x},"));
-                }
-                if let Some(x) = opts.udp_server_max_clients {
-                    o.push_str(&format!("max_clients: {x},"));
-                }
-                if let Some(x) = opts.udp_server_buffer_size {
-                    o.push_str(&format!("buffer_size: {x},"));
-                }
-                if let Some(x) = opts.udp_server_qlen {
-                    o.push_str(&format!("qlen: {x},"));
-                }
-
-                printer.print_line(&format!("udp_server(#{{{o}}}, |{varnam}, {fromaddr}| {{",));
-                printer.increase_indent();
-                Ok(varnam)
-            }
-            Endpoint::Exec(..) => {
-                self.begin_print_exec(printer, vars, opts)
-            }
-            Endpoint::Cmd(..) => {
-                self.begin_print_exec(printer, vars, opts)
-            }
+            Endpoint::Exec(..) | Endpoint::Cmd(..) => self.begin_print_exec(printer, vars, opts),
             Endpoint::DummyStream => {
                 let varnam = vars.getnewvarname("dummy");
                 printer.print_line(&format!("let {varnam} = dummy_stream_socket();"));
@@ -280,98 +149,31 @@ impl Endpoint {
                 ));
                 Ok(varnam)
             }
-            Endpoint::UnixConnect(path) => {
-                let varnam = vars.getnewvarname("unix");
-                let pathvar = vars.getnewvarname("path");
-                if let Some(s) = path.to_str() {
-                    printer.print_line(&format!("let {pathvar} = osstr_str({});", StrLit(s)));
-                } else {
-                    printer.print_line(&format!("let {pathvar} = {};", format_osstr(path)));
-                }
-                printer.print_line(&format!("connect_unix(#{{}}, {pathvar}, |{varnam}| {{",));
-                printer.increase_indent();
-                Ok(varnam)
-            }
-            Endpoint::UnixListen(path) => {
-                let pathvar = vars.getnewvarname("path");
-                if let Some(s) = path.to_str() {
-                    printer.print_line(&format!("let {pathvar} = osstr_str({});", StrLit(s)));
-                } else {
-                    printer.print_line(&format!("let {pathvar} = {};", format_osstr(path)));
-                }
-
-                if opts.unlink {
-                    printer.print_line(&format!("unlink_file({pathvar}, false);"));
-                }
-
-                let varnam = vars.getnewvarname("tcp");
-
-                let mut chmod_option = "";
-
-                if opts.chmod_owner {
-                    chmod_option = ", chmod: 0o600";
-                } else if opts.chmod_group {
-                    chmod_option = ", chmod: 0o660";
-                } else if opts.chmod_everyone {
-                    chmod_option = ", chmod: 0o666";
-                }
-
-                printer.print_line(&format!(
-                    "listen_unix(#{{autospawn: true {chmod_option} }}, {pathvar}, |{varnam}| {{",
-                ));
-                printer.increase_indent();
-                Ok(varnam)
+            Endpoint::UnixConnect(..) | Endpoint::UnixListen(..) => {
+                self.begin_print_unix(printer, vars, opts)
             }
         }
     }
-   
+
     fn end_print(&self, printer: &mut ScenarioPrinter) {
         match self {
-            Endpoint::TcpConnectByIp(_) => {
-                printer.decrease_indent();
-                printer.print_line("})");
-            }
-            Endpoint::TcpConnectByEarlyHostname { .. } => {
-                printer.decrease_indent();
-                printer.print_line("})");
-            }
-            Endpoint::TcpListen(_) => {
-                printer.decrease_indent();
-                printer.print_line("})");
-            }
+            Endpoint::TcpConnectByIp(..)
+            | Endpoint::TcpConnectByEarlyHostname { .. }
+            | Endpoint::TcpListen { .. }
+            | Endpoint::TcpConnectByLateHostname { .. } => self.end_print_tcp(printer),
             Endpoint::WsUrl(..) | Endpoint::WssUrl(..) | Endpoint::WsListen(..) => {
-                panic!(
-                    "This endpoint is supposed to be split up by specifier stack patcher before."
-                );
+                self.end_print_ws(printer)
             }
             Endpoint::Stdio => {}
-            Endpoint::UdpConnect(_) => {}
-            Endpoint::UdpBind(_) => (),
-            Endpoint::TcpConnectByLateHostname { hostname: _ } => {
-                printer.decrease_indent();
-                printer.print_line("})");
-
-                printer.decrease_indent();
-                printer.print_line("})");
+            Endpoint::UdpConnect(_) | Endpoint::UdpBind(_) | Endpoint::UdpServer(_) => {
+                self.end_print_udp(printer)
             }
-            Endpoint::UdpServer(_) => {
-                printer.decrease_indent();
-                printer.print_line("})");
-            }
-            Endpoint::Exec(_) => self.end_print_exec(printer),
-            Endpoint::Cmd(_) => self.end_print_exec(printer),
+            Endpoint::Exec(_) | Endpoint::Cmd(_) => self.end_print_exec(printer),
             Endpoint::DummyStream => {}
             Endpoint::DummyDatagrams => {}
             Endpoint::Literal(_) => {}
             Endpoint::LiteralBase64(_) => {}
-            Endpoint::UnixConnect(_) => {
-                printer.decrease_indent();
-                printer.print_line("})");
-            }
-            Endpoint::UnixListen(_) => {
-                printer.decrease_indent();
-                printer.print_line("})");
-            }
+            Endpoint::UnixConnect(_) | Endpoint::UnixListen(_) => self.end_print_unix(printer),
         }
     }
 }
@@ -385,73 +187,11 @@ impl Overlay {
         opts: &WebsocatArgs,
     ) -> anyhow::Result<String> {
         match self {
-            Overlay::WsUpgrade { uri, host } => {
-                let httpclient = vars.getnewvarname("http");
-                let wsframes = vars.getnewvarname("wsframes");
-
-                printer.print_line(&format!(
-                    "let {httpclient} = http1_client(#{{}}, {inner_var});"
-                ));
-
-                let mut oo = String::with_capacity(64);
-                oo.push_str("url: ");
-                oo.push_str(&format!("{}", StrLit(uri)));
-                oo.push_str(",");
-
-                if let Some(host) = host {
-                    oo.push_str("host: ");
-                    oo.push_str(&format!("{}", StrLit(&host)));
-                    oo.push_str(",");
-                }
-
-                if opts.ws_dont_check_headers {
-                    oo.push_str("lax: true,")
-                }
-                if opts.ws_omit_headers {
-                    oo.push_str("omit_headers: true,")
-                }
-
-                let mut ch = String::new();
-                for CustomHeader { name, value } in &opts.header {
-                    ch.push_str(&format!("{}:{},", StrLit(name), StrLit(value)))
-                }
-                if let Some(ref proto) = opts.protocol {
-                    ch.push_str(&format!("\"Sec-WebSocket-Protocol\":{},", StrLit(proto)))
-                }
-
-                printer.print_line(&format!(
-                    "ws_upgrade(#{{{oo}}}, #{{{ch}}}, {httpclient}, |{wsframes}| {{"
-                ));
-                printer.increase_indent();
-
-                Ok(wsframes)
-            }
-            Overlay::WsFramer { client_mode } => {
-                let ws = vars.getnewvarname("ws");
-
-                let mut oo = String::with_capacity(0);
-                if opts.no_close {
-                    oo.push_str("no_close_frame: true,")
-                }
-                if opts.ws_no_flush {
-                    oo.push_str("no_flush_after_each_message: true,")
-                }
-                if opts.ws_ignore_invalid_masks {
-                    oo.push_str("ignore_masks: true,")
-                }
-                if opts.ws_no_auto_buffer {
-                    oo.push_str("no_auto_buffer_wrap: true,")
-                }
-                if opts.ws_shutdown_socket_on_eof {
-                    oo.push_str("shutdown_socket_on_eof: true,")
-                }
-
-                printer.print_line(&format!(
-                    "let {ws} = ws_wrap(#{{{oo}client: {client_mode}}}, {inner_var});"
-                ));
-
-                Ok(ws)
-            }
+            Overlay::WsUpgrade { .. }
+            | Overlay::WsFramer { .. }
+            | Overlay::WsClient
+            | Overlay::WsServer
+            | Overlay::WsAccept { .. } => self.begin_print_ws(printer, inner_var, vars, opts),
             Overlay::StreamChunks => {
                 let varnam = vars.getnewvarname("chunks");
                 printer.print_line(&format!("let {varnam} = stream_chunks({inner_var});"));
@@ -486,44 +226,6 @@ impl Overlay {
 
                 Ok(outer_var)
             }
-            Overlay::WsAccept {} => {
-                let ws = vars.getnewvarname("ws");
-                let hup = vars.getnewvarname("hup");
-                let rq = vars.getnewvarname("rq");
-
-                printer.print_line(&format!("http1_serve(#{{}}, {inner_var}, |{rq}, {hup}| {{"));
-                printer.increase_indent();
-
-                let mut oo = String::new();
-
-                if opts.ws_dont_check_headers {
-                    oo.push_str("lax: true,")
-                }
-                if opts.ws_omit_headers {
-                    oo.push_str("omit_headers: true,")
-                }
-                if opts.server_protocol_choose_first {
-                    oo.push_str("protocol_choose_first: true,");
-                }
-                if let Some(ref x) = opts.server_protocol {
-                    oo.push_str(&format!("choose_protocol: {},", StrLit(x)));
-                    if !opts.server_protocol_lax {
-                        oo.push_str("require_protocol: true,");
-                    }
-                }
-
-                let mut ch = String::new();
-                for CustomHeader { name, value } in &opts.server_header {
-                    ch.push_str(&format!("{}:{},", StrLit(name), StrLit(value)))
-                }
-
-                printer.print_line(&format!(
-                    "ws_accept(#{{{oo}}}, #{{{ch}}}, {rq}, {hup}, |{ws}| {{"
-                ));
-                printer.increase_indent();
-
-                Ok(ws)
-            }
             Overlay::Log { datagram_mode } => {
                 let varnam = vars.getnewvarname("log");
 
@@ -550,16 +252,6 @@ impl Overlay {
                 printer.print_line(&format!("let {varnam} = {funcname}(#{{{maybe_loghex}{maybe_log_omit_content}{maybe_log_verbose}}}, {inner_var});"));
                 Ok(varnam)
             }
-            Overlay::WsClient => {
-                panic!(
-                    "This overlay is supposed to be split up by specifier stack patcher before."
-                );
-            }
-            Overlay::WsServer => {
-                panic!(
-                    "This overlay is supposed to be split up by specifier stack patcher before."
-                );
-            }
             Overlay::ReadChunkLimiter => {
                 let n = opts.read_buffer_limit.unwrap_or(1);
                 printer.print_line(&format!("put_read_part({inner_var}, read_chunk_limiter(take_read_part({inner_var}), {n}));"));
@@ -578,27 +270,18 @@ impl Overlay {
     }
     fn end_print(&self, printer: &mut ScenarioPrinter) {
         match self {
-            Overlay::WsUpgrade { .. } => {
-                printer.decrease_indent();
-                printer.print_line("})");
-            }
-            Overlay::WsFramer { .. } => (),
+            Overlay::WsUpgrade { .. }
+            | Overlay::WsFramer { .. }
+            | Overlay::WsClient
+            | Overlay::WsServer
+            | Overlay::WsAccept { .. } => self.end_print_ws(printer),
             Overlay::StreamChunks => (),
             Overlay::LineChunks => (),
             Overlay::TlsClient { .. } => {
                 printer.decrease_indent();
                 printer.print_line("})");
             }
-            Overlay::WsAccept { .. } => {
-                printer.decrease_indent();
-                printer.print_line("})");
-
-                printer.decrease_indent();
-                printer.print_line("})");
-            }
             Overlay::Log { .. } => (),
-            Overlay::WsClient => panic!(),
-            Overlay::WsServer => panic!(),
             Overlay::ReadChunkLimiter => (),
             Overlay::WriteChunkLimiter => (),
             Overlay::WriteBuffer => (),

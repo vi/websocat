@@ -39,6 +39,10 @@ pub mod scenario_executor {
 pub mod scenario_planner {
     pub mod buildscenario;
     pub mod buildscenario_exec;
+    pub mod buildscenario_tcp;
+    pub mod buildscenario_udp;
+    pub mod buildscenario_unix;
+    pub mod buildscenario_ws;
     pub mod fromstr;
     pub mod patcher;
     pub mod scenarioprinter;
