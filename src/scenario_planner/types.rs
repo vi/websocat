@@ -48,11 +48,23 @@ pub enum Endpoint {
     UnixConnect(OsString),
     //@ Listen specified UNIX socket path
     UnixListen(OsString),
-
     //@ Connect to the specified abstract-namespaced UNIX socket (Linux)
     AbstractConnect(OsString),
     //@ Listen UNIX socket on specified abstract path (Linux)
     AbstractListen(OsString),
+
+    //@ Connect to specified UNIX SOCK_SEQPACKET socket by path
+    //@
+    //@ Unlike Websocat1, @-prefixed addresses does not convert to abstract namespace
+    SeqpacketConnect(OsString),
+    //@ Listen specified UNIX SOCK_SEQPACKET socket
+    //@
+    //@ Unlike Websocat1, @-prefixed addresses does not convert to abstract namespace
+    SeqpacketListen(OsString),
+    //@ Connect to specified UNIX SOCK_SEQPACKET socket by abstract (Linux) name
+    AbstractSeqpacketConnect(OsString),
+    //@ Listen specified UNIX SOCK_SEQPACKET socket by abstract (Linux) name
+    AbstractSeqpacketListen(OsString),
 }
 
 #[derive(Debug)]

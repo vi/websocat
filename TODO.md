@@ -42,7 +42,6 @@
 * clogged
 * socks5 proxy
 * http proxy
-* seqpacket
 * random
 * Prometheus intergration
 * simple ecnryptor/decryptor

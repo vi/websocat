@@ -1,5 +1,5 @@
-use std::{ffi::OsStr, net::SocketAddr};
 use clap_lex::OsStrExt;
+use std::{ffi::OsStr, net::SocketAddr};
 
 use super::{
     types::{Endpoint, Overlay, SpecifierStack},
@@ -41,14 +41,14 @@ enum ParseStrChunkResult<'a> {
 impl ParseStrChunkResult<'_> {
     fn from_str(x: &OsStr) -> anyhow::Result<ParseStrChunkResult<'_>> {
         if x.starts_with("ws://") {
-            let s : &str = x.try_into()?;
+            let s: &str = x.try_into()?;
             let u = http::Uri::try_from(s)?;
             if u.authority().is_none() {
                 anyhow::bail!("ws:// URL without authority");
             }
             Ok(ParseStrChunkResult::Endpoint(Endpoint::WsUrl(u)))
         } else if x.starts_with("wss://") {
-            let s : &str = x.try_into()?;
+            let s: &str = x.try_into()?;
             let u = http::Uri::try_from(s)?;
             if u.authority().is_none() {
                 anyhow::bail!("wss:// URL without authority");
@@ -57,7 +57,7 @@ impl ParseStrChunkResult<'_> {
         } else if let Some(rest) =
             x.strip_prefix_many(&["tcp:", "tcp-connect:", "connect-tcp:", "tcp-c:", "c-tcp:"])
         {
-            let s : &str = rest.try_into()?;
+            let s: &str = rest.try_into()?;
             let a: Result<SocketAddr, _> = s.parse();
             match a {
                 Ok(a) => Ok(ParseStrChunkResult::Endpoint(Endpoint::TcpConnectByIp(a))),
@@ -70,7 +70,7 @@ impl ParseStrChunkResult<'_> {
         } else if let Some(rest) =
             x.strip_prefix_many(&["tcp-listen:", "listen-tcp:", "tcp-l:", "l-tcp:"])
         {
-            let s : &str = rest.try_into()?;            
+            let s: &str = rest.try_into()?;
             let a: SocketAddr = s.parse()?;
             Ok(ParseStrChunkResult::Endpoint(Endpoint::TcpListen(a)))
         } else if x == "-" {
@@ -93,12 +93,16 @@ impl ParseStrChunkResult<'_> {
                 ovl: Overlay::WsAccept {},
                 rest,
             })
-        } else if let Some(rest) = x.strip_prefix_many(&["ws-connect:", "connect-ws:", "ws-c:", "c-ws:"]) {
+        } else if let Some(rest) =
+            x.strip_prefix_many(&["ws-connect:", "connect-ws:", "ws-c:", "c-ws:"])
+        {
             Ok(ParseStrChunkResult::Overlay {
                 ovl: Overlay::WsClient {},
                 rest,
             })
-        } else if let Some(rest) = x.strip_prefix_many(&["ws-upgrade:", "upgrade-ws:", "ws-u:", "u-ws:"]) {
+        } else if let Some(rest) =
+            x.strip_prefix_many(&["ws-upgrade:", "upgrade-ws:", "ws-u:", "u-ws:"])
+        {
             Ok(ParseStrChunkResult::Overlay {
                 ovl: Overlay::WsServer {},
                 rest,
@@ -114,7 +118,7 @@ impl ParseStrChunkResult<'_> {
                 rest,
             })
         } else if let Some(rest) = x.strip_prefix("ws-l:") {
-            let s : &str = rest.try_into()?;
+            let s: &str = rest.try_into()?;
             let a: SocketAddr = s.parse()?;
             Ok(ParseStrChunkResult::Endpoint(Endpoint::WsListen(a)))
         } else if let Some(rest) = x.strip_prefix("log:") {
@@ -143,7 +147,7 @@ impl ParseStrChunkResult<'_> {
         } else if let Some(rest) =
             x.strip_prefix_many(&["udp:", "udp-connect:", "connect-udp:", "udp-c:", "c-udp:"])
         {
-            let s : &str = rest.try_into()?;
+            let s: &str = rest.try_into()?;
             let a: SocketAddr = s.parse()?;
             Ok(ParseStrChunkResult::Endpoint(Endpoint::UdpConnect(a)))
         } else if let Some(rest) = x.strip_prefix_many(&[
@@ -154,11 +158,11 @@ impl ParseStrChunkResult<'_> {
             "udp-l:",
             "l-udp:",
         ]) {
-            let s : &str = rest.try_into()?;
+            let s: &str = rest.try_into()?;
             let a: SocketAddr = s.parse()?;
             Ok(ParseStrChunkResult::Endpoint(Endpoint::UdpBind(a)))
         } else if let Some(rest) = x.strip_prefix("udp-server:") {
-            let s : &str = rest.try_into()?;
+            let s: &str = rest.try_into()?;
             let a: SocketAddr = s.parse()?;
             Ok(ParseStrChunkResult::Endpoint(Endpoint::UdpServer(a)))
         } else if let Some(rest) = x.strip_prefix("exec:") {
@@ -182,29 +186,87 @@ impl ParseStrChunkResult<'_> {
             }
             Ok(ParseStrChunkResult::Endpoint(Endpoint::DummyStream))
         } else if let Some(rest) = x.strip_prefix("literal:") {
-            let s : &str = rest.try_into()?;
+            let s: &str = rest.try_into()?;
             Ok(ParseStrChunkResult::Endpoint(Endpoint::Literal(
                 s.to_owned(),
             )))
         } else if let Some(rest) = x.strip_prefix("literal-base64:") {
-            let s : &str = rest.try_into()?;
+            let s: &str = rest.try_into()?;
             Ok(ParseStrChunkResult::Endpoint(Endpoint::LiteralBase64(
                 s.to_owned(),
             )))
-        } else if let Some(rest) = x.strip_prefix_many(&["unix:", "unix-connect:", "connect-unix:", "unix-c:", "c-unix:"]) {
+        } else if let Some(rest) = x.strip_prefix_many(&[
+            "unix:",
+            "unix-connect:",
+            "connect-unix:",
+            "unix-c:",
+            "c-unix:",
+        ]) {
             Ok(ParseStrChunkResult::Endpoint(Endpoint::UnixConnect(
                 rest.to_owned(),
             )))
-        } else if let Some(rest) = x.strip_prefix_many(&["unix-listen:", "listen-unix:", "unix-l:", "l-unix:"]) {
-            Ok(ParseStrChunkResult::Endpoint(Endpoint::UnixListen (
+        } else if let Some(rest) =
+            x.strip_prefix_many(&["unix-listen:", "listen-unix:", "unix-l:", "l-unix:"])
+        {
+            Ok(ParseStrChunkResult::Endpoint(Endpoint::UnixListen(
                 rest.to_owned(),
             )))
-        } else if let Some(rest) = x.strip_prefix_many(&["abstract:", "abstract-connect:", "connect-abstract:", "abstract-c:", "c-abstract:"]) {
+        } else if let Some(rest) = x.strip_prefix_many(&[
+            "abstract:",
+            "abstract-connect:",
+            "connect-abstract:",
+            "abstract-c:",
+            "c-abstract:",
+        ]) {
             Ok(ParseStrChunkResult::Endpoint(Endpoint::AbstractConnect(
                 rest.to_owned(),
             )))
-        } else if let Some(rest) = x.strip_prefix_many(&["abstract-listen:", "listen-abstract:", "abstract-l:", "l-abstract:"]) {
-            Ok(ParseStrChunkResult::Endpoint(Endpoint::AbstractListen (
+        } else if let Some(rest) = x.strip_prefix_many(&[
+            "abstract-listen:",
+            "listen-abstract:",
+            "abstract-l:",
+            "l-abstract:",
+        ]) {
+            Ok(ParseStrChunkResult::Endpoint(Endpoint::AbstractListen(
+                rest.to_owned(),
+            )))
+        } else if let Some(rest) = x.strip_prefix_many(&[
+            "seqpacket:",
+            "seqpacket-connect:",
+            "connect-seqpacket:",
+            "seqpacket-c:",
+            "c-seqpacket:",
+        ]) {
+            Ok(ParseStrChunkResult::Endpoint(Endpoint::SeqpacketConnect(
+                rest.to_owned(),
+            )))
+        } else if let Some(rest) = x.strip_prefix_many(&[
+            "seqpacket-listen:",
+            "listen-seqpacket:",
+            "seqpacket-l:",
+            "l-seqpacket:",
+        ]) {
+            Ok(ParseStrChunkResult::Endpoint(Endpoint::SeqpacketListen(
+                rest.to_owned(),
+            )))
+        } else if let Some(rest) = x.strip_prefix_many(&[
+            "seqpacket-abstract:",
+            "seqpacket-abstract-connect:",
+            "seqpacket-abstract-c:",
+            "abstract-seqpacket:",
+            "abstract-seqpacket-connect:",
+            "abstract-seqpacket-c:",
+        ]) {
+            Ok(ParseStrChunkResult::Endpoint(Endpoint::AbstractSeqpacketConnect(
+                rest.to_owned(),
+            )))
+        } else if let Some(rest) = x.strip_prefix_many(&[
+            "seqpacket-abstract-listen:",
+            "seqpacket-abstract-l:",
+            "abstract-seqpacket-listen:",
+            "abstract-seqpacket-l:",
+        ]) {
+            Ok(ParseStrChunkResult::Endpoint(Endpoint::AbstractSeqpacketListen(
                 rest.to_owned(),
             )))
         } else {

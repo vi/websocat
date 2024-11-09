@@ -250,6 +250,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e8c02a5121d4ea3eb16a80748c74f5549a5665e4c21333c6098f283870fbdea6"
 
 [[package]]
+name = "filedesc"
+version = "0.6.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c4960c866d9cf4c48f64f11ef0020c98900d0cb32e9b019c000ed838470daa1d"
+dependencies = [
+ "libc",
+]
+
+[[package]]
 name = "flagset"
 version = "0.4.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1090,6 +1099,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "tokio-seqpacket"
+version = "0.7.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b9661fed8f6000d5e47a0c9177f8a157b38ff84ad359c81363c108e4d80465c8"
+dependencies = [
+ "filedesc",
+ "libc",
+ "tokio",
+]
+
+[[package]]
 name = "tokio-util"
 version = "0.7.12"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1235,6 +1255,7 @@ dependencies = [
  "tinyvec",
  "tokio",
  "tokio-native-tls",
+ "tokio-seqpacket",
  "tokio-util",
  "tracing",
  "tracing-subscriber",

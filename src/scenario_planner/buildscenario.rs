@@ -149,9 +149,14 @@ impl Endpoint {
                 ));
                 Ok(varnam)
             }
-            Endpoint::UnixConnect(..) | Endpoint::UnixListen(..) | Endpoint::AbstractConnect(_) | Endpoint::AbstractListen(_) => {
-                self.begin_print_unix(printer, vars, opts)
-            }
+            Endpoint::UnixConnect(..)
+            | Endpoint::UnixListen(..)
+            | Endpoint::AbstractConnect(_)
+            | Endpoint::AbstractListen(_)
+            | Endpoint::SeqpacketConnect(_)
+            | Endpoint::SeqpacketListen(_)
+            | Endpoint::AbstractSeqpacketConnect(_)
+            | Endpoint::AbstractSeqpacketListen(_) => self.begin_print_unix(printer, vars, opts),
         }
     }
 
@@ -173,7 +178,14 @@ impl Endpoint {
             Endpoint::DummyDatagrams => {}
             Endpoint::Literal(_) => {}
             Endpoint::LiteralBase64(_) => {}
-            Endpoint::UnixConnect(_) | Endpoint::UnixListen(_) | Endpoint::AbstractConnect(_) | Endpoint::AbstractListen(_) => self.end_print_unix(printer),
+            Endpoint::UnixConnect(_)
+            | Endpoint::UnixListen(_)
+            | Endpoint::AbstractConnect(_)
+            | Endpoint::AbstractListen(_)
+            | Endpoint::SeqpacketConnect(_)
+            | Endpoint::SeqpacketListen(_)
+            | Endpoint::AbstractSeqpacketConnect(_)
+            | Endpoint::AbstractSeqpacketListen(_) => self.end_print_unix(printer),
         }
     }
 }

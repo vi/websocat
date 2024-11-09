@@ -28,6 +28,30 @@ Prefixes:
 * `abstract-l:`
 * `l-abstract:`
 
+### AbstractSeqpacketConnect
+
+Connect to specified UNIX SOCK_SEQPACKET socket by abstract (Linux) name
+
+Prefixes:
+
+* `seqpacket-abstract:`
+* `seqpacket-abstract-connect:`
+* `seqpacket-abstract-c:`
+* `abstract-seqpacket:`
+* `abstract-seqpacket-connect:`
+* `abstract-seqpacket-c:`
+
+### AbstractSeqpacketListen
+
+Listen specified UNIX SOCK_SEQPACKET socket by abstract (Linux) name
+
+Prefixes:
+
+* `seqpacket-abstract-listen:`
+* `seqpacket-abstract-l:`
+* `abstract-seqpacket-listen:`
+* `abstract-seqpacket-l:`
+
 ### Cmd
 
 Execute given command line and use its stdin/stdout as a socket.
@@ -81,6 +105,33 @@ Byte stream socket that produces specified content (base64-encoded) and ignores 
 Prefixes:
 
 * `literal-base64:`
+
+### SeqpacketConnect
+
+Connect to specified UNIX SOCK_SEQPACKET socket by path
+
+Unlike Websocat1, @-prefixed addresses does not convert to abstract namespace
+
+Prefixes:
+
+* `seqpacket:`
+* `seqpacket-connect:`
+* `connect-seqpacket:`
+* `seqpacket-c:`
+* `c-seqpacket:`
+
+### SeqpacketListen
+
+Listen specified UNIX SOCK_SEQPACKET socket
+
+Unlike Websocat1, @-prefixed addresses does not convert to abstract namespace
+
+Prefixes:
+
+* `seqpacket-listen:`
+* `listen-seqpacket:`
+* `seqpacket-l:`
+* `l-seqpacket:`
 
 ### Stdio
 
@@ -546,6 +597,23 @@ Parameters:
 
 Returns `String`
 
+## connect_seqpacket
+
+Connect to a SOCK_SEQPACKET UNIX stream socket
+
+Parameters:
+
+* opts (`Dynamic`) - object map containing dynamic options to the function
+* path (`OsString`)
+* continuation (`Fn(DatagramSocket) -> Task`) - Rhai function that will be called to continue processing
+
+Returns `Task`
+
+Options:
+
+* abstract (`bool`) - On Linux, connect ot an abstract-namespaced socket instead of file-based
+* text (`bool`) - Mark received datagrams as text
+
 ## connect_tcp
 
 Parameters:
@@ -784,6 +852,23 @@ Options:
 * separator (`Option<u8>`) - Use this byte as a separator. Defaults to 10 (\n).
 * separator_n (`Option<usize>`) - Use this number of repetitions of the specified byte to consider it as a separator. Defaults to 1.
 * substitute (`Option<u8>`) - When framing messages, look for byte sequences within the message that may alias with the separator and substitute last byte of such pseudo-separators with this byte value.  If active, leading and trailing separator bytes are also removed from the datagrams
+
+## listen_seqpacket
+
+Parameters:
+
+* opts (`Dynamic`) - object map containing dynamic options to the function
+* path (`OsString`)
+* continuation (`Fn(DatagramSocket) -> Task`) - Rhai function that will be called to continue processing
+
+Returns `Task`
+
+Options:
+
+* abstract (`bool`) - On Linux, connect ot an abstract-namespaced socket instead of file-based
+* chmod (`Option<u32>`) - Change filesystem mode (permissions) of the file after listening
+* autospawn (`bool`) - Automatically spawn a task for each accepted connection
+* text (`bool`) - Mark received datagrams as text
 
 ## listen_tcp
 
