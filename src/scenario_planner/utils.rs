@@ -1,4 +1,5 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, ffi::OsStr};
+use clap_lex::OsStrExt;
 
 pub struct IdentifierGenerator {
     pub varnames: HashMap<&'static str, usize>,
@@ -18,10 +19,10 @@ impl IdentifierGenerator {
 }
 
 pub trait StripPrefixMany {
-    fn strip_prefix_many<'a>(&'a self, prefixes: &'static [&'static str]) -> Option<&'a str>;
+    fn strip_prefix_many<'a>(&'a self, prefixes: &'static [&'static str]) -> Option<&'a OsStr>;
 }
-impl StripPrefixMany for str {
-    fn strip_prefix_many<'a>(&'a self, prefixes: &'static [&'static str]) -> Option<&'a str> {
+impl StripPrefixMany for OsStr {
+    fn strip_prefix_many<'a>(&'a self, prefixes: &'static [&'static str]) -> Option<&'a OsStr> {
         for p in prefixes {
             if let Some(x) = self.strip_prefix(p) {
                 return Some(x)

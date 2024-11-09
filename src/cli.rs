@@ -23,9 +23,9 @@ impl CustomHeader {
 /// Tool to connect to WebSocket, listen them and do other network tricks
 #[command(version, about)]
 pub struct WebsocatArgs {
-    pub spec1: String,
+    pub spec1: OsString,
 
-    pub spec2: Option<String>,
+    pub spec2: Option<OsString>,
 
     /// do not execute this Websocat invocation, print equivalent Rhai script instead.
     #[arg(long)]

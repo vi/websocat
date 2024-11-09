@@ -72,7 +72,7 @@ async fn main() -> anyhow::Result<()> {
         global_scenario = std::str::from_utf8(&scenario_file[..])?;
     } else {
         if args.spec2.is_none() {
-            args.spec2 = Some("stdio:".to_owned());
+            args.spec2 = Some("stdio:".to_owned().into());
             if !args.binary && !args.text {
                 args.text = true;
             }
@@ -83,10 +83,13 @@ async fn main() -> anyhow::Result<()> {
             args.binary = true;
         }
         if args.server {
-            if !args.spec1.contains(':') {
-                args.spec1 = format!("127.0.0.1:{}", args.spec1);
+            let s : &str = args.spec1.as_os_str().try_into()?;
+            let mut s = s.to_owned();
+            if !s.contains(':') {
+                s = format!("127.0.0.1:{}", s);
             }
-            args.spec1 = format!("ws-l:{}", args.spec1);
+            s = format!("ws-l:{}", s);
+            args.spec1 = s.into();
         }
 
         let left_stack = SpecifierStack::from_str(&args.spec1)?;

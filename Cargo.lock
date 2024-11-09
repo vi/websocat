@@ -1217,6 +1217,7 @@ dependencies = [
  "base64",
  "bytes",
  "clap",
+ "clap_lex",
  "flagset",
  "futures",
  "hex",
