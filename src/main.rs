@@ -38,6 +38,7 @@ pub mod scenario_executor {
 
 pub mod scenario_planner {
     pub mod buildscenario;
+    pub mod buildscenario_exec;
     pub mod fromstr;
     pub mod patcher;
     pub mod scenarioprinter;
