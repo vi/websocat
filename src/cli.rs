@@ -275,4 +275,16 @@ pub struct WebsocatArgs {
     /// When listening UNIX sockets, attempt to delete the file first to avoid the failure to bind
     #[arg(long)]
     pub unlink: bool,
+
+    /// When listening UNIX sockets, change socket filesystem permissions to only allow owner connections
+    #[arg(long)]
+    pub chmod_owner: bool,
+
+    /// When listening UNIX sockets, change socket filesystem permissions to allow owner and group connections
+    #[arg(long)]
+    pub chmod_group: bool,
+
+    /// When listening UNIX sockets, change socket filesystem permissions to allow connections from everywhere
+    #[arg(long)]
+    pub chmod_everyone: bool,
 }

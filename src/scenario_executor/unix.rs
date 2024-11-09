@@ -1,6 +1,7 @@
 use std::{ffi::OsString, time::Duration};
 
 use crate::scenario_executor::utils::{SimpleErr, TaskHandleExt2};
+use futures::FutureExt;
 use rhai::{Dynamic, Engine, FnPtr, NativeCallContext};
 use tokio::net::UnixStream;
 use tracing::{debug, debug_span, error, warn, Instrument};
@@ -72,6 +73,10 @@ fn listen_unix(
         #[serde(default)]
         r#abstract: bool,
 
+        //@ Change filesystem mode (permissions) of the file after listening
+        #[serde(default)]
+        chmod: Option<u32>,
+
         //@ Automatically spawn a task for each accepted connection
         #[serde(default)]
         autospawn: bool,
@@ -84,7 +89,36 @@ fn listen_unix(
 
     Ok(async move {
         debug!("node started");
-        let l = tokio::net::UnixListener::bind(path)?;
+        let l = tokio::net::UnixListener::bind(&path)?;
+
+        if let Some(chmod) = opts.chmod {
+            use std::os::unix::fs::PermissionsExt;
+            match std::fs::set_permissions(&path, std::fs::Permissions::from_mode(chmod)) {
+                Ok(_) => {
+                    debug!(?path,chmod,"chmod");
+                }
+                Err(e) => {
+                    error!("Failed to chmod {path:?} to {chmod}: {e}");
+                    return Err(e.into());
+                }
+            }
+
+            if chmod != 0o666 {
+                // Throw away potential sneaky TOCTOU connections that got through before we issued chmod.
+                // I'm not sure about if this scheme is waterproof.
+                
+                loop {
+                    let Some(c) = l.accept().now_or_never() else { break };
+                    if let Err(e) = c {
+                        error!(%e, "Error from accept");
+                        tokio::time::sleep(Duration::from_millis(50)).await;
+                    } else {
+                        warn!("Rejected incoming connection to UNIX socket that may have happened before we did chmod");
+                    }
+
+                }
+            }
+        }
 
         loop {
             let the_scenario = the_scenario.clone();

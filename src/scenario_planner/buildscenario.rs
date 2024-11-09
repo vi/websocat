@@ -365,8 +365,19 @@ impl Endpoint {
                 }
 
                 let varnam = vars.getnewvarname("tcp");
+
+                let mut chmod_option = "";
+
+                if opts.chmod_owner {
+                    chmod_option = ", chmod: 0o600";
+                } else if opts.chmod_group {
+                    chmod_option = ", chmod: 0o660";
+                } else if opts.chmod_everyone {
+                    chmod_option = ", chmod: 0o666";
+                }
+
                 printer.print_line(&format!(
-                    "listen_unix(#{{autospawn: true}}, {pathvar}, |{varnam}| {{",
+                    "listen_unix(#{{autospawn: true {chmod_option} }}, {pathvar}, |{varnam}| {{",
                 ));
                 printer.increase_indent();
                 Ok(varnam)
