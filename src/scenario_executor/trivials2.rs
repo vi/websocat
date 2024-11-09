@@ -15,7 +15,8 @@ use crate::scenario_executor::{
 
 use super::{
     types::{
-        BufferFlag, BufferFlags, DatagramRead, DatagramSocket, DatagramWrite, PacketRead, PacketReadResult, PacketWrite, StreamSocket, StreamWrite
+        BufferFlag, BufferFlags, DatagramRead, DatagramSocket, DatagramWrite, PacketRead,
+        PacketReadResult, PacketWrite, StreamSocket, StreamWrite,
     },
     utils::{HandleExt, SimpleErr},
 };
@@ -321,7 +322,6 @@ fn literal_socket_base64(ctx: NativeCallContext, data: String) -> RhResult<Handl
     .wrap())
 }
 
-
 #[pin_project]
 struct ReadStreamChunks(#[pin] StreamRead);
 
@@ -459,7 +459,6 @@ fn stream_chunks(
         Err(ctx.err(""))
     }
 }
-
 
 pub fn register(engine: &mut Engine) {
     engine.register_fn("read_chunk_limiter", read_chunk_limiter);

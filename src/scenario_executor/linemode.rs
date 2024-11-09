@@ -131,7 +131,7 @@ struct WriteLineChunks {
 
 impl WriteLineChunks {
     pub fn new(inner: StreamWrite, separator: u8, separator_n: usize, subst: Option<u8>) -> Self {
-        assert!(separator_n>0);
+        assert!(separator_n > 0);
         Self {
             w: inner,
             separator: vec![separator; separator_n],
@@ -165,7 +165,10 @@ impl PacketWrite for WriteLineChunks {
             this.separator.len()
         };
 
-        if let (Some(subst), false) = (this.intramessage_separator_substitution, this.chunk_already_processed) {
+        if let (Some(subst), false) = (
+            this.intramessage_separator_substitution,
+            this.chunk_already_processed,
+        ) {
             let sb = this.separator[0];
 
             this.trim_bytes_from_start = 0;
@@ -173,7 +176,7 @@ impl PacketWrite for WriteLineChunks {
 
             if !this.nonfirst_chunk {
                 while buf[this.trim_bytes_from_start..].first() == Some(&sb) {
-                    this.trim_bytes_from_start+=1;
+                    this.trim_bytes_from_start += 1;
                 }
                 if !buf[this.trim_bytes_from_start..].is_empty() {
                     this.nonfirst_chunk = true;
@@ -187,7 +190,7 @@ impl PacketWrite for WriteLineChunks {
                     if this.mhctnorsbatlce >= this.separator.len() {
                         *x = subst;
                         there_is_nonseparator_byte = true;
-                        this.mhctnorsbatlce=0;
+                        this.mhctnorsbatlce = 0;
                     }
                 } else {
                     this.mhctnorsbatlce = 0;
@@ -200,9 +203,11 @@ impl PacketWrite for WriteLineChunks {
                 this.indebted_separator_bytes = 0;
             }
 
-            while buf[this.trim_bytes_from_start..(buf.len()-this.trim_bytes_from_end)].last() == Some(&sb) {
+            while buf[this.trim_bytes_from_start..(buf.len() - this.trim_bytes_from_end)].last()
+                == Some(&sb)
+            {
                 this.indebted_separator_bytes += 1;
-                this.trim_bytes_from_end+=1;
+                this.trim_bytes_from_end += 1;
             }
             assert!(this.indebted_separator_bytes < this.separator.len());
 
@@ -228,7 +233,7 @@ impl PacketWrite for WriteLineChunks {
                     Poll::Pending => return Poll::Pending,
                 }
             }
-            let buf = &buf[this.trim_bytes_from_start..(buf.len()-this.trim_bytes_from_end)];
+            let buf = &buf[this.trim_bytes_from_start..(buf.len() - this.trim_bytes_from_end)];
             assert!(buf.len() >= this.buffer_offset);
             let buf_chunk = &buf[this.buffer_offset..];
             if buf_chunk.is_empty() && this.separator_offset == required_separator_len {
@@ -250,11 +255,15 @@ impl PacketWrite for WriteLineChunks {
                 this.separator_offset = 0;
                 break;
             }
-            let bufs : [IoSlice; 2] = [
+            let bufs: [IoSlice; 2] = [
                 IoSlice::new(buf_chunk),
                 IoSlice::new(&this.separator[this.separator_offset..required_separator_len]),
             ];
-            match tokio::io::AsyncWrite::poll_write_vectored(Pin::new(&mut this.w.writer), cx, &bufs) {
+            match tokio::io::AsyncWrite::poll_write_vectored(
+                Pin::new(&mut this.w.writer),
+                cx,
+                &bufs,
+            ) {
                 Poll::Ready(Ok(mut n)) => {
                     let n_from_chunk = n.min(buf_chunk.len());
                     this.buffer_offset += n_from_chunk;
@@ -315,7 +324,12 @@ fn line_chunks(
 
     if let Some(w) = x.write {
         wrapped.write = Some(DatagramWrite {
-            snk: Box::pin(WriteLineChunks::new(w, separator, separator_n, opts.substitute)),
+            snk: Box::pin(WriteLineChunks::new(
+                w,
+                separator,
+                separator_n,
+                opts.substitute,
+            )),
         })
     }
 

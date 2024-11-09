@@ -44,7 +44,6 @@ impl Overlay {
         opts: &WebsocatArgs,
     ) -> anyhow::Result<String> {
         match self {
-            
             Overlay::WsUpgrade { uri, host } => {
                 let httpclient = vars.getnewvarname("http");
                 let wsframes = vars.getnewvarname("wsframes");

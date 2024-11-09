@@ -13,7 +13,10 @@ use crate::scenario_executor::{
     types::{Handle, StreamRead, StreamSocket, StreamWrite, Task},
 };
 
-use super::{types::Hangup, utils::{ExtractHandleOrFail, HandleExt, RhResult, SimpleErr}};
+use super::{
+    types::Hangup,
+    utils::{ExtractHandleOrFail, HandleExt, RhResult, SimpleErr},
+};
 
 //@ Prepare subprocess, setting up executable name.
 fn subprocess_new(program_name: String) -> Handle<Command> {
@@ -234,12 +237,9 @@ fn child_socket(
 
 //@ Obtain a Hangup handle that resovles when child process terminates.
 //@ `Child` instance cannot be used after this.
-fn child_wait(
-    ctx: NativeCallContext,
-    chld: &mut Handle<Child>,
-) -> RhResult<Handle<Hangup>> {
+fn child_wait(ctx: NativeCallContext, chld: &mut Handle<Child>) -> RhResult<Handle<Hangup>> {
     let mut c = ctx.lutbarm(chld)?;
-    let s : Hangup  = Box::pin(async move {
+    let s: Hangup = Box::pin(async move {
         match c.wait().await {
             Ok(x) => {
                 debug!("child process exited with status {x}")
@@ -255,12 +255,9 @@ fn child_wait(
 
 //@ Terminate a child process.
 //@ `Child` instance cannot be used after this.
-fn child_kill(
-    ctx: NativeCallContext,
-    chld: &mut Handle<Child>,
-) -> RhResult<Handle<Hangup>> {
+fn child_kill(ctx: NativeCallContext, chld: &mut Handle<Child>) -> RhResult<Handle<Hangup>> {
     let mut c = ctx.lutbarm(chld)?;
-    let s : Hangup  = Box::pin(async move {
+    let s: Hangup = Box::pin(async move {
         match c.kill().await {
             Ok(()) => {
                 debug!("child process terminated")
@@ -291,7 +288,6 @@ fn child_take_stderr(
     Ok(s.wrap())
 }
 
-
 //@ Spawn the prepared subprocess. What happens next depends on used `child_` function.
 fn subprocess_spawn(ctx: NativeCallContext, cmd: &mut Handle<Command>) -> RhResult<Handle<Child>> {
     let mut c = ctx.lutbarm(cmd)?;
@@ -307,7 +303,6 @@ fn subprocess_spawn(ctx: NativeCallContext, cmd: &mut Handle<Command>) -> RhResu
     }
 }
 
-
 //@ Add literal, unescaped text to Window's command line
 #[allow(unused)]
 fn subprocess_raw_windows_arg(
@@ -316,12 +311,14 @@ fn subprocess_raw_windows_arg(
     arg: OsString,
 ) -> RhResult<()> {
     let (mut c, cmd) = ctx.lutbar2m(cmd)?;
-    
-    #[cfg(not(windows))] {
+
+    #[cfg(not(windows))]
+    {
         return Err(ctx.err("This function is not available on this platform"));
     }
 
-    #[cfg(windows)] {
+    #[cfg(windows)]
+    {
         c.raw_arg(arg);
     }
 
@@ -388,10 +385,7 @@ fn subprocess_env_remove_osstr(
 }
 
 //@ Clear all environment variables for the subprocess.
-fn subprocess_env_clear(
-    ctx: NativeCallContext,
-    cmd: &mut Handle<Command>,
-) -> RhResult<()> {
+fn subprocess_env_clear(ctx: NativeCallContext, cmd: &mut Handle<Command>) -> RhResult<()> {
     let (mut c, cmd) = ctx.lutbar2m(cmd)?;
 
     c.env_clear();
@@ -437,12 +431,14 @@ fn subprocess_windows_creation_flags(
 ) -> RhResult<()> {
     let (mut c, cmd) = ctx.lutbar2m(cmd)?;
 
-    let flags : u32 = flags as u32;
-    #[cfg(not(windows))] {
+    let flags: u32 = flags as u32;
+    #[cfg(not(windows))]
+    {
         return Err(ctx.err("This function is not available on this platform"));
     }
 
-    #[cfg(windows)] {
+    #[cfg(windows)]
+    {
         c.creation_flags(flags);
     }
 
@@ -452,19 +448,17 @@ fn subprocess_windows_creation_flags(
 
 //@ Set subprocess's uid on Unix.
 #[allow(unused)]
-fn subprocess_uid(
-    ctx: NativeCallContext,
-    cmd: &mut Handle<Command>,
-    uid: i64,
-) -> RhResult<()> {
+fn subprocess_uid(ctx: NativeCallContext, cmd: &mut Handle<Command>, uid: i64) -> RhResult<()> {
     let (mut c, cmd) = ctx.lutbar2m(cmd)?;
 
-    let x : u32 = uid as u32;
-    #[cfg(not(unix))] {
+    let x: u32 = uid as u32;
+    #[cfg(not(unix))]
+    {
         return Err(ctx.err("This function is not available on this platform"));
     }
 
-    #[cfg(unix)] {
+    #[cfg(unix)]
+    {
         c.uid(x);
     }
 
@@ -474,19 +468,17 @@ fn subprocess_uid(
 
 //@ Set subprocess's uid on Unix.
 #[allow(unused)]
-fn subprocess_gid(
-    ctx: NativeCallContext,
-    cmd: &mut Handle<Command>,
-    gid: i64,
-) -> RhResult<()> {
+fn subprocess_gid(ctx: NativeCallContext, cmd: &mut Handle<Command>, gid: i64) -> RhResult<()> {
     let (mut c, cmd) = ctx.lutbar2m(cmd)?;
 
-    let x : u32 = gid as u32;
-    #[cfg(not(unix))] {
+    let x: u32 = gid as u32;
+    #[cfg(not(unix))]
+    {
         return Err(ctx.err("This function is not available on this platform"));
     }
 
-    #[cfg(unix)] {
+    #[cfg(unix)]
+    {
         c.gid(x);
     }
 
@@ -502,11 +494,13 @@ fn subprocess_arg0(
     arg0: String,
 ) -> RhResult<()> {
     let (mut c, cmd) = ctx.lutbar2m(cmd)?;
-    #[cfg(not(unix))] {
+    #[cfg(not(unix))]
+    {
         return Err(ctx.err("This function is not available on this platform"));
     }
 
-    #[cfg(unix)] {
+    #[cfg(unix)]
+    {
         c.arg0(arg0);
     }
 
@@ -522,18 +516,19 @@ fn subprocess_arg0_osstr(
     arg0: OsString,
 ) -> RhResult<()> {
     let (mut c, cmd) = ctx.lutbar2m(cmd)?;
-    #[cfg(not(unix))] {
+    #[cfg(not(unix))]
+    {
         return Err(ctx.err("This function is not available on this platform"));
     }
 
-    #[cfg(unix)] {
+    #[cfg(unix)]
+    {
         c.arg0(arg0);
     }
 
     cmd.put(c);
     Ok(())
 }
-
 
 pub fn register(engine: &mut Engine) {
     engine.register_fn("subprocess_new", subprocess_new);

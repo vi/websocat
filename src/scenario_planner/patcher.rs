@@ -152,12 +152,11 @@ impl MyUrlParts {
     }
 }
 
-
 impl SpecifierStack {
     fn maybe_splitup_client_ws_endpoint(&mut self) -> anyhow::Result<()> {
         match self.innermost {
             Endpoint::WsUrl(ref u) | Endpoint::WssUrl(ref u) => {
-                let MyUrlParts{auth, newurl} = MyUrlParts::process_url(u)?;
+                let MyUrlParts { auth, newurl } = MyUrlParts::process_url(u)?;
 
                 // URI should be checked to be a full one in `fromstr.rs`.
                 let auth = auth.unwrap();
@@ -167,7 +166,7 @@ impl SpecifierStack {
                     Endpoint::WssUrl(_) => true,
                     _ => unreachable!(),
                 };
-                
+
                 let default_port = if wss_mode { 443 } else { 80 };
                 let (mut host, port) = (auth.host(), auth.port_u16().unwrap_or(default_port));
 
@@ -226,17 +225,20 @@ impl SpecifierStack {
         };
 
         let uri = Uri::try_from(opts.ws_c_uri.as_deref().unwrap_or("/"))?;
-        let MyUrlParts{auth, newurl} = MyUrlParts::process_url(&uri)?;
+        let MyUrlParts { auth, newurl } = MyUrlParts::process_url(&uri)?;
 
         self.overlays.remove(position_to_redact);
         self.overlays.insert(
             position_to_redact,
             Overlay::WsUpgrade {
                 uri: newurl,
-                host: auth.map(|x|x.to_string()),
+                host: auth.map(|x| x.to_string()),
             },
         );
-        self.overlays.insert(position_to_redact+1, Overlay::WsFramer { client_mode: true });
+        self.overlays.insert(
+            position_to_redact + 1,
+            Overlay::WsFramer { client_mode: true },
+        );
 
         Ok(())
     }
@@ -252,11 +254,12 @@ impl SpecifierStack {
         };
 
         self.overlays.remove(position_to_redact);
+        self.overlays
+            .insert(position_to_redact, Overlay::WsAccept {});
         self.overlays.insert(
-            position_to_redact,
-            Overlay::WsAccept {  }
+            position_to_redact + 1,
+            Overlay::WsFramer { client_mode: false },
         );
-        self.overlays.insert(position_to_redact+1, Overlay::WsFramer { client_mode: false });
 
         Ok(())
     }
@@ -323,7 +326,7 @@ impl SpecifierStack {
                 Overlay::WsClient => (),
                 Overlay::WsServer => (),
                 Overlay::ReadChunkLimiter => (),
-                Overlay::WriteChunkLimiter  => (),
+                Overlay::WriteChunkLimiter => (),
                 Overlay::WriteBuffer => (),
             }
         }
@@ -358,6 +361,10 @@ impl SpecifierStack {
                 Endpoint::UnixListen(_) => true,
                 Endpoint::AbstractConnect(_) => true,
                 Endpoint::AbstractListen(_) => true,
+                Endpoint::SeqpacketConnect(_) => true,
+                Endpoint::SeqpacketListen(_) => true,
+                Endpoint::AbstractSeqpacketConnect(_) => true,
+                Endpoint::AbstractSeqpacketListen(_) => true,
             };
             if do_insert {
                 // datagram mode may be patched later
@@ -417,8 +424,12 @@ impl Endpoint {
             Endpoint::LiteralBase64(_) => CopyingType::ByteStream,
             Endpoint::UnixConnect(_) => CopyingType::ByteStream,
             Endpoint::UnixListen(_) => CopyingType::ByteStream,
-            Endpoint::AbstractConnect(_)=> CopyingType::ByteStream,
+            Endpoint::AbstractConnect(_) => CopyingType::ByteStream,
             Endpoint::AbstractListen(_) => CopyingType::ByteStream,
+            Endpoint::SeqpacketConnect(_) => CopyingType::Datarams,
+            Endpoint::SeqpacketListen(_) => CopyingType::Datarams,
+            Endpoint::AbstractSeqpacketConnect(_) => CopyingType::Datarams,
+            Endpoint::AbstractSeqpacketListen(_) => CopyingType::Datarams,
         }
     }
 }
@@ -441,7 +452,7 @@ impl Overlay {
             }
             Overlay::WsClient => CopyingType::Datarams,
             Overlay::WsServer => CopyingType::Datarams,
-            Overlay::ReadChunkLimiter  => CopyingType::ByteStream,
+            Overlay::ReadChunkLimiter => CopyingType::ByteStream,
             Overlay::WriteChunkLimiter => CopyingType::ByteStream,
             Overlay::WriteBuffer => CopyingType::ByteStream,
         }

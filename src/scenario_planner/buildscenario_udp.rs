@@ -1,10 +1,6 @@
 use crate::{cli::WebsocatArgs, scenario_executor::utils::ToNeutralAddress};
 
-use super::{
-    scenarioprinter::ScenarioPrinter,
-    types::Endpoint,
-    utils::IdentifierGenerator,
-};
+use super::{scenarioprinter::ScenarioPrinter, types::Endpoint, utils::IdentifierGenerator};
 
 impl Endpoint {
     pub(super) fn begin_print_udp(
@@ -14,7 +10,6 @@ impl Endpoint {
         opts: &WebsocatArgs,
     ) -> anyhow::Result<String> {
         match self {
-            
             Endpoint::UdpConnect(a) => {
                 let varnam = vars.getnewvarname("udp");
                 let maybetextmode = if opts.text { ", tag_as_text: true" } else { "" };

@@ -37,7 +37,11 @@ impl<T: std::fmt::Display> std::fmt::Display for StrLit<T> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let tmp = format!("{}", self.0);
         if tmp.contains('"') || tmp.contains('\\') || tmp.contains('\n') {
-            write!(f, "b64str(\"{}\")", base64::prelude::BASE64_STANDARD.encode(tmp))
+            write!(
+                f,
+                "b64str(\"{}\")",
+                base64::prelude::BASE64_STANDARD.encode(tmp)
+            )
         } else {
             write!(f, "\"{}\"", &tmp)
         }

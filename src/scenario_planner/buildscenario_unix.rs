@@ -93,7 +93,9 @@ impl Endpoint {
                     text_option = "text: true";
                 }
 
-                printer.print_line(&format!("connect_seqpacket(#{{{text_option}}}, {pathvar}, |{varnam}| {{",));
+                printer.print_line(&format!(
+                    "connect_seqpacket(#{{{text_option}}}, {pathvar}, |{varnam}| {{",
+                ));
                 printer.increase_indent();
                 Ok(varnam)
             }
@@ -138,7 +140,9 @@ impl Endpoint {
                     text_option = ", text: true";
                 }
 
-                printer.print_line(&format!("connect_seqpacket(#{{abstract:true {text_option}}}, {pathvar}, |{varnam}| {{",));
+                printer.print_line(&format!(
+                    "connect_seqpacket(#{{abstract:true {text_option}}}, {pathvar}, |{varnam}| {{",
+                ));
                 printer.increase_indent();
                 Ok(varnam)
             }

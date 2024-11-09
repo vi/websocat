@@ -9,8 +9,8 @@ use super::types::{
     DatagramRead, DatagramSocket, DatagramWrite, Handle, Hangup, StreamRead, StreamSocket,
     StreamWrite, Task,
 };
-use tokio::process::{Command,Child};
 use std::ffi::OsString;
+use tokio::process::{Child, Command};
 
 /// Register Rhai functions
 pub fn register_functions(engine: &mut Engine) {
@@ -72,7 +72,7 @@ fn is_null(x: Dynamic) -> bool {
     macro_rules! check_for_type {
         ($t:ty) => {
             if let Some(x) = x.clone().try_cast::<Handle<$t>>() {
-                return x.lock().unwrap().is_none()
+                return x.lock().unwrap().is_none();
             }
         };
     }

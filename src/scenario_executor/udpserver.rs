@@ -197,7 +197,7 @@ impl PacketRead for UdpRecv {
         let l;
         match this.recv.poll_recv(cx) {
             Poll::Ready(Some(b)) => {
-                trace!(len=b.len(), "recv");
+                trace!(len = b.len(), "recv");
                 if b.len() > buf.len() {
                     warn!("Incoming UDP datagram too big for a supplied buffer");
                     return Poll::Ready(Err(std::io::ErrorKind::InvalidInput.into()));
@@ -207,7 +207,7 @@ impl PacketRead for UdpRecv {
             }
             Poll::Ready(None) => {
                 debug!("conn abort");
-                return Poll::Ready(Err(std::io::ErrorKind::ConnectionAborted.into()))
+                return Poll::Ready(Err(std::io::ErrorKind::ConnectionAborted.into()));
             }
             Poll::Pending => return Poll::Pending,
         }

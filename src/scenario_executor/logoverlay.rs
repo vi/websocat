@@ -443,7 +443,14 @@ impl PacketRead for DatagramReadLogger {
         let verbose = this.opts.verbose;
         match PacketRead::poll_read(this.inner.src.as_mut(), cx, buf) {
             Poll::Ready(Ok(x)) => {
-                this.printer.print(log_prefix, maybebufcap, buf, x.buffer_subset.clone(), x.flags, &this.opts);
+                this.printer.print(
+                    log_prefix,
+                    maybebufcap,
+                    buf,
+                    x.buffer_subset.clone(),
+                    x.flags,
+                    &this.opts,
+                );
                 Poll::Ready(Ok(x))
             }
             Poll::Ready(Err(e)) => {
@@ -486,7 +493,14 @@ impl PacketWrite for DatagramWriteLogger {
         let verbose = this.opts.verbose;
 
         if !this.already_logged_this_write {
-            this.printer.print(log_prefix, maybebufcap, buf, 0..buf.len(), flags, &this.opts);
+            this.printer.print(
+                log_prefix,
+                maybebufcap,
+                buf,
+                0..buf.len(),
+                flags,
+                &this.opts,
+            );
             this.already_logged_this_write = true;
         }
 

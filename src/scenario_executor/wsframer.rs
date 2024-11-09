@@ -158,13 +158,19 @@ impl PacketWrite for WsEncoder {
                     this.state = WsEncoderState::WritingHeader(header);
                 }
                 WsEncoderState::WritingHeader(mut header) => {
-                    let iovec : [IoSlice; 2] = if this.buffer_for_split_control_frames.is_empty() {
+                    let iovec: [IoSlice; 2] = if this.buffer_for_split_control_frames.is_empty() {
                         [IoSlice::new(&header), IoSlice::new(&buf[..])]
                     } else {
-                        [IoSlice::new(&header), IoSlice::new(&this.buffer_for_split_control_frames)]
+                        [
+                            IoSlice::new(&header),
+                            IoSlice::new(&this.buffer_for_split_control_frames),
+                        ]
                     };
-                    match tokio::io::AsyncWrite::poll_write_vectored(this.inner.writer.as_mut(), cx, &iovec)
-                    {
+                    match tokio::io::AsyncWrite::poll_write_vectored(
+                        this.inner.writer.as_mut(),
+                        cx,
+                        &iovec,
+                    ) {
                         Poll::Ready(Ok(n)) => {
                             let written_header_n = n.min(header.len());
                             let extra_n = n - written_header_n;
@@ -378,7 +384,10 @@ impl PacketRead for WsDecoder {
 
             trace!(?ret, "decoded");
             #[allow(irrefutable_let_patterns)]
-            let Ok(ret) = ret else { invdata!() };
+            let Ok(ret) = ret
+            else {
+                invdata!()
+            };
 
             match ret.event {
                 None => {

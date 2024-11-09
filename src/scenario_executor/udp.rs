@@ -10,9 +10,7 @@ use rhai::{Dynamic, Engine, NativeCallContext};
 use tokio::{io::ReadBuf, net::UdpSocket};
 use tracing::{debug, debug_span, info, warn};
 
-use crate::scenario_executor::
-    types::Handle
-;
+use crate::scenario_executor::types::Handle;
 use std::sync::{Arc, RwLock};
 
 use super::{
@@ -124,7 +122,7 @@ impl PacketWrite for UdpSend {
                 if inhibit_send_errors {
                     warn!("Failed to send to UDP socket: {e}");
                 } else {
-                    return Poll::Ready(Err(e))
+                    return Poll::Ready(Err(e));
                 }
             }
             Poll::Pending => return Poll::Pending,

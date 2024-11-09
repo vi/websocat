@@ -12,8 +12,8 @@ use super::{
 
 pub fn format_osstr(arg: &OsStr) -> String {
     if let Ok(s) = arg.try_into() {
-        let s : &str = s;
-        return format!("osstr_str({})", StrLit(s))
+        let s: &str = s;
+        return format!("osstr_str({})", StrLit(s));
     }
     #[cfg(any(unix, target_os = "wasi"))]
     {
@@ -106,13 +106,16 @@ impl Endpoint {
         match self {
             Endpoint::Exec(s) => {
                 let var_cmd = vars.getnewvarname("cmd");
-                if let Ok(s) =  s.as_os_str().try_into() {
-                    let s : &str = s;
+                if let Ok(s) = s.as_os_str().try_into() {
+                    let s: &str = s;
                     printer.print_line(&format!("let {var_cmd} = subprocess_new({});", StrLit(s)));
                 } else {
-                    printer.print_line(&format!("let {var_cmd} = subprocess_new_osstr({});", format_osstr(s)));
+                    printer.print_line(&format!(
+                        "let {var_cmd} = subprocess_new_osstr({});",
+                        format_osstr(s)
+                    ));
                 }
-                
+
                 for arg in &opts.exec_args {
                     if let Some(s) = arg.to_str() {
                         printer.print_line(&format!("{var_cmd}.arg({});", StrLit(s)));
@@ -128,15 +131,12 @@ impl Endpoint {
                 if cfg!(windows) {
                     printer.print_line(&format!("let {var_cmd} = subprocess_new(\"cmd\");"));
                     printer.print_line(&format!("{var_cmd}.arg(\"/C\");",));
-                    printer.print_line(&format!(
-                        "{var_cmd}.raw_windows_arg({});",
-                        format_osstr(s)
-                    ));
+                    printer.print_line(&format!("{var_cmd}.raw_windows_arg({});", format_osstr(s)));
                 } else {
                     printer.print_line(&format!("let {var_cmd} = subprocess_new(\"sh\");"));
                     printer.print_line(&format!("{var_cmd}.arg(\"-c\");",));
                     if let Ok(s) = s.as_os_str().try_into() {
-                        let s : &str = s;
+                        let s: &str = s;
                         printer.print_line(&format!("{var_cmd}.arg({});", StrLit(s)));
                     } else {
                         printer.print_line(&format!("{var_cmd}.arg_osstr({});", format_osstr(s)));

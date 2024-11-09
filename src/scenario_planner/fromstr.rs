@@ -257,18 +257,18 @@ impl ParseStrChunkResult<'_> {
             "abstract-seqpacket-connect:",
             "abstract-seqpacket-c:",
         ]) {
-            Ok(ParseStrChunkResult::Endpoint(Endpoint::AbstractSeqpacketConnect(
-                rest.to_owned(),
-            )))
+            Ok(ParseStrChunkResult::Endpoint(
+                Endpoint::AbstractSeqpacketConnect(rest.to_owned()),
+            ))
         } else if let Some(rest) = x.strip_prefix_many(&[
             "seqpacket-abstract-listen:",
             "seqpacket-abstract-l:",
             "abstract-seqpacket-listen:",
             "abstract-seqpacket-l:",
         ]) {
-            Ok(ParseStrChunkResult::Endpoint(Endpoint::AbstractSeqpacketListen(
-                rest.to_owned(),
-            )))
+            Ok(ParseStrChunkResult::Endpoint(
+                Endpoint::AbstractSeqpacketListen(rest.to_owned()),
+            ))
         } else {
             anyhow::bail!("Unknown specifier: {x:?}")
         }

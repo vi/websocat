@@ -15,23 +15,23 @@ pub mod scenario_executor {
     pub mod debugfluff;
     pub mod fluff;
     pub mod http1;
+    pub mod linemode;
+    pub mod logoverlay;
     pub mod misc;
     pub mod nativetls;
+    pub mod osstr;
     pub mod scenario;
+    pub mod subprocess;
     pub mod tcp;
-    pub mod udp;
-    pub mod udpserver;
     pub mod trivials1;
     pub mod trivials2;
     pub mod types;
+    pub mod udp;
+    pub mod udpserver;
+    pub mod unix;
     pub mod utils;
     pub mod wsframer;
     pub mod wswithpings;
-    pub mod linemode;
-    pub mod logoverlay;
-    pub mod subprocess;
-    pub mod osstr;
-    pub mod unix;
 
     pub mod all_functions;
 }
@@ -57,7 +57,7 @@ async fn main() -> anyhow::Result<()> {
     //tracing_subscriber::fmt().json().with_max_level(tracing::Level::DEBUG).init();
     tracing_subscriber::fmt::init();
 
-    let mut args =  cli::WebsocatArgs::parse();
+    let mut args = cli::WebsocatArgs::parse();
     let dump_spec = args.dump_spec;
 
     let global_scenario: &str;
@@ -83,7 +83,7 @@ async fn main() -> anyhow::Result<()> {
             args.binary = true;
         }
         if args.server {
-            let s : &str = args.spec1.as_os_str().try_into()?;
+            let s: &str = args.spec1.as_os_str().try_into()?;
             let mut s = s.to_owned();
             if !s.contains(':') {
                 s = format!("127.0.0.1:{}", s);

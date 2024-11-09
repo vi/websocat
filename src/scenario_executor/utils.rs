@@ -231,15 +231,12 @@ impl<T: PacketWrite + Send + ?Sized> PacketWriteExt for Pin<&mut T> {
     }
 }
 
-
-
 #[derive(Debug, Clone)]
 #[pin_project::pin_project]
 pub struct MyOptionFuture<F> {
     #[pin]
     inner: Option<F>,
 }
-
 
 impl<F> Default for MyOptionFuture<F> {
     fn default() -> Self {
