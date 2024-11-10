@@ -568,21 +568,47 @@ def document_planner_content(c: PlannerContent) -> None:
                     print(f"* `{prefix}`")
                 print()
 
+    f = open("src/help_addendum.txt","w")
+    f.write("Short list of endpoint prefixes:\n")
+
     print()
     print("## Endpoints")
     print()
 
     for ep in c.endpoints:
+        if ep.prefixes:
+            f.write(f"  {ep.prefixes[0]}\n")
         document_item(ep, "endpoint")
 
     print()
     print("## Overlays")
     print()
     
+    f.write("\n")
+    f.write("Short list of overlay prefixes:\n")
     for ep in c.overlays:
+        if ep.prefixes:
+            f.write(f"  {ep.prefixes[0]}\n")
         document_item(ep, "overlay")
 
-    pass
+    f.write("\n")
+    f.write("Examples:\n")
+    f.write("\n")
+    f.write("  websocat ws://127.0.0.1:1234\n")
+    f.write("    Simple WebSocket client\n")
+    f.write("\n")
+    f.write("  websocat -s 1234\n")
+    f.write("    Simple WebSocket server\n")
+    f.write("\n")
+    f.write("  websocat -b tcp-l:127.0.0.1:1234 wss://ws.vi-server.org/mirror\n")
+    f.write("    TCP-to-WebSocket converter\n")
+    f.write("\n")
+    f.write("  websocat -b ws-l:127.0.0.1:8080 udp:127.0.0.1:1234\n")
+    f.write("    WebSocket-to-UDP converter\n")
+    f.write("\n")
+    f.write("Use doc.md for reference of all Websocat functions\n")
+
+    f.close()
 
 ############################################################################################
 

@@ -1,6 +1,6 @@
 # For alpha release
 
-* Document things written before the creation of the documentation generation script. Manually the doc.md fully. 
+(none remain)
 
 # Later
 

@@ -11,10 +11,10 @@ Usage: websocat4 [OPTIONS] <SPEC1> [SPEC2]
 
 Arguments:
   <SPEC1>
-          
+          Left endpoint (e.g. a WebSocket URL). May be prefixed by one or more overlays
 
   [SPEC2]
-          
+          Right endpoint (or stdout if omitted). May be prefixed by one or more overlays
 
 Options:
       --dump-spec
@@ -209,6 +209,60 @@ Options:
 
   -V, --version
           Print version
+
+Short list of endpoint prefixes:
+  abstract:
+  abstract-listen:
+  seqpacket-abstract:
+  seqpacket-abstract-listen:
+  cmd:
+  empty:
+  devnull:
+  exec:
+  literal:
+  literal-base64:
+  seqpacket:
+  seqpacket-listen:
+  stdio:
+  tcp:
+  tcp-listen:
+  udp-bind:
+  udp:
+  udp-server:
+  unix:
+  unix-listen:
+  ws-l:
+  ws://
+  wss://
+
+Short list of overlay prefixes:
+  lines:
+  log:
+  read_chunk_limiter:
+  chunks:
+  tls:
+  write_buffer:
+  write_chunk_limiter:
+  ws-accept:
+  ws-connect:
+  ws-ll-client:
+  ws-upgrade:
+
+Examples:
+
+  websocat ws://127.0.0.1:1234
+    Simple WebSocket client
+
+  websocat -s 1234
+    Simple WebSocket server
+
+  websocat -b tcp-l:127.0.0.1:1234 wss://ws.vi-server.org/mirror
+    TCP-to-WebSocket converter
+
+  websocat -b ws-l:127.0.0.1:8080 udp:127.0.0.1:1234
+    WebSocket-to-UDP converter
+
+Use doc.md for reference of all Websocat functions
 ```
 
 

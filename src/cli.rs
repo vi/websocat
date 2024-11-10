@@ -22,9 +22,12 @@ impl CustomHeader {
 #[derive(Parser, Debug)]
 /// Tool to connect to WebSocket, listen them and do other network tricks
 #[command(version, about)]
+#[command(after_help(include_str!("help_addendum.txt")))]
 pub struct WebsocatArgs {
+    /// Left endpoint (e.g. a WebSocket URL). May be prefixed by one or more overlays.
     pub spec1: OsString,
 
+    /// Right endpoint (or stdout if omitted). May be prefixed by one or more overlays.
     pub spec2: Option<OsString>,
 
     /// do not execute this Websocat invocation, print equivalent Rhai script instead.
