@@ -8,6 +8,8 @@
 
 
 import os
+import subprocess
+import sys
 
 from typing import Generator, Tuple, List, Dict, Set, TypeVar
 from dataclasses import dataclass
@@ -661,6 +663,13 @@ def main() -> None:
     print("# Command-line interface")
     print()
     print("This section describes options, flags and specifiers of Websocat CLI.")
+    print()
+    print("## `--help` output")
+    print()
+    print("```")
+    sys.stdout.flush();
+    subprocess.run(["./target/mydev/websocat4","--help"])
+    print("```")
     print()
 
     document_planner_content(planner_content)

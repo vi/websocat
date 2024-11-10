@@ -2,6 +2,215 @@
 
 This section describes options, flags and specifiers of Websocat CLI.
 
+## `--help` output
+
+```
+Tool to connect to WebSocket, listen them and do other network tricks
+
+Usage: websocat4 [OPTIONS] <SPEC1> [SPEC2]
+
+Arguments:
+  <SPEC1>
+          
+
+  [SPEC2]
+          
+
+Options:
+      --dump-spec
+          do not execute this Websocat invocation, print equivalent Rhai script instead
+
+      --dump-spec-phase1
+          do not execute this Websocat invocation, print debug representation of specified arguments
+
+      --dump-spec-phase2
+          do not execute this Websocat invocation, print debug representation of specified arguments
+
+  -x, --scenario
+          execute specified file as Rhai script (e.g. resutling from --dump-spec option output)
+
+  -t, --text
+          use text mode (one line = one WebSocket text message)
+
+  -b, --binary
+          use binary mode (arbitrary byte chunk = one WebSocket binary message)
+
+      --late-resolve
+          resolve hostnames to IP addresses late (every time when forwarding a connection) instead of one time at the beginning
+
+  -k, --insecure
+          accept invalid domains and root certificates for TLS client connections
+
+      --tls-domain <TLS_DOMAIN>
+          manually specify domain for `tls:` overlay or override domain for `wss://` URLs
+
+  -s, --server
+          listen for WebSocket conenctions instead of establishing client WebSocket connection
+
+      --log-verbose
+          log more data from `log:` overlay
+
+      --log-omit-content
+          do not log full content of the data from `log:` overlay, just chunk lengths
+
+      --log-hex
+          use hex lines instead of escaped characters for `log:`` overlay
+
+      --log-traffic
+          automatically insert `log:` overlay in an apprioriate place to debug issues by displaying traffic chunks
+
+      --ws-c-uri <WS_C_URI>
+          URI for `ws-c:` overlay
+
+      --read-buffer-limit <READ_BUFFER_LIMIT>
+          paramemter for read_chunk_limiter: overlay, defaults to 1
+
+      --write-buffer-limit <WRITE_BUFFER_LIMIT>
+          paramemter for write_chunk_limiter: overlay, defaults to 1
+
+      --separator <SEPARATOR>
+          override byte value that separates stdin-supplied text WebSocket messages from each othe from default '\n'
+
+      --separator-n <SEPARATOR_N>
+          require this number of newline (or other) bytes to separate WebSocket messages
+
+      --separator-inhibit-substitution
+          prevent mangling incoming text WebSocket by replacing `\n`  (or other separator sequence) with spaces (and trimming leading and trailing separator bytes)
+
+      --udp-bind-target-addr <UDP_BIND_TARGET_ADDR>
+          initial target sendto address for `udp-bind:` mode. If unset, it will try to send to neutral address (unsuccessfully)
+
+      --udp-bind-restrict-to-one-address
+          only allow incoming datagrams from specified target address for `upd-bind:` mode
+
+      --udp-bind-redirect-to-last-seen-address
+          automatically change target address for `udp-bind:` mode based in coming datagrams
+
+      --udp-bind-connect-to-first-seen-address
+          turn `udp-bind:` into `udp-connect:` as soon as we receive some datagram. Implied when `--udp-bind-target-addr` is not specified
+
+      --udp-bind-inhibit-send-errors
+          ignore failed `sendto` calls. Attempts to send without a configured target address are ignored implicitly
+
+      --udp-server-timeout-ms <UDP_SERVER_TIMEOUT_MS>
+          Client timeout of udp-server: mode
+
+      --udp-server-max-clients <UDP_SERVER_MAX_CLIENTS>
+          Maximum number of parallel handlers in udp-server: mode
+
+      --udp-server-buffer-size <UDP_SERVER_BUFFER_SIZE>
+          Size of receive buffer for udp-server: mode. `-B` is distinct, but can also affect operation
+
+      --udp-server-qlen <UDP_SERVER_QLEN>
+          Queue length for udp-server: mode
+
+      --udp-server-backpressure
+          Delay receiving more datagrams in udp-server: mode instead of dropping them in case of slow handlers
+
+      --exec-args [<EXEC_ARGS>...]
+          Command line arguments for `exec:` endpoint.
+          
+          This option is interpreted specially: it stops processing all other options uses everything after it as a part of the command line
+
+      --exec-monitor-exits
+          Immediately expire `cmd:` or `exec:` endpoints if child process terminates.
+          
+          This may discard some data that remained buffered in a pipe.
+
+      --exec-uid <EXEC_UID>
+          On Unix, try to set uid to this numeric value for the subprocess
+
+      --exec-gid <EXEC_GID>
+          On Unix, try to set uid to this numeric value for the subprocess
+
+      --exec-chdir <EXEC_CHDIR>
+          Try to change current directory to this value for the subprocess
+
+      --exec-windows-creation-flags <EXEC_WINDOWS_CREATION_FLAGS>
+          On Windows, try to set this numeric process creation flags
+
+      --exec-arg0 <EXEC_ARG0>
+          On Unix, set first subprocess's argv[0] to this value
+
+      --dummy-hangup
+          Make dummy nodes also immediately signal hangup
+
+      --exit-on-hangup
+          Exit the whole process if hangup is detected
+
+  -u, --unidirectional
+          Transfer data only from left to right specifier
+
+  -U, --unidirectional-reverse
+          Transfer data only from right to left specifier
+
+      --unidirectional-late-drop
+          Do not shutdown inactive directions when using `-u` or `-U`
+
+  -E, --exit-on-eof
+          Stop transferring data when one of the transfer directions reached EOF
+
+  -B, --buffer-size <BUFFER_SIZE>
+          Override buffer size for main data transfer session. Note that some overlays and endpoints may have separate buffers with sepaparately adjustable sizes
+
+  -n, --no-close
+          Do not send WebSocket close message when there is no more data to send there
+
+      --ws-no-flush
+          Do not flush after each WebSocket frame
+
+      --ws-shutdown-socket-on-eof
+          Shutdown write direction of the underlying socket backing a WebSocket on EOF
+
+      --ws-ignore-invalid-masks
+          Do not fail WebSocket connections if maksed frame arrives instead of unmasked or vice versa
+
+      --ws-dont-check-headers
+          Ignore absense or invalid values of `Sec-Websocket-*` things and just continue connecting
+
+      --ws-no-auto-buffer
+          Do not automatically insert buffering layer after WebSocket if underlying connections does not support `writev`
+
+      --ws-omit-headers
+          Skip request or response headers for Websocket upgrade
+
+  -H, --header <HEADER>
+          Add this custom header to WebSocket upgrade request when connecting to a Websocket. Colon separates name and value
+
+      --server-header <SERVER_HEADER>
+          Add this custom header to WebSocket upgrade response when serving a Websocket connection. Colon separates name and value
+
+      --protocol <PROTOCOL>
+          Specify this Sec-WebSocket-Protocol: header when connecting to a WebSocket
+
+      --server-protocol <SERVER_PROTOCOL>
+          Use this `Sec-WebSocket-Protocol:` value when serving a Websocket, and reject incoming connections if the don't specify this protocol
+
+      --server-protocol-lax
+          Don't reject incoming connections that fail to specify proper `Sec-WebSocket-Protocol` header. The header would be omitted from the response in this case
+
+      --server-protocol-choose-first
+          If client specifies Sec-WebSocket-Protocol, choose the first mentioned protocol and use if for response's Sec-WebSocket-Protocol
+
+      --unlink
+          When listening UNIX sockets, attempt to delete the file first to avoid the failure to bind
+
+      --chmod-owner
+          When listening UNIX sockets, change socket filesystem permissions to only allow owner connections
+
+      --chmod-group
+          When listening UNIX sockets, change socket filesystem permissions to allow owner and group connections
+
+      --chmod-everyone
+          When listening UNIX sockets, change socket filesystem permissions to allow connections from everywhere
+
+  -h, --help
+          Print help (see a summary with '-h')
+
+  -V, --version
+          Print version
+```
+
 
 ## Endpoints
 
