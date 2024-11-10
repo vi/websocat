@@ -19,7 +19,7 @@ http-body-util = "0.1.1"
 hyper = { version = "1.3.1", features = ["client", "server", "http1"] }
 hyper-util = { version = "0.1.5", features = ["tokio"] }
 lru = "0.12.3"
-native-tls = { version = "0.2.12", features = [] }
+native-tls = { version = "0.2.12", features = [], optional=true }
 pin-project = "1.1.5"
 rand = "0.8.5"
 rhai = { version = "1.16.2", features = ["serde", "internals", "sync", "no_custom_syntax", "no_float", "no_time", "no_module"] }
@@ -27,13 +27,18 @@ serde = { version = "1.0.188", features = ["derive"] }
 sha1 = "0.10.6"
 tinyvec = "1.6.0"
 tokio = { version = "1.32.0", features = ["sync", "net", "rt", "macros", "io-util", "io-std", "time", "process"] }
-tokio-native-tls = "0.3.1"
-tokio-seqpacket = "0.7.1"
+tokio-native-tls = {version="0.3.1", optional=true}
 tokio-util = "0.7.11"
 tracing = "0.1.37"
 tracing-subscriber = { version = "0.3.17", default-features = false, features = ["fmt","json"] }
 websocket-sans-io = "0.1.0"
 
-[features]
-native-tls-alpn = ["native-tls/alpn"]
+[target.'cfg(all(unix,any(target_os = "linux",target_os = "android",target_os = "freebsd")))'.dependencies]
+tokio-seqpacket = "0.7.1"
 
+[features]
+default=["ssl"]
+native-tls-alpn = ["native-tls/alpn"]
+ssl=["dep:tokio-native-tls", "dep:native-tls"]
+vendored_openssl = ["native-tls/vendored"]
+less_logs=["tracing/max_level_info"]

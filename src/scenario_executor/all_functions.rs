@@ -27,9 +27,11 @@ pub fn register_functions(engine: &mut Engine) {
     super::http1::register(engine);
     super::wsframer::register(engine);
     super::wswithpings::register(engine);
+    #[cfg(feature="ssl")]
     super::nativetls::register(engine);
     super::subprocess::register(engine);
     super::osstr::register(engine);
+    #[cfg(unix)]
     super::unix::register(engine);
     engine.register_fn("is_null", is_null);
 }

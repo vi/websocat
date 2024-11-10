@@ -18,6 +18,7 @@ pub mod scenario_executor {
     pub mod linemode;
     pub mod logoverlay;
     pub mod misc;
+    #[cfg(feature="ssl")]
     pub mod nativetls;
     pub mod osstr;
     pub mod scenario;
@@ -28,6 +29,7 @@ pub mod scenario_executor {
     pub mod types;
     pub mod udp;
     pub mod udpserver;
+    #[cfg(unix)]
     pub mod unix;
     pub mod utils;
     pub mod wsframer;

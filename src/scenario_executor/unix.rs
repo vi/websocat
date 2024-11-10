@@ -224,12 +224,14 @@ fn unlink_file(
     }
 }
 
+#[cfg(any(target_os = "linux",target_os = "android",target_os = "freebsd"))]
 #[derive(Clone)]
 struct SeqpacketSendAdapter {
     s: Arc<tokio_seqpacket::UnixSeqpacket>,
     text: bool,
 }
 
+#[cfg(any(target_os = "linux",target_os = "android",target_os = "freebsd"))]
 #[derive(Clone)]
 struct SeqpacketRecvAdapter {
     s: Arc<tokio_seqpacket::UnixSeqpacket>,
@@ -237,6 +239,7 @@ struct SeqpacketRecvAdapter {
     incomplete_outgoing_datagram_buffer_complete: bool,
 }
 
+#[cfg(any(target_os = "linux",target_os = "android",target_os = "freebsd"))]
 impl PacketRead for SeqpacketSendAdapter {
     fn poll_read(
         self: std::pin::Pin<&mut Self>,
@@ -264,6 +267,7 @@ impl PacketRead for SeqpacketSendAdapter {
     }
 }
 
+#[cfg(any(target_os = "linux",target_os = "android",target_os = "freebsd"))]
 impl PacketWrite for SeqpacketRecvAdapter {
     fn poll_write(
         self: std::pin::Pin<&mut Self>,
@@ -315,6 +319,7 @@ impl PacketWrite for SeqpacketRecvAdapter {
     }
 }
 
+#[cfg(any(target_os = "linux",target_os = "android",target_os = "freebsd"))]
 //@ Connect to a SOCK_SEQPACKET UNIX stream socket
 fn connect_seqpacket(
     ctx: NativeCallContext,
@@ -379,6 +384,7 @@ fn connect_seqpacket(
     .wrap())
 }
 
+#[cfg(any(target_os = "linux",target_os = "android",target_os = "freebsd"))]
 fn listen_seqpacket(
     ctx: NativeCallContext,
     opts: Dynamic,
@@ -491,6 +497,8 @@ pub fn register(engine: &mut Engine) {
     engine.register_fn("connect_unix", connect_unix);
     engine.register_fn("listen_unix", listen_unix);
     engine.register_fn("unlink_file", unlink_file);
+    #[cfg(any(target_os = "linux",target_os = "android",target_os = "freebsd"))]
     engine.register_fn("connect_seqpacket", connect_seqpacket);
+    #[cfg(any(target_os = "linux",target_os = "android",target_os = "freebsd"))]
     engine.register_fn("listen_seqpacket", listen_seqpacket);
 }
