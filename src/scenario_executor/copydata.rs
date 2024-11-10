@@ -109,6 +109,7 @@ impl<R, W> ForwardingChoiceOutcome<R, W> {
     }
 }
 
+//@ Copy bytes between two stream-oriented sockets
 fn exchange_bytes(
     ctx: NativeCallContext,
     opts: Dynamic,
@@ -374,6 +375,7 @@ impl std::future::Future for CopyPackets {
     }
 }
 
+//@ Copy packets from one datagram stream (half-socket) to a datagram sink.
 fn copy_packets(from: Handle<DatagramRead>, to: Handle<DatagramWrite>) -> Handle<Task> {
     let span = debug_span!("copy_packets");
     debug!(parent: &span, "node created");
@@ -393,6 +395,7 @@ fn copy_packets(from: Handle<DatagramRead>, to: Handle<DatagramWrite>) -> Handle
     }
 }
 
+//@ Exchange packets between two datagram-oriented sockets
 fn exchange_packets(
     ctx: NativeCallContext,
     opts: Dynamic,
@@ -554,48 +557,6 @@ fn exchange_packets(
             let _ = x.snk.as_mut().send_eof().await;
             drop(x)
         }
-
-        /*
-        if let (
-            Some(DatagramSocket {
-                read: Some(r1),
-                write: Some(w1),
-                close: c1,
-            }),
-            Some(DatagramSocket {
-                read: Some(r2),
-                write: Some(w2),
-                close: c2,
-            }),
-        ) = (s1, s2)
-        {
-            let copier1 = CopyPackets::new(r1, w2, span.clone(), 65536);
-            let copier2 = CopyPackets::new(r2, w1, span.clone(), 65536);
-            let both_copiers = futures::future::join(copier1, copier2);
-
-            let hangup1_present = c1.is_some();
-            let hangup1: OptionFuture<_> = c1.into();
-            let hangup2_present = c2.is_some();
-            let hangup2: OptionFuture<_> = c2.into();
-            let mut skip_whole = false;
-
-            if !skip_whole {
-                tokio::select! { biased;
-                    (npkts1,npkts2) = both_copiers => {
-                        debug!(npkts1, npkts2, "all directions finished");
-                    }
-                    Some(()) = hangup1, if hangup1_present => {
-                        debug!(parent: &span, "hangup1");
-                    }
-                    Some(()) = hangup2, if hangup2_present => {
-                        debug!(parent: &span, "hangup1");
-                    }
-                }
-            }
-        } else {
-            error!(parent: &span, "Incomplete datagram sockets specified");
-        }
-        */
     }
     .wrap_noerr())
 }

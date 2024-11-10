@@ -54,6 +54,7 @@ impl AsyncRead for ReadChunkLimiter {
     }
 }
 
+//@ Transform stream source so that reads become short reads if there is enough data. For development and testing.
 fn read_chunk_limiter(
     ctx: NativeCallContext,
     x: Handle<StreamRead>,
@@ -107,6 +108,7 @@ impl AsyncWrite for WriteChunkLimiter {
     }
 }
 
+//@ Transform stream sink so that writes become short writes if the buffer is too large. For development and testing.
 fn write_chunk_limiter(
     ctx: NativeCallContext,
     x: Handle<StreamWrite>,
@@ -277,7 +279,7 @@ fn b64str(ctx: NativeCallContext, x: &str) -> RhResult<String> {
     Ok(s)
 }
 
-//@ Debug print this to stderr
+//@ Debug print something to stderr
 fn debug_print(x: Dynamic) {
     if x.is_blob() {
         let b = x.into_blob().unwrap();
@@ -287,7 +289,7 @@ fn debug_print(x: Dynamic) {
     }
 }
 
-//@ Create stream socket with a read handle emits specified data, then EOF; and
+//@ Create a stream socket with a read handle emits specified data, then EOF; and
 //@ write handle that ignores all incoming data and null hangup handle.
 fn literal_socket(data: String) -> Handle<StreamSocket> {
     Some(StreamSocket {
@@ -303,7 +305,7 @@ fn literal_socket(data: String) -> Handle<StreamSocket> {
     .wrap()
 }
 
-//@ Create stream socket with a read handle emits specified data, then EOF; and
+//@ Create a stream socket with a read handle emits specified data, then EOF; and
 //@ write handle that ignores all incoming data and null hangup handle.
 fn literal_socket_base64(ctx: NativeCallContext, data: String) -> RhResult<Handle<StreamSocket>> {
     let Ok(d) = base64::prelude::BASE64_STANDARD.decode(data) else {
@@ -354,6 +356,7 @@ impl PacketRead for ReadStreamChunks {
     }
 }
 
+//@ Convert a stream source to a datagram source
 fn read_stream_chunks(
     ctx: NativeCallContext,
     x: Handle<StreamRead>,
@@ -416,6 +419,7 @@ impl PacketWrite for WriteStreamChunks {
     }
 }
 
+//@ Convert a stream sink to a datagram sink
 fn write_stream_chunks(
     ctx: NativeCallContext,
     x: Handle<StreamWrite>,
@@ -429,6 +433,7 @@ fn write_stream_chunks(
     Ok(x.wrap())
 }
 
+//@ Convert a stream socket to a datagram socket. Like write_stream_chunks + read_stream_chunks while also preserving the hangup signal.
 fn stream_chunks(
     ctx: NativeCallContext,
     x: Handle<StreamSocket>,

@@ -17,6 +17,7 @@ use super::{
     utils::RhResult,
 };
 
+//@ Create environment for using TLS clients.
 fn tls_client_connector(
     ctx: NativeCallContext,
     opts: Dynamic,
@@ -125,6 +126,7 @@ fn tls_client_connector(
     Ok(Arc::new(cx))
 }
 
+//@ Perform TLS handshake using downstream stream-oriented socket, then expose stream-oriented socket interface to upstream that encrypts/decryptes the data.
 fn tls_client(
     ctx: NativeCallContext,
     opts: Dynamic,

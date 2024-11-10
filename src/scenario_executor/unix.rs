@@ -75,7 +75,7 @@ fn connect_unix(
     debug!(parent: &span, "node created");
     #[derive(serde::Deserialize)]
     struct UnixOpts {
-        //@ On Linux, connect ot an abstract-namespaced socket instead of file-based
+        //@ On Linux, connect to an abstract-namespaced socket instead of file-based
         #[serde(default)]
         r#abstract: bool,
     }

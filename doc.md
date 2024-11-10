@@ -83,7 +83,7 @@ Prefixes:
 
 ### Exec
 
-Execute given program as subprocess and use its stdin/stdout as a socket.
+Execute given program as a subprocess and use its stdin/stdout as a socket.
 Specify command line arguments using `--exec-args` command line option.
 
 Prefixes:
@@ -110,7 +110,7 @@ Prefixes:
 
 Connect to specified UNIX SOCK_SEQPACKET socket by path
 
-Unlike Websocat1, @-prefixed addresses does not convert to abstract namespace
+Unlike Websocat1, @-prefixed addresses do not get converted to Linux abstract namespace
 
 Prefixes:
 
@@ -124,7 +124,7 @@ Prefixes:
 
 Listen specified UNIX SOCK_SEQPACKET socket
 
-Unlike Websocat1, @-prefixed addresses does not convert to abstract namespace
+Unlike Websocat1, @-prefixed addresses do not get converted to Linux abstract namespace
 
 Prefixes:
 
@@ -137,6 +137,8 @@ Prefixes:
 
 Console, terminal: read bytes from stdin, write bytes to stdout.
 
+Uses additional thread, which may cause lower latency and thoughput.
+
 Prefixes:
 
 * `stdio:`
@@ -144,10 +146,15 @@ Prefixes:
 ### TcpConnectByEarlyHostname
 
 
+Connect to a TCP socket by hostname.
+Hostname resolution happens once, on scenario start.
+If multiple address are resolved, they are tried simultaneously, first connected one wins.
+
+See prefixes for `TcpConnectByIp`.
 
 ### TcpConnectByIp
 
-(undocumented)
+Connected to a TCP socket using one explicitly specified IPv4 or IPv6 socket address.
 
 Prefixes:
 
@@ -159,11 +166,16 @@ Prefixes:
 
 ### TcpConnectByLateHostname
 
+ 
+Connect to a TCP socket by hostname.
+Hostname resolution is repeated every time a connection is initated.
+If multiple address are resolved, they are tried simultaneously, first connected one wins.
 
+See prefixes for `TcpConnectByIp`
 
 ### TcpListen
 
-(undocumented)
+Listen for incoming TCP connections on one TCP socket, bound to the specified IPv4 or IPv6 address.
 
 Prefixes:
 
@@ -175,7 +187,7 @@ Prefixes:
 ### UdpBind
 
 Bind UDP socket to this address.
-Commmand line options greatly affect this endpoint. It can be turned into a flexible UdpConnect analogue.
+Commmand line options greatly affect behaviour of this endpoint. It can be turned into a flexible `UdpConnect` analogue.
 
 Prefixes:
 
@@ -188,7 +200,7 @@ Prefixes:
 
 ### UdpConnect
 
-Connect to this UDP socket. Note affected by `--udp-bind-*`` CLI options.
+Connect to this UDP socket. Not affected by `--udp-bind-*`` CLI options.
 
 Prefixes:
 
@@ -200,7 +212,8 @@ Prefixes:
 
 ### UdpServer
 
-Bind UDP socket and spawn a separate task for each client
+Bind UDP socket and spawn a separate task for each client.
+Connections get closed when there are too many active clients or by a timeout.
 
 Prefixes:
 
@@ -231,7 +244,7 @@ Prefixes:
 
 ### WsListen
 
-(undocumented)
+Listen for incoming WebSocket connections at specified TCP socket address.
 
 Prefixes:
 
@@ -239,7 +252,7 @@ Prefixes:
 
 ### WsUrl
 
-(undocumented)
+Connect to specified WebSocket plain (insecure) URL
 
 Prefixes:
 
@@ -247,7 +260,7 @@ Prefixes:
 
 ### WssUrl
 
-(undocumented)
+Connect to specified WebSocket TLS URL
 
 Prefixes:
 
@@ -258,9 +271,14 @@ Prefixes:
 
 ### LineChunks
 
-(undocumented)
+Convert downstream stream-oriented socket to packet-oriented socket by using newline byte as a packet separator.
+Written data get modified to ensure that one line = one message.
 
-This overlay cannot be directly specified as a prefix to a positional CLI argument, there may be some other way to access it.
+May be automatically inserted in text (`-t`) mode.
+
+Prefixes:
+
+* `lines:`
 
 ### Log
 
@@ -282,13 +300,17 @@ Prefixes:
 
 ### StreamChunks
 
-(undocumented)
+Converts downstream stream-oriented socket to packet-oriented socket by chunking the stream arbitrarily (i.e. as syscalls happend to deliver the data)
 
-This overlay cannot be directly specified as a prefix to a positional CLI argument, there may be some other way to access it.
+May be automatically inserted in binary (`-b`) mode.
+
+Prefixes:
+
+* `chunks:`
 
 ### TlsClient
 
-(undocumented)
+Establishes client-side TLS connection using specified stream-oriended downstream connection
 
 Prefixes:
 
@@ -314,7 +336,10 @@ Prefixes:
 
 ### WsAccept
 
-(undocumented)
+Expects a HTTP/1 WebSocket upgrade request from downstream stream socket. If valid, replies with Upgrade HTTP reply.
+After than connects (i.e. exchanges bytes) downstream to upstream.
+
+Does not provide WebSocket framing.
 
 Prefixes:
 
@@ -335,7 +360,9 @@ Prefixes:
 
 ### WsFramer
 
-(undocumented)
+Converts downstream stream to upstream packets using WebSocket framing.
+
+Automatically handles WebSocket pings and CloseFrames, but does not fully terminate the connection on CloseFrame, only signaling EOF instead.
 
 Prefixes:
 
@@ -355,13 +382,20 @@ Prefixes:
 
 ### WsUpgrade
 
-(undocumented)
+Send HTTP/1 WebSocket upgrade to specified stream-oriented connection and accept and parse a reply,
+then connects (i.e. exchanges bytes) the downstream connection to upstream.
+
+Does not provide WebSocket framing.
 
 This overlay cannot be directly specified as a prefix to a positional CLI argument, there may be some other way to access it.
 
 # Scenario functions
 
-Those functions are used in Websocat Rhai Scripts (Scenarios):
+Prior to doing any network things, Websocat prepares a Scenario (Websocat Rhai Script) based on you command line options.
+Scenarios are less stable than usual Websocat API, but allow fine tuning Websocat behaviour.
+You can view scenarios using `--dump-spec` option and execute them the with `-x` option.
+
+The following functions and methods are used in scenarios:
 
 ## Child::kill
 
@@ -518,7 +552,7 @@ Returns `()`
 
 ## Command::execute
 
-Spawn the prepared subprocess. What happens next depends on used `child_` function.
+Spawn the prepared subprocess. What happens next depends on used `Child::` methods.
 
 Returns `Child`
 
@@ -559,7 +593,7 @@ Returns `()`
 
 ## Command::raw_windows_arg
 
-Add literal, unescaped text to Window's command line
+Add literal, unescaped text to Windows's command line
 
 Parameters:
 
@@ -579,7 +613,7 @@ Returns `()`
 
 ## Command::windows_creation_flags
 
-Set Window's process creation flags.
+Set Windows's process creation flags.
 
 Parameters:
 
@@ -651,7 +685,7 @@ Returns `Task`
 
 Options:
 
-* abstract (`bool`) - On Linux, connect ot an abstract-namespaced socket instead of file-based
+* abstract (`bool`) - On Linux, connect to an abstract-namespaced socket instead of file-based
 
 ## copy_bytes
 
@@ -666,6 +700,8 @@ Returns `Task` - task that finishes when forwarding finishes or exists with an e
 
 ## copy_packets
 
+Copy packets from one datagram stream (half-socket) to a datagram sink.
+
 Parameters:
 
 * from (`DatagramRead`)
@@ -674,6 +710,9 @@ Parameters:
 Returns `Task`
 
 ## create_stdio
+
+Obtain a stream socket made of stdin and stdout.
+This spawns a OS thread to handle interactions with the stdin/stdout and may be inefficient.
 
 Returns `StreamSocket`
 
@@ -707,7 +746,7 @@ Options:
 
 ## dbg
 
-Debug print this to stderr
+Debug print something to stderr
 
 Parameters:
 
@@ -716,6 +755,8 @@ Parameters:
 Does not return anything.
 
 ## display_pkts
+
+Sample sink for packets for demostration purposes
 
 Returns `DatagramWrite`
 
@@ -742,6 +783,8 @@ Returns `StreamSocket`
 
 ## dummy_task
 
+A task that immediately finishes
+
 Returns `Task`
 
 ## empty_hangup_handle
@@ -751,6 +794,8 @@ Create null Hangup handle
 Returns `Hangup`
 
 ## exchange_bytes
+
+Copy bytes between two stream-oriented sockets
 
 Parameters:
 
@@ -771,6 +816,8 @@ Options:
 
 ## exchange_packets
 
+Exchange packets between two datagram-oriented sockets
+
 Parameters:
 
 * opts (`Dynamic`) - object map containing dynamic options to the function
@@ -790,7 +837,7 @@ Options:
 
 ## exit_process
 
-Exit Websocat process
+Exit Websocat process. If WebSocket is serving multiple connections, they all get aborted.
 
 Parameters:
 
@@ -811,7 +858,7 @@ Returns `()`
 
 ## hangup2task
 
-Convert a hangup token into a task.
+Convert a hangup token into a task. I don't know why this may be needed.
 
 Parameters:
 
@@ -820,6 +867,8 @@ Parameters:
 Returns `Task`
 
 ## http1_client
+
+Converts a downstream stream socket into a HTTP 1 client, suitable for sending e.g. WebSocket upgrade request.
 
 Parameters:
 
@@ -830,6 +879,8 @@ Returns `Http1Client`
 
 ## http1_serve
 
+Converts a downstream stream socket into a HTTP 1 server, suitable for accepting e.g. WebSocket upgrade request.
+
 Parameters:
 
 * opts (`Dynamic`) - object map containing dynamic options to the function
@@ -839,6 +890,10 @@ Parameters:
 Returns `Task`
 
 ## line_chunks
+
+Convert downstream stream socket into upstream packet socket using a byte separator
+
+If you want just source or sink conversion part, create incomplete socket, use this function, then extract the needed part from resulting incomplete socket.
 
 Parameters:
 
@@ -902,7 +957,7 @@ Options:
 
 ## literal_socket
 
-Create stream socket with a read handle emits specified data, then EOF; and
+Create a stream socket with a read handle emits specified data, then EOF; and
 write handle that ignores all incoming data and null hangup handle.
 
 Parameters:
@@ -913,7 +968,7 @@ Returns `StreamSocket`
 
 ## literal_socket_base64
 
-Create stream socket with a read handle emits specified data, then EOF; and
+Create a stream socket with a read handle emits specified data, then EOF; and
 write handle that ignores all incoming data and null hangup handle.
 
 Parameters:
@@ -923,6 +978,8 @@ Parameters:
 Returns `StreamSocket`
 
 ## lookup_host
+
+Perform a DNS lookup of the specified hostname and call a continuation with the list of IPv4 and IPv6 socket addresses
 
 Parameters:
 
@@ -988,6 +1045,8 @@ Returns `OsString`
 
 ## parallel
 
+Execute specified tasks in parallel, waiting them all to finish.
+
 Parameters:
 
 * tasks (`Vec<Dynamic>`)
@@ -1002,6 +1061,8 @@ Returns `Hangup`
 
 ## put_hangup_part
 
+Modify Socket, filling in the hangup signal with the specified one
+
 Parameters:
 
 * h (`Dynamic`)
@@ -1010,6 +1071,8 @@ Parameters:
 Returns `()`
 
 ## put_read_part
+
+Modify stream-oriented Socket, filling in the read direction with the specified one
 
 Parameters:
 
@@ -1020,6 +1083,8 @@ Returns `()`
 
 ## put_sink_part
 
+Modify datagram-oriented Socket, filling in the write direction with the specified one
+
 Parameters:
 
 * h (`DatagramSocket`)
@@ -1028,6 +1093,8 @@ Parameters:
 Returns `()`
 
 ## put_source_part
+
+Modify datagram-oriented Socket, filling in the read direction with the specified one
 
 Parameters:
 
@@ -1038,6 +1105,8 @@ Returns `()`
 
 ## put_write_part
 
+Modify stream-oriented Socket, filling in the write direction with the specified one
+
 Parameters:
 
 * h (`StreamSocket`)
@@ -1046,6 +1115,8 @@ Parameters:
 Returns `()`
 
 ## read_chunk_limiter
+
+Transform stream source so that reads become short reads if there is enough data. For development and testing.
 
 Parameters:
 
@@ -1056,6 +1127,8 @@ Returns `StreamRead`
 
 ## read_stream_chunks
 
+Convert a stream source to a datagram source
+
 Parameters:
 
 * x (`StreamRead`)
@@ -1063,6 +1136,8 @@ Parameters:
 Returns `DatagramRead`
 
 ## sequential
+
+Execute specified tasks in order, starting another and previous one finishes.
 
 Parameters:
 
@@ -1072,6 +1147,8 @@ Returns `Task`
 
 ## sleep_ms
 
+A task that finishes after specified number of milliseconds
+
 Parameters:
 
 * ms (`i64`)
@@ -1080,6 +1157,8 @@ Returns `Task`
 
 ## spawn_task
 
+Start execution of the specified task in background
+
 Parameters:
 
 * task (`Task`)
@@ -1087,6 +1166,8 @@ Parameters:
 Does not return anything.
 
 ## stream_chunks
+
+Convert a stream socket to a datagram socket. Like write_stream_chunks + read_stream_chunks while also preserving the hangup signal.
 
 Parameters:
 
@@ -1124,7 +1205,7 @@ Options:
 
 ## subprocess_new
 
-Prepare subprocess, setting up executable name.
+Prepare subprocess, setting up executable name. See `Command::` methods for further steps.
 
 Parameters:
 
@@ -1134,7 +1215,7 @@ Returns `Command`
 
 ## subprocess_new_osstr
 
-Prepare subprocess, setting up possibly non-UTF8 executable name
+Prepare subprocess, setting up possibly non-UTF8 executable name.  See `Command::` methods for further steps.
 
 Parameters:
 
@@ -1144,6 +1225,8 @@ Returns `Command`
 
 ## take_hangup_part
 
+Modify Socket, taking the hangup signal part, if it is set.
+
 Parameters:
 
 * h (`Dynamic`)
@@ -1151,6 +1234,8 @@ Parameters:
 Returns `Hangup`
 
 ## take_read_part
+
+Modify stream-oriented Socket, taking the read part and returning it separately. Leaves behind an incomplete socket.
 
 Parameters:
 
@@ -1160,6 +1245,8 @@ Returns `StreamRead`
 
 ## take_sink_part
 
+Modify datagram-oriented Socket, taking the write part and returning it separately. Leaves behind an incomplete socket.
+
 Parameters:
 
 * h (`DatagramSocket`)
@@ -1168,6 +1255,8 @@ Returns `DatagramWrite`
 
 ## take_source_part
 
+Modify datagram-oriented Socket, taking the read part and returning it separately. Leaves behind an incomplete socket.
+
 Parameters:
 
 * h (`DatagramSocket`)
@@ -1175,6 +1264,8 @@ Parameters:
 Returns `DatagramRead`
 
 ## take_write_part
+
+Modify stream-oriented Socket, taking the write part and returning it separately. Leaves behind an incomplete socket.
 
 Parameters:
 
@@ -1195,7 +1286,7 @@ Returns `Hangup`
 
 ## timeout_ms_hangup_handle
 
-Create a Hangup handle that results after specific number of milliseconds
+Create a Hangup handle that resolves after specific number of milliseconds
 
 Parameters:
 
@@ -1204,6 +1295,8 @@ Parameters:
 Returns `Hangup`
 
 ## tls_client
+
+Perform TLS handshake using downstream stream-oriented socket, then expose stream-oriented socket interface to upstream that encrypts/decryptes the data.
 
 Parameters:
 
@@ -1219,6 +1312,8 @@ Options:
 * domain (`String`)
 
 ## tls_client_connector
+
+Create environment for using TLS clients.
 
 Parameters:
 
@@ -1239,6 +1334,8 @@ Options:
 * no_sni (`bool`)
 
 ## trivial_pkts
+
+Sample source of packets for demostration purposes
 
 Returns `DatagramRead`
 
@@ -1312,6 +1409,8 @@ Returns `StreamWrite`
 
 ## write_chunk_limiter
 
+Transform stream sink so that writes become short writes if the buffer is too large. For development and testing.
+
 Parameters:
 
 * x (`StreamWrite`)
@@ -1321,6 +1420,8 @@ Returns `StreamWrite`
 
 ## write_stream_chunks
 
+Convert a stream sink to a datagram sink
+
 Parameters:
 
 * x (`StreamWrite`)
@@ -1328,6 +1429,8 @@ Parameters:
 Returns `DatagramWrite`
 
 ## ws_accept
+
+Perform WebSocket server handshake, then recover the downstream stream socket that was used for `http_server`.
 
 Parameters:
 
@@ -1349,6 +1452,8 @@ Options:
 
 ## ws_decoder
 
+Wrap downstream stream-orinted reader to make expose packet-orinted source using WebSocket framing
+
 Parameters:
 
 * opts (`Dynamic`) - object map containing dynamic options to the function
@@ -1358,10 +1463,12 @@ Returns `DatagramRead`
 
 Options:
 
-* require_masked (`bool`)
-* require_unmasked (`bool`)
+* require_masked (`bool`) - Require decoded frames to be masked (i.e. coming from a client)
+* require_unmasked (`bool`) - Require decoded frames to be masked (i.e. coming from a server)
 
 ## ws_encoder
+
+Wrap downstream stream-orinted writer to make expose packet-orinted sink using WebSocket framing
 
 Parameters:
 
@@ -1372,12 +1479,14 @@ Returns `DatagramWrite`
 
 Options:
 
-* masked (`bool`)
+* masked (`bool`) - Use masking (i.e. client-style)
 * no_flush_after_each_message (`bool`)
-* no_close_frame (`bool`)
-* shutdown_socket_on_eof (`bool`)
+* no_close_frame (`bool`) - Do not emit ConnectionClose frame when shutting down
+* shutdown_socket_on_eof (`bool`) - Shutdown downstream socket for writing when shutting down
 
 ## ws_upgrade
+
+Perform WebSocket client handshake, then recover the downstream stream socket that was used for `http_client`.
 
 Parameters:
 
@@ -1397,6 +1506,8 @@ Options:
 
 ## ws_wrap
 
+Like ws_encoder + ws_decoder, but also set up automatic replier to WebSocket pings.
+
 Parameters:
 
 * opts (`Dynamic`) - object map containing dynamic options to the function
@@ -1406,11 +1517,11 @@ Returns `DatagramSocket`
 
 Options:
 
-* client (`bool`)
-* ignore_masks (`bool`)
-* no_flush_after_each_message (`bool`)
-* no_close_frame (`bool`)
-* shutdown_socket_on_eof (`bool`)
+* client (`bool`) - Mask outgoing frames and require unmasked incoming frames
+* ignore_masks (`bool`) - Accept masked (unmasked) frames in client (server) mode.
+* no_flush_after_each_message (`bool`) - Inhibit flushing of underlying stream writer after each compelte message
+* no_close_frame (`bool`) - Do not emit ConnectionClose frame when writing part is getting shut down
+* shutdown_socket_on_eof (`bool`) - Propagate upstream writer shutdown to downstream
 * no_auto_buffer_wrap (`bool`) - Do not automatically wrap WebSocket frames writer in a write_buffer: overlay when it detects missing vectored writes support
 
 
@@ -1418,10 +1529,10 @@ Options:
 
 * Specifier - WebSocket URL, TCP socket address or other connection type Websocat recognizes, 
 or an overlay that transforms other Specifier.
-* Endpoint - leaf-level specifier that directly creates some sort of Socket
-* Overlay - intermediate specifier that transforms inner specifier
-* Socket - a pair of byte stream- or datagram-oriented data flows: write 
-(to socket) and read (from socket), optionally with a hangup signal
+* Endpoint - leaf-level specifier that directly creates some sort of Socket, without requiring another Socket first.
+* Overlay - intermediate specifier that transforms inner specifier. From overlay's viewpoint, inner socket is called Downstream and whatever uses the overlay is called Upstream.
+* Socket - a pair of byte stream- or datagram-oriented data flows: write (sink) and read (source), optionally with a hangup signal. Can be stream- and packet-oriented.
+* Incomplete socket - socket where one of direction (reader or writer) is absent (null). Not to be confused with half-shutdown socket that can be read, but not written.
 * Scenario = Websocat Rhai Script - detailed instruction of how Websocat would perform its operation.
 Normally it is generated automatically from CLI arguments, then executed; but you can separate 
 those steps and customize the scenario to fine tune of how Websocat operates. Just like usual CLI API, 
@@ -1432,5 +1543,6 @@ in Scenarios.
 * Scenario Executor - part of Websocat implementation that executes a Scenario.
 * CLI arguments - combination of a positional arguments (typically Specifiers) and various 
 flags (e.g. `--binary`) and options (e.g. `--buffer-size 4096`) that affect Scenario Planner.
+* Packet = Datagram = Message - A byte buffer with associated flags. Correspond to one WebSocket message. Within WebSocket, packets can be split to chunks, but that should not affect user-visible properties.
 
 

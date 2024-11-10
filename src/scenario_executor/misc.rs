@@ -11,6 +11,8 @@ use crate::scenario_executor::{
 
 use super::{types::Task, utils::RhResult};
 
+//@ Obtain a stream socket made of stdin and stdout.
+//@ This spawns a OS thread to handle interactions with the stdin/stdout and may be inefficient.
 fn create_stdio() -> Handle<StreamSocket> {
     StreamSocket {
         read: Some(StreamRead {
@@ -25,6 +27,7 @@ fn create_stdio() -> Handle<StreamSocket> {
     .wrap()
 }
 
+//@ Perform a DNS lookup of the specified hostname and call a continuation with the list of IPv4 and IPv6 socket addresses
 fn lookup_host(
     ctx: NativeCallContext,
     addr: String,

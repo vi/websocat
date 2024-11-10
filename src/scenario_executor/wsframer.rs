@@ -266,6 +266,7 @@ impl PacketWrite for WsEncoder {
     }
 }
 
+//@ Wrap downstream stream-orinted writer to make expose packet-orinted sink using WebSocket framing
 fn ws_encoder(
     ctx: NativeCallContext,
     opts: Dynamic,
@@ -274,13 +275,16 @@ fn ws_encoder(
     let span = debug_span!("ws_encoder");
     #[derive(serde::Deserialize)]
     struct WsEncoderOpts {
+        //@ Use masking (i.e. client-style)
         masked: bool,
         #[serde(default)]
         no_flush_after_each_message: bool,
 
+        //@ Do not emit ConnectionClose frame when shutting down
         #[serde(default)]
         no_close_frame: bool,
 
+        //@ Shutdown downstream socket for writing when shutting down
         #[serde(default)]
         shutdown_socket_on_eof: bool,
     }
@@ -474,6 +478,7 @@ impl WsDecoder {
     }
 }
 
+//@ Wrap downstream stream-orinted reader to make expose packet-orinted source using WebSocket framing
 fn ws_decoder(
     ctx: NativeCallContext,
     opts: Dynamic,
@@ -482,8 +487,10 @@ fn ws_decoder(
     let span = debug_span!("ws_decoder");
     #[derive(serde::Deserialize)]
     struct WsDecoderOpts {
+        //@ Require decoded frames to be masked (i.e. coming from a client)
         #[serde(default)]
         require_masked: bool,
+        //@ Require decoded frames to be masked (i.e. coming from a server)
         #[serde(default)]
         require_unmasked: bool,
     }

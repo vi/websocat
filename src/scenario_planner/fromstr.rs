@@ -269,6 +269,16 @@ impl ParseStrChunkResult<'_> {
             Ok(ParseStrChunkResult::Endpoint(
                 Endpoint::AbstractSeqpacketListen(rest.to_owned()),
             ))
+        } else if let Some(rest) = x.strip_prefix_many(&["lines:"]) {
+            Ok(ParseStrChunkResult::Overlay {
+                ovl: Overlay::LineChunks,
+                rest,
+            })
+        } else if let Some(rest) = x.strip_prefix_many(&["chunks:"]) {
+            Ok(ParseStrChunkResult::Overlay {
+                ovl: Overlay::StreamChunks,
+                rest,
+            })
         } else {
             anyhow::bail!("Unknown specifier: {x:?}")
         }

@@ -7,30 +7,49 @@ use crate::cli::WebsocatArgs;
 #[derive(Debug)]
 pub enum Endpoint {
     //@ @inhibit_prefixes
+    //@ Connect to a TCP socket by hostname.
+    //@ Hostname resolution happens once, on scenario start.
+    //@ If multiple address are resolved, they are tried simultaneously, first connected one wins.
+    //@
+    //@ See prefixes for `TcpConnectByIp`.
     TcpConnectByEarlyHostname {
         varname_for_addrs: String,
     },
-    //@ @inhibit_prefixes
+    //@ @inhibit_prefixes 
+    //@ Connect to a TCP socket by hostname.
+    //@ Hostname resolution is repeated every time a connection is initated.
+    //@ If multiple address are resolved, they are tried simultaneously, first connected one wins.
+    //@
+    //@ See prefixes for `TcpConnectByIp`
+
     /// All TCP connections start as late-resolved when parsing CLI argument,
     /// but may be converted to early-resolved by the patcher.
     TcpConnectByLateHostname {
         hostname: String,
     },
+    //@ Connected to a TCP socket using one explicitly specified IPv4 or IPv6 socket address.
     TcpConnectByIp(SocketAddr),
+    //@ Listen for incoming TCP connections on one TCP socket, bound to the specified IPv4 or IPv6 address.
     TcpListen(SocketAddr),
+    //@ Connect to specified WebSocket plain (insecure) URL
     WsUrl(Uri),
+    //@ Connect to specified WebSocket TLS URL
     WssUrl(Uri),
+    //@ Listen for incoming WebSocket connections at specified TCP socket address.
     WsListen(SocketAddr),
     //@ Console, terminal: read bytes from stdin, write bytes to stdout.
+    //@
+    //@ Uses additional thread, which may cause lower latency and thoughput.
     Stdio,
-    //@ Connect to this UDP socket. Note affected by `--udp-bind-*`` CLI options.
+    //@ Connect to this UDP socket. Not affected by `--udp-bind-*`` CLI options.
     UdpConnect(SocketAddr),
     //@ Bind UDP socket to this address.
-    //@ Commmand line options greatly affect this endpoint. It can be turned into a flexible UdpConnect analogue.
+    //@ Commmand line options greatly affect behaviour of this endpoint. It can be turned into a flexible `UdpConnect` analogue.
     UdpBind(SocketAddr),
-    //@ Bind UDP socket and spawn a separate task for each client
+    //@ Bind UDP socket and spawn a separate task for each client.
+    //@ Connections get closed when there are too many active clients or by a timeout.
     UdpServer(SocketAddr),
-    //@ Execute given program as subprocess and use its stdin/stdout as a socket.
+    //@ Execute given program as a subprocess and use its stdin/stdout as a socket.
     //@ Specify command line arguments using `--exec-args` command line option.
     Exec(OsString),
     //@ Execute given command line and use its stdin/stdout as a socket.
@@ -55,11 +74,11 @@ pub enum Endpoint {
 
     //@ Connect to specified UNIX SOCK_SEQPACKET socket by path
     //@
-    //@ Unlike Websocat1, @-prefixed addresses does not convert to abstract namespace
+    //@ Unlike Websocat1, @-prefixed addresses do not get converted to Linux abstract namespace
     SeqpacketConnect(OsString),
     //@ Listen specified UNIX SOCK_SEQPACKET socket
     //@
-    //@ Unlike Websocat1, @-prefixed addresses does not convert to abstract namespace
+    //@ Unlike Websocat1, @-prefixed addresses do not get converted to Linux abstract namespace
     SeqpacketListen(OsString),
     //@ Connect to specified UNIX SOCK_SEQPACKET socket by abstract (Linux) name
     AbstractSeqpacketConnect(OsString),
@@ -69,11 +88,22 @@ pub enum Endpoint {
 
 #[derive(Debug)]
 pub enum Overlay {
+    //@ Send HTTP/1 WebSocket upgrade to specified stream-oriented connection and accept and parse a reply,
+    //@ then connects (i.e. exchanges bytes) the downstream connection to upstream.
+    //@
+    //@ Does not provide WebSocket framing.
     WsUpgrade {
         uri: Uri,
         host: Option<String>,
     },
+    //@ Expects a HTTP/1 WebSocket upgrade request from downstream stream socket. If valid, replies with Upgrade HTTP reply.
+    //@ After than connects (i.e. exchanges bytes) downstream to upstream.
+    //@
+    //@ Does not provide WebSocket framing.
     WsAccept {},
+    //@ Converts downstream stream to upstream packets using WebSocket framing.
+    //@ 
+    //@ Automatically handles WebSocket pings and CloseFrames, but does not fully terminate the connection on CloseFrame, only signaling EOF instead.
     WsFramer {
         client_mode: bool,
     },
@@ -83,11 +113,19 @@ pub enum Overlay {
     WsClient,
     //@ Combined WebSocket acceptor and framer.
     WsServer,
+    //@ Establishes client-side TLS connection using specified stream-oriended downstream connection
     TlsClient {
         domain: String,
         varname_for_connector: String,
     },
+    //@ Converts downstream stream-oriented socket to packet-oriented socket by chunking the stream arbitrarily (i.e. as syscalls happend to deliver the data)
+    //@ 
+    //@ May be automatically inserted in binary (`-b`) mode.
     StreamChunks,
+    //@ Convert downstream stream-oriented socket to packet-oriented socket by using newline byte as a packet separator.
+    //@ Written data get modified to ensure that one line = one message.
+    //@
+    //@ May be automatically inserted in text (`-t`) mode.
     LineChunks,
     //@ Print encountered data to stderr for debugging
     Log {

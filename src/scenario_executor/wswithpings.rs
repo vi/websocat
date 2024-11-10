@@ -123,6 +123,7 @@ impl PacketRead for WsDecoderThatCoexistsWithPingReplies {
     }
 }
 
+//@ Like ws_encoder + ws_decoder, but also set up automatic replier to WebSocket pings.
 fn ws_wrap(
     ctx: NativeCallContext,
     opts: Dynamic,
@@ -131,15 +132,20 @@ fn ws_wrap(
     let span = debug_span!("ws_wrap");
     #[derive(serde::Deserialize)]
     struct WsDecoderOpts {
+        //@ Mask outgoing frames and require unmasked incoming frames
         client: bool,
+        //@ Accept masked (unmasked) frames in client (server) mode.
         #[serde(default)]
         ignore_masks: bool,
+        //@ Inhibit flushing of underlying stream writer after each compelte message
         #[serde(default)]
         no_flush_after_each_message: bool,
 
+        //@ Do not emit ConnectionClose frame when writing part is getting shut down
         #[serde(default)]
         no_close_frame: bool,
 
+        //@ Propagate upstream writer shutdown to downstream
         #[serde(default)]
         shutdown_socket_on_eof: bool,
 

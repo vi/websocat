@@ -15,6 +15,7 @@ use super::{
     utils::{ExtractHandleOrFail, HandleExt2, HangupHandleExt, SimpleErr, TaskHandleExt2},
 };
 
+//@ Modify stream-oriented Socket, taking the read part and returning it separately. Leaves behind an incomplete socket.
 fn take_read_part(ctx: NativeCallContext, h: Handle<StreamSocket>) -> RhResult<Handle<StreamRead>> {
     if let Some(s) = h.lock().unwrap().as_mut() {
         Ok(s.read.take().wrap())
@@ -22,7 +23,7 @@ fn take_read_part(ctx: NativeCallContext, h: Handle<StreamSocket>) -> RhResult<H
         Err(ctx.err("StreamSocket is null"))
     }
 }
-
+//@ Modify stream-oriented Socket, taking the write part and returning it separately. Leaves behind an incomplete socket.
 fn take_write_part(
     ctx: NativeCallContext,
     h: Handle<StreamSocket>,
@@ -33,7 +34,7 @@ fn take_write_part(
         Err(ctx.err("StreamSocket is null"))
     }
 }
-
+//@ Modify datagram-oriented Socket, taking the read part and returning it separately. Leaves behind an incomplete socket.
 fn take_source_part(
     ctx: NativeCallContext,
     h: Handle<DatagramSocket>,
@@ -44,7 +45,7 @@ fn take_source_part(
         Err(ctx.err("StreamSocket is null"))
     }
 }
-
+//@ Modify datagram-oriented Socket, taking the write part and returning it separately. Leaves behind an incomplete socket.
 fn take_sink_part(
     ctx: NativeCallContext,
     h: Handle<DatagramSocket>,
@@ -55,6 +56,7 @@ fn take_sink_part(
         Err(ctx.err("StreamSocket is null"))
     }
 }
+//@ Modify Socket, taking the hangup signal part, if it is set.
 fn take_hangup_part(ctx: NativeCallContext, h: Dynamic) -> RhResult<Handle<Hangup>> {
     if let Some(h) = h.clone().try_cast::<Handle<StreamSocket>>() {
         return if let Some(s) = h.lock().unwrap().as_mut() {
@@ -73,6 +75,7 @@ fn take_hangup_part(ctx: NativeCallContext, h: Dynamic) -> RhResult<Handle<Hangu
     Err(ctx.err("take_hangup_part expects StreamSocket or DatagramSocket as argument"))
 }
 
+//@ Modify stream-oriented Socket, filling in the read direction with the specified one
 fn put_read_part(
     ctx: NativeCallContext,
     h: Handle<StreamSocket>,
@@ -86,6 +89,7 @@ fn put_read_part(
     }
 }
 
+//@ Modify stream-oriented Socket, filling in the write direction with the specified one
 fn put_write_part(
     ctx: NativeCallContext,
     h: Handle<StreamSocket>,
@@ -99,6 +103,7 @@ fn put_write_part(
     }
 }
 
+//@ Modify datagram-oriented Socket, filling in the read direction with the specified one
 fn put_source_part(
     ctx: NativeCallContext,
     h: Handle<DatagramSocket>,
@@ -111,6 +116,7 @@ fn put_source_part(
         Err(ctx.err("DatagramSocket null"))
     }
 }
+//@ Modify datagram-oriented Socket, filling in the write direction with the specified one
 fn put_sink_part(
     ctx: NativeCallContext,
     h: Handle<DatagramSocket>,
@@ -123,6 +129,7 @@ fn put_sink_part(
         Err(ctx.err("DatagramSocket null"))
     }
 }
+//@ Modify Socket, filling in the hangup signal with the specified one
 fn put_hangup_part(ctx: NativeCallContext, h: Dynamic, x: Handle<Hangup>) -> RhResult<()> {
     if let Some(h) = h.clone().try_cast::<Handle<StreamSocket>>() {
         return if let Some(s) = h.lock().unwrap().as_mut() {
@@ -143,15 +150,18 @@ fn put_hangup_part(ctx: NativeCallContext, h: Dynamic, x: Handle<Hangup>) -> RhR
     Err(ctx.err("take_hangup_part expects StreamSocket or DatagramSocket as argument"))
 }
 
+//@ A task that immediately finishes
 fn dummytask() -> Handle<Task> {
     async move {}.wrap_noerr()
 }
 
+//@ A task that finishes after specified number of milliseconds
 fn sleep_ms(ms: i64) -> Handle<Task> {
     async move { tokio::time::sleep(std::time::Duration::from_millis(ms as u64)).await }
         .wrap_noerr()
 }
 
+//@ Execute specified tasks in order, starting another and previous one finishes.
 fn sequential(tasks: Vec<Dynamic>) -> Handle<Task> {
     async move {
         for t in tasks {
@@ -165,6 +175,7 @@ fn sequential(tasks: Vec<Dynamic>) -> Handle<Task> {
     .wrap_noerr()
 }
 
+//@ Execute specified tasks in parallel, waiting them all to finish.
 fn parallel(tasks: Vec<Dynamic>) -> Handle<Task> {
     async move {
         let mut waitees = Vec::with_capacity(tasks.len());
@@ -182,6 +193,7 @@ fn parallel(tasks: Vec<Dynamic>) -> Handle<Task> {
     .wrap_noerr()
 }
 
+//@ Start execution of the specified task in background
 fn spawn_task(task: Handle<Task>) {
     let original_span = tracing::Span::current();
     let span = debug_span!(parent: original_span, "spawn", t = field::Empty);
@@ -211,13 +223,13 @@ fn pre_triggered_hangup_handle() -> Handle<Hangup> {
     async move {}.wrap()
 }
 
-//@ Create a Hangup handle that results after specific number of milliseconds
+//@ Create a Hangup handle that resolves after specific number of milliseconds
 fn timeout_ms_hangup_handle(ms: i64) -> Handle<Hangup> {
     use super::utils::HangupHandleExt;
     async move { tokio::time::sleep(Duration::from_millis(ms as u64)).await }.wrap()
 }
 
-//@ Exit Websocat process
+//@ Exit Websocat process. If WebSocket is serving multiple connections, they all get aborted.
 fn exit_process(code: i64) {
     std::process::exit(code as i32)
 }
@@ -273,7 +285,7 @@ fn task2hangup(
     .wrap();
     Ok(y)
 }
-//@ Convert a hangup token into a task.
+//@ Convert a hangup token into a task. I don't know why this may be needed.
 fn hangup2task(ctx: NativeCallContext, hangup: Handle<Hangup>) -> RhResult<Handle<Task>> {
     let x = ctx.lutbar(hangup)?;
     let y = async move {

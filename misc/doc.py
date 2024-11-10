@@ -667,7 +667,11 @@ def main() -> None:
 
     print("# Scenario functions")
     print()
-    print("Those functions are used in Websocat Rhai Scripts (Scenarios):")
+    print("Prior to doing any network things, Websocat prepares a Scenario (Websocat Rhai Script) based on you command line options.")
+    print("Scenarios are less stable than usual Websocat API, but allow fine tuning Websocat behaviour.")
+    print("You can view scenarios using `--dump-spec` option and execute them the with `-x` option.")
+    print()
+    print("The following functions and methods are used in scenarios:")
     print()
 
     for execfn in executor_functions:
@@ -679,10 +683,10 @@ def main() -> None:
 
 * Specifier - WebSocket URL, TCP socket address or other connection type Websocat recognizes, 
 or an overlay that transforms other Specifier.
-* Endpoint - leaf-level specifier that directly creates some sort of Socket
-* Overlay - intermediate specifier that transforms inner specifier
-* Socket - a pair of byte stream- or datagram-oriented data flows: write 
-(to socket) and read (from socket), optionally with a hangup signal
+* Endpoint - leaf-level specifier that directly creates some sort of Socket, without requiring another Socket first.
+* Overlay - intermediate specifier that transforms inner specifier. From overlay's viewpoint, inner socket is called Downstream and whatever uses the overlay is called Upstream.
+* Socket - a pair of byte stream- or datagram-oriented data flows: write (sink) and read (source), optionally with a hangup signal. Can be stream- and packet-oriented.
+* Incomplete socket - socket where one of direction (reader or writer) is absent (null). Not to be confused with half-shutdown socket that can be read, but not written.
 * Scenario = Websocat Rhai Script - detailed instruction of how Websocat would perform its operation.
 Normally it is generated automatically from CLI arguments, then executed; but you can separate 
 those steps and customize the scenario to fine tune of how Websocat operates. Just like usual CLI API, 
@@ -693,6 +697,7 @@ in Scenarios.
 * Scenario Executor - part of Websocat implementation that executes a Scenario.
 * CLI arguments - combination of a positional arguments (typically Specifiers) and various 
 flags (e.g. `--binary`) and options (e.g. `--buffer-size 4096`) that affect Scenario Planner.
+* Packet = Datagram = Message - A byte buffer with associated flags. Correspond to one WebSocket message. Within WebSocket, packets can be split to chunks, but that should not affect user-visible properties.
 
 """)
 

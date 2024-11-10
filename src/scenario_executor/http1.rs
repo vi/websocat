@@ -30,6 +30,7 @@ pub struct Http1Client {
 
 static MAGIC_GUID: &str = "258EAFA5-E914-47DA-95CA-C5AB0DC85B11";
 
+//@ Converts a downstream stream socket into a HTTP 1 client, suitable for sending e.g. WebSocket upgrade request.
 fn http1_client(
     ctx: NativeCallContext,
     opts: Dynamic,
@@ -79,6 +80,7 @@ fn http1_client(
     Ok(Some(Http1Client { sr, hup: c }).wrap())
 }
 
+//@ Perform WebSocket client handshake, then recover the downstream stream socket that was used for `http_client`.
 fn ws_upgrade(
     ctx: NativeCallContext,
     opts: Dynamic,
@@ -200,6 +202,7 @@ fn ws_upgrade(
     .wrap())
 }
 
+//@ Converts a downstream stream socket into a HTTP 1 server, suitable for accepting e.g. WebSocket upgrade request.
 fn http1_serve(
     ctx: NativeCallContext,
     opts: Dynamic,
@@ -283,6 +286,7 @@ fn http1_serve(
     .wrap())
 }
 
+//@ Perform WebSocket server handshake, then recover the downstream stream socket that was used for `http_server`.
 fn ws_accept(
     ctx: NativeCallContext,
     opts: Dynamic,

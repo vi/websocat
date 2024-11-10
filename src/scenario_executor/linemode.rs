@@ -279,6 +279,9 @@ impl PacketWrite for WriteLineChunks {
     }
 }
 
+//@ Convert downstream stream socket into upstream packet socket using a byte separator
+//@
+//@ If you want just source or sink conversion part, create incomplete socket, use this function, then extract the needed part from resulting incomplete socket.
 fn line_chunks(
     ctx: NativeCallContext,
     opts: Dynamic,

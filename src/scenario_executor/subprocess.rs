@@ -18,12 +18,12 @@ use super::{
     utils::{ExtractHandleOrFail, HandleExt, RhResult, SimpleErr},
 };
 
-//@ Prepare subprocess, setting up executable name.
+//@ Prepare subprocess, setting up executable name. See `Command::` methods for further steps.
 fn subprocess_new(program_name: String) -> Handle<Command> {
     Some(Command::new(program_name)).wrap()
 }
 
-//@ Prepare subprocess, setting up possibly non-UTF8 executable name
+//@ Prepare subprocess, setting up possibly non-UTF8 executable name.  See `Command::` methods for further steps.
 fn subprocess_new_osstr(program_name: OsString) -> Handle<Command> {
     Some(Command::new(program_name)).wrap()
 }
@@ -288,7 +288,7 @@ fn child_take_stderr(
     Ok(s.wrap())
 }
 
-//@ Spawn the prepared subprocess. What happens next depends on used `child_` function.
+//@ Spawn the prepared subprocess. What happens next depends on used `Child::` methods.
 fn subprocess_spawn(ctx: NativeCallContext, cmd: &mut Handle<Command>) -> RhResult<Handle<Child>> {
     let mut c = ctx.lutbarm(cmd)?;
     match c.spawn() {
@@ -303,7 +303,7 @@ fn subprocess_spawn(ctx: NativeCallContext, cmd: &mut Handle<Command>) -> RhResu
     }
 }
 
-//@ Add literal, unescaped text to Window's command line
+//@ Add literal, unescaped text to Windows's command line
 #[allow(unused)]
 fn subprocess_raw_windows_arg(
     ctx: NativeCallContext,
@@ -422,7 +422,7 @@ fn subprocess_chdir_osstr(
     Ok(())
 }
 
-//@ Set Window's process creation flags.
+//@ Set Windows's process creation flags.
 #[allow(unused)]
 fn subprocess_windows_creation_flags(
     ctx: NativeCallContext,
