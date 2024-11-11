@@ -1240,7 +1240,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9c8d87e72b64a3b4db28d11ce29237c246188f4f51057d65a7eab63b7987e423"
 
 [[package]]
-name = "websocat4"
+name = "websocat"
 version = "4.0.0-alpha1"
 dependencies = [
  "anyhow",

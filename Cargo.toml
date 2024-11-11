@@ -1,8 +1,12 @@
 [package]
-name = "websocat4"
+name = "websocat"
 version = "4.0.0-alpha1"
 edition = "2021"
 include = ["src","Cargo.toml","doc.md","README.md","DESIGN.md","TODO.md","misc"]
+license = "MIT/Apache-2.0"
+repository = "https://github.com/vi/websocat"
+description = "Command-line client for web sockets, like netcat/curl/socat for ws://."
+keywords = ["WebSocket", "socat", "rfc6455", "netcat", "cli"]
 
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
