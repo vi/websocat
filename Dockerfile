@@ -1,15 +1,13 @@
 # Build stage
-FROM rust:1.72.1-bookworm AS cargo-build
+FROM rust:1.72-alpine3.18 AS cargo-build
 
-RUN apt-get update
-RUN apt-get install -y libgcc-12-dev libc6-dev pkg-config libssl-dev
+RUN apk add --no-cache musl-dev pkgconfig openssl-dev
 
 WORKDIR /src/websocat
 ENV RUSTFLAGS='-Ctarget-feature=-crt-static'
 
 COPY Cargo.toml Cargo.toml
-# ARG CARGO_OPTS="--features=workaround1,seqpacket,prometheus_peer,prometheus/process,crypto_peer"
-ARG CARGO_OPTS="--features=ssl,workaround1,seqpacket,unix_stdio,prometheus_peer,prometheus/process,crypto_peer"
+ARG CARGO_OPTS="--features=workaround1,seqpacket,prometheus_peer,prometheus/process,crypto_peer"
 
 RUN mkdir src/ &&\
     echo "fn main() {println!(\"if you see this, the build broke\")}" > src/main.rs && \
@@ -21,12 +19,9 @@ RUN cargo build --release $CARGO_OPTS && \
     strip target/release/websocat
 
 # Final stage
-FROM debian:bookworm
+FROM alpine:3.18
 
-RUN apt-get update
-RUN apt-get install -y libssl3
-RUN apt-get clean && \
-    rm -rf /var/lib/apt/lists/*
+RUN apk add --no-cache libgcc
 
 WORKDIR /
 COPY --from=cargo-build /src/websocat/target/release/websocat /usr/local/bin/
