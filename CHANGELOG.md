@@ -1,3 +1,12 @@
+<a name="v1.14.0"></a>
+# [Sunset (v1.14.0)](https://github.com/vi/websocat/releases/tag/v1.14.0) - 11 Nov 2024
+
+* Attempt to priorize ping requests and replies over normal traffic
+* More options to supply password for basic auth: `--basic-auth-file` and `WEBSOCAT_BASIC_AUTH`
+* `drop_on_backpressure:` overlay
+* `--ua` shortcut for `-H User-Agent:`
+* SOCKS5 authentication
+
 <a name="v1.13.0"></a>
 # [Happy eyeballs (v1.13.0)](https://github.com/vi/websocat/releases/tag/v1.13.0) - 31 Mar 2024
 
