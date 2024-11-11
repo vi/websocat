@@ -347,7 +347,6 @@ fn connect_seqpacket(
 
     if opts.r#abstract {
         abstractify(&mut path);
-        warn!("Due to https://github.com/de-vri-es/tokio-seqpacket-rs/issues/24 it may append a zero byte to abstract socket addresses.")
     } else {
         if path.starts_with("@") {
             warn!("Websocat4 no longer converts @-prefixed addresses to abstract namespace anymore")
@@ -420,8 +419,6 @@ fn listen_seqpacket(
 
     if opts.r#abstract {
         abstractify(&mut path);
-
-        warn!("Due to https://github.com/de-vri-es/tokio-seqpacket-rs/issues/24 it may append a zero byte to abstract socket addresses.")
     } else {
         if path.starts_with("@") {
             warn!("Websocat4 no longer converts @-prefixed addresses to abstract namespace anymore")
