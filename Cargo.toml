@@ -2,6 +2,8 @@
 name = "websocat4"
 version = "4.0.0-alpha1"
 edition = "2021"
+include = ["src","Cargo.toml","doc.md","README.md","DESIGN.md","TODO.md","misc"]
+
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
