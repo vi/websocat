@@ -104,6 +104,8 @@ pub enum Overlay {
     //@ Converts downstream stream to upstream packets using WebSocket framing.
     //@ 
     //@ Automatically handles WebSocket pings and CloseFrames, but does not fully terminate the connection on CloseFrame, only signaling EOF instead.
+    //@
+    //@ Client or server mode is chosen depending on prefix you use.
     WsFramer {
         client_mode: bool,
     },

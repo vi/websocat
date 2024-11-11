@@ -19,7 +19,7 @@ Short list of endpoint prefixes:
   udp-server:
   unix:
   unix-listen:
-  ws-l:
+  ws-listen:
   ws://
   wss://
 
@@ -33,7 +33,8 @@ Short list of overlay prefixes:
   write_chunk_limiter:
   ws-accept:
   ws-connect:
-  ws-ll-client:
+  ws-lowlevel-client:
+  ws-lowlevel-server:
   ws-upgrade:
 
 Examples:

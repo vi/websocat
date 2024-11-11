@@ -80,7 +80,18 @@ impl ParseStrChunkResult<'_> {
                 anyhow::bail!("stdio: endpoint does not take any argument");
             }
             Ok(ParseStrChunkResult::Endpoint(Endpoint::Stdio))
-        } else if let Some(rest) = x.strip_prefix("tls:") {
+        } else if let Some(rest) = x.strip_prefix_many(&[
+            "tls:",
+            "ssl-connect:",
+            "ssl-c:",
+            "ssl:",
+            "tls-connect:",
+            "tls-c:",
+            "c-ssl:",
+            "connect-ssl:",
+            "c-tls:",
+            "connect-tls:",
+        ]) {
             Ok(ParseStrChunkResult::Overlay {
                 ovl: Overlay::TlsClient {
                     domain: String::new(),
@@ -107,17 +118,17 @@ impl ParseStrChunkResult<'_> {
                 ovl: Overlay::WsServer {},
                 rest,
             })
-        } else if let Some(rest) = x.strip_prefix("ws-ll-client:") {
+        } else if let Some(rest) = x.strip_prefix_many(&["ws-lowlevel-client:", "ws-ll-client:", "ws-ll-c:"]) {
             Ok(ParseStrChunkResult::Overlay {
                 ovl: Overlay::WsFramer { client_mode: true },
                 rest,
             })
-        } else if let Some(rest) = x.strip_prefix("ws-ll-server:") {
+        } else if let Some(rest) = x.strip_prefix_many(&["ws-lowlevel-server:", "ws-ll-server:", "ws-ll-s:"]) {
             Ok(ParseStrChunkResult::Overlay {
                 ovl: Overlay::WsFramer { client_mode: false },
                 rest,
             })
-        } else if let Some(rest) = x.strip_prefix("ws-l:") {
+        } else if let Some(rest) = x.strip_prefix_many(&["ws-listen:", "ws-l:", "l-ws:", "listen-ws:"]) {
             let s: &str = rest.try_into()?;
             let a: SocketAddr = s.parse()?;
             Ok(ParseStrChunkResult::Endpoint(Endpoint::WsListen(a)))
@@ -217,6 +228,7 @@ impl ParseStrChunkResult<'_> {
             "connect-abstract:",
             "abstract-c:",
             "c-abstract:",
+            "abs:",
         ]) {
             Ok(ParseStrChunkResult::Endpoint(Endpoint::AbstractConnect(
                 rest.to_owned(),
@@ -226,6 +238,8 @@ impl ParseStrChunkResult<'_> {
             "listen-abstract:",
             "abstract-l:",
             "l-abstract:",
+            "l-abs:",
+            "abs-l:",
         ]) {
             Ok(ParseStrChunkResult::Endpoint(Endpoint::AbstractListen(
                 rest.to_owned(),
@@ -236,6 +250,7 @@ impl ParseStrChunkResult<'_> {
             "connect-seqpacket:",
             "seqpacket-c:",
             "c-seqpacket:",
+            "seqp:",
         ]) {
             Ok(ParseStrChunkResult::Endpoint(Endpoint::SeqpacketConnect(
                 rest.to_owned(),
@@ -245,6 +260,8 @@ impl ParseStrChunkResult<'_> {
             "listen-seqpacket:",
             "seqpacket-l:",
             "l-seqpacket:",
+            "l-seqp:",
+            "seqp-l:",
         ]) {
             Ok(ParseStrChunkResult::Endpoint(Endpoint::SeqpacketListen(
                 rest.to_owned(),
@@ -256,6 +273,8 @@ impl ParseStrChunkResult<'_> {
             "abstract-seqpacket:",
             "abstract-seqpacket-connect:",
             "abstract-seqpacket-c:",
+            "abs-seqp:",
+            "seqp-abs:",
         ]) {
             Ok(ParseStrChunkResult::Endpoint(
                 Endpoint::AbstractSeqpacketConnect(rest.to_owned()),
@@ -265,6 +284,10 @@ impl ParseStrChunkResult<'_> {
             "seqpacket-abstract-l:",
             "abstract-seqpacket-listen:",
             "abstract-seqpacket-l:",
+            "abs-seqp-l:",
+            "seqp-abs-l:",
+            "l-abs-seqp:",
+            "l-seqp-abs:",
         ]) {
             Ok(ParseStrChunkResult::Endpoint(
                 Endpoint::AbstractSeqpacketListen(rest.to_owned()),

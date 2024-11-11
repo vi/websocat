@@ -84,6 +84,8 @@ impl PacketWrite for UdpSend {
         if flags.is_control() {
             return Poll::Ready(Ok(()));
         }
+        // TODO: limit maximum length of the buffer
+        // TODO: factor this out, so it is not duplicated in seqpacket
         if flags.contains(BufferFlag::NonFinalChunk) {
             this.incomplete_outgoing_datagram_buffer
                 .get_or_insert_with(Default::default)

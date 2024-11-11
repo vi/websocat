@@ -589,6 +589,8 @@ def document_planner_content(c: PlannerContent) -> None:
     for ep in c.overlays:
         if ep.prefixes:
             f.write(f"  {ep.prefixes[0]}\n")
+            if ep.prefixes[0] == "ws-lowlevel-client:":
+                f.write("  ws-lowlevel-server:\n")
         document_item(ep, "overlay")
 
     f.write("\n")

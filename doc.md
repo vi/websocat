@@ -231,7 +231,7 @@ Short list of endpoint prefixes:
   udp-server:
   unix:
   unix-listen:
-  ws-l:
+  ws-listen:
   ws://
   wss://
 
@@ -245,7 +245,8 @@ Short list of overlay prefixes:
   write_chunk_limiter:
   ws-accept:
   ws-connect:
-  ws-ll-client:
+  ws-lowlevel-client:
+  ws-lowlevel-server:
   ws-upgrade:
 
 Examples:
@@ -279,6 +280,7 @@ Prefixes:
 * `connect-abstract:`
 * `abstract-c:`
 * `c-abstract:`
+* `abs:`
 
 ### AbstractListen
 
@@ -290,6 +292,8 @@ Prefixes:
 * `listen-abstract:`
 * `abstract-l:`
 * `l-abstract:`
+* `l-abs:`
+* `abs-l:`
 
 ### AbstractSeqpacketConnect
 
@@ -303,6 +307,8 @@ Prefixes:
 * `abstract-seqpacket:`
 * `abstract-seqpacket-connect:`
 * `abstract-seqpacket-c:`
+* `abs-seqp:`
+* `seqp-abs:`
 
 ### AbstractSeqpacketListen
 
@@ -314,6 +320,10 @@ Prefixes:
 * `seqpacket-abstract-l:`
 * `abstract-seqpacket-listen:`
 * `abstract-seqpacket-l:`
+* `abs-seqp-l:`
+* `seqp-abs-l:`
+* `l-abs-seqp:`
+* `l-seqp-abs:`
 
 ### Cmd
 
@@ -382,6 +392,7 @@ Prefixes:
 * `connect-seqpacket:`
 * `seqpacket-c:`
 * `c-seqpacket:`
+* `seqp:`
 
 ### SeqpacketListen
 
@@ -395,6 +406,8 @@ Prefixes:
 * `listen-seqpacket:`
 * `seqpacket-l:`
 * `l-seqpacket:`
+* `l-seqp:`
+* `seqp-l:`
 
 ### Stdio
 
@@ -511,7 +524,10 @@ Listen for incoming WebSocket connections at specified TCP socket address.
 
 Prefixes:
 
+* `ws-listen:`
 * `ws-l:`
+* `l-ws:`
+* `listen-ws:`
 
 ### WsUrl
 
@@ -578,6 +594,15 @@ Establishes client-side TLS connection using specified stream-oriended downstrea
 Prefixes:
 
 * `tls:`
+* `ssl-connect:`
+* `ssl-c:`
+* `ssl:`
+* `tls-connect:`
+* `tls-c:`
+* `c-ssl:`
+* `connect-ssl:`
+* `c-tls:`
+* `connect-tls:`
 
 ### WriteBuffer
 
@@ -627,10 +652,16 @@ Converts downstream stream to upstream packets using WebSocket framing.
 
 Automatically handles WebSocket pings and CloseFrames, but does not fully terminate the connection on CloseFrame, only signaling EOF instead.
 
+Client or server mode is chosen depending on prefix you use.
+
 Prefixes:
 
+* `ws-lowlevel-client:`
 * `ws-ll-client:`
+* `ws-ll-c:`
+* `ws-lowlevel-server:`
 * `ws-ll-server:`
+* `ws-ll-s:`
 
 ### WsServer
 
