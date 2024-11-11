@@ -1,5 +1,5 @@
 <a name="v1.14.0"></a>
-# [Sunset (v1.14.0)](https://github.com/vi/websocat/releases/tag/v1.14.0) - 11 Nov 2024
+# [Sunset (v1.14.0)](https://github.com/vi/websocat/releases/tag/v1.14.0) - 12 Nov 2024
 
 * Attempt to priorize ping requests and replies over normal traffic
 * More options to supply password for basic auth: `--basic-auth-file` and `WEBSOCAT_BASIC_AUTH`

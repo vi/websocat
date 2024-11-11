@@ -29,7 +29,7 @@ Some address types may be "aliases" to other address types or combinations of ov
 
 ```
 
-websocat 1.13.0
+websocat 1.14.0
 Vitaly "_Vi" Shukela <vi0oss@gmail.com>
 Command-line client for web sockets, like netcat/curl/socat for ws://.
 
@@ -154,13 +154,16 @@ FLAGS:
 
 OPTIONS:
         --socks5 <auto_socks5>
-            Use specified address:port as a SOCKS5 proxy. Note that proxy authentication is not supported yet. Example:
-            --socks5 127.0.0.1:9050
+            Use specified address:port as a SOCKS5 proxy. Example: --socks5 127.0.0.1:9050
+
         --autoreconnect-delay-millis <autoreconnect_delay_millis>
             [A] Delay before reconnect attempt for `autoreconnect:` overlay. [default: 20]
 
         --basic-auth <basic_auth>
-            Add `Authorization: Basic` HTTP request header with this base64-encoded parameter
+            Add `Authorization: Basic` HTTP request header with this base64-encoded parameter. Also available as
+            `WEBSOCAT_BASIC_AUTH` environment variable
+        --basic-auth-file <basic_auth_file>
+            Add `Authorization: Basic` HTTP request header base64-encoded content of the specified file
 
         --queue-len <broadcast_queue_len>
             [A] Number of pending queued messages for broadcast reuser [default: 16]
@@ -262,6 +265,9 @@ OPTIONS:
         --socks5-bind-script <socks5_bind_script>
             [A] Execute specified script in `socks5-bind:` mode when remote port number becomes known.
 
+        --socks5-user-pass <socks5_user_pass>
+            [A] Specify username:password for SOCKS5 proxy. If not specified, the default is to use no authentication.
+
         --socks5-destination <socks_destination>
             [A] Examples: 1.2.3.4:5678  2600:::80  hostname:5678
 
@@ -278,6 +284,9 @@ OPTIONS:
             [A] Index of network interface for IPv6 multicast. Has to be either not specified or specified the same
             number of times as multicast IPv6 addresses. Order matters.
         --udp-ttl <udp_ttl>                                          [A] Set IP_TTL, also IP_MULTICAST_TTL if applicable
+        --ua <useragent>
+            Set `User-Agent` request header to this value. Similar to setting it with `-H`.
+
         --protocol <websocket_protocol>
             Specify this Sec-WebSocket-Protocol: header when connecting
 
@@ -1295,6 +1304,24 @@ when terminal is set to raw mode. Works only bytes read from the overlay, not on
 Default byte is 1C which is typically triggered by Ctrl+\.
 
 Example: `(stty raw -echo; websocat -b exit_on_specific_byte:stdio tcp:127.0.0.1:23; stty sane)`
+
+
+
+### `drop_on_backpressure:`
+
+Internal name for --dump-spec: DropOnBackpressure
+
+
+[A] Prevent writing from ever blocking, drop writes instead.
+
+Does not affect reading part.
+when terminal is set to raw mode. Works only bytes read from the overlay, not on the written bytes.
+
+Default byte is 1C which is typically triggered by Ctrl+\.
+
+Example (attachable log observer):
+
+    some_program | websocat -b -u asyncstdio: drop_on_backpressure:autoreconnect:ws-l:127.0.0.1:1234
 
 
 

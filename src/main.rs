@@ -365,7 +365,7 @@ struct Opt {
 
     #[structopt(
         long = "socks5",
-        help = "Use specified address:port as a SOCKS5 proxy. Note that proxy authentication is not supported yet. Example: --socks5 127.0.0.1:9050"
+        help = "Use specified address:port as a SOCKS5 proxy. Example: --socks5 127.0.0.1:9050"
     )]
     auto_socks5: Option<SocketAddr>,
 
