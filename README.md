@@ -126,6 +126,8 @@ Building from source code
 
 |Websocat versions|Minimal Rust version|Maximal Rust version|
 |----|----|----|
+| 4.0.0-alpha1 | 1.84 | ?   |
+| 1.12+     | ?    | ?          |
 | 1.9 - 1.11| 1.46 | maybe 1.63 |
 | 1.6 - 1.8 | 1.34 | maybe 1.63  |
 | 1.3 - 1.5 | 1.31 | 1.47? |
@@ -537,6 +539,7 @@ Limitations
 * Current version of Websocat don't receive notification about closed sockets. This makes serving without `-E` or `-u` options or in backpressure scenarios prone to socket leak.
 * Readline is not integrated. Users are advices to wrap websocat using [`rlwrap`](https://linux.die.net/man/1/rlwrap) tool for more convenient CLI.
 * Build process of current version of Websocat is not properly automated and is fragile.
+* Main version (v1) is based on obsolete dependency versions that trigger security warnings and may become tricky to build. There is new version (v4), but is not yet considered stable and [has many missing features](https://github.com/vi/websocat/issues/276).
 
 See also
 ---
