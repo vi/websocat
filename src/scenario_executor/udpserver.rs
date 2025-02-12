@@ -3,7 +3,7 @@ use std::{net::SocketAddr, sync::Mutex, task::Poll, time::Duration};
 use crate::scenario_executor::{
     scenario::{callback_and_continue, ScenarioAccess},
     types::{DatagramRead, DatagramSocket, DatagramWrite},
-    utils1::{HandleExt, SimpleErr},
+    utils1::{HandleExt, SimpleErr}, utils2::DefragmenterAddChunkResult,
 };
 use bytes::BytesMut;
 use futures::{future::OptionFuture, FutureExt};
@@ -17,7 +17,7 @@ use std::sync::Arc;
 
 use super::{
     types::{BufferFlag, PacketRead, PacketReadResult, PacketWrite, Task},
-    utils1::{IsControlFrame, RhResult},
+    utils1::RhResult, utils2::Defragmenter,
 };
 use crate::scenario_executor::utils1::TaskHandleExt2;
 
@@ -91,12 +91,10 @@ async fn hangup_monitor(
     }
 }
 
-#[derive(Clone)]
 struct UdpSend {
     s: Arc<UdpSocket>,
     ci: Arc<ClientInfo>,
-    incomplete_outgoing_datagram_buffer: Option<BytesMut>,
-    incomplete_outgoing_datagram_buffer_complete: bool,
+    defragmenter: Defragmenter,
     inhibit_send_errors: bool,
 }
 
@@ -105,8 +103,7 @@ impl UdpSend {
         Self {
             s,
             ci,
-            incomplete_outgoing_datagram_buffer: None,
-            incomplete_outgoing_datagram_buffer_complete: false,
+            defragmenter: Defragmenter::new(),
             inhibit_send_errors,
         }
     }
@@ -121,23 +118,13 @@ impl PacketWrite for UdpSend {
     ) -> std::task::Poll<std::io::Result<()>> {
         trace!("poll_write");
         let this = self.get_mut();
-        if flags.is_control() {
-            return Poll::Ready(Ok(()));
-        }
-        if flags.contains(BufferFlag::NonFinalChunk) {
-            this.incomplete_outgoing_datagram_buffer
-                .get_or_insert_with(Default::default)
-                .extend_from_slice(buf);
-            return Poll::Ready(Ok(()));
-        }
-        let data: &[u8] = if let Some(ref mut x) = this.incomplete_outgoing_datagram_buffer {
-            if !this.incomplete_outgoing_datagram_buffer_complete {
-                x.extend_from_slice(buf);
-                this.incomplete_outgoing_datagram_buffer_complete = true;
+
+
+        let data : &[u8] = match this.defragmenter.add_chunk(buf, flags) {
+            DefragmenterAddChunkResult::DontSendYet => {
+                return Poll::Ready(Ok(()));
             }
-            &x[..]
-        } else {
-            buf
+            DefragmenterAddChunkResult::Continunous(x) => x,
         };
 
         let inhibit_send_errors = this.inhibit_send_errors;
@@ -160,6 +147,7 @@ impl PacketWrite for UdpSend {
                 }
             }
             Poll::Ready(Err(e)) => {
+                this.defragmenter.clear();
                 if inhibit_send_errors {
                     warn!("Failed to send to UDP socket: {e}");
                 } else {
@@ -169,8 +157,7 @@ impl PacketWrite for UdpSend {
             Poll::Pending => return Poll::Pending,
         }
 
-        this.incomplete_outgoing_datagram_buffer_complete = false;
-        this.incomplete_outgoing_datagram_buffer = None;
+        this.defragmenter.clear();
         Poll::Ready(Ok(()))
     }
 }

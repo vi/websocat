@@ -2,9 +2,8 @@ use std::{ffi::OsString, sync::Arc, task::Poll, time::Duration};
 
 use crate::scenario_executor::{
     types::{DatagramRead, DatagramSocket, DatagramWrite},
-    utils1::{wrap_as_stream_socket, IsControlFrame, SimpleErr, TaskHandleExt2},
+    utils1::{wrap_as_stream_socket, SimpleErr, TaskHandleExt2},
 };
-use bytes::BytesMut;
 use futures::FutureExt;
 use rhai::{Dynamic, Engine, FnPtr, NativeCallContext};
 use tokio::net::UnixStream;
@@ -17,7 +16,7 @@ use crate::scenario_executor::{
 
 use super::{
     types::{BufferFlag, BufferFlags, PacketRead, PacketReadResult, PacketWrite},
-    utils1::{RhResult, SignalOnDrop},
+    utils1::{RhResult, SignalOnDrop}, utils2::{Defragmenter, DefragmenterAddChunkResult},
 };
 use clap_lex::OsStrExt;
 
@@ -245,11 +244,9 @@ struct SeqpacketSendAdapter {
 }
 
 #[cfg(any(target_os = "linux", target_os = "android", target_os = "freebsd"))]
-#[derive(Clone)]
 struct SeqpacketRecvAdapter {
     s: Arc<(tokio_seqpacket::UnixSeqpacket, SignalOnDrop)>,
-    incomplete_outgoing_datagram_buffer: Option<BytesMut>,
-    incomplete_outgoing_datagram_buffer_complete: bool,
+    degragmenter: Defragmenter,
 }
 
 #[cfg(any(target_os = "linux", target_os = "android", target_os = "freebsd"))]
@@ -293,23 +290,13 @@ impl PacketWrite for SeqpacketRecvAdapter {
             this.s.0.shutdown(std::net::Shutdown::Write)?;
             return Poll::Ready(Ok(()));
         }
-        if flags.is_control() {
-            return Poll::Ready(Ok(()));
-        }
-        if flags.contains(BufferFlag::NonFinalChunk) {
-            this.incomplete_outgoing_datagram_buffer
-                .get_or_insert_with(Default::default)
-                .extend_from_slice(buf);
-            return Poll::Ready(Ok(()));
-        }
-        let data: &[u8] = if let Some(ref mut x) = this.incomplete_outgoing_datagram_buffer {
-            if !this.incomplete_outgoing_datagram_buffer_complete {
-                x.extend_from_slice(buf);
-                this.incomplete_outgoing_datagram_buffer_complete = true;
+        
+
+        let data : &[u8] = match this.degragmenter.add_chunk(buf, flags) {
+            DefragmenterAddChunkResult::DontSendYet => {
+                return Poll::Ready(Ok(()));
             }
-            &x[..]
-        } else {
-            buf
+            DefragmenterAddChunkResult::Continunous(x) => x,
         };
 
         let ret = this.s.0.poll_send(cx, data);
@@ -321,13 +308,13 @@ impl PacketWrite for SeqpacketRecvAdapter {
                 }
             }
             Poll::Ready(Err(e)) => {
+                this.degragmenter.clear();
                 return Poll::Ready(Err(e));
             }
             Poll::Pending => return Poll::Pending,
         }
 
-        this.incomplete_outgoing_datagram_buffer_complete = false;
-        this.incomplete_outgoing_datagram_buffer = None;
+        this.degragmenter.clear();
         Poll::Ready(Ok(()))
     }
 }
@@ -376,8 +363,7 @@ fn connect_seqpacket(
         };
         let w = SeqpacketRecvAdapter {
             s,
-            incomplete_outgoing_datagram_buffer: None,
-            incomplete_outgoing_datagram_buffer_complete: true,
+            degragmenter: Defragmenter::new(),
         };
         let (r, w) = (Box::pin(r), Box::pin(w));
 
@@ -474,8 +460,7 @@ fn listen_seqpacket(
                     };
                     let w = SeqpacketRecvAdapter {
                         s,
-                        incomplete_outgoing_datagram_buffer: None,
-                        incomplete_outgoing_datagram_buffer_complete: true,
+                        degragmenter: Defragmenter::new(),
                     };
                     let (r, w) = (Box::pin(r), Box::pin(w));
 

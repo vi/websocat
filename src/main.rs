@@ -33,6 +33,7 @@ pub mod scenario_executor {
     #[cfg(unix)]
     pub mod unix;
     pub mod utils1;
+    pub mod utils2;
     pub mod wsframer;
     pub mod wswithpings;
 
