@@ -133,6 +133,10 @@ fn listen_unix(
         //@ Automatically spawn a task for each accepted connection
         #[serde(default)]
         autospawn: bool,
+
+        //@ Exit listening loop after processing a single connection
+        #[serde(default)]
+        oneshot: bool,
     }
     let opts: UnixListenOpts = rhai::serde::from_dynamic(&opts)?;
     //span.record("addr", field::display(opts.addr));
@@ -194,6 +198,11 @@ fn listen_unix(
                     error!("Error from accept: {e}");
                     tokio::time::sleep(Duration::from_millis(500)).await;
                 }
+            }
+
+            if opts.oneshot {
+                debug!("Exiting UNIX listener due to --oneshot mode");
+                return Ok(())
             }
         }
     }
@@ -410,6 +419,10 @@ fn listen_seqpacket(
         //@ Mark received datagrams as text
         #[serde(default)]
         text: bool,
+
+        //@ Exit listening loop after processing a single connection
+        #[serde(default)]
+        oneshot: bool,
     }
     let opts: SeqpacketListenOpts = rhai::serde::from_dynamic(&opts)?;
     //span.record("addr", field::display(opts.addr));
@@ -483,6 +496,11 @@ fn listen_seqpacket(
                     error!("Error from accept: {e}");
                     tokio::time::sleep(Duration::from_millis(500)).await;
                 }
+            }
+
+            if opts.oneshot {
+                debug!("Exiting SEQPACKET listener due to --oneshot mode");
+                return Ok(())
             }
         }
     }

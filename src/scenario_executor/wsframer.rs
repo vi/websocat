@@ -138,7 +138,7 @@ impl PacketWrite for WsEncoder {
                         this.flush_pending = true;
                     }
                     let mask = if let Some(ref mut rng) = this.rng_for_mask {
-                        Some(rng.gen())
+                        Some(rng.r#gen())
                     } else {
                         None
                     };

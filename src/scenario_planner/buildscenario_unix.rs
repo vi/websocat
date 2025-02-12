@@ -40,12 +40,13 @@ impl Endpoint {
                 }
 
                 let varnam = vars.getnewvarname("unix");
+                let listenparams = opts.listening_parameters();
 
                 let mut chmod_option = "";
                 fill_in_chmods(opts, &mut chmod_option);
 
                 printer.print_line(&format!(
-                    "listen_unix(#{{autospawn: true {chmod_option} }}, {pathvar}, |{varnam}| {{",
+                    "listen_unix(#{{autospawn: true, {listenparams} {chmod_option} }}, {pathvar}, |{varnam}| {{",
                 ));
                 printer.increase_indent();
                 Ok(varnam)
@@ -73,9 +74,10 @@ impl Endpoint {
                 }
 
                 let varnam = vars.getnewvarname("unix");
+                let listenparams = opts.listening_parameters();
 
                 printer.print_line(&format!(
-                    "listen_unix(#{{abstract: true, autospawn: true }}, {pathvar}, |{varnam}| {{",
+                    "listen_unix(#{{abstract: true, {listenparams} }}, {pathvar}, |{varnam}| {{",
                 ));
                 printer.increase_indent();
                 Ok(varnam)
@@ -120,9 +122,10 @@ impl Endpoint {
                 if opts.text {
                     text_option = ", text: true";
                 }
+                let listenparams = opts.listening_parameters();
 
                 printer.print_line(&format!(
-                    "listen_seqpacket(#{{autospawn: true {chmod_option} {text_option} }}, {pathvar}, |{varnam}| {{",
+                    "listen_seqpacket(#{{{listenparams} {chmod_option} {text_option} }}, {pathvar}, |{varnam}| {{",
                 ));
                 printer.increase_indent();
                 Ok(varnam)
@@ -160,9 +163,10 @@ impl Endpoint {
                 if opts.text {
                     text_option = ", text: true";
                 }
+                let listenparams = opts.listening_parameters();
 
                 printer.print_line(&format!(
-                    "listen_seqpacket(#{{abstract:true, autospawn: true {text_option} }}, {pathvar}, |{varnam}| {{",
+                    "listen_seqpacket(#{{abstract:true, {listenparams} {text_option} }}, {pathvar}, |{varnam}| {{",
                 ));
                 printer.increase_indent();
                 Ok(varnam)

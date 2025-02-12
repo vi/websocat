@@ -61,6 +61,12 @@ impl WebsocatInvocation {
             opts.push_str(&format!("buffer_size_forward: {bs},"));
             opts.push_str(&format!("buffer_size_reverse: {bs},"));
         }
+
+        if self.opts.exit_after_one_session {
+            printer.print_line("sequential([");
+            printer.increase_indent();
+        }
+
         match self.get_copying_type() {
             CopyingType::ByteStream => {
                 printer.print_line(&format!("exchange_bytes(#{{{opts}}}, {left}, {right})"));
@@ -68,6 +74,11 @@ impl WebsocatInvocation {
             CopyingType::Datarams => {
                 printer.print_line(&format!("exchange_packets(#{{{opts}}}, {left}, {right})"));
             }
+        }
+
+        if self.opts.exit_after_one_session {
+            printer.print_line(",task_wrap(||exit_process(0))])");
+            printer.decrease_indent();
         }
 
         for ovl in self.right.overlays.iter().rev() {
@@ -275,7 +286,9 @@ impl Overlay {
                 Ok(inner_var.to_owned())
             }
             Overlay::WriteBuffer => {
-                printer.print_line(&format!("put_write_part({inner_var}, write_buffer(take_write_part({inner_var}), 8192));"));
+                printer.print_line(&format!(
+                    "put_write_part({inner_var}, write_buffer(take_write_part({inner_var}), 8192));"
+                ));
                 Ok(inner_var.to_owned())
             }
         }
@@ -342,6 +355,16 @@ impl PreparatoryAction {
                 printer.print_line("})");
             }
             PreparatoryAction::CreateTlsConnector { .. } => (),
+        }
+    }
+}
+
+impl WebsocatArgs {
+    pub fn listening_parameters(&self) -> &'static str {
+        if !self.oneshot {
+            "autospawn: true, oneshot: false"
+        } else {
+            "autospawn: false, oneshot: true"
         }
     }
 }

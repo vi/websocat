@@ -197,6 +197,10 @@ pub struct WebsocatArgs {
     #[arg(long)]
     pub exit_on_hangup: bool,
 
+    /// Exit the whole process after serving one connection; alternative to to --oneshot.
+    #[arg(long)]
+    pub exit_after_one_session: bool,
+
     /// Transfer data only from left to right specifier
     #[arg(long, short = 'u')]
     pub unidirectional: bool,
@@ -290,4 +294,8 @@ pub struct WebsocatArgs {
     /// When listening UNIX sockets, change socket filesystem permissions to allow connections from everywhere
     #[arg(long)]
     pub chmod_everyone: bool,
+
+    /// Serve only one connection
+    #[arg(long)]
+    pub oneshot: bool,
 }

@@ -11,7 +11,7 @@ impl Endpoint {
         &self,
         printer: &mut ScenarioPrinter,
         vars: &mut IdentifierGenerator,
-        _opts: &WebsocatArgs,
+        opts: &WebsocatArgs,
     ) -> anyhow::Result<String> {
         match self {
             Endpoint::TcpConnectByIp(addr) => {
@@ -47,8 +47,9 @@ impl Endpoint {
             Endpoint::TcpListen(addr) => {
                 let varnam = vars.getnewvarname("tcp");
                 let fromaddr = vars.getnewvarname("from");
+                let listenparams = opts.listening_parameters();
                 printer.print_line(&format!(
-                    "listen_tcp(#{{autospawn: true, addr: {a}}}, |{varnam}, {fromaddr}| {{",
+                    "listen_tcp(#{{{listenparams}, addr: {a}}}, |{varnam}, {fromaddr}| {{",
                     a = StrLit(addr),
                 ));
                 printer.increase_indent();

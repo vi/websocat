@@ -2,17 +2,17 @@ use anyhow::bail;
 use base64::Engine as _;
 use bytes::{Bytes, BytesMut};
 use futures::FutureExt;
-use http::{header, Response, StatusCode};
+use http::{Response, StatusCode, header};
 use hyper::client::conn::http1::{Connection, SendRequest};
 use hyper_util::rt::TokioIo;
 use rhai::{Dynamic, Engine, FnPtr, NativeCallContext};
 use sha1::{Digest, Sha1};
 use std::pin::Pin;
 use tokio::io::AsyncWrite;
-use tracing::{debug, debug_span, error, warn, Instrument};
+use tracing::{Instrument, debug, debug_span, error, warn};
 
 use crate::scenario_executor::{
-    scenario::{callback_and_continue, ScenarioAccess},
+    scenario::{ScenarioAccess, callback_and_continue},
     types::{Handle, Hangup, StreamRead, StreamSocket, StreamWrite, Task},
     utils::{HandleExt, HandleExt2, RhResult, SimpleErr, TaskHandleExt2},
 };
@@ -214,8 +214,8 @@ fn http1_serve(
     let the_scenario = ctx.get_scenario()?;
     debug!(parent: &span, "node created");
     #[derive(serde::Deserialize)]
-    struct WsAcceptOpts {}
-    let opts: WsAcceptOpts = rhai::serde::from_dynamic(&opts)?;
+    struct Http1ServeOpts {}
+    let opts: Http1ServeOpts = rhai::serde::from_dynamic(&opts)?;
     debug!(parent: &span, "options parsed");
 
     Ok(async move {

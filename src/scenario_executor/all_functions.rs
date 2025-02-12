@@ -11,11 +11,13 @@ use super::types::{
 };
 use std::ffi::OsString;
 use tokio::process::{Child, Command};
+use super::trivials3::{TriggerableEvent, TriggerableEventTrigger};
 
 /// Register Rhai functions
 pub fn register_functions(engine: &mut Engine) {
     super::trivials1::register(engine);
     super::trivials2::register(engine);
+    super::trivials3::register(engine);
     super::linemode::register(engine);
     super::logoverlay::register(engine);
     super::copydata::register(engine);
@@ -56,6 +58,8 @@ macro_rules! all_types {
         $x!(Command);
         $x!(Child);
         $x!(OsString);
+        $x!(TriggerableEvent);
+        $x!(TriggerableEventTrigger);
     };
 }
 

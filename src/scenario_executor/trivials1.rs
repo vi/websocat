@@ -165,11 +165,19 @@ fn sleep_ms(ms: i64) -> Handle<Task> {
 fn sequential(tasks: Vec<Dynamic>) -> Handle<Task> {
     async move {
         for t in tasks {
-            let Some(t): Option<Handle<Task>> = t.try_cast() else {
-                error!("Not a task in a list of tasks");
+            if let Some(t) = t.clone().try_cast::<Handle<Task>>() {
+                run_task(t).await;
+            }
+            else if let Some(h) = t.try_cast::<Handle<Hangup>>() {
+                let Some(t) = h.lock().unwrap().take() else {
+                    error!("Attempt to run a null/taken hangup handle");
+                    continue;
+                };
+                t.await;
+            } else {
+                error!("Not a task or hangup in a list of tasks");
                 continue;
-            };
-            run_task(t).await;
+            }
         }
     }
     .wrap_noerr()
@@ -231,6 +239,7 @@ fn timeout_ms_hangup_handle(ms: i64) -> Handle<Hangup> {
 
 //@ Exit Websocat process. If WebSocket is serving multiple connections, they all get aborted.
 fn exit_process(code: i64) {
+    debug!(code, "exit_process");
     std::process::exit(code as i32)
 }
 
