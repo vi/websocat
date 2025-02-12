@@ -298,4 +298,8 @@ pub struct WebsocatArgs {
     /// Serve only one connection
     #[arg(long)]
     pub oneshot: bool,
+
+    /// Do not display warnings about potential CLI misusage
+    #[arg(long)]
+    pub no_lints: bool,
 }

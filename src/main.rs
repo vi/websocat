@@ -49,6 +49,7 @@ pub mod scenario_planner {
     pub mod buildscenario_ws;
     pub mod fromstr;
     pub mod patcher;
+    pub mod linter;
     pub mod scenarioprinter;
     pub mod types;
     pub mod utils;
@@ -107,6 +108,12 @@ async fn main() -> anyhow::Result<()> {
         };
 
         let mut idgen = IdentifierGenerator::new();
+
+        if !invocation.opts.no_lints {
+            for lint in invocation.lints() {
+                eprintln!("warning: {lint}");
+            }
+        }
 
         if !invocation.opts.dump_spec_phase1 {
             invocation.patches(&mut idgen)?;
