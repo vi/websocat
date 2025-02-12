@@ -1,6 +1,6 @@
 use std::{net::SocketAddr, time::Duration};
 
-use crate::scenario_executor::utils::TaskHandleExt2;
+use crate::scenario_executor::utils::{wrap_as_stream_socket, TaskHandleExt2};
 use futures::{stream::FuturesUnordered, FutureExt, StreamExt};
 use rhai::{Dynamic, Engine, FnPtr, NativeCallContext};
 use tokio::net::TcpStream;
@@ -145,6 +145,8 @@ fn listen_tcp(
         debug!("node started");
         let l = tokio::net::TcpListener::bind(opts.addr).await?;
 
+        let mut drop_nofity = None;
+
         loop {
             let the_scenario = the_scenario.clone();
             let continuation = continuation.clone();
@@ -152,19 +154,14 @@ fn listen_tcp(
                 Ok((t, from)) => {
                     let newspan = debug_span!("tcp_accept", from=%from);
                     let (r, w) = t.into_split();
-                    let (r, w) = (Box::pin(r), Box::pin(w));
 
-                    let s = StreamSocket {
-                        read: Some(StreamRead {
-                            reader: r,
-                            prefix: Default::default(),
-                        }),
-                        write: Some(StreamWrite { writer: w }),
-                        close: None,
-                    };
+                    let (s,dn) = wrap_as_stream_socket(r,w,None,opts.oneshot);
+                    drop_nofity=dn;
 
                     debug!(parent: &newspan, s=?s,"accepted");
+                    
                     let h = s.wrap();
+
                     if !autospawn {
                         callback_and_continue::<(Handle<StreamSocket>, SocketAddr)>(
                             the_scenario,
@@ -192,9 +189,18 @@ fn listen_tcp(
             }
             if opts.oneshot {
                 debug!("Exiting TCP listener due to --oneshot mode");
-                return Ok(())
+                break
             }
         }
+
+        if let Some((dn1, dn2)) = drop_nofity {
+            debug!("Waiting for the sole accepted client to finish serving reads");
+            let _ = dn1.await;
+            debug!("Waiting for the sole accepted client to finish serving writes");
+            let _ = dn2.await;
+            debug!("The sole accepted client finished");
+        }
+        Ok(())
     }
     .instrument(span)
     .wrap())

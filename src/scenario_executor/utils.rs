@@ -1,6 +1,6 @@
 use futures::Future;
 use rhai::{EvalAltResult, NativeCallContext};
-use tokio::io::AsyncRead;
+use tokio::io::{AsyncRead, AsyncWrite};
 use tracing::{error, trace};
 
 use crate::scenario_executor::types::{DatagramRead, DatagramWrite, Handle, StreamSocket, Task};
@@ -264,5 +264,135 @@ impl<T> From<Option<T>> for MyOptionFuture<T> {
 impl<T> MyOptionFuture<T> {
     pub fn take(&mut self) -> Option<T> {
         self.inner.take()
+    }
+}
+
+pub struct SignalOnDrop(Option<tokio::sync::oneshot::Sender<()>>);
+
+impl Drop for SignalOnDrop {
+    fn drop(&mut self) {
+        if let Some(tx) = self.0.take() {
+            let _ = tx.send(());
+        }
+    }
+}
+
+impl SignalOnDrop {
+    pub fn defuse(&mut self) {
+        let _ = self.0.take();
+    }
+}
+
+impl SignalOnDrop {
+    pub fn new() -> (SignalOnDrop, tokio::sync::oneshot::Receiver<()>) {
+        let (tx, rx) = tokio::sync::oneshot::channel();
+        (SignalOnDrop(Some(tx)), rx)
+    }
+    pub const fn new_neutral() -> SignalOnDrop {
+        SignalOnDrop(None)
+    }
+}
+
+#[pin_project::pin_project]
+pub struct StreamSocketWithDropNotification<T> {
+    #[pin]
+    inner: T,
+    dropper: SignalOnDrop,
+}
+
+impl<T> StreamSocketWithDropNotification<T> {
+    pub fn wrap(inner: T) -> (Self, tokio::sync::oneshot::Receiver<()>) {
+        let (dropper, rx) = SignalOnDrop::new();
+        (StreamSocketWithDropNotification { inner, dropper }, rx)
+    }
+
+    pub fn defuse(self: Pin<&mut Self>) {
+        let this = self.project();
+        this.dropper.defuse();
+    }
+}
+
+impl<T: AsyncRead> AsyncRead for StreamSocketWithDropNotification<T> {
+    fn poll_read(
+        self: Pin<&mut Self>,
+        cx: &mut Context<'_>,
+        buf: &mut tokio::io::ReadBuf<'_>,
+    ) -> Poll<std::io::Result<()>> {
+        let this = self.project();
+        this.inner.poll_read(cx, buf)
+    }
+}
+
+impl<T: AsyncWrite> AsyncWrite for StreamSocketWithDropNotification<T> {
+    fn poll_write_vectored(
+        self: Pin<&mut Self>,
+        cx: &mut Context<'_>,
+        bufs: &[std::io::IoSlice<'_>],
+    ) -> Poll<Result<usize, std::io::Error>> {
+        let this = self.project();
+        this.inner.poll_write_vectored(cx, bufs)
+    }
+
+    fn is_write_vectored(&self) -> bool {
+        self.inner.is_write_vectored()
+    }
+
+    fn poll_write(
+        self: Pin<&mut Self>,
+        cx: &mut Context<'_>,
+        buf: &[u8],
+    ) -> Poll<Result<usize, std::io::Error>> {
+        let this = self.project();
+        this.inner.poll_write(cx, buf)
+    }
+
+    fn poll_flush(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Result<(), std::io::Error>> {
+        let this = self.project();
+        this.inner.poll_flush(cx)
+    }
+
+    fn poll_shutdown(
+        self: Pin<&mut Self>,
+        cx: &mut Context<'_>,
+    ) -> Poll<Result<(), std::io::Error>> {
+        let this = self.project();
+        this.inner.poll_shutdown(cx)
+    }
+}
+
+pub fn wrap_as_stream_socket<R: AsyncRead + Send + 'static, W: AsyncWrite + Send + 'static>(
+    r: R,
+    w: W,
+    close: Option<Hangup>,
+    needs_drop_monitor: bool,
+) -> (
+    StreamSocket,
+    Option<(tokio::sync::oneshot::Receiver<()>,tokio::sync::oneshot::Receiver<()>)>,
+) {
+    if !needs_drop_monitor {
+        let (r, w) = (Box::pin(r), Box::pin(w));
+
+        (StreamSocket {
+            read: Some(StreamRead {
+                reader: r,
+                prefix: Default::default(),
+            }),
+            write: Some(StreamWrite { writer: w }),
+            close,
+        }, None)
+    } else {
+        let (r, dn1) = StreamSocketWithDropNotification::wrap(r);
+        let (w, dn2) = StreamSocketWithDropNotification::wrap(w);
+
+        let (r, w) = (Box::pin(r), Box::pin(w));
+
+        (StreamSocket {
+            read: Some(StreamRead {
+                reader: r,
+                prefix: Default::default(),
+            }),
+            write: Some(StreamWrite { writer: w }),
+            close: None,
+        }, Some((dn1, dn2)))
     }
 }

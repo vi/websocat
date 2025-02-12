@@ -2,7 +2,7 @@ use std::{ffi::OsString, sync::Arc, task::Poll, time::Duration};
 
 use crate::scenario_executor::{
     types::{DatagramRead, DatagramSocket, DatagramWrite},
-    utils::{IsControlFrame, SimpleErr, TaskHandleExt2},
+    utils::{wrap_as_stream_socket, IsControlFrame, SimpleErr, TaskHandleExt2},
 };
 use bytes::BytesMut;
 use futures::FutureExt;
@@ -17,7 +17,7 @@ use crate::scenario_executor::{
 
 use super::{
     types::{BufferFlag, BufferFlags, PacketRead, PacketReadResult, PacketWrite},
-    utils::RhResult,
+    utils::{RhResult, SignalOnDrop},
 };
 use clap_lex::OsStrExt;
 
@@ -154,6 +154,8 @@ fn listen_unix(
 
         maybe_chmod(opts.chmod, path, || l.accept().now_or_never()).await?;
 
+        let mut drop_nofity = None;
+
         loop {
             let the_scenario = the_scenario.clone();
             let continuation = continuation.clone();
@@ -163,14 +165,8 @@ fn listen_unix(
                     let (r, w) = t.into_split();
                     let (r, w) = (Box::pin(r), Box::pin(w));
 
-                    let s = StreamSocket {
-                        read: Some(StreamRead {
-                            reader: r,
-                            prefix: Default::default(),
-                        }),
-                        write: Some(StreamWrite { writer: w }),
-                        close: None,
-                    };
+                    let (s, dn) = wrap_as_stream_socket(r, w, None, opts.oneshot);
+                    drop_nofity = dn;
 
                     debug!(parent: &newspan, s=?s,"accepted");
                     let h = s.wrap();
@@ -202,9 +198,17 @@ fn listen_unix(
 
             if opts.oneshot {
                 debug!("Exiting UNIX listener due to --oneshot mode");
-                return Ok(())
+                break;
             }
         }
+        if let Some((dn1, dn2)) = drop_nofity {
+            debug!("Waiting for the sole accepted client to finish serving reads");
+            let _ = dn1.await;
+            debug!("Waiting for the sole accepted client to finish serving writes");
+            let _ = dn2.await;
+            debug!("The sole accepted client finished");
+        }
+        Ok(())
     }
     .instrument(span)
     .wrap())
@@ -233,29 +237,29 @@ fn unlink_file(
     }
 }
 
-#[cfg(any(target_os = "linux",target_os = "android",target_os = "freebsd"))]
+#[cfg(any(target_os = "linux", target_os = "android", target_os = "freebsd"))]
 #[derive(Clone)]
 struct SeqpacketSendAdapter {
-    s: Arc<tokio_seqpacket::UnixSeqpacket>,
+    s: Arc<(tokio_seqpacket::UnixSeqpacket, SignalOnDrop)>,
     text: bool,
 }
 
-#[cfg(any(target_os = "linux",target_os = "android",target_os = "freebsd"))]
+#[cfg(any(target_os = "linux", target_os = "android", target_os = "freebsd"))]
 #[derive(Clone)]
 struct SeqpacketRecvAdapter {
-    s: Arc<tokio_seqpacket::UnixSeqpacket>,
+    s: Arc<(tokio_seqpacket::UnixSeqpacket, SignalOnDrop)>,
     incomplete_outgoing_datagram_buffer: Option<BytesMut>,
     incomplete_outgoing_datagram_buffer_complete: bool,
 }
 
-#[cfg(any(target_os = "linux",target_os = "android",target_os = "freebsd"))]
+#[cfg(any(target_os = "linux", target_os = "android", target_os = "freebsd"))]
 impl PacketRead for SeqpacketSendAdapter {
     fn poll_read(
         self: std::pin::Pin<&mut Self>,
         cx: &mut std::task::Context<'_>,
         buf: &mut [u8],
     ) -> Poll<std::io::Result<PacketReadResult>> {
-        let size = std::task::ready!(self.s.poll_recv(cx, buf))?;
+        let size = std::task::ready!(self.s.0.poll_recv(cx, buf))?;
 
         let mut flags = if self.text {
             BufferFlag::Text.into()
@@ -276,7 +280,7 @@ impl PacketRead for SeqpacketSendAdapter {
     }
 }
 
-#[cfg(any(target_os = "linux",target_os = "android",target_os = "freebsd"))]
+#[cfg(any(target_os = "linux", target_os = "android", target_os = "freebsd"))]
 impl PacketWrite for SeqpacketRecvAdapter {
     fn poll_write(
         self: std::pin::Pin<&mut Self>,
@@ -286,7 +290,7 @@ impl PacketWrite for SeqpacketRecvAdapter {
     ) -> Poll<std::io::Result<()>> {
         let this = self.get_mut();
         if flags.contains(BufferFlag::Eof) {
-            this.s.shutdown(std::net::Shutdown::Write)?;
+            this.s.0.shutdown(std::net::Shutdown::Write)?;
             return Poll::Ready(Ok(()));
         }
         if flags.is_control() {
@@ -308,7 +312,7 @@ impl PacketWrite for SeqpacketRecvAdapter {
             buf
         };
 
-        let ret = this.s.poll_send(cx, data);
+        let ret = this.s.0.poll_send(cx, data);
 
         match ret {
             Poll::Ready(Ok(n)) => {
@@ -328,7 +332,7 @@ impl PacketWrite for SeqpacketRecvAdapter {
     }
 }
 
-#[cfg(any(target_os = "linux",target_os = "android",target_os = "freebsd"))]
+#[cfg(any(target_os = "linux", target_os = "android", target_os = "freebsd"))]
 //@ Connect to a SOCK_SEQPACKET UNIX stream socket
 fn connect_seqpacket(
     ctx: NativeCallContext,
@@ -365,7 +369,7 @@ fn connect_seqpacket(
     Ok(async move {
         debug!("node started");
         let s = tokio_seqpacket::UnixSeqpacket::connect(path).await?;
-        let s = Arc::new(s);
+        let s = Arc::new((s, SignalOnDrop::new_neutral()));
         let r = SeqpacketSendAdapter {
             s: s.clone(),
             text: opts.text,
@@ -392,7 +396,7 @@ fn connect_seqpacket(
     .wrap())
 }
 
-#[cfg(any(target_os = "linux",target_os = "android",target_os = "freebsd"))]
+#[cfg(any(target_os = "linux", target_os = "android", target_os = "freebsd"))]
 fn listen_seqpacket(
     ctx: NativeCallContext,
     opts: Dynamic,
@@ -429,6 +433,7 @@ fn listen_seqpacket(
     debug!(parent: &span, listen_addr=?path, r#abstract=opts.r#abstract, "options parsed");
 
     let autospawn = opts.autospawn;
+    let oneshot = opts.oneshot;
 
     if opts.r#abstract {
         abstractify(&mut path);
@@ -445,6 +450,9 @@ fn listen_seqpacket(
         maybe_chmod(opts.chmod, path, || l.accept().now_or_never()).await?;
 
         let mut i = 0;
+
+        let mut drop_notification = None;
+
         loop {
             let the_scenario = the_scenario.clone();
             let continuation = continuation.clone();
@@ -452,7 +460,14 @@ fn listen_seqpacket(
                 Ok(s) => {
                     let newspan = debug_span!("seqpacket_accept", i);
                     i += 1;
-                    let s = Arc::new(s);
+                    let dropper = if oneshot {
+                        let (a,b) = SignalOnDrop::new();
+                        drop_notification = Some(b);
+                        a
+                    } else {
+                        SignalOnDrop::new_neutral()
+                    };
+                    let s = Arc::new((s, dropper));
                     let r = SeqpacketSendAdapter {
                         s: s.clone(),
                         text: opts.text,
@@ -498,11 +513,19 @@ fn listen_seqpacket(
                 }
             }
 
-            if opts.oneshot {
+            if oneshot {
                 debug!("Exiting SEQPACKET listener due to --oneshot mode");
-                return Ok(())
+                break;
             }
         }
+
+        if let Some(dn) = drop_notification {
+            debug!("Waiting for the sole accepted client to finish serving");
+            let _ = dn.await;
+            debug!("The sole accepted client finished");
+        }
+
+        Ok(())
     }
     .instrument(span)
     .wrap())
@@ -512,8 +535,8 @@ pub fn register(engine: &mut Engine) {
     engine.register_fn("connect_unix", connect_unix);
     engine.register_fn("listen_unix", listen_unix);
     engine.register_fn("unlink_file", unlink_file);
-    #[cfg(any(target_os = "linux",target_os = "android",target_os = "freebsd"))]
+    #[cfg(any(target_os = "linux", target_os = "android", target_os = "freebsd"))]
     engine.register_fn("connect_seqpacket", connect_seqpacket);
-    #[cfg(any(target_os = "linux",target_os = "android",target_os = "freebsd"))]
+    #[cfg(any(target_os = "linux", target_os = "android", target_os = "freebsd"))]
     engine.register_fn("listen_seqpacket", listen_seqpacket);
 }
