@@ -96,7 +96,8 @@ impl Endpoint {
                 }
 
                 printer.print_line(&format!(
-                    "connect_seqpacket(#{{{text_option}}}, {pathvar}, |{varnam}| {{",
+                    "connect_seqpacket(#{{ max_send_datagram_size: {} , {text_option}, }}, {pathvar}, |{varnam}| {{",
+                    opts.seqpacket_max_send_datagram_size,
                 ));
                 printer.increase_indent();
                 Ok(varnam)
@@ -125,7 +126,8 @@ impl Endpoint {
                 let listenparams = opts.listening_parameters();
 
                 printer.print_line(&format!(
-                    "listen_seqpacket(#{{{listenparams} {chmod_option} {text_option} }}, {pathvar}, |{varnam}| {{",
+                    "listen_seqpacket(#{{{listenparams} {chmod_option} {text_option} , max_send_datagram_size: {} }}, {pathvar}, |{varnam}| {{",
+                    opts.seqpacket_max_send_datagram_size,
                 ));
                 printer.increase_indent();
                 Ok(varnam)
@@ -144,7 +146,8 @@ impl Endpoint {
                 }
 
                 printer.print_line(&format!(
-                    "connect_seqpacket(#{{abstract:true {text_option}}}, {pathvar}, |{varnam}| {{",
+                    "connect_seqpacket(#{{abstract:true {text_option}, max_send_datagram_size: {}}}, {pathvar}, |{varnam}| {{",
+                    opts.seqpacket_max_send_datagram_size,
                 ));
                 printer.increase_indent();
                 Ok(varnam)
@@ -166,7 +169,8 @@ impl Endpoint {
                 let listenparams = opts.listening_parameters();
 
                 printer.print_line(&format!(
-                    "listen_seqpacket(#{{abstract:true, {listenparams} {text_option} }}, {pathvar}, |{varnam}| {{",
+                    "listen_seqpacket(#{{abstract:true, {listenparams} {text_option} , max_send_datagram_size: {} }}, {pathvar}, |{varnam}| {{",
+                    opts.seqpacket_max_send_datagram_size,
                 ));
                 printer.increase_indent();
                 Ok(varnam)

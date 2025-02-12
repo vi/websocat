@@ -10,18 +10,25 @@ pub struct Defragmenter {
 
     /// `true` means that we have assembled the datagram fully, but failed to deliver it yet.
     incomplete_outgoing_datagram_buffer_complete: bool,
+
+    max_size: usize,
 }
 
 pub enum DefragmenterAddChunkResult<'a> {
     DontSendYet,
+    /// Refers either to `add_chunk`'s input or to internal buffer.
     Continunous(&'a [u8]),
+    /// Attempted to exceede the max_size limit.
+    /// Returned buffer is remembered data (not including new content supplied to `add_chunk`)
+    SizeLimitExceeded(&'a [u8]),
 }
 
 impl Defragmenter {
-    pub fn new() -> Defragmenter {
+    pub fn new(max_size: usize) -> Defragmenter {
         Defragmenter {
             incomplete_outgoing_datagram_buffer: None,
             incomplete_outgoing_datagram_buffer_complete: false,
+            max_size,
         }
     }
 
@@ -39,8 +46,12 @@ impl Defragmenter {
 
         
         if flags.contains(BufferFlag::NonFinalChunk) {
-            this.incomplete_outgoing_datagram_buffer
-                .get_or_insert_with(Default::default)
+            let internal_buffer = this.incomplete_outgoing_datagram_buffer
+                .get_or_insert_with(Default::default);
+            if buf.len() > this.max_size || internal_buffer.len() + buf.len() > this.max_size {
+                return DefragmenterAddChunkResult::SizeLimitExceeded(&internal_buffer[..])
+            }
+            internal_buffer
                 .extend_from_slice(buf);
             return DefragmenterAddChunkResult::DontSendYet;
         }
@@ -51,6 +62,9 @@ impl Defragmenter {
             }
             &x[..]
         } else {
+            if buf.len() > this.max_size {
+                return DefragmenterAddChunkResult::SizeLimitExceeded(b"")
+            }
             buf
         };
         DefragmenterAddChunkResult::Continunous(data)

@@ -99,11 +99,11 @@ struct UdpSend {
 }
 
 impl UdpSend {
-    fn new(s: Arc<UdpSocket>, ci: Arc<ClientInfo>, inhibit_send_errors: bool) -> Self {
+    fn new(s: Arc<UdpSocket>, ci: Arc<ClientInfo>, inhibit_send_errors: bool, max_send_datagram_size: usize) -> Self {
         Self {
             s,
             ci,
-            defragmenter: Defragmenter::new(),
+            defragmenter: Defragmenter::new(max_send_datagram_size),
             inhibit_send_errors,
         }
     }
@@ -125,6 +125,10 @@ impl PacketWrite for UdpSend {
                 return Poll::Ready(Ok(()));
             }
             DefragmenterAddChunkResult::Continunous(x) => x,
+            DefragmenterAddChunkResult::SizeLimitExceeded(_x) => {
+                warn!("Exceeded maximum allowed outgoing datagram size. Closing this session.");
+                return Poll::Ready(Err(std::io::ErrorKind::InvalidData.into()));
+            }
         };
 
         let inhibit_send_errors = this.inhibit_send_errors;
@@ -206,6 +210,9 @@ impl PacketRead for UdpRecv {
     }
 }
 
+
+const fn default_max_send_datagram_size() -> usize { 4096 }
+
 //@ Create a single Datagram Socket that is bound to a UDP port,
 //@ typically for connecting to a specific UDP endpoint
 fn udp_server(
@@ -254,6 +261,10 @@ fn udp_server(
         //@ Do not exit if `sendto` returned an error.
         #[serde(default)]
         inhibit_send_errors: bool,
+
+        //@ Default defragmenter buffer limit
+        #[serde(default="default_max_send_datagram_size")]
+        max_send_datagram_size: usize,
     }
     let opts: UdpOpts = rhai::serde::from_dynamic(&opts)?;
     //span.record("addr", field::display(opts.addr));
@@ -356,7 +367,7 @@ fn udp_server(
                             ev.terminate();
                         }
 
-                        let udp_send = UdpSend::new(s.clone(), ci2, opts.inhibit_send_errors);
+                        let udp_send = UdpSend::new(s.clone(), ci2, opts.inhibit_send_errors, opts.max_send_datagram_size);
                         let udp_recv = UdpRecv {
                             recv: rx,
                             tag_as_text: opts.tag_as_text,

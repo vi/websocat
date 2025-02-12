@@ -219,6 +219,8 @@ pub struct WebsocatArgs {
 
     /// Override buffer size for main data transfer session.
     /// Note that some overlays and endpoints may have separate buffers with sepaparately adjustable sizes.
+    /// 
+    /// Message can span multiple over multiple fragments and exceed this buffer size
     #[arg(long, short = 'B')]
     pub buffer_size: Option<usize>,
 
@@ -302,4 +304,12 @@ pub struct WebsocatArgs {
     /// Do not display warnings about potential CLI misusage
     #[arg(long)]
     pub no_lints: bool,
+
+    /// Maximum size of an outgoing UDP datagram. Incoming datagram size is likely limited by --buffer-size.
+    #[arg(long, default_value="4096")]
+    pub udp_max_send_datagram_size: usize,
+
+    /// Maximum size of an outgoing SEQPACKET datagram. Incoming datagram size is likely limited by --buffer-size.
+    #[arg(long, default_value="1048576")]
+    pub seqpacket_max_send_datagram_size: usize,
 }

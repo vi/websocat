@@ -297,6 +297,10 @@ impl PacketWrite for SeqpacketRecvAdapter {
                 return Poll::Ready(Ok(()));
             }
             DefragmenterAddChunkResult::Continunous(x) => x,
+            DefragmenterAddChunkResult::SizeLimitExceeded(_x) => {
+                warn!("Exceeded maximum allowed outgoing datagram size. Closing this session.");
+                return Poll::Ready(Err(std::io::ErrorKind::InvalidData.into()));
+            }
         };
 
         let ret = this.s.0.poll_send(cx, data);
@@ -319,6 +323,9 @@ impl PacketWrite for SeqpacketRecvAdapter {
     }
 }
 
+
+const fn default_max_send_datagram_size() -> usize { 1048576 }
+
 #[cfg(any(target_os = "linux", target_os = "android", target_os = "freebsd"))]
 //@ Connect to a SOCK_SEQPACKET UNIX stream socket
 fn connect_seqpacket(
@@ -332,7 +339,7 @@ fn connect_seqpacket(
     let the_scenario = ctx.get_scenario()?;
     debug!(parent: &span, "node created");
     #[derive(serde::Deserialize)]
-    struct UnixOpts {
+    struct ConnectSeqpacketOpts {
         //@ On Linux, connect ot an abstract-namespaced socket instead of file-based
         #[serde(default)]
         r#abstract: bool,
@@ -340,8 +347,12 @@ fn connect_seqpacket(
         //@ Mark received datagrams as text
         #[serde(default)]
         text: bool,
+
+        //@ Default defragmenter buffer limit
+        #[serde(default="default_max_send_datagram_size")]
+        max_send_datagram_size: usize,
     }
-    let opts: UnixOpts = rhai::serde::from_dynamic(&opts)?;
+    let opts: ConnectSeqpacketOpts = rhai::serde::from_dynamic(&opts)?;
     //span.record("addr", field::display(opts.addr));
     debug!(parent: &span, ?path, r#abstract=opts.r#abstract, "options parsed");
 
@@ -363,7 +374,7 @@ fn connect_seqpacket(
         };
         let w = SeqpacketRecvAdapter {
             s,
-            degragmenter: Defragmenter::new(),
+            degragmenter: Defragmenter::new(opts.max_send_datagram_size),
         };
         let (r, w) = (Box::pin(r), Box::pin(w));
 
@@ -413,6 +424,10 @@ fn listen_seqpacket(
         //@ Exit listening loop after processing a single connection
         #[serde(default)]
         oneshot: bool,
+
+        //@ Default defragmenter buffer limit
+        #[serde(default="default_max_send_datagram_size")]
+        max_send_datagram_size: usize,
     }
     let opts: SeqpacketListenOpts = rhai::serde::from_dynamic(&opts)?;
     //span.record("addr", field::display(opts.addr));
@@ -460,7 +475,7 @@ fn listen_seqpacket(
                     };
                     let w = SeqpacketRecvAdapter {
                         s,
-                        degragmenter: Defragmenter::new(),
+                        degragmenter: Defragmenter::new(opts.max_send_datagram_size),
                     };
                     let (r, w) = (Box::pin(r), Box::pin(w));
 

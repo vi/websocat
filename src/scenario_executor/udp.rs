@@ -43,6 +43,7 @@ fn new_udp_endpoint(
     connect_to_first_seen_address: bool,
     tag_as_text: bool,
     inhibit_send_errors: bool,
+    max_send_datagram_size: usize,
 ) -> (UdpSend, UdpRecv) {
     let inner = Arc::new(UdpInner {
         s,
@@ -55,7 +56,7 @@ fn new_udp_endpoint(
         UdpSend {
             s: inner.clone(),
             sendto_mode,
-            degragmenter: Defragmenter::new(),
+            degragmenter: Defragmenter::new(max_send_datagram_size),
             inhibit_send_errors,
         },
         UdpRecv {
@@ -83,6 +84,10 @@ impl PacketWrite for UdpSend {
                 return Poll::Ready(Ok(()));
             }
             DefragmenterAddChunkResult::Continunous(x) => x,
+            DefragmenterAddChunkResult::SizeLimitExceeded(_x) => {
+                warn!("Exceeded maximum allowed outgoing datagram size. Closing this session.");
+                return Poll::Ready(Err(std::io::ErrorKind::InvalidData.into()));
+            }
         };
 
         let mut inhibit_send_errors = this.inhibit_send_errors;
@@ -176,7 +181,7 @@ impl PacketRead for UdpRecv {
                     savedaddr.address_change_counter += 1;
 
                     info!(
-                        "Updated UDP peer address to {from} (number of address changes: {}",
+                        "Updated UDP peer address to {from} (number of address changes: {})",
                         savedaddr.address_change_counter
                     );
 
@@ -200,6 +205,8 @@ impl PacketRead for UdpRecv {
         }
     }
 }
+
+const fn default_max_send_datagram_size() -> usize { 4096 }
 
 //@ Create a single Datagram Socket that is bound to a UDP port,
 //@ typically for connecting to a specific UDP endpoint
@@ -250,6 +257,10 @@ fn udp_socket(ctx: NativeCallContext, opts: Dynamic) -> RhResult<Handle<Datagram
         //@ Do not exit if `sendto` returned an error.
         #[serde(default)]
         inhibit_send_errors: bool,
+
+        //@ Default defragmenter buffer limit
+        #[serde(default="default_max_send_datagram_size")]
+        max_send_datagram_size: usize,
     }
     let opts: UdpOpts = rhai::serde::from_dynamic(&opts)?;
     //span.record("addr", field::display(opts.addr));
@@ -277,6 +288,7 @@ fn udp_socket(ctx: NativeCallContext, opts: Dynamic) -> RhResult<Handle<Datagram
         opts.connect_to_first_seen_address,
         opts.tag_as_text,
         opts.inhibit_send_errors,
+        opts.max_send_datagram_size,
     );
 
     let s = DatagramSocket {

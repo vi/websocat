@@ -14,7 +14,8 @@ impl Endpoint {
                 let varnam = vars.getnewvarname("udp");
                 let maybetextmode = if opts.text { ", tag_as_text: true" } else { "" };
                 printer.print_line(&format!(
-                    "let {varnam} = udp_socket(#{{addr: \"{a}\"{maybetextmode}}});"
+                    "let {varnam} = udp_socket(#{{addr: \"{a}\", max_send_datagram_size: {} {maybetextmode}}});",
+                    opts.udp_max_send_datagram_size
                 ));
                 Ok(varnam)
             }
@@ -62,6 +63,7 @@ impl Endpoint {
                 if opts.udp_bind_inhibit_send_errors {
                     o.push_str(&format!("inhibit_send_errors: true,"));
                 }
+                o.push_str(&format!("max_send_datagram_size: {},", opts.udp_max_send_datagram_size));
 
                 if opts.text {
                     o.push_str(&format!("tag_as_text: true,"));
@@ -97,6 +99,7 @@ impl Endpoint {
                 if let Some(x) = opts.udp_server_qlen {
                     o.push_str(&format!("qlen: {x},"));
                 }
+                o.push_str(&format!("max_send_datagram_size: {},", opts.udp_max_send_datagram_size));
 
                 printer.print_line(&format!("udp_server(#{{{o}}}, |{varnam}, {fromaddr}| {{",));
                 printer.increase_indent();
