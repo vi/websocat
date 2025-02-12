@@ -1,7 +1,7 @@
 use scenario_executor::{
     scenario::load_scenario,
     types::{Handle, Task},
-    utils::run_task,
+    utils1::run_task,
 };
 use scenario_planner::{types::WebsocatInvocation, utils::IdentifierGenerator};
 
@@ -32,7 +32,7 @@ pub mod scenario_executor {
     pub mod udpserver;
     #[cfg(unix)]
     pub mod unix;
-    pub mod utils;
+    pub mod utils1;
     pub mod wsframer;
     pub mod wswithpings;
 

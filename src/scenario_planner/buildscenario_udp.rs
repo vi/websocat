@@ -1,4 +1,4 @@
-use crate::{cli::WebsocatArgs, scenario_executor::utils::ToNeutralAddress};
+use crate::{cli::WebsocatArgs, scenario_executor::utils1::ToNeutralAddress};
 
 use super::{scenarioprinter::ScenarioPrinter, types::Endpoint, utils::IdentifierGenerator};
 

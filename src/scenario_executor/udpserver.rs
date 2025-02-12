@@ -3,7 +3,7 @@ use std::{net::SocketAddr, sync::Mutex, task::Poll, time::Duration};
 use crate::scenario_executor::{
     scenario::{callback_and_continue, ScenarioAccess},
     types::{DatagramRead, DatagramSocket, DatagramWrite},
-    utils::{HandleExt, SimpleErr},
+    utils1::{HandleExt, SimpleErr},
 };
 use bytes::BytesMut;
 use futures::{future::OptionFuture, FutureExt};
@@ -17,9 +17,9 @@ use std::sync::Arc;
 
 use super::{
     types::{BufferFlag, PacketRead, PacketReadResult, PacketWrite, Task},
-    utils::{IsControlFrame, RhResult},
+    utils1::{IsControlFrame, RhResult},
 };
-use crate::scenario_executor::utils::TaskHandleExt2;
+use crate::scenario_executor::utils1::TaskHandleExt2;
 
 struct VolatileClientInfo {
     deadline: Option<Instant>,

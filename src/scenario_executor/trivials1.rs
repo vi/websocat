@@ -6,13 +6,13 @@ use tracing::{debug, debug_span, error, field, Instrument};
 use crate::scenario_executor::{
     debugfluff::PtrDbg,
     types::{DatagramRead, DatagramWrite, Handle, StreamRead, StreamSocket, StreamWrite, Task},
-    utils::{run_task, HandleExt, RhResult, TaskHandleExt},
+    utils1::{run_task, HandleExt, RhResult, TaskHandleExt},
 };
 
 use super::{
     scenario::{callback_and_continue, ScenarioAccess},
     types::{DatagramSocket, Hangup},
-    utils::{ExtractHandleOrFail, HandleExt2, HangupHandleExt, SimpleErr, TaskHandleExt2},
+    utils1::{ExtractHandleOrFail, HandleExt2, HangupHandleExt, SimpleErr, TaskHandleExt2},
 };
 
 //@ Modify stream-oriented Socket, taking the read part and returning it separately. Leaves behind an incomplete socket.
@@ -227,13 +227,13 @@ fn empty_close_handle() -> Handle<Hangup> {
 
 //@ Create a Hangup handle that immediately resolves (i.e. signals hangup)
 fn pre_triggered_hangup_handle() -> Handle<Hangup> {
-    use super::utils::HangupHandleExt;
+    use super::utils1::HangupHandleExt;
     async move {}.wrap()
 }
 
 //@ Create a Hangup handle that resolves after specific number of milliseconds
 fn timeout_ms_hangup_handle(ms: i64) -> Handle<Hangup> {
-    use super::utils::HangupHandleExt;
+    use super::utils1::HangupHandleExt;
     async move { tokio::time::sleep(Duration::from_millis(ms as u64)).await }.wrap()
 }
 

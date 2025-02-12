@@ -1,6 +1,6 @@
 use std::{net::SocketAddr, time::Duration};
 
-use crate::scenario_executor::utils::{wrap_as_stream_socket, TaskHandleExt2};
+use crate::scenario_executor::utils1::{wrap_as_stream_socket, TaskHandleExt2};
 use futures::{stream::FuturesUnordered, FutureExt, StreamExt};
 use rhai::{Dynamic, Engine, FnPtr, NativeCallContext};
 use tokio::net::TcpStream;
@@ -11,7 +11,7 @@ use crate::scenario_executor::{
     types::{Handle, StreamRead, StreamSocket, StreamWrite, Task},
 };
 
-use super::utils::RhResult;
+use super::utils1::RhResult;
 
 fn connect_tcp(
     ctx: NativeCallContext,

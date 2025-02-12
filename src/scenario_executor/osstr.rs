@@ -3,9 +3,9 @@ use std::ffi::OsString;
 use base64::Engine as _;
 use rhai::{Engine, NativeCallContext};
 
-use crate::scenario_executor::utils::SimpleErr;
+use crate::scenario_executor::utils1::SimpleErr;
 
-use super::utils::RhResult;
+use super::utils1::RhResult;
 
 //@ Decode base64 buffer and interpret using Rust's `OsString::from_encoded_bytes_unchecked`.
 //@ This format is not intended to be portable and is mostly for internal use within Websocat.

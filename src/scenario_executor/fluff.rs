@@ -8,7 +8,7 @@ use crate::scenario_executor::{
     types::{
         BufferFlag, BufferFlags, DatagramRead, DatagramWrite, Handle, PacketRead, PacketWrite,
     },
-    utils::HandleExt,
+    utils1::HandleExt,
 };
 
 use super::types::PacketReadResult;

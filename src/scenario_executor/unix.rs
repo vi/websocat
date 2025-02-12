@@ -2,7 +2,7 @@ use std::{ffi::OsString, sync::Arc, task::Poll, time::Duration};
 
 use crate::scenario_executor::{
     types::{DatagramRead, DatagramSocket, DatagramWrite},
-    utils::{wrap_as_stream_socket, IsControlFrame, SimpleErr, TaskHandleExt2},
+    utils1::{wrap_as_stream_socket, IsControlFrame, SimpleErr, TaskHandleExt2},
 };
 use bytes::BytesMut;
 use futures::FutureExt;
@@ -17,7 +17,7 @@ use crate::scenario_executor::{
 
 use super::{
     types::{BufferFlag, BufferFlags, PacketRead, PacketReadResult, PacketWrite},
-    utils::{RhResult, SignalOnDrop},
+    utils1::{RhResult, SignalOnDrop},
 };
 use clap_lex::OsStrExt;
 

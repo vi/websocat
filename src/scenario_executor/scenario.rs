@@ -4,10 +4,10 @@ use tracing::error;
 
 use crate::scenario_executor::{
     types::{Handle, Task},
-    utils::run_task,
+    utils1::run_task,
 };
 
-use super::utils::RhResult;
+use super::utils1::RhResult;
 
 pub struct Scenario {
     pub ast: AST,

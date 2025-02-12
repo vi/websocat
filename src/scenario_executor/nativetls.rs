@@ -9,12 +9,12 @@ use tracing::{debug, debug_span, warn, Instrument};
 use crate::scenario_executor::{
     scenario::{callback_and_continue, ScenarioAccess},
     types::{StreamRead, StreamWrite},
-    utils::{ExtractHandleOrFail, SimpleErr, TaskHandleExt2},
+    utils1::{ExtractHandleOrFail, SimpleErr, TaskHandleExt2},
 };
 
 use super::{
     types::{Handle, StreamSocket, Task},
-    utils::RhResult,
+    utils1::RhResult,
 };
 
 //@ Create environment for using TLS clients.

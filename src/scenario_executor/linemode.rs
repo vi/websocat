@@ -4,14 +4,14 @@ use rhai::{Dynamic, Engine, NativeCallContext};
 use tokio::io::ReadBuf;
 use tracing::debug;
 
-use crate::scenario_executor::utils::{ExtractHandleOrFail, HandleExt, SimpleErr};
+use crate::scenario_executor::utils1::{ExtractHandleOrFail, HandleExt, SimpleErr};
 
 use super::{
     types::{
         BufferFlag, BufferFlags, DatagramRead, DatagramSocket, DatagramWrite, Handle, PacketRead,
         PacketReadResult, PacketWrite, StreamRead, StreamSocket, StreamWrite,
     },
-    utils::RhResult,
+    utils1::RhResult,
 };
 
 struct ReadLineChunks {

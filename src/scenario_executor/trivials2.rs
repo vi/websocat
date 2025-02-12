@@ -10,7 +10,7 @@ use tracing::debug;
 use crate::scenario_executor::{
     logoverlay::render_content,
     types::{Handle, StreamRead},
-    utils::{ExtractHandleOrFail, RhResult},
+    utils1::{ExtractHandleOrFail, RhResult},
 };
 
 use super::{
@@ -18,7 +18,7 @@ use super::{
         BufferFlag, BufferFlags, DatagramRead, DatagramSocket, DatagramWrite, PacketRead,
         PacketReadResult, PacketWrite, StreamSocket, StreamWrite,
     },
-    utils::{HandleExt, SimpleErr},
+    utils1::{HandleExt, SimpleErr},
 };
 
 #[pin_project]

@@ -2,7 +2,7 @@ use std::{net::SocketAddr, task::Poll};
 
 use crate::scenario_executor::{
     types::{DatagramRead, DatagramSocket, DatagramWrite},
-    utils::{SimpleErr, ToNeutralAddress},
+    utils1::{SimpleErr, ToNeutralAddress},
 };
 use bytes::BytesMut;
 use futures::FutureExt;
@@ -15,7 +15,7 @@ use std::sync::{Arc, RwLock};
 
 use super::{
     types::{BufferFlag, PacketRead, PacketReadResult, PacketWrite},
-    utils::{IsControlFrame, RhResult},
+    utils1::{IsControlFrame, RhResult},
 };
 
 struct UdpAddrInner {

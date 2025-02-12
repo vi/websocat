@@ -1,6 +1,6 @@
 use std::{ffi::OsString, io::ErrorKind, pin::Pin, task::Poll};
 
-use crate::scenario_executor::utils::TaskHandleExt2;
+use crate::scenario_executor::utils1::TaskHandleExt2;
 use rhai::{Engine, FnPtr, NativeCallContext};
 use tokio::{
     io::AsyncWrite,
@@ -15,7 +15,7 @@ use crate::scenario_executor::{
 
 use super::{
     types::Hangup,
-    utils::{ExtractHandleOrFail, HandleExt, RhResult, SimpleErr},
+    utils1::{ExtractHandleOrFail, HandleExt, RhResult, SimpleErr},
 };
 
 //@ Prepare subprocess, setting up executable name. See `Command::` methods for further steps.

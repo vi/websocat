@@ -14,7 +14,7 @@ use tracing::{Instrument, debug, debug_span, error, warn};
 use crate::scenario_executor::{
     scenario::{ScenarioAccess, callback_and_continue},
     types::{Handle, Hangup, StreamRead, StreamSocket, StreamWrite, Task},
-    utils::{HandleExt, HandleExt2, RhResult, SimpleErr, TaskHandleExt2},
+    utils1::{HandleExt, HandleExt2, RhResult, SimpleErr, TaskHandleExt2},
 };
 
 type EmptyBody = http_body_util::Empty<bytes::Bytes>;

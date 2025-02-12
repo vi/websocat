@@ -8,7 +8,7 @@ use tracing::{debug, debug_span, trace};
 
 use crate::scenario_executor::{
     types::StreamWrite,
-    utils::{ExtractHandleOrFail, SimpleErr},
+    utils1::{ExtractHandleOrFail, SimpleErr},
     wsframer::{WsDecoder, WsEncoder},
 };
 
@@ -17,7 +17,7 @@ use super::{
         BufferFlag, BufferFlags, DatagramRead, DatagramSocket, DatagramWrite, Handle, PacketRead,
         PacketReadResult, PacketWrite, StreamSocket,
     },
-    utils::RhResult,
+    utils1::RhResult,
 };
 
 struct WsEncoderThatCoexistsWithPongs {

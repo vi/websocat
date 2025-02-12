@@ -1,9 +1,9 @@
 use rhai::{Engine, FnPtr, NativeCallContext};
 use tracing::debug;
 
-use crate::scenario_executor::{scenario::callback_and_continue, types::Handle, utils::HandleExt};
+use crate::scenario_executor::{scenario::callback_and_continue, types::Handle, utils1::HandleExt};
 
-use super::{scenario::ScenarioAccess, types::{Hangup, Task}, utils::{RhResult, SimpleErr}};
+use super::{scenario::ScenarioAccess, types::{Hangup, Task}, utils1::{RhResult, SimpleErr}};
 
 pub struct TriggerableEventTrigger {
     tx: tokio::sync::oneshot::Sender<()>,

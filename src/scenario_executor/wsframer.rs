@@ -11,14 +11,14 @@ use websocket_sans_io::{
     FrameInfo, Opcode, WebsocketFrameDecoder, WebsocketFrameEncoder, MAX_HEADER_LENGTH,
 };
 
-use crate::scenario_executor::utils::ExtractHandleOrFail;
+use crate::scenario_executor::utils1::ExtractHandleOrFail;
 
 use super::{
     types::{
         BufferFlag, BufferFlags, DatagramRead, DatagramWrite, Handle, PacketRead, PacketReadResult,
         PacketWrite, StreamRead, StreamWrite,
     },
-    utils::RhResult,
+    utils1::RhResult,
 };
 
 pub struct WsEncoder {

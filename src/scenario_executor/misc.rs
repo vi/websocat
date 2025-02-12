@@ -6,10 +6,10 @@ use tracing::{debug, debug_span, Instrument};
 use crate::scenario_executor::{
     scenario::{callback_and_continue, ScenarioAccess},
     types::{Handle, StreamRead, StreamSocket, StreamWrite},
-    utils::TaskHandleExt2,
+    utils1::TaskHandleExt2,
 };
 
-use super::{types::Task, utils::RhResult};
+use super::{types::Task, utils1::RhResult};
 
 //@ Obtain a stream socket made of stdin and stdout.
 //@ This spawns a OS thread to handle interactions with the stdin/stdout and may be inefficient.

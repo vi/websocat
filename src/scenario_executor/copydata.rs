@@ -14,10 +14,10 @@ use crate::scenario_executor::{
         BufferFlag, BufferFlags, DatagramRead, DatagramWrite, Handle, StreamRead, StreamSocket,
         StreamWrite, Task,
     },
-    utils::{ExtractHandleOrFail, HandleExt2, MyOptionFuture, PacketWriteExt, TaskHandleExt},
+    utils1::{ExtractHandleOrFail, HandleExt2, MyOptionFuture, PacketWriteExt, TaskHandleExt},
 };
 
-use super::{types::DatagramSocket, utils::RhResult};
+use super::{types::DatagramSocket, utils1::RhResult};
 
 //@ Forward unframed bytes from source to sink
 fn copy_bytes(

@@ -10,7 +10,7 @@ use tracing::{debug, debug_span};
 
 use crate::scenario_executor::{
     types::{Handle, StreamRead},
-    utils::{ExtractHandleOrFail, RhResult},
+    utils1::{ExtractHandleOrFail, RhResult},
 };
 
 use super::{
@@ -18,7 +18,7 @@ use super::{
         BufferFlag, BufferFlags, DatagramRead, DatagramSocket, DatagramWrite, PacketRead,
         PacketReadResult, PacketWrite, StreamSocket, StreamWrite,
     },
-    utils::{DisplayBufferFlags, HandleExt, IsControlFrame},
+    utils1::{DisplayBufferFlags, HandleExt, IsControlFrame},
 };
 
 // Duplicated to aid auto-documenter script
