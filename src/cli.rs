@@ -316,4 +316,8 @@ pub struct WebsocatArgs {
     /// Maximum size of an outgoing SEQPACKET datagram. Incoming datagram size is likely limited by --buffer-size.
     #[arg(long, default_value="1048576")]
     pub seqpacket_max_send_datagram_size: usize,
+
+    /// Use specified random seed instead of initialising RNG from OS.
+    #[arg(long)]
+    pub random_seed: Option<u64>,
 }

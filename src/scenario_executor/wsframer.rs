@@ -2,7 +2,7 @@ use std::{io::IoSlice, ops::Range, task::Poll};
 
 use bytes::BytesMut;
 use pin_project::pin_project;
-use rand::{rngs::StdRng, Rng, SeedableRng};
+use rand::{Rng, SeedableRng};
 use rhai::{Dynamic, Engine, NativeCallContext};
 use tinyvec::ArrayVec;
 use tokio::io::ReadBuf;
@@ -11,7 +11,7 @@ use websocket_sans_io::{
     FrameInfo, Opcode, WebsocketFrameDecoder, WebsocketFrameEncoder, MAX_HEADER_LENGTH,
 };
 
-use crate::scenario_executor::utils1::ExtractHandleOrFail;
+use crate::scenario_executor::{scenario::ScenarioAccess, utils1::ExtractHandleOrFail};
 
 use super::{
     types::{
@@ -24,7 +24,7 @@ use super::{
 pub struct WsEncoder {
     inner: StreamWrite,
     span: Span,
-    rng_for_mask: Option<StdRng>,
+    rng_for_mask: Option<rand_pcg::Pcg64>,
     fe: WebsocketFrameEncoder,
     state: WsEncoderState,
     flush_after_each_message: bool,
@@ -39,22 +39,16 @@ pub struct WsEncoder {
 impl WsEncoder {
     pub fn new(
         span: Span,
-        mask_frames: bool,
+        mask_frames: Option<rand_pcg::Pcg64>,
         flush_after_each_message: bool,
         inner: StreamWrite,
         send_close_frame_on_eof: bool,
         shutdown_socket_on_eof: bool,
     ) -> WsEncoder {
-        let rng_for_mask = if mask_frames {
-            Some(StdRng::from_rng(rand::thread_rng()).unwrap())
-        } else {
-            None
-        };
-
         WsEncoder {
             span,
             inner,
-            rng_for_mask,
+            rng_for_mask: mask_frames,
             fe: WebsocketFrameEncoder::new(),
             state: WsEncoderState::Idle,
             flush_after_each_message,
@@ -138,7 +132,7 @@ impl PacketWrite for WsEncoder {
                         this.flush_pending = true;
                     }
                     let mask = if let Some(ref mut rng) = this.rng_for_mask {
-                        Some(rng.r#gen())
+                        Some(rng.random())
                     } else {
                         None
                     };
@@ -292,9 +286,17 @@ fn ws_encoder(
     let inner = ctx.lutbar(inner)?;
     debug!(parent: &span, inner=?inner, "options parsed");
 
+    let rng = if opts.masked {
+        let the_scenario = ctx.get_scenario()?;
+        let prng = rand_pcg::Pcg64::from_rng(&mut *the_scenario.prng.lock().unwrap());
+        Some(prng)
+    } else {
+        None
+    };
+
     let x = WsEncoder::new(
         span.clone(),
-        opts.masked,
+        rng,
         !opts.no_flush_after_each_message,
         inner,
         !opts.no_close_frame,

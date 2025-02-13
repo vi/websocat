@@ -8,13 +8,14 @@ use crate::scenario_executor::{
     utils1::run_task,
 };
 
-use super::{types::DiagnosticOutput, utils1::RhResult};
+use super::{types::{DiagnosticOutput, RandomnessSource}, utils1::RhResult};
 
 pub struct Scenario {
     pub ast: AST,
     pub engine: Engine,
     pub diagnostic_output: Mutex<DiagnosticOutput>,
     pub time_base: Instant,
+    pub prng: Mutex<RandomnessSource>,
 }
 
 pub trait ScenarioAccess {
@@ -26,6 +27,7 @@ pub fn load_scenario(
     s: &str,
     diagnostic_output: DiagnosticOutput,
     time_base: Instant,
+    prng: RandomnessSource,
 ) -> anyhow::Result<Arc<Scenario>> {
     let mut engine = Engine::RAW;
 
@@ -40,6 +42,7 @@ pub fn load_scenario(
         engine,
         diagnostic_output: Mutex::new(diagnostic_output),
         time_base,
+        prng: Mutex::new(prng),
     };
 
     let scenario_arc: Arc<Scenario> = Arc::new_cyclic(move |weak_scenario_arc| {

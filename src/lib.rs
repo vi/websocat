@@ -1,3 +1,4 @@
+use rand::SeedableRng;
 use scenario_executor::{
     scenario::load_scenario,
     types::{Handle, Task},
@@ -65,10 +66,16 @@ pub async fn websocat_main<I, T, D>(
 where
     I: IntoIterator<Item = T>,
     T: Into<std::ffi::OsString> + Clone,
-    D: std::io::Write + Send + Sync + 'static,
+    D: std::io::Write + Send + 'static,
 {
     let mut args = cli::WebsocatArgs::parse_from(argv);
     let dump_spec = args.dump_spec;
+
+    let prng = if let Some(seed) = args.random_seed {
+        rand_chacha::ChaCha12Rng::seed_from_u64(seed)
+    } else {
+        rand_chacha::ChaCha12Rng::from_os_rng()
+    };
 
     let global_scenario: &str;
     let scenario_file;
@@ -144,7 +151,7 @@ where
         }
     }
 
-    let ctx = load_scenario(global_scenario, Box::new(diagnostic_output), time_base)?;
+    let ctx = load_scenario(global_scenario, Box::new(diagnostic_output), time_base, Box::new(prng))?;
     let task: Handle<Task> = ctx.execute()?;
     run_task(task).await;
 

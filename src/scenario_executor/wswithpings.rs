@@ -1,5 +1,6 @@
 use std::{io::ErrorKind, pin::Pin, sync::Mutex, task::Poll};
 
+use rand::SeedableRng;
 use rhai::{Dynamic, Engine, NativeCallContext};
 use std::sync::Arc;
 use tokio::sync::OwnedSemaphorePermit;
@@ -7,9 +8,7 @@ use tokio_util::sync::PollSemaphore;
 use tracing::{debug, debug_span, trace};
 
 use crate::scenario_executor::{
-    types::StreamWrite,
-    utils1::{ExtractHandleOrFail, SimpleErr},
-    wsframer::{WsDecoder, WsEncoder},
+    scenario::ScenarioAccess, types::StreamWrite, utils1::{ExtractHandleOrFail, SimpleErr}, wsframer::{WsDecoder, WsEncoder}
 };
 
 use super::{
@@ -182,9 +181,17 @@ fn ws_wrap(
         }
     }
 
+    let rng = if opts.client {
+        let the_scenario = ctx.get_scenario()?;
+        let prng = rand_pcg::Pcg64::from_rng(&mut *the_scenario.prng.lock().unwrap());
+        Some(prng)
+    } else {
+        None
+    };
+
     let usual_encoder = WsEncoder::new(
         span.clone(),
-        opts.client,
+        rng,
         !opts.no_flush_after_each_message,
         maybe_buffered_write,
         !opts.no_close_frame,

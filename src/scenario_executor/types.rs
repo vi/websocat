@@ -12,7 +12,8 @@ pub type Handle<T> = Arc<Mutex<Option<T>>>;
 pub type Task = Pin<Box<dyn Future<Output = anyhow::Result<()>> + Send>>;
 pub type Hangup = Pin<Box<dyn Future<Output = ()> + Send>>;
 
-pub type DiagnosticOutput = Box<dyn std::io::Write + Send + Sync>;
+pub type DiagnosticOutput = Box<dyn std::io::Write + Send>;
+pub type RandomnessSource = Box<dyn rand::RngCore + Send>;
 
 pub struct StreamRead {
     pub reader: Pin<Box<dyn AsyncRead + Send>>,

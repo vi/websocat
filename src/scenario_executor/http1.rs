@@ -5,6 +5,7 @@ use futures::FutureExt;
 use http::{Response, StatusCode, header};
 use hyper::client::conn::http1::{Connection, SendRequest};
 use hyper_util::rt::TokioIo;
+use rand::{Rng, SeedableRng};
 use rhai::{Dynamic, Engine, FnPtr, NativeCallContext};
 use sha1::{Digest, Sha1};
 use std::pin::Pin;
@@ -114,12 +115,14 @@ fn ws_upgrade(
         return Err(ctx.err("Null http1 client handle specified"));
     };
 
+    let mut prng = rand_chacha::ChaCha12Rng::from_rng(&mut *the_scenario.prng.lock().unwrap());
+
     Ok(async move {
         let opts = opts;
         debug!("node started");
 
         let key = {
-            let array: [u8; 16] = rand::random();
+            let array: [u8; 16] = prng.random();
             base64::prelude::BASE64_STANDARD.encode(array)
         };
 
