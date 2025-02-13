@@ -915,6 +915,25 @@ Parameters:
 
 Returns `()`
 
+## TriggerableEvent::take_hangup
+
+Take the waitable part (Hangup) from an object created by `triggerable_event_create`
+
+Returns `Hangup`
+
+## TriggerableEvent::take_trigger
+
+Take the activatable part from an object created by `triggerable_event_create`
+
+Returns `TriggerableEventTrigger`
+
+## TriggerableEventTrigger::fire
+
+Trigger the activatable part from an object created by `triggerable_event_create`.
+This should cause a hangup even on the associated Hangup object.
+
+Returns `()`
+
 ## b64str
 
 Decode base64 string to another string
@@ -941,6 +960,7 @@ Options:
 
 * abstract (`bool`) - On Linux, connect ot an abstract-namespaced socket instead of file-based
 * text (`bool`) - Mark received datagrams as text
+* max_send_datagram_size (`usize`) - Default defragmenter buffer limit
 
 ## connect_tcp
 
@@ -1218,6 +1238,8 @@ Options:
 * chmod (`Option<u32>`) - Change filesystem mode (permissions) of the file after listening
 * autospawn (`bool`) - Automatically spawn a task for each accepted connection
 * text (`bool`) - Mark received datagrams as text
+* oneshot (`bool`) - Exit listening loop after processing a single connection
+* max_send_datagram_size (`usize`) - Default defragmenter buffer limit
 
 ## listen_tcp
 
@@ -1231,7 +1253,8 @@ Returns `Task`
 Options:
 
 * addr (`SocketAddr`)
-* autospawn (`bool`)
+* autospawn (`bool`) - Automatically spawn a task for each accepted connection
+* oneshot (`bool`) - Exit listening loop after processing a single connection
 
 ## listen_unix
 
@@ -1248,6 +1271,7 @@ Options:
 * abstract (`bool`) - On Linux, connect ot an abstract-namespaced socket instead of file-based
 * chmod (`Option<u32>`) - Change filesystem mode (permissions) of the file after listening
 * autospawn (`bool`) - Automatically spawn a task for each accepted connection
+* oneshot (`bool`) - Exit listening loop after processing a single connection
 
 ## literal_socket
 
@@ -1578,6 +1602,16 @@ Parameters:
 
 Returns `Hangup`
 
+## task_wrap
+
+Create a Task that runs specified Rhai code when scheduled.
+
+Parameters:
+
+* continuation (`Fn()`) - Rhai function that will be called to continue processing
+
+Returns `Task`
+
 ## timeout_ms_hangup_handle
 
 Create a Hangup handle that resolves after specific number of milliseconds
@@ -1627,6 +1661,12 @@ Options:
 * danger_accept_invalid_hostnames (`bool`)
 * no_sni (`bool`)
 
+## triggerable_event_create
+
+Create new one-time synchromisation object that allows to trigger a hangup event explicitly from Rhai code.
+
+Returns `TriggerableEvent`
+
 ## trivial_pkts
 
 Sample source of packets for demostration purposes
@@ -1655,6 +1695,7 @@ Options:
 * tag_as_text (`bool`) - Tag incoming UDP datagrams to be sent as text WebSocket messages instead of binary. Note that Websocat does not check for UTF-8 correctness and may send non-compiant text WebSocket messages.
 * backpressure (`bool`) - In case of one slow client handler, delay incoming UDP datagrams instead of dropping them
 * inhibit_send_errors (`bool`) - Do not exit if `sendto` returned an error.
+* max_send_datagram_size (`usize`) - Default defragmenter buffer limit
 
 ## udp_socket
 
@@ -1679,6 +1720,7 @@ Options:
 * connect_to_first_seen_address (`bool`) - When using `redirect_to_last_seen_address`, lock the socket to that address, preventing more changes and providing disconnects. Useless without `redirect_to_last_seen_address`.
 * tag_as_text (`bool`) - Tag incoming UDP datagrams to be sent as text WebSocket messages instead of binary. Note that Websocat does not check for UTF-8 correctness and may send non-compiant text WebSocket messages.
 * inhibit_send_errors (`bool`) - Do not exit if `sendto` returned an error.
+* max_send_datagram_size (`usize`) - Default defragmenter buffer limit
 
 ## unlink_file
 
@@ -1838,5 +1880,6 @@ in Scenarios.
 * CLI arguments - combination of a positional arguments (typically Specifiers) and various 
 flags (e.g. `--binary`) and options (e.g. `--buffer-size 4096`) that affect Scenario Planner.
 * Packet = Datagram = Message - A byte buffer with associated flags. Correspond to one WebSocket message. Within WebSocket, packets can be split to chunks, but that should not affect user-visible properties.
+* Task - a logical thread of execution. Rhai code is expected to create and combine some tasks. Typically each connection runs in its own task. Corresponds to Tokio tasks.
 
 

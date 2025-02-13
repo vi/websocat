@@ -14,7 +14,7 @@ pub struct TriggerableEvent {
     trigger_part: Option<TriggerableEventTrigger>,
 }
 
-//@ todo
+//@ Create new one-time synchromisation object that allows to trigger a hangup event explicitly from Rhai code.
 fn triggerable_event_create() -> Handle<TriggerableEvent> {
     let (tx,rx) = tokio::sync::oneshot::channel();
     let signal = TriggerableEvent {
@@ -24,7 +24,7 @@ fn triggerable_event_create() -> Handle<TriggerableEvent> {
     Some(signal).wrap()
 }
 
-//@ todo
+//@ Take the waitable part (Hangup) from an object created by `triggerable_event_create`
 fn triggerable_event_take_hangup(
     ctx: NativeCallContext,
     h: &mut Handle<TriggerableEvent>,
@@ -36,7 +36,7 @@ fn triggerable_event_take_hangup(
     }
 }
 
-//@ todo
+//@ Take the activatable part from an object created by `triggerable_event_create`
 fn triggerable_event_take_trigger(
     ctx: NativeCallContext,
     h: &mut Handle<TriggerableEvent>,
@@ -48,7 +48,8 @@ fn triggerable_event_take_trigger(
     }
 }
 
-//@ todo
+//@ Trigger the activatable part from an object created by `triggerable_event_create`.
+//@ This should cause a hangup even on the associated Hangup object.
 fn triggerable_event_fire(
     ctx: NativeCallContext,
     h: &mut Handle<TriggerableEventTrigger>,
@@ -61,7 +62,7 @@ fn triggerable_event_fire(
     }
 }
 
-//@ todo
+//@ Create a Task that runs specified Rhai code when scheduled.
 fn task_wrap(
     ctx: NativeCallContext,
     continuation: FnPtr,
