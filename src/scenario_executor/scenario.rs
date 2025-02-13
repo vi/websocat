@@ -1,4 +1,5 @@
 use rhai::{Engine, EvalAltResult, FnPtr, FuncArgs, NativeCallContext, Variant, AST};
+use tokio::time::Instant;
 use std::sync::{Arc, Mutex, Weak};
 use tracing::error;
 
@@ -13,6 +14,7 @@ pub struct Scenario {
     pub ast: AST,
     pub engine: Engine,
     pub diagnostic_output: Mutex<DiagnosticOutput>,
+    pub time_base: Instant,
 }
 
 pub trait ScenarioAccess {
@@ -23,6 +25,7 @@ pub trait ScenarioAccess {
 pub fn load_scenario(
     s: &str,
     diagnostic_output: DiagnosticOutput,
+    time_base: Instant,
 ) -> anyhow::Result<Arc<Scenario>> {
     let mut engine = Engine::RAW;
 
@@ -36,6 +39,7 @@ pub fn load_scenario(
         ast,
         engine,
         diagnostic_output: Mutex::new(diagnostic_output),
+        time_base,
     };
 
     let scenario_arc: Arc<Scenario> = Arc::new_cyclic(move |weak_scenario_arc| {

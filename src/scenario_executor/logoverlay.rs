@@ -6,7 +6,7 @@ use std::{
 };
 
 use rhai::{Dynamic, Engine, NativeCallContext};
-use tokio::io::{AsyncRead, AsyncWrite, ReadBuf};
+use tokio::{io::{AsyncRead, AsyncWrite, ReadBuf}, time::Instant};
 use tracing::{debug, debug_span};
 
 use crate::scenario_executor::{
@@ -31,6 +31,7 @@ struct LoggerOptsShared {
     omit_content: bool,
     hex: bool,
     output_handle: std::sync::Weak<Scenario>,
+    include_timestamps: bool,
 }
 
 impl LoggerOptsShared {
@@ -41,7 +42,12 @@ impl LoggerOptsShared {
         let Ok(mut diago) = the_scenario.diagnostic_output.lock() else {
             return;
         };
-        let _ = writeln!(diago, "{}", args);
+        if !self.include_timestamps {
+            let _ = writeln!(diago, "{}", args);
+        } else {
+            let ts = Instant::now().saturating_duration_since(the_scenario.time_base);
+            let _ = writeln!(diago, "{:06}.{:06} {}", ts.as_secs(), ts.subsec_micros(), args);
+        }
     }
 }
 
@@ -356,6 +362,10 @@ fn stream_logger(
         //@ Use hex lines instead of string literals with espaces
         #[serde(default)]
         hex: bool,
+
+        //@ Also print relative timestamps for each log message
+        #[serde(default)]
+        include_timestamps: bool,
     }
 
     let the_scenario = ctx.get_scenario()?;
@@ -381,6 +391,7 @@ fn stream_logger(
                     omit_content: opts.omit_content,
                     hex: opts.hex,
                     output_handle: output_handle.clone(),
+                    include_timestamps: opts.include_timestamps,
                 },
             })),
             prefix: Default::default(),
@@ -401,6 +412,7 @@ fn stream_logger(
                     omit_content: opts.omit_content,
                     hex: opts.hex,
                     output_handle,
+                    include_timestamps: opts.include_timestamps,
                 },
             })),
         });
@@ -648,6 +660,10 @@ fn datagram_logger(
         //@ Use hex lines instead of string literals with espaces
         #[serde(default)]
         hex: bool,
+
+        //@ Also print relative timestamps for each log message
+        #[serde(default)]
+        include_timestamps: bool,
     }
     let the_scenario = ctx.get_scenario()?;
     let output_handle = Arc::downgrade(&the_scenario);
@@ -672,6 +688,7 @@ fn datagram_logger(
                     omit_content: opts.omit_content,
                     hex: opts.hex,
                     output_handle: output_handle.clone(),
+                    include_timestamps: opts.include_timestamps,
                 },
                 printer: DatagramPrinter::new(),
             })),
@@ -692,6 +709,7 @@ fn datagram_logger(
                     omit_content: opts.omit_content,
                     hex: opts.hex,
                     output_handle,
+                    include_timestamps: opts.include_timestamps,
                 },
                 already_logged_this_write: false,
                 printer: DatagramPrinter::new(),

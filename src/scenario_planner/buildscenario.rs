@@ -272,7 +272,13 @@ impl Overlay {
                     ""
                 };
 
-                printer.print_line(&format!("let {varnam} = {funcname}(#{{{maybe_loghex}{maybe_log_omit_content}{maybe_log_verbose}}}, {inner_var});"));
+                let maybe_include_timestamps = if opts.log_timestamps {
+                    "include_timestamps: true,"
+                } else {
+                    ""
+                };
+
+                printer.print_line(&format!("let {varnam} = {funcname}(#{{{maybe_loghex}{maybe_log_omit_content}{maybe_log_verbose}{maybe_include_timestamps}}}, {inner_var});"));
                 Ok(varnam)
             }
             Overlay::ReadChunkLimiter => {

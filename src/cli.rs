@@ -82,6 +82,10 @@ pub struct WebsocatArgs {
     #[arg(long)]
     pub log_hex: bool,
 
+    /// Include relative timestamps in log messages
+    #[arg(long)]
+    pub log_timestamps: bool,
+
     /// automatically insert `log:` overlay in an apprioriate place to debug issues by displaying traffic chunks
     #[arg(long)]
     pub log_traffic: bool,

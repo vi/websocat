@@ -3,5 +3,6 @@ async fn main() -> anyhow::Result<()> {
     tracing_subscriber::fmt::init();
     let argv = std::env::args_os();
     let stderr = std::io::stderr();
-    websocat::websocat_main(argv, stderr).await
+    let time_base = tokio::time::Instant::now();
+    websocat::websocat_main(argv, stderr, time_base).await
 }

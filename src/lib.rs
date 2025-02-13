@@ -18,7 +18,7 @@ pub mod scenario_executor {
     pub mod linemode;
     pub mod logoverlay;
     pub mod misc;
-    #[cfg(feature="ssl")]
+    #[cfg(feature = "ssl")]
     pub mod nativetls;
     pub mod osstr;
     pub mod scenario;
@@ -48,8 +48,8 @@ pub mod scenario_planner {
     pub mod buildscenario_unix;
     pub mod buildscenario_ws;
     pub mod fromstr;
-    pub mod patcher;
     pub mod linter;
+    pub mod patcher;
     pub mod scenarioprinter;
     pub mod types;
     pub mod utils;
@@ -57,9 +57,11 @@ pub mod scenario_planner {
 
 pub mod cli;
 
-
-
-pub async fn websocat_main<I,T,D>(argv: I, mut diagnostic_output: D) -> anyhow::Result<()> 
+pub async fn websocat_main<I, T, D>(
+    argv: I,
+    mut diagnostic_output: D,
+    time_base: tokio::time::Instant,
+) -> anyhow::Result<()>
 where
     I: IntoIterator<Item = T>,
     T: Into<std::ffi::OsString> + Clone,
@@ -73,7 +75,10 @@ where
     let scenario_built_text;
     if args.scenario {
         if args.spec2.is_some() {
-            writeln!(diagnostic_output, "In --scenario mode only one argument is expected")?;
+            writeln!(
+                diagnostic_output,
+                "In --scenario mode only one argument is expected"
+            )?;
         }
 
         scenario_file = std::fs::read(args.spec1)?;
@@ -139,7 +144,7 @@ where
         }
     }
 
-    let ctx = load_scenario(global_scenario, Box::new(diagnostic_output))?;
+    let ctx = load_scenario(global_scenario, Box::new(diagnostic_output), time_base)?;
     let task: Handle<Task> = ctx.execute()?;
     run_task(task).await;
 
