@@ -1,6 +1,7 @@
 use std::{
     ops::{Deref, Range},
     pin::Pin,
+    sync::Arc,
     task::Poll,
 };
 
@@ -9,11 +10,13 @@ use tokio::io::{AsyncRead, AsyncWrite, ReadBuf};
 use tracing::{debug, debug_span};
 
 use crate::scenario_executor::{
+    scenario::ScenarioAccess,
     types::{Handle, StreamRead},
     utils1::{ExtractHandleOrFail, RhResult},
 };
 
 use super::{
+    scenario::Scenario,
     types::{
         BufferFlag, BufferFlags, DatagramRead, DatagramSocket, DatagramWrite, PacketRead,
         PacketReadResult, PacketWrite, StreamSocket, StreamWrite,
@@ -21,13 +24,25 @@ use super::{
     utils1::{DisplayBufferFlags, HandleExt, IsControlFrame},
 };
 
-// Duplicated to aid auto-documenter script
 #[derive(Clone)]
 struct LoggerOptsShared {
     verbose: bool,
     prefix: String,
     omit_content: bool,
     hex: bool,
+    output_handle: std::sync::Weak<Scenario>,
+}
+
+impl LoggerOptsShared {
+    fn logln(&self, args: std::fmt::Arguments<'_>) {
+        let Some(the_scenario) = self.output_handle.upgrade() else {
+            return;
+        };
+        let Ok(mut diago) = the_scenario.diagnostic_output.lock() else {
+            return;
+        };
+        let _ = writeln!(diago, "{}", args);
+    }
 }
 
 pub fn render_content(buf: &[u8], hex_mode: bool) -> String {
@@ -56,6 +71,15 @@ impl AsyncRead for StreamReadLogger {
         buf: &mut ReadBuf<'_>,
     ) -> Poll<std::io::Result<()>> {
         let this = self.get_mut();
+
+        macro_rules! logln {
+            ($($x:tt)*) => {
+                this.opts.logln(format_args!(
+                   $($x)*
+                ));
+            };
+        }
+
         let from_prefix = !this.inner.prefix.is_empty();
         let log_prefix: &str = &this.opts.prefix;
         let maybebufcap_storage;
@@ -74,13 +98,13 @@ impl AsyncRead for StreamReadLogger {
             Poll::Ready(ret) => match ret {
                 Ok(()) => {
                     if !this.opts.omit_content {
-                        eprintln!(
+                        logln!(
                             "{log_prefix}{maybebufcap}{maybefromprefix}{} {}",
                             buf.filled().len(),
                             render_content(buf.filled(), this.opts.hex)
                         );
                     } else {
-                        eprintln!(
+                        logln!(
                             "{log_prefix}{maybebufcap}{maybefromprefix}{}",
                             buf.filled().len()
                         );
@@ -88,13 +112,13 @@ impl AsyncRead for StreamReadLogger {
                     Poll::Ready(Ok(()))
                 }
                 Err(e) => {
-                    eprintln!("{log_prefix}{maybebufcap}error {e}");
+                    logln!("{log_prefix}{maybebufcap}error {e}");
                     Poll::Ready(Err(e))
                 }
             },
             Poll::Pending => {
                 if this.opts.verbose {
-                    eprintln!("{log_prefix}{maybebufcap}pending");
+                    logln!("{log_prefix}{maybebufcap}pending");
                 }
                 Poll::Pending
             }
@@ -114,6 +138,15 @@ impl AsyncWrite for StreamWriteLogger {
         buf: &[u8],
     ) -> Poll<Result<usize, std::io::Error>> {
         let this = self.get_mut();
+
+        macro_rules! logln {
+            ($($x:tt)*) => {
+                this.opts.logln(format_args!(
+                   $($x)*
+                ));
+            };
+        }
+
         let log_prefix: &str = &this.opts.prefix;
         let maybebufcap_storage;
         let maybebufcap: &str = if this.opts.verbose {
@@ -127,23 +160,23 @@ impl AsyncWrite for StreamWriteLogger {
         match AsyncWrite::poll_write(Pin::new(&mut this.inner.writer), cx, buf) {
             Poll::Ready(Ok(nbytes)) => {
                 if !this.opts.omit_content {
-                    eprintln!(
+                    logln!(
                         "{log_prefix}{maybebufcap}{} {}",
                         nbytes,
                         render_content(&buf[..nbytes], this.opts.hex)
                     );
                 } else {
-                    eprintln!("{log_prefix}{maybebufcap}{}", nbytes,);
+                    logln!("{log_prefix}{maybebufcap}{}", nbytes,);
                 }
                 Poll::Ready(Ok(nbytes))
             }
             Poll::Ready(Err(e)) => {
-                eprintln!("{log_prefix}{maybebufcap}error {e}");
+                logln!("{log_prefix}{maybebufcap}error {e}");
                 Poll::Ready(Err(e))
             }
             Poll::Pending => {
                 if verbose {
-                    eprintln!("{log_prefix}{maybebufcap}pending");
+                    logln!("{log_prefix}{maybebufcap}pending");
                 }
                 Poll::Pending
             }
@@ -155,22 +188,31 @@ impl AsyncWrite for StreamWriteLogger {
         cx: &mut std::task::Context<'_>,
     ) -> Poll<Result<(), std::io::Error>> {
         let this = self.get_mut();
+
+        macro_rules! logln {
+            ($($x:tt)*) => {
+                this.opts.logln(format_args!(
+                   $($x)*
+                ));
+            };
+        }
+
         let log_prefix: &str = &this.opts.prefix;
         let verbose = this.opts.verbose;
         match AsyncWrite::poll_flush(Pin::new(&mut this.inner.writer), cx) {
             Poll::Ready(Ok(())) => {
                 if verbose {
-                    eprintln!("{log_prefix}flush");
+                    logln!("{log_prefix}flush");
                 }
                 Poll::Ready(Ok(()))
             }
             Poll::Ready(Err(e)) => {
-                eprintln!("{log_prefix}flush error {e}");
+                logln!("{log_prefix}flush error {e}");
                 Poll::Ready(Err(e))
             }
             Poll::Pending => {
                 if verbose {
-                    eprintln!("{log_prefix}flush pending");
+                    logln!("{log_prefix}flush pending");
                 }
                 Poll::Pending
             }
@@ -182,20 +224,29 @@ impl AsyncWrite for StreamWriteLogger {
         cx: &mut std::task::Context<'_>,
     ) -> Poll<Result<(), std::io::Error>> {
         let this = self.get_mut();
+
+        macro_rules! logln {
+            ($($x:tt)*) => {
+                this.opts.logln(format_args!(
+                   $($x)*
+                ));
+            };
+        }
+
         let log_prefix: &str = &this.opts.prefix;
         let verbose = this.opts.verbose;
         match AsyncWrite::poll_shutdown(Pin::new(&mut this.inner.writer), cx) {
             Poll::Ready(Ok(())) => {
-                eprintln!("{log_prefix}shutdown");
+                logln!("{log_prefix}shutdown");
                 Poll::Ready(Ok(()))
             }
             Poll::Ready(Err(e)) => {
-                eprintln!("{log_prefix}shutdown error {e}");
+                logln!("{log_prefix}shutdown error {e}");
                 Poll::Ready(Err(e))
             }
             Poll::Pending => {
                 if verbose {
-                    eprintln!("{log_prefix}shutdown pending");
+                    logln!("{log_prefix}shutdown pending");
                 }
                 Poll::Pending
             }
@@ -208,6 +259,15 @@ impl AsyncWrite for StreamWriteLogger {
         bufs: &[std::io::IoSlice<'_>],
     ) -> Poll<Result<usize, std::io::Error>> {
         let this = self.get_mut();
+
+        macro_rules! logln {
+            ($($x:tt)*) => {
+                this.opts.logln(format_args!(
+                   $($x)*
+                ));
+            };
+        }
+
         let log_prefix: &str = &this.opts.prefix;
         let maybebufcap_storage;
         let maybebufcap: &str = if this.opts.verbose {
@@ -233,23 +293,23 @@ impl AsyncWrite for StreamWriteLogger {
                             break;
                         }
                     }
-                    eprintln!(
+                    logln!(
                         "{log_prefix}{maybebufcap}{} {}",
                         nbytes,
                         render_content(&content, this.opts.hex)
                     );
                 } else {
-                    eprintln!("{log_prefix}{maybebufcap} {}", nbytes);
+                    logln!("{log_prefix}{maybebufcap} {}", nbytes);
                 }
                 Poll::Ready(Ok(nbytes))
             }
             Poll::Ready(Err(e)) => {
-                eprintln!("{log_prefix}{maybebufcap}error {e}");
+                logln!("{log_prefix}{maybebufcap}error {e}");
                 Poll::Ready(Err(e))
             }
             Poll::Pending => {
                 if verbose {
-                    eprintln!("{log_prefix}{maybebufcap}pending");
+                    logln!("{log_prefix}{maybebufcap}pending");
                 }
                 Poll::Pending
             }
@@ -297,6 +357,12 @@ fn stream_logger(
         #[serde(default)]
         hex: bool,
     }
+
+    let the_scenario = ctx.get_scenario()?;
+    let output_handle = Arc::downgrade(&the_scenario);
+
+    let mut diago = the_scenario.diagnostic_output.lock().unwrap();
+
     let opts: LoggerOpts = rhai::serde::from_dynamic(&opts)?;
     let inner = ctx.lutbar(inner)?;
     debug!(parent: &span, inner=?inner, "options parsed");
@@ -314,13 +380,14 @@ fn stream_logger(
                     prefix: read_prefix,
                     omit_content: opts.omit_content,
                     hex: opts.hex,
+                    output_handle: output_handle.clone(),
                 },
             })),
             prefix: Default::default(),
         });
     } else {
         if opts.verbose {
-            eprintln!("{read_prefix}There is no read handle in this socket");
+            let _ = writeln!(diago, "{read_prefix}There is no read handle in this socket");
         }
     }
 
@@ -333,12 +400,13 @@ fn stream_logger(
                     prefix: write_prefix,
                     omit_content: opts.omit_content,
                     hex: opts.hex,
+                    output_handle,
                 },
             })),
         });
     } else {
         if opts.verbose {
-            eprintln!("{write_prefix}There is no read handle in this socket");
+            let _ = writeln!(diago, "{write_prefix}There is no write handle in this socket");
         }
     }
 
@@ -372,6 +440,14 @@ impl DatagramPrinter {
         flags: BufferFlags,
         opts: &LoggerOptsShared,
     ) {
+        macro_rules! logln {
+            ($($x:tt)*) => {
+                opts.logln(format_args!(
+                   $($x)*
+                ));
+            };
+        }
+
         let maybe_flags_storge;
         let maybe_flags = if opts.verbose {
             maybe_flags_storge = format!(" [{}]", DisplayBufferFlags(flags));
@@ -411,13 +487,13 @@ impl DatagramPrinter {
         };
 
         if !opts.omit_content {
-            eprintln!(
+            logln!(
                 "{log_prefix}{maybebufcap}{maybe_leading_plus}{}{maybe_trailing_plus} {maybe_leading_ellipsis}{}{maybe_trailing_ellipsis}{maybe_flags}",
                 buffer_subset.len(),
                 render_content(&buf[buffer_subset.clone()], opts.hex)
             );
         } else {
-            eprintln!(
+            logln!(
                 "{log_prefix}{maybebufcap}{maybe_leading_plus}{}{maybe_trailing_plus}{maybe_flags}",
                 buffer_subset.len()
             );
@@ -432,6 +508,13 @@ impl PacketRead for DatagramReadLogger {
         buf: &mut [u8],
     ) -> Poll<std::io::Result<PacketReadResult>> {
         let this = self.get_mut();
+        macro_rules! logln {
+            ($($x:tt)*) => {
+                this.opts.logln(format_args!(
+                   $($x)*
+                ));
+            };
+        }
         let log_prefix: &str = &this.opts.prefix;
         let maybebufcap_storage;
         let maybebufcap: &str = if this.opts.verbose {
@@ -454,12 +537,12 @@ impl PacketRead for DatagramReadLogger {
                 Poll::Ready(Ok(x))
             }
             Poll::Ready(Err(e)) => {
-                eprintln!("{log_prefix}{maybebufcap}error {e}");
+                logln!("{log_prefix}{maybebufcap}error {e}");
                 Poll::Ready(Err(e))
             }
             Poll::Pending => {
                 if verbose {
-                    eprintln!("{log_prefix}{maybebufcap}pending");
+                    logln!("{log_prefix}{maybebufcap}pending");
                 }
                 Poll::Pending
             }
@@ -482,6 +565,13 @@ impl PacketWrite for DatagramWriteLogger {
         flags: super::types::BufferFlags,
     ) -> Poll<std::io::Result<()>> {
         let this = self.get_mut();
+        macro_rules! logln {
+            ($($x:tt)*) => {
+                this.opts.logln(format_args!(
+                   $($x)*
+                ));
+            };
+        }
         let log_prefix: &str = &this.opts.prefix;
         let maybebufcap_storage;
         let maybebufcap: &str = if this.opts.verbose {
@@ -510,12 +600,12 @@ impl PacketWrite for DatagramWriteLogger {
                 Poll::Ready(Ok(()))
             }
             Poll::Ready(Err(e)) => {
-                eprintln!("{log_prefix}error {e}");
+                logln!("{log_prefix}error {e}");
                 Poll::Ready(Err(e))
             }
             Poll::Pending => {
                 if verbose {
-                    eprintln!("{log_prefix}pending");
+                    logln!("{log_prefix}pending");
                 }
                 Poll::Pending
             }
@@ -559,6 +649,11 @@ fn datagram_logger(
         #[serde(default)]
         hex: bool,
     }
+    let the_scenario = ctx.get_scenario()?;
+    let output_handle = Arc::downgrade(&the_scenario);
+
+    let mut diago = the_scenario.diagnostic_output.lock().unwrap();
+
     let opts: LoggerOpts = rhai::serde::from_dynamic(&opts)?;
     let inner = ctx.lutbar(inner)?;
     debug!(parent: &span, inner=?inner, "options parsed");
@@ -576,13 +671,14 @@ fn datagram_logger(
                     prefix: read_prefix,
                     omit_content: opts.omit_content,
                     hex: opts.hex,
+                    output_handle: output_handle.clone(),
                 },
                 printer: DatagramPrinter::new(),
             })),
         });
     } else {
         if opts.verbose {
-            eprintln!("{read_prefix}There is no read handle in this socket");
+            let _ = writeln!(diago, "{read_prefix}There is no read handle in this socket");
         }
     }
 
@@ -595,6 +691,7 @@ fn datagram_logger(
                     prefix: write_prefix,
                     omit_content: opts.omit_content,
                     hex: opts.hex,
+                    output_handle,
                 },
                 already_logged_this_write: false,
                 printer: DatagramPrinter::new(),
@@ -602,7 +699,7 @@ fn datagram_logger(
         });
     } else {
         if opts.verbose {
-            eprintln!("{write_prefix}There is no read handle in this socket");
+            let _ = writeln!(diago, "{write_prefix}There is no read handle in this socket");
         }
     }
 

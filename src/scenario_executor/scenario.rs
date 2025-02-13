@@ -1,5 +1,5 @@
 use rhai::{Engine, EvalAltResult, FnPtr, FuncArgs, NativeCallContext, Variant, AST};
-use std::sync::{Arc, Weak};
+use std::sync::{Arc, Mutex, Weak};
 use tracing::error;
 
 use crate::scenario_executor::{
@@ -7,11 +7,12 @@ use crate::scenario_executor::{
     utils1::run_task,
 };
 
-use super::utils1::RhResult;
+use super::{types::DiagnosticOutput, utils1::RhResult};
 
 pub struct Scenario {
     pub ast: AST,
     pub engine: Engine,
+    pub diagnostic_output: Mutex<DiagnosticOutput>,
 }
 
 pub trait ScenarioAccess {
@@ -19,7 +20,10 @@ pub trait ScenarioAccess {
     fn get_scenario(&self) -> RhResult<Arc<Scenario>>;
 }
 
-pub fn load_scenario(s: &str) -> anyhow::Result<Arc<Scenario>> {
+pub fn load_scenario(
+    s: &str,
+    diagnostic_output: DiagnosticOutput,
+) -> anyhow::Result<Arc<Scenario>> {
     let mut engine = Engine::RAW;
 
     crate::scenario_executor::all_functions::register_types(&mut engine);
@@ -28,7 +32,11 @@ pub fn load_scenario(s: &str) -> anyhow::Result<Arc<Scenario>> {
     engine.set_max_expr_depths(1000, 1000);
 
     let ast = engine.compile(s)?;
-    let mut scenario = Scenario { ast, engine };
+    let mut scenario = Scenario {
+        ast,
+        engine,
+        diagnostic_output: Mutex::new(diagnostic_output),
+    };
 
     let scenario_arc: Arc<Scenario> = Arc::new_cyclic(move |weak_scenario_arc| {
         let weak_scenario_arc: Weak<Scenario> = weak_scenario_arc.clone();

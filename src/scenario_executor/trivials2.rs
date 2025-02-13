@@ -14,11 +14,10 @@ use crate::scenario_executor::{
 };
 
 use super::{
-    types::{
+    scenario::ScenarioAccess, types::{
         BufferFlag, BufferFlags, DatagramRead, DatagramSocket, DatagramWrite, PacketRead,
         PacketReadResult, PacketWrite, StreamSocket, StreamWrite,
-    },
-    utils1::{HandleExt, SimpleErr},
+    }, utils1::{HandleExt, SimpleErr}
 };
 
 #[pin_project]
@@ -280,13 +279,16 @@ fn b64str(ctx: NativeCallContext, x: &str) -> RhResult<String> {
 }
 
 //@ Debug print something to stderr
-fn debug_print(x: Dynamic) {
+fn debug_print(ctx: NativeCallContext, x: Dynamic) -> RhResult<()> {
+    let the_scenario = ctx.get_scenario()?;
+    let mut diago = the_scenario.diagnostic_output.lock().unwrap();
     if x.is_blob() {
         let b = x.into_blob().unwrap();
-        eprintln!("b{}", render_content(&b, false));
+        let _ = writeln!(diago, "b{}", render_content(&b, false));
     } else {
-        eprintln!("{:?}", x);
+        let _ = writeln!(diago, "{:?}", x);
     }
+    Ok(())
 }
 
 //@ Create a stream socket with a read handle emits specified data, then EOF; and

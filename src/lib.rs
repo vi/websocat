@@ -59,10 +59,11 @@ pub mod cli;
 
 
 
-pub async fn websocat_main<I,T>(argv: I) -> anyhow::Result<()> 
+pub async fn websocat_main<I,T,D>(argv: I, mut diagnostic_output: D) -> anyhow::Result<()> 
 where
     I: IntoIterator<Item = T>,
     T: Into<std::ffi::OsString> + Clone,
+    D: std::io::Write + Send + Sync + 'static,
 {
     let mut args = cli::WebsocatArgs::parse_from(argv);
     let dump_spec = args.dump_spec;
@@ -72,7 +73,7 @@ where
     let scenario_built_text;
     if args.scenario {
         if args.spec2.is_some() {
-            eprintln!("In --scenario mode only one argument is expected");
+            writeln!(diagnostic_output, "In --scenario mode only one argument is expected")?;
         }
 
         scenario_file = std::fs::read(args.spec1)?;
@@ -86,7 +87,7 @@ where
         }
 
         if !args.binary && !args.text {
-            eprintln!("Using --binary mode by default");
+            writeln!(diagnostic_output, "Using --binary mode by default")?;
             args.binary = true;
         }
         if args.server {
@@ -113,7 +114,7 @@ where
 
         if !invocation.opts.no_lints {
             for lint in invocation.lints() {
-                eprintln!("warning: {lint}");
+                writeln!(diagnostic_output, "warning: {lint}")?;
             }
         }
 
@@ -122,10 +123,10 @@ where
         }
 
         if invocation.opts.dump_spec_phase1 || invocation.opts.dump_spec_phase2 {
-            println!("{:#?}", invocation.left);
-            println!("{:#?}", invocation.right);
-            println!("{:#?}", invocation.opts);
-            println!("{:#?}", invocation.beginning);
+            writeln!(diagnostic_output, "{:#?}", invocation.left)?;
+            writeln!(diagnostic_output, "{:#?}", invocation.right)?;
+            writeln!(diagnostic_output, "{:#?}", invocation.opts)?;
+            writeln!(diagnostic_output, "{:#?}", invocation.beginning)?;
             return Ok(());
         }
 
@@ -133,12 +134,12 @@ where
         global_scenario = &scenario_built_text;
 
         if dump_spec {
-            println!("{}", global_scenario);
+            writeln!(diagnostic_output, "{}", global_scenario)?;
             return Ok(());
         }
     }
 
-    let ctx = load_scenario(global_scenario)?;
+    let ctx = load_scenario(global_scenario, Box::new(diagnostic_output))?;
     let task: Handle<Task> = ctx.execute()?;
     run_task(task).await;
 
