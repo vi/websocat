@@ -84,6 +84,8 @@ pub enum Endpoint {
     AbstractSeqpacketConnect(OsString),
     //@ Listen specified UNIX SOCK_SEQPACKET socket by abstract (Linux) name
     AbstractSeqpacketListen(OsString),
+    //@ Byte stream socket for tests
+    MockStreamSocket(String),
 }
 
 #[derive(Debug)]

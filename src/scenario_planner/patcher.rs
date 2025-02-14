@@ -365,6 +365,7 @@ impl SpecifierStack {
                 Endpoint::SeqpacketListen(_) => true,
                 Endpoint::AbstractSeqpacketConnect(_) => true,
                 Endpoint::AbstractSeqpacketListen(_) => true,
+                Endpoint::MockStreamSocket(_) => false,
             };
             if do_insert {
                 // datagram mode may be patched later
@@ -430,6 +431,7 @@ impl Endpoint {
             Endpoint::SeqpacketListen(_) => CopyingType::Datarams,
             Endpoint::AbstractSeqpacketConnect(_) => CopyingType::Datarams,
             Endpoint::AbstractSeqpacketListen(_) => CopyingType::Datarams,
+            Endpoint::MockStreamSocket(_) => CopyingType::ByteStream,
         }
     }
 }

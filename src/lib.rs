@@ -37,6 +37,7 @@ pub mod scenario_executor {
     pub mod utils2;
     pub mod wsframer;
     pub mod wswithpings;
+    pub mod mockbytestream;
 
     pub mod all_functions;
 }

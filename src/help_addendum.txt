@@ -9,6 +9,7 @@ Short list of endpoint prefixes:
   exec:
   literal:
   literal-base64:
+  mock_stream_socket:
   seqpacket:
   seqpacket-listen:
   stdio:

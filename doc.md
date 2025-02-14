@@ -5,9 +5,9 @@ This section describes options, flags and specifiers of Websocat CLI.
 ## `--help` output
 
 ```
-Tool to connect to WebSocket, listen them and do other network tricks
+Command-line client for web sockets, like netcat/curl/socat for ws://.
 
-Usage: websocat4 [OPTIONS] <SPEC1> [SPEC2]
+Usage: websocat [OPTIONS] <SPEC1> [SPEC2]
 
 Arguments:
   <SPEC1>
@@ -55,6 +55,9 @@ Options:
 
       --log-hex
           use hex lines instead of escaped characters for `log:`` overlay
+
+      --log-timestamps
+          Include relative timestamps in log messages
 
       --log-traffic
           automatically insert `log:` overlay in an apprioriate place to debug issues by displaying traffic chunks
@@ -138,6 +141,9 @@ Options:
       --exit-on-hangup
           Exit the whole process if hangup is detected
 
+      --exit-after-one-session
+          Exit the whole process after serving one connection; alternative to to --oneshot
+
   -u, --unidirectional
           Transfer data only from left to right specifier
 
@@ -151,7 +157,9 @@ Options:
           Stop transferring data when one of the transfer directions reached EOF
 
   -B, --buffer-size <BUFFER_SIZE>
-          Override buffer size for main data transfer session. Note that some overlays and endpoints may have separate buffers with sepaparately adjustable sizes
+          Override buffer size for main data transfer session. Note that some overlays and endpoints may have separate buffers with sepaparately adjustable sizes.
+          
+          Message can span multiple over multiple fragments and exceed this buffer size
 
   -n, --no-close
           Do not send WebSocket close message when there is no more data to send there
@@ -204,6 +212,25 @@ Options:
       --chmod-everyone
           When listening UNIX sockets, change socket filesystem permissions to allow connections from everywhere
 
+      --oneshot
+          Serve only one connection
+
+      --no-lints
+          Do not display warnings about potential CLI misusage
+
+      --udp-max-send-datagram-size <UDP_MAX_SEND_DATAGRAM_SIZE>
+          Maximum size of an outgoing UDP datagram. Incoming datagram size is likely limited by --buffer-size
+          
+          [default: 4096]
+
+      --seqpacket-max-send-datagram-size <SEQPACKET_MAX_SEND_DATAGRAM_SIZE>
+          Maximum size of an outgoing SEQPACKET datagram. Incoming datagram size is likely limited by --buffer-size
+          
+          [default: 1048576]
+
+      --random-seed <RANDOM_SEED>
+          Use specified random seed instead of initialising RNG from OS
+
   -h, --help
           Print help (see a summary with '-h')
 
@@ -221,6 +248,7 @@ Short list of endpoint prefixes:
   exec:
   literal:
   literal-base64:
+  mock_stream_socket:
   seqpacket:
   seqpacket-listen:
   stdio:
@@ -378,6 +406,14 @@ Byte stream socket that produces specified content (base64-encoded) and ignores 
 Prefixes:
 
 * `literal-base64:`
+
+### MockStreamSocket
+
+Byte stream socket for tests
+
+Prefixes:
+
+* `mock_stream_socket:`
 
 ### SeqpacketConnect
 
@@ -1057,6 +1093,7 @@ Options:
 * write_prefix (`Option<String>`) - Prepend this instead of "WRITE " to each line printed to stderr
 * omit_content (`bool`) - Do not log full content of the stream, just the chunk lengths.
 * hex (`bool`) - Use hex lines instead of string literals with espaces
+* include_timestamps (`bool`) - Also print relative timestamps for each log message
 
 ## dbg
 
@@ -1066,7 +1103,7 @@ Parameters:
 
 * x (`Dynamic`)
 
-Does not return anything.
+Returns `()`
 
 ## display_pkts
 
@@ -1306,6 +1343,30 @@ Parameters:
 
 Returns `Task`
 
+## mock_stream_socket
+
+Create special testing stream socket that emits user-specified data in user-specified chunks
+and verifies that incoming data matches specified samples.
+
+If something is unexpected, Websocat will exit (panic).
+
+Argument is a specially formatted string describing operations, separated by `|` character.
+
+Operations:
+
+* `R` - make the socket return specified chunk of data
+* `W` - make the socket wait for incoming data and check if it matches the sample
+* 'ER' / `EW` - inject read or write error
+* 'T0` ... `T9` - sleep for some time interval, from small to large.
+
+Example: `R hello|R world|W ping |R pong|T5|R zero byte \0 other escapes \| \xff \r\n\t|EW`
+
+Parameters:
+
+* content (`String`)
+
+Returns `StreamSocket`
+
 ## null_datagram_socket
 
 Create datagram socket with null read, write and hangup handles.
@@ -1520,6 +1581,7 @@ Options:
 * write_prefix (`Option<String>`) - Prepend this instead of "WRITE " to each line printed to stderr
 * omit_content (`bool`) - Do not log full content of the stream, just the chunk lengths.
 * hex (`bool`) - Use hex lines instead of string literals with espaces
+* include_timestamps (`bool`) - Also print relative timestamps for each log message
 
 ## subprocess_new
 

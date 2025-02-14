@@ -696,7 +696,7 @@ def main() -> None:
     print()
     print("```")
     sys.stdout.flush();
-    subprocess.run(["./target/mydev/websocat4","--help"])
+    subprocess.run(["./target/mydev/websocat","--help"])
     print("```")
     print()
 

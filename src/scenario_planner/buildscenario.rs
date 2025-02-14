@@ -168,6 +168,14 @@ impl Endpoint {
             | Endpoint::SeqpacketListen(_)
             | Endpoint::AbstractSeqpacketConnect(_)
             | Endpoint::AbstractSeqpacketListen(_) => self.begin_print_unix(printer, vars, opts),
+            Endpoint::MockStreamSocket(s) => {
+                let varnam = vars.getnewvarname("mock");
+                printer.print_line(&format!(
+                    "let {varnam} = mock_stream_socket({});",
+                    StrLit(s)
+                ));
+                Ok(varnam)
+            }
         }
     }
 
@@ -197,6 +205,7 @@ impl Endpoint {
             | Endpoint::SeqpacketListen(_)
             | Endpoint::AbstractSeqpacketConnect(_)
             | Endpoint::AbstractSeqpacketListen(_) => self.end_print_unix(printer),
+            Endpoint::MockStreamSocket(_) => {}
         }
     }
 }
