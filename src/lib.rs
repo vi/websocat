@@ -58,6 +58,7 @@ pub mod scenario_planner {
 }
 
 pub mod cli;
+pub mod test_utils;
 
 pub async fn websocat_main<I, T, D>(
     argv: I,

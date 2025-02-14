@@ -1341,6 +1341,7 @@ dependencies = [
  "rhai",
  "serde",
  "sha1",
+ "shlex",
  "tinyvec",
  "tokio",
  "tokio-native-tls",
