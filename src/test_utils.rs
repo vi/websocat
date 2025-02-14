@@ -28,7 +28,7 @@ pub async fn test_websocat(s: &str) {
     let time_base = tokio::time::Instant::now();
     let stderr = SharedCursor::new();
 
-    let ret = crate::websocat_main(argv, stderr.clone(), time_base).await;
+    let ret = crate::websocat_main(argv, stderr.clone(), time_base, false).await;
     assert!(ret.is_ok());
     //std::io::stderr().write_all(&stderr.content()).unwrap();
 }

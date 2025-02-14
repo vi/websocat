@@ -64,6 +64,7 @@ pub async fn websocat_main<I, T, D>(
     argv: I,
     mut diagnostic_output: D,
     time_base: tokio::time::Instant,
+    allow_stdout: bool,
 ) -> anyhow::Result<()>
 where
     I: IntoIterator<Item = T>,
@@ -148,7 +149,11 @@ where
         global_scenario = &scenario_built_text;
 
         if dump_spec {
-            writeln!(diagnostic_output, "{}", global_scenario)?;
+            if allow_stdout {
+                println!("{}", global_scenario);
+            } else {
+                writeln!(diagnostic_output, "{}", global_scenario)?;
+            }
             return Ok(());
         }
     }
