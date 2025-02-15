@@ -36,6 +36,7 @@ pub fn register_functions(engine: &mut Engine) {
     #[cfg(unix)]
     super::unix::register(engine);
     super::mockbytestream::register(engine);
+    super::registryconnectors::register(engine);
     engine.register_fn("is_null", is_null);
 }
 

@@ -10,6 +10,8 @@ Short list of endpoint prefixes:
   literal:
   literal-base64:
   mock_stream_socket:
+  registry-stream-connect:
+  registry-stream-listen:
   seqpacket:
   seqpacket-listen:
   stdio:

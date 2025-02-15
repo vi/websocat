@@ -231,6 +231,11 @@ Options:
       --random-seed <RANDOM_SEED>
           Use specified random seed instead of initialising RNG from OS
 
+      --registry-connect-bufsize <REGISTRY_CONNECT_BUFSIZE>
+          Use specified max buffer size for
+          
+          [default: 1024]
+
   -h, --help
           Print help (see a summary with '-h')
 
@@ -249,6 +254,8 @@ Short list of endpoint prefixes:
   literal:
   literal-base64:
   mock_stream_socket:
+  registry-stream-connect:
+  registry-stream-listen:
   seqpacket:
   seqpacket-listen:
   stdio:
@@ -414,6 +421,23 @@ Byte stream socket for tests
 Prefixes:
 
 * `mock_stream_socket:`
+* `mock-stream-socket:`
+
+### RegistryStreamConnect
+
+Connect to a virtual intra-Websocat address using stream socket
+
+Prefixes:
+
+* `registry-stream-connect:`
+
+### RegistryStreamListen
+
+Listen for virtual intra-Websocat stream connections at specified address
+
+Prefixes:
+
+* `registry-stream-listen:`
 
 ### SeqpacketConnect
 
@@ -980,6 +1004,22 @@ Parameters:
 
 Returns `String`
 
+## connect_registry_stream
+
+Connect to an intra-Websocat stream socket listening on specified virtual address.
+
+Parameters:
+
+* opts (`Dynamic`) - object map containing dynamic options to the function
+* continuation (`Fn(StreamSocket) -> Task`) - Rhai function that will be called to continue processing
+
+Returns `Task`
+
+Options:
+
+* addr (`String`)
+* max_buf_size (`usize`) - Maximum size of buffer for data in flight
+
 ## connect_seqpacket
 
 Connect to a SOCK_SEQPACKET UNIX stream socket
@@ -1258,6 +1298,23 @@ Options:
 * separator (`Option<u8>`) - Use this byte as a separator. Defaults to 10 (\n).
 * separator_n (`Option<usize>`) - Use this number of repetitions of the specified byte to consider it as a separator. Defaults to 1.
 * substitute (`Option<u8>`) - When framing messages, look for byte sequences within the message that may alias with the separator and substitute last byte of such pseudo-separators with this byte value.  If active, leading and trailing separator bytes are also removed from the datagrams
+
+## listen_registry_stream
+
+Listen for intra-Websocat stream socket connections on a specified virtual address
+
+Parameters:
+
+* opts (`Dynamic`) - object map containing dynamic options to the function
+* continuation (`Fn(StreamSocket) -> Task`) - Rhai function that will be called to continue processing
+
+Returns `Task`
+
+Options:
+
+* addr (`String`)
+* autospawn (`bool`) - Automatically spawn a task for each accepted connection
+* oneshot (`bool`) - Exit listening loop after processing a single connection
 
 ## listen_seqpacket
 

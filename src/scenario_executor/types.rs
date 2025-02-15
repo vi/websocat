@@ -106,3 +106,15 @@ pub struct DatagramSocket {
     pub write: Option<DatagramWrite>,
     pub close: Option<Hangup>,
 }
+
+#[derive(Debug, Clone, Default)]
+pub struct Registry(
+    pub(super)  Arc<
+        Mutex<
+            std::collections::HashMap<
+                String,
+                (flume::Sender<rhai::Dynamic>, flume::Receiver<rhai::Dynamic>),
+            >,
+        >,
+    >,
+);

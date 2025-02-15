@@ -1,7 +1,7 @@
 use rand::SeedableRng;
 use scenario_executor::{
     scenario::load_scenario,
-    types::{Handle, Task},
+    types::{Handle, Registry, Task},
     utils1::run_task,
 };
 use scenario_planner::{types::WebsocatInvocation, utils::IdentifierGenerator};
@@ -19,6 +19,7 @@ pub mod scenario_executor {
     pub mod linemode;
     pub mod logoverlay;
     pub mod misc;
+    pub mod mockbytestream;
     #[cfg(feature = "ssl")]
     pub mod nativetls;
     pub mod osstr;
@@ -28,6 +29,7 @@ pub mod scenario_executor {
     pub mod trivials1;
     pub mod trivials2;
     pub mod trivials3;
+    pub mod registryconnectors;
     pub mod types;
     pub mod udp;
     pub mod udpserver;
@@ -37,7 +39,6 @@ pub mod scenario_executor {
     pub mod utils2;
     pub mod wsframer;
     pub mod wswithpings;
-    pub mod mockbytestream;
 
     pub mod all_functions;
 }
@@ -65,6 +66,7 @@ pub async fn websocat_main<I, T, D>(
     mut diagnostic_output: D,
     time_base: tokio::time::Instant,
     allow_stdout: bool,
+    registry: Registry,
 ) -> anyhow::Result<()>
 where
     I: IntoIterator<Item = T>,
@@ -158,7 +160,13 @@ where
         }
     }
 
-    let ctx = load_scenario(global_scenario, Box::new(diagnostic_output), time_base, Box::new(prng))?;
+    let ctx = load_scenario(
+        global_scenario,
+        Box::new(diagnostic_output),
+        time_base,
+        Box::new(prng),
+        registry,
+    )?;
     let task: Handle<Task> = ctx.execute()?;
     run_task(task).await;
 

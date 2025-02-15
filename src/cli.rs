@@ -320,4 +320,8 @@ pub struct WebsocatArgs {
     /// Use specified random seed instead of initialising RNG from OS.
     #[arg(long)]
     pub random_seed: Option<u64>,
+
+    /// Use specified max buffer size for 
+    #[arg(long, default_value="1024")]
+    pub registry_connect_bufsize: usize,
 }

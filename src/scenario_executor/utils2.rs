@@ -1,6 +1,6 @@
 use bytes::BytesMut;
 
-use super::{types::{BufferFlag, BufferFlags}, utils1::IsControlFrame};
+use super::{types::{BufferFlag, BufferFlags, Registry}, utils1::IsControlFrame};
 
 
 /// Assembles datagram from multiple sequention concatenated parts
@@ -73,5 +73,25 @@ impl Defragmenter {
     pub fn clear(&mut self) {
         self.incomplete_outgoing_datagram_buffer_complete = false;
         self.incomplete_outgoing_datagram_buffer = None;
+    }
+}
+
+impl Registry {
+    fn get_entry<T>(&self, id: &str, f: impl FnOnce(&flume::Sender<rhai::Dynamic>, &flume::Receiver<rhai::Dynamic>) -> T) -> T {
+        let mut s = self.0.lock().unwrap();
+        let q = if s.contains_key(id) {
+            s.get_mut(id).unwrap()
+        } else {
+            s.entry(id.to_owned()).or_insert(flume::bounded(0))
+        };
+        f(&q.0, &q.1)
+    }
+
+    pub fn get_sender(&self, id: &str) -> flume::Sender<rhai::Dynamic> {
+        self.get_entry(id, |x,_|x.clone())
+    }
+
+    pub fn get_receiver(&self, id: &str) -> flume::Receiver<rhai::Dynamic> {
+        self.get_entry(id, |_,x|x.clone())
     }
 }

@@ -118,17 +118,23 @@ impl ParseStrChunkResult<'_> {
                 ovl: Overlay::WsServer {},
                 rest,
             })
-        } else if let Some(rest) = x.strip_prefix_many(&["ws-lowlevel-client:", "ws-ll-client:", "ws-ll-c:"]) {
+        } else if let Some(rest) =
+            x.strip_prefix_many(&["ws-lowlevel-client:", "ws-ll-client:", "ws-ll-c:"])
+        {
             Ok(ParseStrChunkResult::Overlay {
                 ovl: Overlay::WsFramer { client_mode: true },
                 rest,
             })
-        } else if let Some(rest) = x.strip_prefix_many(&["ws-lowlevel-server:", "ws-ll-server:", "ws-ll-s:"]) {
+        } else if let Some(rest) =
+            x.strip_prefix_many(&["ws-lowlevel-server:", "ws-ll-server:", "ws-ll-s:"])
+        {
             Ok(ParseStrChunkResult::Overlay {
                 ovl: Overlay::WsFramer { client_mode: false },
                 rest,
             })
-        } else if let Some(rest) = x.strip_prefix_many(&["ws-listen:", "ws-l:", "l-ws:", "listen-ws:"]) {
+        } else if let Some(rest) =
+            x.strip_prefix_many(&["ws-listen:", "ws-l:", "l-ws:", "listen-ws:"])
+        {
             let s: &str = rest.try_into()?;
             let a: SocketAddr = s.parse()?;
             Ok(ParseStrChunkResult::Endpoint(Endpoint::WsListen(a)))
@@ -302,11 +308,21 @@ impl ParseStrChunkResult<'_> {
                 ovl: Overlay::StreamChunks,
                 rest,
             })
-        } else if let Some(rest) = x.strip_prefix_many(&["mock_stream_socket:"]) {
+        } else if let Some(rest) = x.strip_prefix_many(&["mock_stream_socket:", "mock-stream-socket:"]) {
             let s: &str = rest.try_into()?;
-            Ok(ParseStrChunkResult::Endpoint(
-                Endpoint::MockStreamSocket(s.to_owned()),
-            ))            
+            Ok(ParseStrChunkResult::Endpoint(Endpoint::MockStreamSocket(
+                s.to_owned(),
+            )))
+        } else if let Some(rest) = x.strip_prefix_many(&["registry-stream-listen:"]) {
+            let s: &str = rest.try_into()?;
+            Ok(ParseStrChunkResult::Endpoint(Endpoint::RegistryStreamListen(
+                s.to_owned(),
+            )))
+        } else if let Some(rest) = x.strip_prefix_many(&["registry-stream-connect:"]) {
+            let s: &str = rest.try_into()?;
+            Ok(ParseStrChunkResult::Endpoint(Endpoint::RegistryStreamConnect(
+                s.to_owned(),
+            )))
         } else {
             anyhow::bail!("Unknown specifier: {x:?}")
         }

@@ -86,6 +86,10 @@ pub enum Endpoint {
     AbstractSeqpacketListen(OsString),
     //@ Byte stream socket for tests
     MockStreamSocket(String),
+    //@ Listen for virtual intra-Websocat stream connections at specified address
+    RegistryStreamListen(String),
+    //@ Connect to a virtual intra-Websocat address using stream socket
+    RegistryStreamConnect(String),
 }
 
 #[derive(Debug)]

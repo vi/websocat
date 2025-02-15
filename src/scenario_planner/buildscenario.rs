@@ -176,6 +176,26 @@ impl Endpoint {
                 ));
                 Ok(varnam)
             }
+            Endpoint::RegistryStreamListen(addr) => {
+                let listenparams = opts.listening_parameters();
+                let varnam = vars.getnewvarname("reg");
+                printer.print_line(&format!(
+                    "listen_registry_stream(#{{{listenparams}, addr: {a}}}, |{varnam}| {{",
+                    a = StrLit(addr)
+                ));
+                printer.increase_indent();
+                Ok(varnam)
+            }
+            Endpoint::RegistryStreamConnect(addr) => {
+                let mbs = opts.registry_connect_bufsize;
+                let varnam = vars.getnewvarname("reg");
+                printer.print_line(&format!(
+                    "connect_registry_stream(#{{addr: {a}, max_buf_size: {mbs}}}, |{varnam}| {{",
+                    a = StrLit(addr)
+                ));
+                printer.increase_indent();
+                Ok(varnam)
+            }
         }
     }
 
@@ -206,6 +226,10 @@ impl Endpoint {
             | Endpoint::AbstractSeqpacketConnect(_)
             | Endpoint::AbstractSeqpacketListen(_) => self.end_print_unix(printer),
             Endpoint::MockStreamSocket(_) => {}
+            Endpoint::RegistryStreamListen(_) | Endpoint::RegistryStreamConnect(_) => {
+                printer.decrease_indent();
+                printer.print_line("})");
+            }
         }
     }
 }
