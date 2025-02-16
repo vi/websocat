@@ -14,6 +14,8 @@ use super::{
 
 impl WebsocatInvocation {
     pub fn patches(&mut self, vars: &mut IdentifierGenerator) -> anyhow::Result<()> {
+        self.left.maybe_patch_existing_ws_request(&self.opts)?;
+        self.right.maybe_patch_existing_ws_request(&self.opts)?;
         self.left.maybe_splitup_client_ws_endpoint()?;
         self.right.maybe_splitup_client_ws_endpoint()?;
         self.left.maybe_splitup_ws_c_overlay(&self.opts)?;
@@ -210,6 +212,25 @@ impl SpecifierStack {
                 }
             }
             _ => (),
+        }
+        Ok(())
+    }
+
+    fn maybe_patch_existing_ws_request(&mut self, opts: &WebsocatArgs)-> anyhow::Result<()> {
+        for ovl in &mut self.overlays {
+            match ovl {
+                Overlay::WsUpgrade { uri, host } => {
+                    if let Some(ref ws_c_uri) = opts.ws_c_uri {
+                        if uri == "/" && host.is_none() {
+                            let ws_c_uri = Uri::try_from(ws_c_uri)?;
+                            let MyUrlParts { auth, newurl } = MyUrlParts::process_url(&ws_c_uri)?;
+                            *uri = newurl;
+                            *host = auth.map(|x| x.to_string());
+                        }
+                    }
+                }
+                _ => {},
+            }
         }
         Ok(())
     }

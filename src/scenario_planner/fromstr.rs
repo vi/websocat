@@ -112,6 +112,13 @@ impl ParseStrChunkResult<'_> {
                 rest,
             })
         } else if let Some(rest) =
+            x.strip_prefix_many(&["ws-request:", "ws-r:"])
+        {
+            Ok(ParseStrChunkResult::Overlay {
+                ovl: Overlay::WsUpgrade { uri: "/".parse().unwrap(), host: None },
+                rest,
+            })
+        } else if let Some(rest) =
             x.strip_prefix_many(&["ws-upgrade:", "upgrade-ws:", "ws-u:", "u-ws:"])
         {
             Ok(ParseStrChunkResult::Overlay {

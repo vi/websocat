@@ -283,6 +283,7 @@ Short list of overlay prefixes:
   ws-lowlevel-client:
   ws-lowlevel-server:
   ws-upgrade:
+  ws-request:
 
 Examples:
 
@@ -741,7 +742,10 @@ then connects (i.e. exchanges bytes) the downstream connection to upstream.
 
 Does not provide WebSocket framing.
 
-This overlay cannot be directly specified as a prefix to a positional CLI argument, there may be some other way to access it.
+Prefixes:
+
+* `ws-request:`
+* `ws-r:`
 
 # Scenario functions
 

@@ -39,6 +39,7 @@ Short list of overlay prefixes:
   ws-lowlevel-client:
   ws-lowlevel-server:
   ws-upgrade:
+  ws-request:
 
 Examples:
 
