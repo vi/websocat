@@ -103,7 +103,7 @@ pub struct WebsocatArgs {
     pub write_buffer_limit: Option<usize>,
 
     /// override byte value that separates stdin-supplied text WebSocket messages
-    /// from each othe from default '\n'.
+    /// from each other from default '\n'.
     #[arg(long)]
     pub separator: Option<u8>,
 
