@@ -52,3 +52,23 @@ t2!(ws_roundtrip1,
     "-b chunks:mock_stream_socket:'R ABC | W 0123 | R DEF' ws-connect:registry-stream-connect:",
 );
 
+t!(lpr1, r#"-ub --lengthprefixed-skip-read-direction mock_stream_socket:'R ABC| R 111|R a22aa\n' lengthprefixed:mock_stream_socket:'W \0\0\0\x03ABC|W \0\0\0\x03111|W \0\0\0\x06a22aa\n'"#);
+t!(lpr2, r#"-ub --lengthprefixed-skip-read-direction --lengthprefixed-nbytes 3 --lengthprefixed-little-endian mock_stream_socket:'R ABC| R 111|R a22aa\n' lengthprefixed:mock_stream_socket:'W \x03\0\0ABC|W \x03\0\0111|W \x06\0\0a22aa\n'"#);
+t!(wslpr1, r#"-ubn  --lengthprefixed-skip-read-direction  ws-lowlevel-client:mock_stream_socket:'R \x82\x00' lengthprefixed:mock_stream_socket:'W \0\0\0\0' "#);
+t!(wslpr2, r#"-ubn  --lengthprefixed-skip-read-direction  ws-lowlevel-client:mock_stream_socket:'R \x82\x03ABC' lengthprefixed:mock_stream_socket:'W \0\0\0\x03ABC' "#);
+t!(wslpr3, r#"-ubn  --lengthprefixed-skip-read-direction --lengthprefixed-tag-text  ws-lowlevel-client:mock_stream_socket:'R \x82\x03ABC' lengthprefixed:mock_stream_socket:'W \0\0\0\x03ABC' "#);
+t!(wslpr4, r#"-ubn  --lengthprefixed-skip-read-direction --lengthprefixed-tag-text  ws-lowlevel-client:mock_stream_socket:'R \x81\x03ABC' lengthprefixed:mock_stream_socket:'W \x80\0\0\x03ABC' "#);
+t!(wslpr5, r#"-ubn  --lengthprefixed-skip-read-direction --lengthprefixed-tag-text  ws-lowlevel-client:mock_stream_socket:'R \x81\x03ABC| R \x82\x02QQ| R\x88\0' lengthprefixed:mock_stream_socket:'W \x80\0\0\x03ABC| W \0\0\0\x02QQ' "#);
+
+t!(line1, r#"-ut  --lengthprefixed-skip-read-direction mock_stream_socket:'R abcdef\n' lengthprefixed:mock_stream_socket:'W \0\0\0\x06abcdef' "#);
+t!(line2, r#"-ut  --lengthprefixed-skip-read-direction mock_stream_socket:'R ab|R cde|R f\n' lengthprefixed:mock_stream_socket:'W \0\0\0\x06abcdef' "#);
+t!(line3, r#"-ut  --lengthprefixed-skip-read-direction mock_stream_socket:'R abcdef|R \n' lengthprefixed:mock_stream_socket:'W \0\0\0\x06abcdef' "#);
+t!(line4, r#"-ut  --lengthprefixed-skip-read-direction 
+                                                mock_stream_socket:'R ab\ncde\nf|R \n|R QWE\n| R RTY\n\n'
+                                                lengthprefixed:mock_stream_socket:'W \0\0\0\x02ab|W \0\0\0\x03cde|W \0\0\0\x01f|W \0\0\0\x03QWE| W \0\0\0\x03RTY| W \0\0\0\0' "#);
+t!(line5, r#"-ut  --lengthprefixed-skip-read-direction  --separator-n 2 
+                                                mock_stream_socket:'R ab\ncde\nf|R \n|R QWE\n| R RTY\n\n'
+                                                lengthprefixed:mock_stream_socket:'W \x00\x00\x00\x10ab\ncde\nf\nQWE\nRTY'"#);
+t!(line6, r#"-ut  --lengthprefixed-skip-read-direction  --separator-n 2
+                                                mock_stream_socket:'R ab\n\ncde\n|R \n|R QWE\n| R \nRTY\n\n| R \n\n\n\n| R \n\n+\n\n'
+                                                lengthprefixed:mock_stream_socket:'W \0\0\0\x02ab|W \0\0\0\x03cde|W \0\0\0\x03QWE| W \0\0\0\x03RTY| W \0\0\0\0| W \0\0\0\0| W \0\0\0\0| W \0\0\0\x01+'"#);
