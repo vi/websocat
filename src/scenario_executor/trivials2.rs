@@ -327,7 +327,7 @@ fn literal_socket_base64(ctx: NativeCallContext, data: String) -> RhResult<Handl
 }
 
 #[pin_project]
-struct ReadStreamChunks(#[pin] StreamRead);
+pub struct ReadStreamChunks(#[pin]pub StreamRead);
 
 impl PacketRead for ReadStreamChunks {
     fn poll_read(
@@ -373,9 +373,9 @@ fn read_stream_chunks(
 }
 
 #[pin_project]
-struct WriteStreamChunks {
-    w: StreamWrite,
-    debt: usize,
+pub struct WriteStreamChunks {
+    pub w: StreamWrite,
+    pub debt: usize,
 }
 
 impl PacketWrite for WriteStreamChunks {

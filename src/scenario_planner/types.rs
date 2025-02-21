@@ -135,6 +135,9 @@ pub enum Overlay {
     //@
     //@ May be automatically inserted in text (`-t`) mode.
     LineChunks,
+    //@ Convert downstream stream-oriended socket to packet-oriended socket by prefixing each message with its length
+    //@ (and maybe other flags, depending on options).
+    LengthPrefixedChunks,
     //@ Print encountered data to stderr for debugging
     Log {
         datagram_mode: bool,

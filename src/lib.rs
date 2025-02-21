@@ -17,6 +17,7 @@ pub mod scenario_executor {
     pub mod fluff;
     pub mod http1;
     pub mod linemode;
+    pub mod lengthprefixed;
     pub mod logoverlay;
     pub mod misc;
     pub mod mockbytestream;

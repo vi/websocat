@@ -324,4 +324,43 @@ pub struct WebsocatArgs {
     /// Use specified max buffer size for 
     #[arg(long, default_value="1024")]
     pub registry_connect_bufsize: usize,
+
+    /// Use little-endian framing headers instead of big-endian for `lengthprefixed:` overlay.
+    #[arg(long)]
+    pub lengthprefixed_little_endian: bool,
+
+    /// Only affect one direction of the `lengthprefixed:` overlay, bypass tranformation for the other one.
+    #[arg(long)]
+    pub lengthprefixed_skip_read_direction: bool,
+
+    /// Only affect one direction of the `lengthprefixed:` overlay, bypass tranformation for the other one.
+    #[arg(long)]
+    pub lengthprefixed_skip_write_direction: bool,
+
+    /// Use this number of length header bytes for `lengthprefixed:` overlay.
+    #[arg(long, default_value="4")]
+    pub lengthprefixed_nbytes: usize,
+
+    /// Do not reassume message from fragments, stream them as chunks.
+    /// Highest bit of the prefix would be set if the message is non-final
+    #[arg(long)]
+    pub lengthprefixed_continuations: bool,
+
+    /// Maximum size of `lengthprefixed:` message (that needs to be reassembled from fragments)
+    /// 
+    /// Connections would fail when messages exceed this size.
+    /// 
+    /// Ignored if `--lengthprefixed-continuations` is active, but `nbytes`-based limitation can still fail connections.
+    #[arg(long, default_value="1048576")]
+    pub lengthprefixed_max_message_size: usize,
+
+    /// Include inline control messages (i.e. WebSocket pings or close frames) as content in `lengthprefixed:`.
+    /// 
+    /// A bit would be set to signify a control message and opcode will be prepended as the first byte.
+    #[arg(long)]
+    pub lengthprefixed_include_control: bool,
+
+    /// Set a bit in the prefix of `lengthprefixed:` frames when the frame denotes a text WebSocket message instead of binary.
+    #[arg(long)]
+    pub lengthprefixed_tag_text: bool,
 }

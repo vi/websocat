@@ -349,6 +349,7 @@ impl SpecifierStack {
                 Overlay::ReadChunkLimiter => (),
                 Overlay::WriteChunkLimiter => (),
                 Overlay::WriteBuffer => (),
+                Overlay::LengthPrefixedChunks => (),
             }
         }
         if let Some(i) = index {
@@ -482,6 +483,7 @@ impl Overlay {
             Overlay::ReadChunkLimiter => CopyingType::ByteStream,
             Overlay::WriteChunkLimiter => CopyingType::ByteStream,
             Overlay::WriteBuffer => CopyingType::ByteStream,
+            Overlay::LengthPrefixedChunks => CopyingType::Datarams,
         }
     }
 }

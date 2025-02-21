@@ -270,6 +270,54 @@ impl Overlay {
                 ));
                 Ok(varnam)
             }
+            Overlay::LengthPrefixedChunks => {
+                let varnam = vars.getnewvarname("chunks");
+                let mut oo = String::new();
+
+                let nbytes = opts.lengthprefixed_nbytes;
+                if nbytes > 8 || nbytes < 1 {
+                    anyhow::bail!("`--lengthprefixed-nbytes` must be from 1 to 8");
+                }
+                let mut highest_unused_bit: u64 = 1 << (8 * nbytes - 1);
+
+                if opts.lengthprefixed_little_endian {
+                    oo.push_str("little_endian: true,");
+                }
+                if opts.lengthprefixed_skip_read_direction {
+                    oo.push_str("skip_read_direction: true,");
+                }
+                if opts.lengthprefixed_skip_write_direction {
+                    oo.push_str("skip_write_direction: true,");
+                }
+                if opts.lengthprefixed_continuations {
+                    oo.push_str(&format!("continuations: {highest_unused_bit},"));
+                    highest_unused_bit>>=1;
+                }
+                if opts.lengthprefixed_include_control {
+                    oo.push_str(&format!("controls: {highest_unused_bit},"));
+                    highest_unused_bit>>=1;
+                }
+                if opts.lengthprefixed_tag_text {
+                    oo.push_str(&format!("tag_text: {highest_unused_bit},"));
+                    highest_unused_bit>>=1;
+                }
+
+                let length_mask: u64 = ((highest_unused_bit - 1) << 1) + 1;
+
+                let mut max_message_size = opts.lengthprefixed_max_message_size;
+                if max_message_size as u64 > length_mask {
+                    max_message_size = length_mask as usize;
+                }
+
+                oo.push_str(&format!("max_message_size: {max_message_size},"));
+                oo.push_str(&format!("nbytes: {nbytes},"));
+                oo.push_str(&format!("length_mask: {length_mask},"));
+
+                printer.print_line(&format!(
+                    "let {varnam} = length_prefixed_chunks(#{{{oo}}}, {inner_var});"
+                ));
+                Ok(varnam)
+            }
             Overlay::TlsClient {
                 domain,
                 varname_for_connector,
@@ -341,6 +389,7 @@ impl Overlay {
             | Overlay::WsAccept { .. } => self.end_print_ws(printer),
             Overlay::StreamChunks => (),
             Overlay::LineChunks => (),
+            Overlay::LengthPrefixedChunks => (),
             Overlay::TlsClient { .. } => {
                 printer.decrease_indent();
                 printer.print_line("})");
