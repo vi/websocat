@@ -1,5 +1,6 @@
 use std::{io::IoSlice, pin::Pin, sync::Arc, task::Poll};
 
+use bytes::BytesMut;
 use rhai::{Dynamic, Engine, NativeCallContext};
 use tinyvec::ArrayVec;
 use tokio::io::ReadBuf;
@@ -132,23 +133,22 @@ struct WriteLengthprefixedChunks {
     w: StreamWrite,
     degragmenter: Defragmenter,
     /// If None then header is not yet generated. If Some(empty) then the header is already written.
-    header: Option<ArrayVec<[u8; 8]>>,
+    header: Option<ArrayVec<[u8; 9]>>,
     /// Used as a cursor when writing the body of the message
     debt: usize,
     opts: Arc<OptsShared>,
+    buffer_for_split_control_frames: BytesMut,
 }
 
 impl WriteLengthprefixedChunks {
     pub fn new(inner: StreamWrite, opts: Arc<OptsShared>) -> Self {
-        if opts.controls.is_some() {
-            todo!()
-        }
         Self {
             w: inner,
             degragmenter: Defragmenter::new(opts.max_message_size),
             header: None,
             debt: 0,
             opts,
+            buffer_for_split_control_frames: Default::default(),
         }
     }
 }
@@ -163,31 +163,50 @@ impl PacketWrite for WriteLengthprefixedChunks {
         let p = self.get_mut();
         let sw: &mut StreamWrite = &mut p.w;
 
-        let data: &[u8] = if p.opts.continuations .is_some() {
-            if flags.is_control() {
+        let data: &[u8] = if p.opts.continuations.is_some() {
+            if flags.is_control() && p.opts.controls.is_none() {
                 return Poll::Ready(Ok(()));
             }
             buf_
         } else {
-            match p.degragmenter.add_chunk(buf_, flags) {
-                DefragmenterAddChunkResult::DontSendYet => {
+            if flags.is_control() && p.opts.controls.is_some() {
+
+                if flags.contains(BufferFlag::NonFinalChunk) {
+                    p.buffer_for_split_control_frames.extend_from_slice(buf_);
                     return Poll::Ready(Ok(()));
                 }
-                DefragmenterAddChunkResult::Continunous(x) => x,
-                DefragmenterAddChunkResult::SizeLimitExceeded(_x) => {
-                    warn!("Exceeded maximum allowed outgoing datagram size. Closing this session.");
-                    return Poll::Ready(Err(std::io::ErrorKind::InvalidData.into()));
+                if !p.buffer_for_split_control_frames.is_empty() {
+                    p.buffer_for_split_control_frames.extend_from_slice(buf_);
+                    &p.buffer_for_split_control_frames[..]
+                } else {
+                    buf_
+                }
+            } else {
+                match p.degragmenter.add_chunk(buf_, flags) {
+                    DefragmenterAddChunkResult::DontSendYet => {
+                        return Poll::Ready(Ok(()));
+                    }
+                    DefragmenterAddChunkResult::Continunous(x) => x,
+                    DefragmenterAddChunkResult::SizeLimitExceeded(_x) => {
+                        warn!("Exceeded maximum allowed outgoing datagram size. Closing this session.");
+                        return Poll::Ready(Err(std::io::ErrorKind::InvalidData.into()));
+                    }
                 }
             }
         };
 
-        if data.len() as u64 > p.opts.length_mask {
+        let mut payloadlen = data.len() as u64;
+        if flags.is_control() {
+            payloadlen+=1;
+        }
+
+        if payloadlen > p.opts.length_mask {
             warn!("Message length is larger than `lengthprefixed:` header could handle. Closing this session.");
             return Poll::Ready(Err(std::io::ErrorKind::InvalidData.into()));
         }
 
         if p.header.is_none() {
-            let mut h: u64 = (data.len() as u64) & p.opts.length_mask;
+            let mut h: u64 = payloadlen;
 
             if let Some(x) = p.opts.tag_text {
                 if flags.contains(BufferFlag::Text) {
@@ -217,6 +236,18 @@ impl PacketWrite for WriteLengthprefixedChunks {
             } else {
                 for i in 0..nb {
                     hc.push(h[(8 - nb) + i]);
+                }
+            }
+
+            if flags.is_control() {
+                if flags.contains(BufferFlag::Eof) {
+                    hc.push(8);
+                } else if flags.contains(BufferFlag::Ping) {
+                    hc.push(9);
+                } else if flags.contains(BufferFlag::Pong) {
+                    hc.push(10);
+                } else {
+                    hc.push(0xFF);
                 }
             }
 
@@ -250,6 +281,7 @@ impl PacketWrite for WriteLengthprefixedChunks {
                 p.debt = 0;
                 p.header = None;
                 p.degragmenter.clear();
+                p.buffer_for_split_control_frames.clear();
                 break;
             }
 

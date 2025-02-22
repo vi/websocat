@@ -357,6 +357,9 @@ pub struct WebsocatArgs {
     /// Include inline control messages (i.e. WebSocket pings or close frames) as content in `lengthprefixed:`.
     /// 
     /// A bit would be set to signify a control message and opcode will be prepended as the first byte.
+    /// 
+    /// When both continuations and contols are enabled, control messages may appear between continued data message chunks.
+    /// Control messages can themselves be subject to continuations.
     #[arg(long)]
     pub lengthprefixed_include_control: bool,
 
