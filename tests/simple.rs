@@ -106,6 +106,14 @@ t!(wslprcnt4, r#"-ubn --lengthprefixed-include-control --inhibit-pongs=0  --leng
             ws-lowlevel-client:read_chunk_limiter:mock_stream_socket:'R \x89\x03ABC'
             lengthprefixed:mock_stream_socket:'W \x80\x00\x00\x04\x09ABC|W \x80\0\0\x01\x08'
 "#);
+t!(wllpr_short1, r#"-ubn --lengthprefixed-include-control --lengthprefixed-continuations --inhibit-pongs=0  --lengthprefixed-skip-read-direction
+            ws-lowlevel-client:read_chunk_limiter:mock_stream_socket:'R \x89\x03ABC'
+            lengthprefixed:write_chunk_limiter:mock_stream_socket:'W \xc0\x00\x00\x02\x09A|W \xc0\x00\x00\x02\x09B|W \x40\x00\x00\x02\x09C|W \x40\0\0\x01\x08'
+"#);
+t!(wllpr_short2, r#"-ubn --lengthprefixed-include-control --inhibit-pongs=0  --lengthprefixed-skip-read-direction
+            ws-lowlevel-client:read_chunk_limiter:mock_stream_socket:'R \x89\x03ABC'
+            lengthprefixed:write_chunk_limiter:mock_stream_socket:'W \x80\x00\x00\x04\x09ABC|W \x80\0\0\x01\x08'
+"#);
 
 t!(line1, r#"-ut  --lengthprefixed-skip-read-direction mock_stream_socket:'R abcdef\n' lengthprefixed:mock_stream_socket:'W \0\0\0\x06abcdef' "#);
 t!(line2, r#"-ut  --lengthprefixed-skip-read-direction mock_stream_socket:'R ab|R cde|R f\n' lengthprefixed:mock_stream_socket:'W \0\0\0\x06abcdef' "#);

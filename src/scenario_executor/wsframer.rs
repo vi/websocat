@@ -11,7 +11,7 @@ use websocket_sans_io::{
     FrameInfo, Opcode, WebsocketFrameDecoder, WebsocketFrameEncoder, MAX_HEADER_LENGTH,
 };
 
-use crate::scenario_executor::{scenario::ScenarioAccess, utils1::ExtractHandleOrFail};
+use crate::scenario_executor::{scenario::ScenarioAccess, utils1::ExtractHandleOrFail, MAX_CONTROL_MESSAGE_LEN};
 
 use super::{
     types::{
@@ -117,6 +117,10 @@ impl PacketWrite for WsEncoder {
                         return Poll::Ready(Ok(()));
                     }
                     if !this.buffer_for_split_control_frames.is_empty() {
+                        if this.buffer_for_split_control_frames.len() > MAX_CONTROL_MESSAGE_LEN {
+                            warn!("Excessive control message size");
+                            return Poll::Ready(Err(std::io::ErrorKind::InvalidData.into()));
+                        }
                         this.buffer_for_split_control_frames.extend_from_slice(buf);
                     }
                     let fin = !flags.contains(BufferFlag::NonFinalChunk);

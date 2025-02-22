@@ -17,7 +17,7 @@ use super::{
         PacketReadResult, PacketWrite, StreamRead, StreamSocket, StreamWrite,
     },
     utils1::{IsControlFrame, RhResult},
-    utils2::{Defragmenter, DefragmenterAddChunkResult},
+    utils2::{Defragmenter, DefragmenterAddChunkResult}, MAX_CONTROL_MESSAGE_LEN,
 };
 
 #[derive(Debug)]
@@ -176,6 +176,11 @@ impl PacketWrite for WriteLengthprefixedChunks {
                     return Poll::Ready(Ok(()));
                 }
                 if !p.buffer_for_split_control_frames.is_empty() {
+                    if p.buffer_for_split_control_frames.len() > MAX_CONTROL_MESSAGE_LEN {
+                        warn!("Excessive control message size");
+                        return Poll::Ready(Err(std::io::ErrorKind::InvalidData.into()));
+                    }
+
                     p.buffer_for_split_control_frames.extend_from_slice(buf_);
                     &p.buffer_for_split_control_frames[..]
                 } else {

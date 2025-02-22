@@ -42,6 +42,8 @@ pub mod scenario_executor {
     pub mod wswithpings;
 
     pub mod all_functions;
+
+    pub const MAX_CONTROL_MESSAGE_LEN: usize = 65536;
 }
 
 pub mod scenario_planner {
