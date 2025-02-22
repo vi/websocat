@@ -72,3 +72,22 @@ t!(line5, r#"-ut  --lengthprefixed-skip-read-direction  --separator-n 2
 t!(line6, r#"-ut  --lengthprefixed-skip-read-direction  --separator-n 2
                                                 mock_stream_socket:'R ab\n\ncde\n|R \n|R QWE\n| R \nRTY\n\n| R \n\n\n\n| R \n\n+\n\n'
                                                 lengthprefixed:mock_stream_socket:'W \0\0\0\x02ab|W \0\0\0\x03cde|W \0\0\0\x03QWE| W \0\0\0\x03RTY| W \0\0\0\0| W \0\0\0\0| W \0\0\0\0| W \0\0\0\x01+'"#);
+
+t!(linew1, r#"-ut 
+                    chunks:mock_stream_socket:'R abc|R def\n|R \nQWE\n\n'
+                    mock_stream_socket:'W abc\n|W def \n|W QWE  \n'"#);
+t!(linew2, r#"-ut --separator=0
+                    chunks:mock_stream_socket:'R abc|R def\n|R \nQWE\n\n'
+                    mock_stream_socket:'W abc\0|W def\n\0|W \nQWE\n\n\0'"#);
+t!(linew3, r#"-ut --separator-inhibit-substitution
+                    chunks:mock_stream_socket:'R abc|R def\n|R \nQWE\n\n'
+                    mock_stream_socket:'W abc\n|W def\n\n|W \nQWE\n\n\n'"#);
+t!(linew4, r#"-ut --separator-n=2
+                    chunks:mock_stream_socket:'R abc|R def\n|R \nQWE\n\n| R 456\n678\n'
+                    mock_stream_socket:'W abc\n\n|W def\n\n|W QWE\n \n\n|W 456\n678\n\n'"#);
+t!(linew5, r#"-ut 
+                    chunks:mock_stream_socket:'R abc|R def\n|R \nQWE\n\n'
+                    lines:write_chunk_limiter:mock_stream_socket:'W abc\n|W def \n|W QWE  \n'"#);
+t!(linew6, r#"-ut --separator-n=2
+                    chunks:mock_stream_socket:'R abc|R def\n|R \nQWE\n\n| R 456\n678\n'
+                    lines:write_chunk_limiter:mock_stream_socket:'W abc\n\n|W def\n\n|W QWE\n \n\n|W 456\n678\n\n'"#);
