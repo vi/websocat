@@ -115,6 +115,16 @@ t!(wllpr_short2, r#"-ubn --lengthprefixed-include-control --inhibit-pongs=0  --l
             lengthprefixed:write_chunk_limiter:mock_stream_socket:'W \x80\x00\x00\x04\x09ABC|W \x80\0\0\x01\x08'
 "#);
 
+t!(lprr1, r#"-ub --lengthprefixed-include-control
+             lengthprefixed:read_chunk_limiter:mock_stream_socket:'R \x80\x00\x00\x04\x09GGG|R \0\0\0\x0555555|W \x80\0\0\x01\x08'
+             lengthprefixed:mock_stream_socket:'W \x80\x00\x00\x04\tGGG|W \x00\x00\x00\x0555555|W \x80\x00\x00\x01\x08'  "#);
+t!(lprr2, r#" -ub --lengthprefixed-include-control --read-buffer-limit=2  --lengthprefixed-nbytes=1 --lengthprefixed-continuations 
+             lengthprefixed:read_chunk_limiter:mock_stream_socket:'R \x44\x09GGG|R \x0555555|W \x41\x08'
+             lengthprefixed:mock_stream_socket:'W \xc3\x09GG\x42\x09G\x8255\x8255\x015\x41\x08'  "#);
+t!(lprr3, r#" -ub --lengthprefixed-tag-text --read-buffer-limit=1  --lengthprefixed-nbytes=1
+             lengthprefixed:read_chunk_limiter:mock_stream_socket:'R \x83GGG|R \x0555555'
+             lengthprefixed:mock_stream_socket:'W \x83GGG|W \x0555555'  "#);
+
 t!(line1, r#"-ut  --lengthprefixed-skip-read-direction mock_stream_socket:'R abcdef\n' lengthprefixed:mock_stream_socket:'W \0\0\0\x06abcdef' "#);
 t!(line2, r#"-ut  --lengthprefixed-skip-read-direction mock_stream_socket:'R ab|R cde|R f\n' lengthprefixed:mock_stream_socket:'W \0\0\0\x06abcdef' "#);
 t!(line3, r#"-ut  --lengthprefixed-skip-read-direction mock_stream_socket:'R abcdef|R \n' lengthprefixed:mock_stream_socket:'W \0\0\0\x06abcdef' "#);

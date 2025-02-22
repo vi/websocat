@@ -1,4 +1,9 @@
-use std::{io::IoSlice, pin::Pin, sync::Arc, task::Poll};
+use std::{
+    io::IoSlice,
+    pin::Pin,
+    sync::Arc,
+    task::{ready, Poll},
+};
 
 use bytes::BytesMut;
 use rhai::{Dynamic, Engine, NativeCallContext};
@@ -17,7 +22,8 @@ use super::{
         PacketReadResult, PacketWrite, StreamRead, StreamSocket, StreamWrite,
     },
     utils1::{IsControlFrame, RhResult},
-    utils2::{Defragmenter, DefragmenterAddChunkResult}, MAX_CONTROL_MESSAGE_LEN,
+    utils2::{Defragmenter, DefragmenterAddChunkResult},
+    MAX_CONTROL_MESSAGE_LEN,
 };
 
 #[derive(Debug)]
@@ -31,29 +37,25 @@ struct OptsShared {
     tag_text: Option<u64>,
 }
 
+enum ReadLengthprefixedChunksState {
+    ReadingHeader(ArrayVec<[u8; 8]>),
+    ReadingControlFrameOpcode { nonfinal: bool, remaining: u64 },
+    StreamingData { flags: BufferFlags, remaining: u64 },
+}
+
 struct ReadLengthprefixedChunks {
     inner: StreamRead,
-    separator: u8,
-    separator_n: usize,
-
-    /// Bytes read from the inner stream, but not yet scanned
-    unprocessed_bytes: usize,
-    /// Bytes that match `self.separator`, but not yet returned upstream as a part of a slice
-    separator_bytes_in_a_row: usize,
-    /// Offset. Relevant when one inner read leads to multiple returned frames.
-    offset: usize,
+    opts: Arc<OptsShared>,
+    state: ReadLengthprefixedChunksState,
 }
 
 impl ReadLengthprefixedChunks {
     #[allow(unused)]
-    pub fn new(inner: StreamRead, separator: u8, separator_n: usize) -> Self {
+    pub fn new(inner: StreamRead, opts: Arc<OptsShared>) -> Self {
         Self {
             inner,
-            separator,
-            separator_n,
-            unprocessed_bytes: 0,
-            separator_bytes_in_a_row: 0,
-            offset: 0,
+            opts,
+            state: ReadLengthprefixedChunksState::ReadingHeader(Default::default()),
         }
     }
 }
@@ -65,67 +67,198 @@ impl PacketRead for ReadLengthprefixedChunks {
         buf: &mut [u8],
     ) -> Poll<std::io::Result<PacketReadResult>> {
         let this = self.get_mut();
-        assert!(this.separator_n < buf.len());
 
-        if this.unprocessed_bytes == 0 {
-            assert!(this.separator_bytes_in_a_row < this.separator_n);
+        let mut tmpbuf = [0; 8];
 
-            // if there is unfinished possible separator in the middle,
-            // prepend it to the buffer
-            this.offset = this.separator_bytes_in_a_row;
-            buf[0..this.offset].fill(this.separator);
+        loop {
+            match &mut this.state {
+                ReadLengthprefixedChunksState::ReadingHeader(array_vec) => {
+                    let required_len = this.opts.nbytes;
 
-            let sr = Pin::new(&mut this.inner);
-            let mut rb = ReadBuf::new(&mut buf[this.offset..]);
+                    if array_vec.len() == required_len {
+                        let mut h = ArrayVec::from_array_empty([0u8; 8]);
+                        h.set_len(8 - this.opts.nbytes);
 
-            match tokio::io::AsyncRead::poll_read(sr, cx, &mut rb) {
-                Poll::Ready(Ok(())) => {
-                    this.unprocessed_bytes = rb.filled().len();
-                    if this.unprocessed_bytes == 0 {
+                        if this.opts.little_endian {
+                            h.extend(array_vec.iter().rev().copied());
+                        } else {
+                            h.extend_from_slice(array_vec);
+                        }
+
+                        let h = u64::from_be_bytes(h.into_inner());
+
+                        let payload_len = h & this.opts.length_mask;
+
+                        let cont = if let Some(x) = this.opts.continuations {
+                            h & x != 0
+                        } else {
+                            false
+                        };
+
+                        let ctrl = if let Some(x) = this.opts.controls {
+                            h & x != 0
+                        } else {
+                            false
+                        };
+
+                        let txt = if let Some(x) = this.opts.tag_text {
+                            h & x != 0
+                        } else {
+                            false
+                        };
+
+                        let mut flags = BufferFlags::default();
+
+                        if cont {
+                            flags |= BufferFlag::NonFinalChunk;
+                        }
+                        if txt {
+                            flags |= BufferFlag::Text;
+                        }
+
+                        this.state = if ctrl {
+                            if payload_len < 1 {
+                                warn!("Invalid payload length of a lengthprefixed: control frame");
+                                return Poll::Ready(Ok(PacketReadResult {
+                                    flags: BufferFlag::Eof.into(),
+                                    buffer_subset: 0..0,
+                                }));
+                            }
+                            ReadLengthprefixedChunksState::ReadingControlFrameOpcode {
+                                nonfinal: cont,
+                                remaining: payload_len,
+                            }
+                        } else {
+                            ReadLengthprefixedChunksState::StreamingData {
+                                flags,
+                                remaining: payload_len,
+                            }
+                        };
+                        continue;
+                    }
+
+                    let missing_len = required_len - array_vec.len();
+
+                    let mut rb = ReadBuf::new(&mut tmpbuf[..missing_len]);
+
+                    ready!(tokio::io::AsyncRead::poll_read(
+                        Pin::new(&mut this.inner),
+                        cx,
+                        &mut rb
+                    ))?;
+
+                    if rb.filled().is_empty() {
+                        if !array_vec.is_empty() {
+                            warn!("Trimmed input data of lengthprefixed: overlay")
+                        }
                         return Poll::Ready(Ok(PacketReadResult {
                             flags: BufferFlag::Eof.into(),
                             buffer_subset: 0..0,
                         }));
                     }
-                    // wind back to the beginning of the buffer
-                    // where we have put in-middle-of-possible-separator debt
-                    this.unprocessed_bytes += this.separator_bytes_in_a_row;
-                    this.offset = 0;
-                    // we have turned those bytes into actual separator characters in the buffer
-                    this.separator_bytes_in_a_row = 0;
+
+                    array_vec.extend_from_slice(rb.filled());
                 }
-                Poll::Ready(Err(e)) => return Poll::Ready(Err(e)),
-                Poll::Pending => return Poll::Pending,
-            }
-        }
+                ReadLengthprefixedChunksState::ReadingControlFrameOpcode {
+                    remaining,
+                    nonfinal,
+                } => {
+                    let mut opcode = [0];
+                    let mut rb = ReadBuf::new(&mut opcode[..]);
 
-        let chunk_start = this.offset;
-        let mut chunk_end = this.offset;
+                    ready!(tokio::io::AsyncRead::poll_read(
+                        Pin::new(&mut this.inner),
+                        cx,
+                        &mut rb
+                    ))?;
 
-        for &b in buf[this.offset..(this.offset + this.unprocessed_bytes)].iter() {
-            this.unprocessed_bytes -= 1;
-            this.offset += 1;
-            if b == this.separator {
-                this.separator_bytes_in_a_row += 1;
-                if this.separator_bytes_in_a_row == this.separator_n {
-                    let ret = Poll::Ready(Ok(PacketReadResult {
-                        flags: BufferFlag::Text.into(),
-                        buffer_subset: chunk_start..chunk_end,
+                    if rb.filled().is_empty() {
+                        warn!("Trimmed input data of lengthprefixed: overlay");
+                        return Poll::Ready(Ok(PacketReadResult {
+                            flags: BufferFlag::Eof.into(),
+                            buffer_subset: 0..0,
+                        }));
+                    }
+
+                    assert_eq!(rb.filled().len(), 1);
+
+                    let mut flags = BufferFlags::default();
+                    match opcode[0] {
+                        0x08 => {
+                            flags |= BufferFlag::Eof;
+                        }
+                        0x09 => {
+                            flags |= BufferFlag::Ping;
+                        }
+                        0x0A => {
+                            flags |= BufferFlag::Pong;
+                        }
+                        _ => {
+                            warn!("Invalid lengthprefixed: opcode {}", opcode[0]);
+                            return Poll::Ready(Ok(PacketReadResult {
+                                flags: BufferFlag::Eof.into(),
+                                buffer_subset: 0..0,
+                            }));
+                        }
+                    }
+                    if *nonfinal {
+                        flags |= BufferFlag::NonFinalChunk;
+                    }
+                    this.state = ReadLengthprefixedChunksState::StreamingData {
+                        flags,
+                        remaining: *remaining - 1,
+                    };
+                }
+                ReadLengthprefixedChunksState::StreamingData { flags, remaining } => {
+                    let mut flags = *flags;
+
+                    if *remaining == 0 {
+                        this.state =
+                            ReadLengthprefixedChunksState::ReadingHeader(Default::default());
+
+                        return Poll::Ready(Ok(PacketReadResult {
+                            flags,
+                            buffer_subset: 0..0,
+                        }));
+                    }
+
+                    let mut limit = buf.len();
+                    if limit as u64 > *remaining {
+                        limit = *remaining as usize;
+                    }
+
+                    let mut rb = ReadBuf::new(&mut buf[..limit]);
+
+                    ready!(tokio::io::AsyncRead::poll_read(
+                        Pin::new(&mut this.inner),
+                        cx,
+                        &mut rb
+                    ))?;
+
+                    if rb.filled().is_empty() {
+                        warn!("Trimmed input data of lengthprefixed: overlay");
+                        return Poll::Ready(Ok(PacketReadResult {
+                            flags: BufferFlag::Eof.into(),
+                            buffer_subset: 0..0,
+                        }));
+                    }
+
+                    *remaining -= rb.filled().len() as u64;
+
+                    if *remaining != 0 {
+                        flags |= BufferFlag::NonFinalChunk;
+                    } else {
+                        this.state =
+                            ReadLengthprefixedChunksState::ReadingHeader(Default::default());
+                    }
+
+                    return Poll::Ready(Ok(PacketReadResult {
+                        flags,
+                        buffer_subset: 0..(rb.filled().len()),
                     }));
-                    this.separator_bytes_in_a_row = 0;
-                    return ret;
                 }
-            } else {
-                chunk_end += 1;
-                chunk_end += this.separator_bytes_in_a_row;
-                this.separator_bytes_in_a_row = 0;
             }
         }
-
-        Poll::Ready(Ok(PacketReadResult {
-            flags: BufferFlag::Text | BufferFlag::NonFinalChunk,
-            buffer_subset: chunk_start..chunk_end,
-        }))
     }
 }
 
@@ -170,7 +303,6 @@ impl PacketWrite for WriteLengthprefixedChunks {
             buf_
         } else {
             if flags.is_control() && p.opts.controls.is_some() {
-
                 if flags.contains(BufferFlag::NonFinalChunk) {
                     p.buffer_for_split_control_frames.extend_from_slice(buf_);
                     return Poll::Ready(Ok(()));
@@ -202,7 +334,7 @@ impl PacketWrite for WriteLengthprefixedChunks {
 
         let mut payloadlen = data.len() as u64;
         if flags.is_control() {
-            payloadlen+=1;
+            payloadlen += 1;
         }
 
         if payloadlen > p.opts.length_mask {
@@ -380,7 +512,9 @@ fn length_prefixed_chunks(
                 src: Box::pin(ReadStreamChunks(r)),
             })
         } else {
-            todo!();
+            wrapped.read = Some(DatagramRead {
+                src: Box::pin(ReadLengthprefixedChunks::new(r, optss.clone())),
+            })
         }
     }
 
