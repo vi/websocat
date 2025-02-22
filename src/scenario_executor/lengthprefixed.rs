@@ -402,18 +402,10 @@ impl PacketWrite for WriteLengthprefixedChunks {
 
             if buf_chunk.is_empty() && header_chunk.is_empty() {
                 if !flags.contains(BufferFlag::NonFinalChunk) {
-                    match tokio::io::AsyncWrite::poll_flush(sw.writer.as_mut(), cx) {
-                        Poll::Ready(Ok(())) => (),
-                        Poll::Ready(Err(e)) => return Poll::Ready(Err(e)),
-                        Poll::Pending => return Poll::Pending,
-                    }
+                    ready!(tokio::io::AsyncWrite::poll_flush(sw.writer.as_mut(), cx))?;
                 }
                 if flags.contains(BufferFlag::Eof) {
-                    match tokio::io::AsyncWrite::poll_shutdown(sw.writer.as_mut(), cx) {
-                        Poll::Ready(Ok(())) => (),
-                        Poll::Ready(Err(e)) => return Poll::Ready(Err(e)),
-                        Poll::Pending => return Poll::Pending,
-                    }
+                    ready!(tokio::io::AsyncWrite::poll_shutdown(sw.writer.as_mut(), cx))?;
                 }
                 p.debt = 0;
                 p.header = None;
@@ -423,18 +415,14 @@ impl PacketWrite for WriteLengthprefixedChunks {
             }
 
             let bufs = [IoSlice::new(header_chunk), IoSlice::new(buf_chunk)];
-            match sw.writer.as_mut().poll_write_vectored(cx, &bufs) {
-                Poll::Ready(Ok(mut n)) => {
-                    if header.len() > 0 {
-                        let x = n.min(header.len());
-                        *header = header.split_off(x);
-                        n -= x;
-                    }
-                    p.debt += n;
-                }
-                Poll::Ready(Err(e)) => return Poll::Ready(Err(e)),
-                Poll::Pending => return Poll::Pending,
+            let mut n = ready!(sw.writer.as_mut().poll_write_vectored(cx, &bufs))?;
+
+            if header.len() > 0 {
+                let x = n.min(header.len());
+                *header = header.split_off(x);
+                n -= x;
             }
+            p.debt += n;
         }
         return Poll::Ready(Ok(()));
     }

@@ -367,32 +367,41 @@ pub fn wrap_as_stream_socket<R: AsyncRead + Send + 'static, W: AsyncWrite + Send
     needs_drop_monitor: bool,
 ) -> (
     StreamSocket,
-    Option<(tokio::sync::oneshot::Receiver<()>,tokio::sync::oneshot::Receiver<()>)>,
+    Option<(
+        tokio::sync::oneshot::Receiver<()>,
+        tokio::sync::oneshot::Receiver<()>,
+    )>,
 ) {
     if !needs_drop_monitor {
         let (r, w) = (Box::pin(r), Box::pin(w));
 
-        (StreamSocket {
-            read: Some(StreamRead {
-                reader: r,
-                prefix: Default::default(),
-            }),
-            write: Some(StreamWrite { writer: w }),
-            close,
-        }, None)
+        (
+            StreamSocket {
+                read: Some(StreamRead {
+                    reader: r,
+                    prefix: Default::default(),
+                }),
+                write: Some(StreamWrite { writer: w }),
+                close,
+            },
+            None,
+        )
     } else {
         let (r, dn1) = StreamSocketWithDropNotification::wrap(r);
         let (w, dn2) = StreamSocketWithDropNotification::wrap(w);
 
         let (r, w) = (Box::pin(r), Box::pin(w));
 
-        (StreamSocket {
-            read: Some(StreamRead {
-                reader: r,
-                prefix: Default::default(),
-            }),
-            write: Some(StreamWrite { writer: w }),
-            close: None,
-        }, Some((dn1, dn2)))
+        (
+            StreamSocket {
+                read: Some(StreamRead {
+                    reader: r,
+                    prefix: Default::default(),
+                }),
+                write: Some(StreamWrite { writer: w }),
+                close: None,
+            },
+            Some((dn1, dn2)),
+        )
     }
 }

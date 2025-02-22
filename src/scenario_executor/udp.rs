@@ -1,4 +1,7 @@
-use std::{net::SocketAddr, task::Poll};
+use std::{
+    net::SocketAddr,
+    task::{ready, Poll},
+};
 
 use crate::scenario_executor::{
     types::{DatagramRead, DatagramSocket, DatagramWrite},
@@ -14,7 +17,8 @@ use std::sync::{Arc, RwLock};
 
 use super::{
     types::{BufferFlag, PacketRead, PacketReadResult, PacketWrite},
-    utils1::RhResult, utils2::{Defragmenter, DefragmenterAddChunkResult},
+    utils1::RhResult,
+    utils2::{Defragmenter, DefragmenterAddChunkResult},
 };
 
 struct UdpAddrInner {
@@ -78,8 +82,8 @@ impl PacketWrite for UdpSend {
         flags: super::types::BufferFlags,
     ) -> std::task::Poll<std::io::Result<()>> {
         let this = self.get_mut();
-        
-        let data : &[u8] = match this.degragmenter.add_chunk(buf, flags) {
+
+        let data: &[u8] = match this.degragmenter.add_chunk(buf, flags) {
             DefragmenterAddChunkResult::DontSendYet => {
                 return Poll::Ready(Ok(()));
             }
@@ -102,13 +106,13 @@ impl PacketWrite for UdpSend {
             this.s.s.poll_send_to(cx, data, addr)
         };
 
-        match ret {
-            Poll::Ready(Ok(n)) => {
+        match ready!(ret) {
+            Ok(n) => {
                 if n != data.len() {
                     warn!("short UDP send");
                 }
             }
-            Poll::Ready(Err(e)) => {
+            Err(e) => {
                 this.degragmenter.clear();
                 if inhibit_send_errors {
                     warn!("Failed to send to UDP socket: {e}");
@@ -116,7 +120,6 @@ impl PacketWrite for UdpSend {
                     return Poll::Ready(Err(e));
                 }
             }
-            Poll::Pending => return Poll::Pending,
         }
 
         this.degragmenter.clear();
@@ -148,25 +151,16 @@ impl PacketRead for UdpRecv {
         };
         if !this.sendto_mode {
             let mut rb = ReadBuf::new(buf);
-            match this.s.s.poll_recv(cx, &mut rb) {
-                Poll::Ready(Ok(())) => {
-                    return Poll::Ready(Ok(PacketReadResult {
-                        flags,
-                        buffer_subset: 0..(rb.filled().len()),
-                    }))
-                }
-                Poll::Ready(Err(e)) => return Poll::Ready(Err(e)),
-                Poll::Pending => return Poll::Pending,
-            }
+            ready!(this.s.s.poll_recv(cx, &mut rb))?;
+            return Poll::Ready(Ok(PacketReadResult {
+                flags,
+                buffer_subset: 0..(rb.filled().len()),
+            }));
         }
 
         loop {
             let mut rb = ReadBuf::new(buf);
-            let from: SocketAddr = match this.s.s.poll_recv_from(cx, &mut rb) {
-                Poll::Ready(Ok(x)) => x,
-                Poll::Ready(Err(e)) => return Poll::Ready(Err(e)),
-                Poll::Pending => return Poll::Pending,
-            };
+            let from: SocketAddr = ready!(this.s.s.poll_recv_from(cx, &mut rb))?;
 
             let savedaddr = this.s.peer.read().unwrap();
             if savedaddr.target_address != from {
@@ -206,7 +200,9 @@ impl PacketRead for UdpRecv {
     }
 }
 
-const fn default_max_send_datagram_size() -> usize { 4096 }
+const fn default_max_send_datagram_size() -> usize {
+    4096
+}
 
 //@ Create a single Datagram Socket that is bound to a UDP port,
 //@ typically for connecting to a specific UDP endpoint
@@ -259,7 +255,7 @@ fn udp_socket(ctx: NativeCallContext, opts: Dynamic) -> RhResult<Handle<Datagram
         inhibit_send_errors: bool,
 
         //@ Default defragmenter buffer limit
-        #[serde(default="default_max_send_datagram_size")]
+        #[serde(default = "default_max_send_datagram_size")]
         max_send_datagram_size: usize,
     }
     let opts: UdpOpts = rhai::serde::from_dynamic(&opts)?;

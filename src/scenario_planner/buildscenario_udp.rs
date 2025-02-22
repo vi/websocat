@@ -63,7 +63,10 @@ impl Endpoint {
                 if opts.udp_bind_inhibit_send_errors {
                     o.push_str(&format!("inhibit_send_errors: true,"));
                 }
-                o.push_str(&format!("max_send_datagram_size: {},", opts.udp_max_send_datagram_size));
+                o.push_str(&format!(
+                    "max_send_datagram_size: {},",
+                    opts.udp_max_send_datagram_size
+                ));
 
                 if opts.text {
                     o.push_str(&format!("tag_as_text: true,"));
@@ -99,7 +102,10 @@ impl Endpoint {
                 if let Some(x) = opts.udp_server_qlen {
                     o.push_str(&format!("qlen: {x},"));
                 }
-                o.push_str(&format!("max_send_datagram_size: {},", opts.udp_max_send_datagram_size));
+                o.push_str(&format!(
+                    "max_send_datagram_size: {},",
+                    opts.udp_max_send_datagram_size
+                ));
 
                 printer.print_line(&format!("udp_server(#{{{o}}}, |{varnam}, {fromaddr}| {{",));
                 printer.increase_indent();

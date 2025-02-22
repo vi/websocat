@@ -2,7 +2,7 @@ use anyhow::bail;
 use base64::Engine as _;
 use bytes::{Bytes, BytesMut};
 use futures::FutureExt;
-use http::{Response, StatusCode, header};
+use http::{header, Response, StatusCode};
 use hyper::client::conn::http1::{Connection, SendRequest};
 use hyper_util::rt::TokioIo;
 use rand::{Rng, SeedableRng};
@@ -10,10 +10,10 @@ use rhai::{Dynamic, Engine, FnPtr, NativeCallContext};
 use sha1::{Digest, Sha1};
 use std::pin::Pin;
 use tokio::io::AsyncWrite;
-use tracing::{Instrument, debug, debug_span, error, warn};
+use tracing::{debug, debug_span, error, warn, Instrument};
 
 use crate::scenario_executor::{
-    scenario::{ScenarioAccess, callback_and_continue},
+    scenario::{callback_and_continue, ScenarioAccess},
     types::{Handle, Hangup, StreamRead, StreamSocket, StreamWrite, Task},
     utils1::{HandleExt, HandleExt2, RhResult, SimpleErr, TaskHandleExt2},
 };

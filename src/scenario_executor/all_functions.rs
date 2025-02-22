@@ -5,13 +5,13 @@ use rhai::{Dynamic, Engine};
 use super::http1::{
     Http1Client, IncomingRequest, IncomingResponse, OutgoingRequest, OutgoingResponse,
 };
+use super::trivials3::{TriggerableEvent, TriggerableEventTrigger};
 use super::types::{
     DatagramRead, DatagramSocket, DatagramWrite, Handle, Hangup, StreamRead, StreamSocket,
     StreamWrite, Task,
 };
 use std::ffi::OsString;
 use tokio::process::{Child, Command};
-use super::trivials3::{TriggerableEvent, TriggerableEventTrigger};
 
 /// Register Rhai functions
 pub fn register_functions(engine: &mut Engine) {
@@ -30,7 +30,7 @@ pub fn register_functions(engine: &mut Engine) {
     super::http1::register(engine);
     super::wsframer::register(engine);
     super::wswithpings::register(engine);
-    #[cfg(feature="ssl")]
+    #[cfg(feature = "ssl")]
     super::nativetls::register(engine);
     super::subprocess::register(engine);
     super::osstr::register(engine);

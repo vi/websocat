@@ -1,6 +1,6 @@
 use rhai::{Engine, EvalAltResult, FnPtr, FuncArgs, NativeCallContext, Variant, AST};
-use tokio::time::Instant;
 use std::sync::{Arc, Mutex, Weak};
+use tokio::time::Instant;
 use tracing::error;
 
 use crate::scenario_executor::{
@@ -8,7 +8,10 @@ use crate::scenario_executor::{
     utils1::run_task,
 };
 
-use super::{types::{DiagnosticOutput, RandomnessSource, Registry}, utils1::RhResult};
+use super::{
+    types::{DiagnosticOutput, RandomnessSource, Registry},
+    utils1::RhResult,
+};
 
 pub struct Scenario {
     pub ast: AST,

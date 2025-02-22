@@ -15,13 +15,12 @@ pub enum Endpoint {
     TcpConnectByEarlyHostname {
         varname_for_addrs: String,
     },
-    //@ @inhibit_prefixes 
+    //@ @inhibit_prefixes
     //@ Connect to a TCP socket by hostname.
     //@ Hostname resolution is repeated every time a connection is initated.
     //@ If multiple address are resolved, they are tried simultaneously, first connected one wins.
     //@
     //@ See prefixes for `TcpConnectByIp`
-
     /// All TCP connections start as late-resolved when parsing CLI argument,
     /// but may be converted to early-resolved by the patcher.
     TcpConnectByLateHostname {
@@ -108,7 +107,7 @@ pub enum Overlay {
     //@ Does not provide WebSocket framing.
     WsAccept {},
     //@ Converts downstream stream to upstream packets using WebSocket framing.
-    //@ 
+    //@
     //@ Automatically handles WebSocket pings and CloseFrames, but does not fully terminate the connection on CloseFrame, only signaling EOF instead.
     //@
     //@ Client or server mode is chosen depending on prefix you use.
@@ -127,7 +126,7 @@ pub enum Overlay {
         varname_for_connector: String,
     },
     //@ Converts downstream stream-oriented socket to packet-oriented socket by chunking the stream arbitrarily (i.e. as syscalls happend to deliver the data)
-    //@ 
+    //@
     //@ May be automatically inserted in binary (`-b`) mode.
     StreamChunks,
     //@ Convert downstream stream-oriented socket to packet-oriented socket by using newline byte as a packet separator.

@@ -155,11 +155,11 @@ fn listen_tcp(
                     let newspan = debug_span!("tcp_accept", from=%from);
                     let (r, w) = t.into_split();
 
-                    let (s,dn) = wrap_as_stream_socket(r,w,None,opts.oneshot);
-                    drop_nofity=dn;
+                    let (s, dn) = wrap_as_stream_socket(r, w, None, opts.oneshot);
+                    drop_nofity = dn;
 
                     debug!(parent: &newspan, s=?s,"accepted");
-                    
+
                     let h = s.wrap();
 
                     if !autospawn {
@@ -189,7 +189,7 @@ fn listen_tcp(
             }
             if opts.oneshot {
                 debug!("Exiting TCP listener due to --oneshot mode");
-                break
+                break;
             }
         }
 

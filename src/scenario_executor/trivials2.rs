@@ -1,4 +1,7 @@
-use std::{pin::Pin, task::Poll};
+use std::{
+    pin::Pin,
+    task::{ready, Poll},
+};
 
 use base64::Engine as _;
 use bytes::BytesMut;
@@ -14,10 +17,12 @@ use crate::scenario_executor::{
 };
 
 use super::{
-    scenario::ScenarioAccess, types::{
+    scenario::ScenarioAccess,
+    types::{
         BufferFlag, BufferFlags, DatagramRead, DatagramSocket, DatagramWrite, PacketRead,
         PacketReadResult, PacketWrite, StreamSocket, StreamWrite,
-    }, utils1::{HandleExt, SimpleErr}
+    },
+    utils1::{HandleExt, SimpleErr},
 };
 
 #[pin_project]
@@ -41,15 +46,10 @@ impl AsyncRead for ReadChunkLimiter {
         let b = &mut b[0..limit];
         let mut rb = ReadBuf::new(b);
 
-        match tokio::io::AsyncRead::poll_read(this.inner, cx, &mut rb) {
-            Poll::Ready(Ok(())) => {
-                let read_len = rb.filled().len();
-                buf.advance(read_len);
-                Poll::Ready(Ok(()))
-            }
-            Poll::Ready(Err(e)) => Poll::Ready(Err(e)),
-            Poll::Pending => Poll::Pending,
-        }
+        ready!(tokio::io::AsyncRead::poll_read(this.inner, cx, &mut rb))?;
+        let read_len = rb.filled().len();
+        buf.advance(read_len);
+        Poll::Ready(Ok(()))
     }
 }
 
@@ -153,15 +153,14 @@ impl AsyncRead for CacheBeforeStartingReading {
         let b = &mut b[0..limit];
         let mut rb = ReadBuf::new(b);
 
-        match tokio::io::AsyncRead::poll_read(sr.reader.as_mut(), cx, &mut rb) {
-            Poll::Ready(Ok(())) => {
-                let read_len = rb.filled().len();
-                buf.advance(read_len);
-                Poll::Ready(Ok(()))
-            }
-            Poll::Ready(Err(e)) => Poll::Ready(Err(e)),
-            Poll::Pending => Poll::Pending,
-        }
+        ready!(tokio::io::AsyncRead::poll_read(
+            sr.reader.as_mut(),
+            cx,
+            &mut rb
+        ))?;
+        let read_len = rb.filled().len();
+        buf.advance(read_len);
+        Poll::Ready(Ok(()))
     }
 }
 
@@ -327,7 +326,7 @@ fn literal_socket_base64(ctx: NativeCallContext, data: String) -> RhResult<Handl
 }
 
 #[pin_project]
-pub struct ReadStreamChunks(#[pin]pub StreamRead);
+pub struct ReadStreamChunks(#[pin] pub StreamRead);
 
 impl PacketRead for ReadStreamChunks {
     fn poll_read(
@@ -339,22 +338,17 @@ impl PacketRead for ReadStreamChunks {
 
         let mut rb = ReadBuf::new(buf);
 
-        match tokio::io::AsyncRead::poll_read(sr, cx, &mut rb) {
-            Poll::Ready(Ok(())) => {
-                let new_len = rb.filled().len();
-                let flags = if new_len > 0 {
-                    BufferFlags::default()
-                } else {
-                    BufferFlag::Eof.into()
-                };
-                Poll::Ready(Ok(PacketReadResult {
-                    flags,
-                    buffer_subset: 0..new_len,
-                }))
-            }
-            Poll::Ready(Err(e)) => Poll::Ready(Err(e)),
-            Poll::Pending => Poll::Pending,
-        }
+        ready!(tokio::io::AsyncRead::poll_read(sr, cx, &mut rb))?;
+        let new_len = rb.filled().len();
+        let flags = if new_len > 0 {
+            BufferFlags::default()
+        } else {
+            BufferFlag::Eof.into()
+        };
+        Poll::Ready(Ok(PacketReadResult {
+            flags,
+            buffer_subset: 0..new_len,
+        }))
     }
 }
 
@@ -393,29 +387,20 @@ impl PacketWrite for WriteStreamChunks {
             let buf_chunk = &buf[*p.debt..];
             if buf_chunk.is_empty() {
                 if !flags.contains(BufferFlag::NonFinalChunk) {
-                    match tokio::io::AsyncWrite::poll_flush(sw.writer.as_mut(), cx) {
-                        Poll::Ready(Ok(())) => (),
-                        Poll::Ready(Err(e)) => return Poll::Ready(Err(e)),
-                        Poll::Pending => return Poll::Pending,
-                    }
+                    ready!(tokio::io::AsyncWrite::poll_flush(sw.writer.as_mut(), cx))?;
                 }
                 if flags.contains(BufferFlag::Eof) {
-                    match tokio::io::AsyncWrite::poll_shutdown(sw.writer.as_mut(), cx) {
-                        Poll::Ready(Ok(())) => (),
-                        Poll::Ready(Err(e)) => return Poll::Ready(Err(e)),
-                        Poll::Pending => return Poll::Pending,
-                    }
+                    ready!(tokio::io::AsyncWrite::poll_shutdown(sw.writer.as_mut(), cx))?;
                 }
                 *p.debt = 0;
                 break;
             }
-            match tokio::io::AsyncWrite::poll_write(sw.writer.as_mut(), cx, buf_chunk) {
-                Poll::Ready(Ok(n)) => {
-                    *p.debt += n;
-                }
-                Poll::Ready(Err(e)) => return Poll::Ready(Err(e)),
-                Poll::Pending => return Poll::Pending,
-            }
+            let n = ready!(tokio::io::AsyncWrite::poll_write(
+                sw.writer.as_mut(),
+                cx,
+                buf_chunk
+            ))?;
+            *p.debt += n;
         }
         return Poll::Ready(Ok(()));
     }

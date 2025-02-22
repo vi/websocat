@@ -1,7 +1,9 @@
 use bytes::BytesMut;
 
-use super::{types::{BufferFlag, BufferFlags, Registry}, utils1::IsControlFrame};
-
+use super::{
+    types::{BufferFlag, BufferFlags, Registry},
+    utils1::IsControlFrame,
+};
 
 /// Assembles datagram from multiple sequention concatenated parts
 pub struct Defragmenter {
@@ -44,15 +46,14 @@ impl Defragmenter {
             return DefragmenterAddChunkResult::DontSendYet;
         }
 
-        
         if flags.contains(BufferFlag::NonFinalChunk) {
-            let internal_buffer = this.incomplete_outgoing_datagram_buffer
+            let internal_buffer = this
+                .incomplete_outgoing_datagram_buffer
                 .get_or_insert_with(Default::default);
             if buf.len() > this.max_size || internal_buffer.len() + buf.len() > this.max_size {
-                return DefragmenterAddChunkResult::SizeLimitExceeded(&internal_buffer[..])
+                return DefragmenterAddChunkResult::SizeLimitExceeded(&internal_buffer[..]);
             }
-            internal_buffer
-                .extend_from_slice(buf);
+            internal_buffer.extend_from_slice(buf);
             return DefragmenterAddChunkResult::DontSendYet;
         }
         let data: &[u8] = if let Some(ref mut x) = this.incomplete_outgoing_datagram_buffer {
@@ -63,7 +64,7 @@ impl Defragmenter {
             &x[..]
         } else {
             if buf.len() > this.max_size {
-                return DefragmenterAddChunkResult::SizeLimitExceeded(b"")
+                return DefragmenterAddChunkResult::SizeLimitExceeded(b"");
             }
             buf
         };
@@ -77,7 +78,11 @@ impl Defragmenter {
 }
 
 impl Registry {
-    fn get_entry<T>(&self, id: &str, f: impl FnOnce(&flume::Sender<rhai::Dynamic>, &flume::Receiver<rhai::Dynamic>) -> T) -> T {
+    fn get_entry<T>(
+        &self,
+        id: &str,
+        f: impl FnOnce(&flume::Sender<rhai::Dynamic>, &flume::Receiver<rhai::Dynamic>) -> T,
+    ) -> T {
         let mut s = self.0.lock().unwrap();
         let q = if s.contains_key(id) {
             s.get_mut(id).unwrap()
@@ -88,10 +93,10 @@ impl Registry {
     }
 
     pub fn get_sender(&self, id: &str) -> flume::Sender<rhai::Dynamic> {
-        self.get_entry(id, |x,_|x.clone())
+        self.get_entry(id, |x, _| x.clone())
     }
 
     pub fn get_receiver(&self, id: &str) -> flume::Receiver<rhai::Dynamic> {
-        self.get_entry(id, |_,x|x.clone())
+        self.get_entry(id, |_, x| x.clone())
     }
 }

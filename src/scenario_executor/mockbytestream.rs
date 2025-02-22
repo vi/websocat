@@ -15,9 +15,9 @@ use super::{
 //@ If something is unexpected, Websocat will exit (panic).
 //@
 //@ Argument is a specially formatted string describing operations, separated by `|` character.
-//@ 
+//@
 //@ Operations:
-//@ 
+//@
 //@ * `R` - make the socket return specified chunk of data
 //@ * `W` - make the socket wait for incoming data and check if it matches the sample
 //@ * 'ER' / `EW` - inject read or write error
@@ -66,7 +66,8 @@ fn mock_stream_socket(ctx: NativeCallContext, content: String) -> RhResult<Handl
     use ParserState::*;
     for b in content.bytes() {
         match (state, b) {
-            (WaitingForCommandCharacter | JustAfterCommandCharacter | InjectError | Wait, b' ') => {}
+            (WaitingForCommandCharacter | JustAfterCommandCharacter | InjectError | Wait, b' ') => {
+            }
             (WaitingForCommandCharacter, b'R' | b'r') => {
                 buf.clear();
                 bufmode = BufferMode::Read;
@@ -86,7 +87,7 @@ fn mock_stream_socket(ctx: NativeCallContext, content: String) -> RhResult<Handl
             }
             (JustAfterCommandCharacter | Normal, b'|') => {
                 commit_buffer!();
-                state=WaitingForCommandCharacter;
+                state = WaitingForCommandCharacter;
             }
             (InjectError, b'R' | b'r') => {
                 builder.read_error(std::io::ErrorKind::Other.into());
@@ -97,36 +98,36 @@ fn mock_stream_socket(ctx: NativeCallContext, content: String) -> RhResult<Handl
             (InjectError, b'|') => {
                 state = WaitingForCommandCharacter;
             }
-            (JustAfterCommandCharacter|Normal,b'\\') => {
+            (JustAfterCommandCharacter | Normal, b'\\') => {
                 state = Escape;
             }
-            (JustAfterCommandCharacter|Normal,b) => {
+            (JustAfterCommandCharacter | Normal, b) => {
                 buf.push(b);
                 state = Normal;
             }
             (Escape, b'n') => {
                 buf.push(b'\n');
-                state=Normal;
+                state = Normal;
             }
             (Escape, b'r') => {
                 buf.push(b'\r');
-                state=Normal;
+                state = Normal;
             }
             (Escape, b'0') => {
                 buf.push(b'\0');
-                state=Normal;
+                state = Normal;
             }
             (Escape, b't') => {
                 buf.push(b'\t');
-                state=Normal;
+                state = Normal;
             }
             (Escape, b'x') => {
-                state=HexEscape1;
+                state = HexEscape1;
             }
-            (HexEscape1, x@(b'0'..=b'9' | b'A'..=b'F' | b'a'..=b'f')) => {
+            (HexEscape1, x @ (b'0'..=b'9' | b'A'..=b'F' | b'a'..=b'f')) => {
                 state = HexEscape2(x);
             }
-            (HexEscape2(c1), c2@(b'0'..=b'9' | b'A'..=b'F' | b'a'..=b'f')) => {
+            (HexEscape2(c1), c2 @ (b'0'..=b'9' | b'A'..=b'F' | b'a'..=b'f')) => {
                 let mut b = [0];
                 let s = [c1, c2];
                 hex::decode_to_slice(s, &mut b).unwrap();
@@ -135,9 +136,9 @@ fn mock_stream_socket(ctx: NativeCallContext, content: String) -> RhResult<Handl
             }
             (Escape, b) => {
                 buf.push(b);
-                state=Normal;
+                state = Normal;
             }
-            (Wait, b@(b'0'..b'9')) => {
+            (Wait, b @ (b'0'..b'9')) => {
                 let d = match b {
                     b'0' => Duration::from_millis(1),
                     b'1' => Duration::from_millis(3),
@@ -149,10 +150,10 @@ fn mock_stream_socket(ctx: NativeCallContext, content: String) -> RhResult<Handl
                     b'7' => Duration::from_secs(10),
                     b'8' => Duration::from_secs(60),
                     b'9' => Duration::from_secs(3600),
-                    _=>unreachable!(),
+                    _ => unreachable!(),
                 };
                 builder.wait(d);
-                state=WaitingForCommandCharacter;
+                state = WaitingForCommandCharacter;
             }
             (s, b) => {
                 return Err(ctx.err(format!(

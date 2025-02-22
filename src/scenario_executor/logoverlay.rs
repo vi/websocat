@@ -6,7 +6,10 @@ use std::{
 };
 
 use rhai::{Dynamic, Engine, NativeCallContext};
-use tokio::{io::{AsyncRead, AsyncWrite, ReadBuf}, time::Instant};
+use tokio::{
+    io::{AsyncRead, AsyncWrite, ReadBuf},
+    time::Instant,
+};
 use tracing::{debug, debug_span};
 
 use crate::scenario_executor::{
@@ -46,7 +49,13 @@ impl LoggerOptsShared {
             let _ = writeln!(diago, "{}", args);
         } else {
             let ts = Instant::now().saturating_duration_since(the_scenario.time_base);
-            let _ = writeln!(diago, "{:06}.{:06} {}", ts.as_secs(), ts.subsec_micros(), args);
+            let _ = writeln!(
+                diago,
+                "{:06}.{:06} {}",
+                ts.as_secs(),
+                ts.subsec_micros(),
+                args
+            );
         }
     }
 }
@@ -418,7 +427,10 @@ fn stream_logger(
         });
     } else {
         if opts.verbose {
-            let _ = writeln!(diago, "{write_prefix}There is no write handle in this socket");
+            let _ = writeln!(
+                diago,
+                "{write_prefix}There is no write handle in this socket"
+            );
         }
     }
 
@@ -717,7 +729,10 @@ fn datagram_logger(
         });
     } else {
         if opts.verbose {
-            let _ = writeln!(diago, "{write_prefix}There is no read handle in this socket");
+            let _ = writeln!(
+                diago,
+                "{write_prefix}There is no read handle in this socket"
+            );
         }
     }
 

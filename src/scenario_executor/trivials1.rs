@@ -167,8 +167,7 @@ fn sequential(tasks: Vec<Dynamic>) -> Handle<Task> {
         for t in tasks {
             if let Some(t) = t.clone().try_cast::<Handle<Task>>() {
                 run_task(t).await;
-            }
-            else if let Some(h) = t.try_cast::<Handle<Hangup>>() {
+            } else if let Some(h) = t.try_cast::<Handle<Hangup>>() {
                 let Some(t) = h.lock().unwrap().take() else {
                     error!("Attempt to run a null/taken hangup handle");
                     continue;

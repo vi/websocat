@@ -1,9 +1,15 @@
-use std::{net::SocketAddr, sync::Mutex, task::Poll, time::Duration};
+use std::{
+    net::SocketAddr,
+    sync::Mutex,
+    task::{ready, Poll},
+    time::Duration,
+};
 
 use crate::scenario_executor::{
     scenario::{callback_and_continue, ScenarioAccess},
     types::{DatagramRead, DatagramSocket, DatagramWrite},
-    utils1::{HandleExt, SimpleErr}, utils2::DefragmenterAddChunkResult,
+    utils1::{HandleExt, SimpleErr},
+    utils2::DefragmenterAddChunkResult,
 };
 use bytes::BytesMut;
 use futures::{future::OptionFuture, FutureExt};
@@ -17,7 +23,8 @@ use std::sync::Arc;
 
 use super::{
     types::{BufferFlag, PacketRead, PacketReadResult, PacketWrite, Task},
-    utils1::RhResult, utils2::Defragmenter,
+    utils1::RhResult,
+    utils2::Defragmenter,
 };
 use crate::scenario_executor::utils1::TaskHandleExt2;
 
@@ -99,7 +106,12 @@ struct UdpSend {
 }
 
 impl UdpSend {
-    fn new(s: Arc<UdpSocket>, ci: Arc<ClientInfo>, inhibit_send_errors: bool, max_send_datagram_size: usize) -> Self {
+    fn new(
+        s: Arc<UdpSocket>,
+        ci: Arc<ClientInfo>,
+        inhibit_send_errors: bool,
+        max_send_datagram_size: usize,
+    ) -> Self {
         Self {
             s,
             ci,
@@ -119,8 +131,7 @@ impl PacketWrite for UdpSend {
         trace!("poll_write");
         let this = self.get_mut();
 
-
-        let data : &[u8] = match this.defragmenter.add_chunk(buf, flags) {
+        let data: &[u8] = match this.defragmenter.add_chunk(buf, flags) {
             DefragmenterAddChunkResult::DontSendYet => {
                 return Poll::Ready(Ok(()));
             }
@@ -144,13 +155,13 @@ impl PacketWrite for UdpSend {
 
         let ret = this.s.poll_send_to(cx, data, addr);
 
-        match ret {
-            Poll::Ready(Ok(n)) => {
+        match ready!(ret) {
+            Ok(n) => {
                 if n != data.len() {
                     warn!("short UDP send");
                 }
             }
-            Poll::Ready(Err(e)) => {
+            Err(e) => {
                 this.defragmenter.clear();
                 if inhibit_send_errors {
                     warn!("Failed to send to UDP socket: {e}");
@@ -158,7 +169,6 @@ impl PacketWrite for UdpSend {
                     return Poll::Ready(Err(e));
                 }
             }
-            Poll::Pending => return Poll::Pending,
         }
 
         this.defragmenter.clear();
@@ -186,8 +196,8 @@ impl PacketRead for UdpRecv {
         };
 
         let l;
-        match this.recv.poll_recv(cx) {
-            Poll::Ready(Some(b)) => {
+        match ready!(this.recv.poll_recv(cx)) {
+            Some(b) => {
                 trace!(len = b.len(), "recv");
                 if b.len() > buf.len() {
                     warn!("Incoming UDP datagram too big for a supplied buffer");
@@ -196,11 +206,10 @@ impl PacketRead for UdpRecv {
                 l = b.len();
                 buf[..l].copy_from_slice(&b);
             }
-            Poll::Ready(None) => {
+            None => {
                 debug!("conn abort");
                 return Poll::Ready(Err(std::io::ErrorKind::ConnectionAborted.into()));
             }
-            Poll::Pending => return Poll::Pending,
         }
 
         Poll::Ready(Ok(PacketReadResult {
@@ -210,8 +219,9 @@ impl PacketRead for UdpRecv {
     }
 }
 
-
-const fn default_max_send_datagram_size() -> usize { 4096 }
+const fn default_max_send_datagram_size() -> usize {
+    4096
+}
 
 //@ Create a single Datagram Socket that is bound to a UDP port,
 //@ typically for connecting to a specific UDP endpoint
@@ -263,7 +273,7 @@ fn udp_server(
         inhibit_send_errors: bool,
 
         //@ Default defragmenter buffer limit
-        #[serde(default="default_max_send_datagram_size")]
+        #[serde(default = "default_max_send_datagram_size")]
         max_send_datagram_size: usize,
     }
     let opts: UdpOpts = rhai::serde::from_dynamic(&opts)?;

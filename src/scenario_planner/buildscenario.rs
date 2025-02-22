@@ -291,15 +291,15 @@ impl Overlay {
                 }
                 if opts.lengthprefixed_continuations {
                     oo.push_str(&format!("continuations: {highest_unused_bit},"));
-                    highest_unused_bit>>=1;
+                    highest_unused_bit >>= 1;
                 }
                 if opts.lengthprefixed_include_control {
                     oo.push_str(&format!("controls: {highest_unused_bit},"));
-                    highest_unused_bit>>=1;
+                    highest_unused_bit >>= 1;
                 }
                 if opts.lengthprefixed_tag_text {
                     oo.push_str(&format!("tag_text: {highest_unused_bit},"));
-                    highest_unused_bit>>=1;
+                    highest_unused_bit >>= 1;
                 }
 
                 let length_mask: u64 = ((highest_unused_bit - 1) << 1) + 1;

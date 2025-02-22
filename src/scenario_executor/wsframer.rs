@@ -1,4 +1,8 @@
-use std::{io::IoSlice, ops::Range, task::Poll};
+use std::{
+    io::IoSlice,
+    ops::Range,
+    task::{ready, Poll},
+};
 
 use bytes::BytesMut;
 use pin_project::pin_project;
@@ -11,7 +15,9 @@ use websocket_sans_io::{
     FrameInfo, Opcode, WebsocketFrameDecoder, WebsocketFrameEncoder, MAX_HEADER_LENGTH,
 };
 
-use crate::scenario_executor::{scenario::ScenarioAccess, utils1::ExtractHandleOrFail, MAX_CONTROL_MESSAGE_LEN};
+use crate::scenario_executor::{
+    scenario::ScenarioAccess, utils1::ExtractHandleOrFail, MAX_CONTROL_MESSAGE_LEN,
+};
 
 use super::{
     types::{
@@ -164,28 +170,23 @@ impl PacketWrite for WsEncoder {
                             IoSlice::new(&this.buffer_for_split_control_frames),
                         ]
                     };
-                    match tokio::io::AsyncWrite::poll_write_vectored(
+                    let n = ready!(tokio::io::AsyncWrite::poll_write_vectored(
                         this.inner.writer.as_mut(),
                         cx,
                         &iovec,
-                    ) {
-                        Poll::Ready(Ok(n)) => {
-                            let written_header_n = n.min(header.len());
-                            let extra_n = n - written_header_n;
-                            let remaining_header = header.split_off(written_header_n);
-                            if remaining_header.is_empty() {
-                                if this.buffer_for_split_control_frames.is_empty() {
-                                    this.state = WsEncoderState::WritingData(extra_n);
-                                } else {
-                                    let _ = this.buffer_for_split_control_frames.split_to(extra_n);
-                                    this.state = WsEncoderState::WritingDataFromAltBuffer;
-                                }
-                            } else {
-                                this.state = WsEncoderState::WritingHeader(remaining_header);
-                            }
+                    ))?;
+                    let written_header_n = n.min(header.len());
+                    let extra_n = n - written_header_n;
+                    let remaining_header = header.split_off(written_header_n);
+                    if remaining_header.is_empty() {
+                        if this.buffer_for_split_control_frames.is_empty() {
+                            this.state = WsEncoderState::WritingData(extra_n);
+                        } else {
+                            let _ = this.buffer_for_split_control_frames.split_to(extra_n);
+                            this.state = WsEncoderState::WritingDataFromAltBuffer;
                         }
-                        Poll::Ready(Err(e)) => return Poll::Ready(Err(e)),
-                        Poll::Pending => return Poll::Pending,
+                    } else {
+                        this.state = WsEncoderState::WritingHeader(remaining_header);
                     }
                 }
                 WsEncoderState::WritingData(offset) if offset == buf.len() => {
@@ -198,56 +199,42 @@ impl PacketWrite for WsEncoder {
                     }
                 }
                 WsEncoderState::WritingData(offset) => {
-                    match tokio::io::AsyncWrite::poll_write(
+                    let n = ready!(tokio::io::AsyncWrite::poll_write(
                         this.inner.writer.as_mut(),
                         cx,
                         &buf[offset..],
-                    ) {
-                        Poll::Ready(Ok(n)) => {
-                            let new_offset = offset + n;
-                            this.state = WsEncoderState::WritingData(new_offset);
-                        }
-                        Poll::Ready(Err(e)) => return Poll::Ready(Err(e)),
-                        Poll::Pending => return Poll::Pending,
-                    }
+                    ))?;
+                    let new_offset = offset + n;
+                    this.state = WsEncoderState::WritingData(new_offset);
                 }
                 WsEncoderState::WritingDataFromAltBuffer => {
-                    match tokio::io::AsyncWrite::poll_write(
+                    let n = ready!(tokio::io::AsyncWrite::poll_write(
                         this.inner.writer.as_mut(),
                         cx,
                         &this.buffer_for_split_control_frames,
-                    ) {
-                        Poll::Ready(Ok(n)) => {
-                            let _ = this.buffer_for_split_control_frames.split_to(n);
-                            if this.buffer_for_split_control_frames.is_empty() {
-                                this.state = WsEncoderState::Flushing;
-                            } else {
-                                this.state = WsEncoderState::WritingDataFromAltBuffer;
-                            }
-                        }
-                        Poll::Ready(Err(e)) => return Poll::Ready(Err(e)),
-                        Poll::Pending => return Poll::Pending,
+                    ))?;
+                    let _ = this.buffer_for_split_control_frames.split_to(n);
+                    if this.buffer_for_split_control_frames.is_empty() {
+                        this.state = WsEncoderState::Flushing;
+                    } else {
+                        this.state = WsEncoderState::WritingDataFromAltBuffer;
                     }
                 }
                 WsEncoderState::Flushing => {
-                    match tokio::io::AsyncWrite::poll_flush(this.inner.writer.as_mut(), cx) {
-                        Poll::Ready(Ok(())) => {
-                            this.state = WsEncoderState::PacketCompleted;
-                        }
-                        Poll::Ready(Err(e)) => return Poll::Ready(Err(e)),
-                        Poll::Pending => return Poll::Pending,
-                    }
+                    ready!(tokio::io::AsyncWrite::poll_flush(
+                        this.inner.writer.as_mut(),
+                        cx
+                    ))?;
+                    this.state = WsEncoderState::PacketCompleted;
                 }
                 WsEncoderState::Terminating => {
                     if this.shutdown_socket_on_eof {
-                        match tokio::io::AsyncWrite::poll_shutdown(this.inner.writer.as_mut(), cx) {
-                            Poll::Ready(Ok(())) => {
-                                debug!("shutdown completed");
-                                this.state = WsEncoderState::PacketCompleted;
-                            }
-                            Poll::Ready(Err(e)) => return Poll::Ready(Err(e)),
-                            Poll::Pending => return Poll::Pending,
-                        }
+                        ready!(tokio::io::AsyncWrite::poll_shutdown(
+                            this.inner.writer.as_mut(),
+                            cx
+                        ))?;
+                        debug!("shutdown completed");
+                        this.state = WsEncoderState::PacketCompleted;
                     } else {
                         debug!("Not shutting down the socket for writing");
                         this.state = WsEncoderState::Flushing;
@@ -369,18 +356,17 @@ impl PacketRead for WsDecoder {
                 } else {
                     trace!("inner read");
                     let mut rb = ReadBuf::new(&mut buf[*this.offset..]);
-                    match tokio::io::AsyncRead::poll_read(this.inner.as_mut(), cx, &mut rb) {
-                        Poll::Ready(Ok(())) => {
-                            *this.unprocessed_bytes = rb.filled().len();
-                            if *this.unprocessed_bytes == 0 {
-                                outflags |= BufferFlag::Eof;
-                                outflags &= !BufferFlag::NonFinalChunk;
-                                pending_exit_from_loop = true;
-                            }
-                        }
-                        Poll::Ready(Err(e)) => return Poll::Ready(Err(e)),
-                        Poll::Pending => return Poll::Pending,
-                    };
+                    ready!(tokio::io::AsyncRead::poll_read(
+                        this.inner.as_mut(),
+                        cx,
+                        &mut rb
+                    ))?;
+                    *this.unprocessed_bytes = rb.filled().len();
+                    if *this.unprocessed_bytes == 0 {
+                        outflags |= BufferFlag::Eof;
+                        outflags &= !BufferFlag::NonFinalChunk;
+                        pending_exit_from_loop = true;
+                    }
                     need_to_issue_inner_read = false;
 
                     *this.offset..(*this.offset + *this.unprocessed_bytes)

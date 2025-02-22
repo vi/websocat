@@ -16,21 +16,21 @@ pub mod scenario_executor {
     pub mod debugfluff;
     pub mod fluff;
     pub mod http1;
-    pub mod linemode;
     pub mod lengthprefixed;
+    pub mod linemode;
     pub mod logoverlay;
     pub mod misc;
     pub mod mockbytestream;
     #[cfg(feature = "ssl")]
     pub mod nativetls;
     pub mod osstr;
+    pub mod registryconnectors;
     pub mod scenario;
     pub mod subprocess;
     pub mod tcp;
     pub mod trivials1;
     pub mod trivials2;
     pub mod trivials3;
-    pub mod registryconnectors;
     pub mod types;
     pub mod udp;
     pub mod udpserver;

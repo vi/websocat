@@ -1,4 +1,8 @@
-use std::{io::IoSlice, pin::Pin, task::Poll};
+use std::{
+    io::IoSlice,
+    pin::Pin,
+    task::{ready, Poll},
+};
 
 use rhai::{Dynamic, Engine, NativeCallContext};
 use tokio::io::ReadBuf;
@@ -60,25 +64,20 @@ impl PacketRead for ReadLineChunks {
             let sr = Pin::new(&mut this.inner);
             let mut rb = ReadBuf::new(&mut buf[this.offset..]);
 
-            match tokio::io::AsyncRead::poll_read(sr, cx, &mut rb) {
-                Poll::Ready(Ok(())) => {
-                    this.unprocessed_bytes = rb.filled().len();
-                    if this.unprocessed_bytes == 0 {
-                        return Poll::Ready(Ok(PacketReadResult {
-                            flags: BufferFlag::Eof.into(),
-                            buffer_subset: 0..0,
-                        }));
-                    }
-                    // wind back to the beginning of the buffer
-                    // where we have put in-middle-of-possible-separator debt
-                    this.unprocessed_bytes += this.separator_bytes_in_a_row;
-                    this.offset = 0;
-                    // we have turned those bytes into actual separator characters in the buffer
-                    this.separator_bytes_in_a_row = 0;
-                }
-                Poll::Ready(Err(e)) => return Poll::Ready(Err(e)),
-                Poll::Pending => return Poll::Pending,
+            ready!(tokio::io::AsyncRead::poll_read(sr, cx, &mut rb))?;
+            this.unprocessed_bytes = rb.filled().len();
+            if this.unprocessed_bytes == 0 {
+                return Poll::Ready(Ok(PacketReadResult {
+                    flags: BufferFlag::Eof.into(),
+                    buffer_subset: 0..0,
+                }));
             }
+            // wind back to the beginning of the buffer
+            // where we have put in-middle-of-possible-separator debt
+            this.unprocessed_bytes += this.separator_bytes_in_a_row;
+            this.offset = 0;
+            // we have turned those bytes into actual separator characters in the buffer
+            this.separator_bytes_in_a_row = 0;
         }
 
         let chunk_start = this.offset;
@@ -222,16 +221,15 @@ impl PacketWrite for WriteLineChunks {
 
         loop {
             if let Some(ref debt) = this.debt {
-                match tokio::io::AsyncWrite::poll_write(Pin::new(&mut this.w.writer), cx, &debt) {
-                    Poll::Ready(Ok(n)) => {
-                        if n >= debt.len() {
-                            this.debt = None;
-                        } else {
-                            this.debt = Some(debt[n..].to_vec());
-                        }
-                    }
-                    Poll::Ready(Err(e)) => return Poll::Ready(Err(e)),
-                    Poll::Pending => return Poll::Pending,
+                let n = ready!(tokio::io::AsyncWrite::poll_write(
+                    Pin::new(&mut this.w.writer),
+                    cx,
+                    &debt
+                ))?;
+                if n >= debt.len() {
+                    this.debt = None;
+                } else {
+                    this.debt = Some(debt[n..].to_vec());
                 }
             }
             let buf = &buf[this.trim_bytes_from_start..(buf.len() - this.trim_bytes_from_end)];
@@ -239,18 +237,16 @@ impl PacketWrite for WriteLineChunks {
             let buf_chunk = &buf[this.buffer_offset..];
             if buf_chunk.is_empty() && this.separator_offset == required_separator_len {
                 if !flags.contains(BufferFlag::NonFinalChunk) {
-                    match tokio::io::AsyncWrite::poll_flush(Pin::new(&mut this.w.writer), cx) {
-                        Poll::Ready(Ok(())) => (),
-                        Poll::Ready(Err(e)) => return Poll::Ready(Err(e)),
-                        Poll::Pending => return Poll::Pending,
-                    }
+                    ready!(tokio::io::AsyncWrite::poll_flush(
+                        Pin::new(&mut this.w.writer),
+                        cx
+                    ))?;
                 }
                 if flags.contains(BufferFlag::Eof) {
-                    match tokio::io::AsyncWrite::poll_shutdown(Pin::new(&mut this.w.writer), cx) {
-                        Poll::Ready(Ok(())) => (),
-                        Poll::Ready(Err(e)) => return Poll::Ready(Err(e)),
-                        Poll::Pending => return Poll::Pending,
-                    }
+                    ready!(tokio::io::AsyncWrite::poll_shutdown(
+                        Pin::new(&mut this.w.writer),
+                        cx
+                    ))?;
                 }
                 this.buffer_offset = 0;
                 this.separator_offset = 0;
@@ -260,20 +256,15 @@ impl PacketWrite for WriteLineChunks {
                 IoSlice::new(buf_chunk),
                 IoSlice::new(&this.separator[this.separator_offset..required_separator_len]),
             ];
-            match tokio::io::AsyncWrite::poll_write_vectored(
+            let mut n = ready!(tokio::io::AsyncWrite::poll_write_vectored(
                 Pin::new(&mut this.w.writer),
                 cx,
                 &bufs,
-            ) {
-                Poll::Ready(Ok(mut n)) => {
-                    let n_from_chunk = n.min(buf_chunk.len());
-                    this.buffer_offset += n_from_chunk;
-                    n -= n_from_chunk;
-                    this.separator_offset += n;
-                }
-                Poll::Ready(Err(e)) => return Poll::Ready(Err(e)),
-                Poll::Pending => return Poll::Pending,
-            }
+            ))?;
+            let n_from_chunk = n.min(buf_chunk.len());
+            this.buffer_offset += n_from_chunk;
+            n -= n_from_chunk;
+            this.separator_offset += n;
         }
         this.chunk_already_processed = false;
         return Poll::Ready(Ok(()));

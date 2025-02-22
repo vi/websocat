@@ -1,7 +1,7 @@
 use std::{
     ops::Range,
     sync::{Arc, Mutex},
-    task::{Context, Poll},
+    task::{ready, Context, Poll},
 };
 
 use futures::{future::OptionFuture, FutureExt};
@@ -332,30 +332,29 @@ impl std::future::Future for CopyPackets {
         loop {
             match this.phase.clone() {
                 Phase::ReadFromStream => {
-                    match crate::scenario_executor::types::PacketRead::poll_read(
+                    match ready!(crate::scenario_executor::types::PacketRead::poll_read(
                         this.r.src.as_mut(),
                         cx,
                         &mut this.b[..],
-                    ) {
-                        Poll::Ready(Ok(f)) => {
+                    )) {
+                        Ok(f) => {
                             this.flags = f.flags;
                             this.phase = Phase::WriteToSink(f.buffer_subset);
                         }
-                        Poll::Ready(Err(e)) => {
+                        Err(e) => {
                             error!(parent: &this.span, "error reading from stream: {e}");
                             return Poll::Ready(this.counter);
                         }
-                        Poll::Pending => return Poll::Pending,
                     }
                 }
                 Phase::WriteToSink(range) => {
-                    match crate::scenario_executor::types::PacketWrite::poll_write(
+                    match ready!(crate::scenario_executor::types::PacketWrite::poll_write(
                         this.w.snk.as_mut(),
                         cx,
                         &mut this.b[range],
                         this.flags,
-                    ) {
-                        Poll::Ready(Ok(())) => {
+                    )) {
+                        Ok(()) => {
                             if this.flags.contains(BufferFlag::Eof) {
                                 debug!(parent: &this.span, "finished");
                                 return Poll::Ready(this.counter);
@@ -363,11 +362,10 @@ impl std::future::Future for CopyPackets {
                             this.phase = Phase::ReadFromStream;
                             this.counter += 1;
                         }
-                        Poll::Ready(Err(e)) => {
+                        Err(e) => {
                             error!(parent: &this.span, "error writing to sink: {e}");
                             return Poll::Ready(this.counter);
                         }
-                        Poll::Pending => return Poll::Pending,
                     }
                 }
             };

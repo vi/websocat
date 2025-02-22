@@ -1,4 +1,9 @@
-use std::{io::ErrorKind, pin::Pin, sync::Mutex, task::Poll};
+use std::{
+    io::ErrorKind,
+    pin::Pin,
+    sync::Mutex,
+    task::{ready, Poll},
+};
 
 use rand::SeedableRng;
 use rhai::{Dynamic, Engine, NativeCallContext};
@@ -8,7 +13,10 @@ use tokio_util::sync::PollSemaphore;
 use tracing::{debug, debug_span, trace};
 
 use crate::scenario_executor::{
-    scenario::ScenarioAccess, types::StreamWrite, utils1::{ExtractHandleOrFail, SimpleErr}, wsframer::{WsDecoder, WsEncoder}
+    scenario::ScenarioAccess,
+    types::StreamWrite,
+    utils1::{ExtractHandleOrFail, SimpleErr},
+    wsframer::{WsDecoder, WsEncoder},
 };
 
 use super::{
@@ -41,20 +49,20 @@ impl PacketWrite for WsEncoderThatCoexistsWithPongsHandle {
 
         let mut inner = this.inner.lock().unwrap();
         if this.sem_permit.is_none() {
-            match inner.sem.poll_acquire(cx) {
-                Poll::Ready(None) => return Poll::Ready(Err(ErrorKind::ConnectionReset.into())),
-                Poll::Ready(Some(p)) => this.sem_permit = Some(p),
-                Poll::Pending => return Poll::Pending,
+            match ready!(inner.sem.poll_acquire(cx)) {
+                None => return Poll::Ready(Err(ErrorKind::ConnectionReset.into())),
+                Some(p) => this.sem_permit = Some(p),
             }
         }
 
-        match PacketWrite::poll_write(Pin::new(&mut inner.inner), cx, buf, flags) {
-            Poll::Ready(ret) => {
-                this.sem_permit = None;
-                Poll::Ready(ret)
-            }
-            Poll::Pending => return Poll::Pending,
-        }
+        let ret = ready!(PacketWrite::poll_write(
+            Pin::new(&mut inner.inner),
+            cx,
+            buf,
+            flags
+        ));
+        this.sem_permit = None;
+        Poll::Ready(ret)
     }
 }
 
@@ -79,60 +87,54 @@ impl PacketRead for WsDecoderThatCoexistsWithPingReplies {
             if let Some(prip) = this.ping_reply_in_progress.clone() {
                 let mut writer = this.writer.lock().unwrap();
                 if this.sem_permit.is_none() {
-                    match writer.sem.poll_acquire(cx) {
-                        Poll::Ready(None) => {
-                            return Poll::Ready(Err(ErrorKind::ConnectionReset.into()))
-                        }
-                        Poll::Ready(Some(p)) => this.sem_permit = Some(p),
-                        Poll::Pending => return Poll::Pending,
+                    match ready!(writer.sem.poll_acquire(cx)) {
+                        None => return Poll::Ready(Err(ErrorKind::ConnectionReset.into())),
+                        Some(p) => this.sem_permit = Some(p),
                     }
                 }
 
                 let rb = &mut buf[prip.buffer_subset.clone()];
 
                 let flags = prip.flags & !BufferFlag::Ping | BufferFlag::Pong;
-                match PacketWrite::poll_write(Pin::new(&mut writer.inner), cx, rb, flags) {
-                    Poll::Ready(Err(e)) => return Poll::Ready(Err(e)),
-                    Poll::Ready(Ok(())) => {
-                        this.ping_reply_in_progress = None;
-                        if prip.flags.contains(BufferFlag::NonFinalChunk) {
-                            trace!("ping reply split in middle - not unlocking normal traffic to WebSocket");
-                        } else {
-                            debug!("Replies to a ping");
-                            this.sem_permit = None;
-                        }
-                    }
-                    Poll::Pending => return Poll::Pending,
+                ready!(PacketWrite::poll_write(
+                    Pin::new(&mut writer.inner),
+                    cx,
+                    rb,
+                    flags
+                ))?;
+                this.ping_reply_in_progress = None;
+                if prip.flags.contains(BufferFlag::NonFinalChunk) {
+                    trace!(
+                        "ping reply split in middle - not unlocking normal traffic to WebSocket"
+                    );
+                } else {
+                    debug!("Replies to a ping");
+                    this.sem_permit = None;
                 }
             }
 
-            return match PacketRead::poll_read(Pin::new(&mut this.inner), cx, buf) {
-                Poll::Ready(Err(e)) => Poll::Ready(Err(e)),
-                Poll::Ready(Ok(ret)) => {
-                    if ret.flags.contains(BufferFlag::Ping) {
-                        let reply_to_this_ping = if let Some(ref mut pl) = this.pong_replies_limit {
-                            if *pl == 0 {
-                                debug!("Inhibiting this WebSocket ping reply due to --inhibit-pongs limit");
-                                false
-                            } else {
-                                *pl-=1;
-                                true
-                            }
-                        } else {
-                            true
-                        };
-
-                        if reply_to_this_ping {
-                            trace!("ping detected, replying instead of passing upstream");
-                            this.ping_reply_in_progress = Some(ret);
-                            continue;
-                        }
+            let ret = ready!(PacketRead::poll_read(Pin::new(&mut this.inner), cx, buf))?;
+            if ret.flags.contains(BufferFlag::Ping) {
+                let reply_to_this_ping = if let Some(ref mut pl) = this.pong_replies_limit {
+                    if *pl == 0 {
+                        debug!("Inhibiting this WebSocket ping reply due to --inhibit-pongs limit");
+                        false
+                    } else {
+                        *pl -= 1;
+                        true
                     }
+                } else {
+                    true
+                };
 
-                    Poll::Ready(Ok(ret))
+                if reply_to_this_ping {
+                    trace!("ping detected, replying instead of passing upstream");
+                    this.ping_reply_in_progress = Some(ret);
+                    continue;
                 }
-                Poll::Pending => Poll::Pending,
-            };
+            }
+
+            return Poll::Ready(Ok(ret));
         }
     }
 }
@@ -221,8 +223,12 @@ fn ws_wrap(
 
     let x = if opts.max_ping_replies == Some(0) {
         DatagramSocket {
-            read: Some(DatagramRead { src: Box::pin(usuad_decoder) }),
-            write: Some(DatagramWrite { snk: Box::pin(usual_encoder) }),
+            read: Some(DatagramRead {
+                src: Box::pin(usuad_decoder),
+            }),
+            write: Some(DatagramWrite {
+                snk: Box::pin(usual_encoder),
+            }),
             close,
         }
     } else {
@@ -231,7 +237,7 @@ fn ws_wrap(
             sem: PollSemaphore::new(Arc::new(tokio::sync::Semaphore::new(1))),
         };
         let shared_encoder = Arc::new(Mutex::new(shared_encoder));
-    
+
         let shared_decoder = WsDecoderThatCoexistsWithPingReplies {
             inner: usuad_decoder,
             writer: shared_encoder.clone(),
@@ -239,14 +245,16 @@ fn ws_wrap(
             sem_permit: None,
             pong_replies_limit: opts.max_ping_replies,
         };
-        let dr = DatagramRead { src: Box::pin(shared_decoder) };
-    
+        let dr = DatagramRead {
+            src: Box::pin(shared_decoder),
+        };
+
         let e = WsEncoderThatCoexistsWithPongsHandle {
             inner: shared_encoder,
             sem_permit: None,
         };
         let dw = DatagramWrite { snk: Box::pin(e) };
-    
+
         DatagramSocket {
             read: Some(dr),
             write: Some(dw),

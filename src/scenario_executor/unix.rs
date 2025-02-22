@@ -1,4 +1,9 @@
-use std::{ffi::OsString, sync::Arc, task::Poll, time::Duration};
+use std::{
+    ffi::OsString,
+    sync::Arc,
+    task::{ready, Poll},
+    time::Duration,
+};
 
 use crate::scenario_executor::{
     types::{DatagramRead, DatagramSocket, DatagramWrite},
@@ -16,7 +21,8 @@ use crate::scenario_executor::{
 
 use super::{
     types::{BufferFlag, BufferFlags, PacketRead, PacketReadResult, PacketWrite},
-    utils1::{RhResult, SignalOnDrop}, utils2::{Defragmenter, DefragmenterAddChunkResult},
+    utils1::{RhResult, SignalOnDrop},
+    utils2::{Defragmenter, DefragmenterAddChunkResult},
 };
 use clap_lex::OsStrExt;
 
@@ -290,9 +296,8 @@ impl PacketWrite for SeqpacketRecvAdapter {
             this.s.0.shutdown(std::net::Shutdown::Write)?;
             return Poll::Ready(Ok(()));
         }
-        
 
-        let data : &[u8] = match this.degragmenter.add_chunk(buf, flags) {
+        let data: &[u8] = match this.degragmenter.add_chunk(buf, flags) {
             DefragmenterAddChunkResult::DontSendYet => {
                 return Poll::Ready(Ok(()));
             }
@@ -305,17 +310,16 @@ impl PacketWrite for SeqpacketRecvAdapter {
 
         let ret = this.s.0.poll_send(cx, data);
 
-        match ret {
-            Poll::Ready(Ok(n)) => {
+        match ready!(ret) {
+            Ok(n) => {
                 if n != data.len() {
                     warn!("short SEQPACKET send");
                 }
             }
-            Poll::Ready(Err(e)) => {
+            Err(e) => {
                 this.degragmenter.clear();
                 return Poll::Ready(Err(e));
             }
-            Poll::Pending => return Poll::Pending,
         }
 
         this.degragmenter.clear();
@@ -323,8 +327,9 @@ impl PacketWrite for SeqpacketRecvAdapter {
     }
 }
 
-
-const fn default_max_send_datagram_size() -> usize { 1048576 }
+const fn default_max_send_datagram_size() -> usize {
+    1048576
+}
 
 #[cfg(any(target_os = "linux", target_os = "android", target_os = "freebsd"))]
 //@ Connect to a SOCK_SEQPACKET UNIX stream socket
@@ -349,7 +354,7 @@ fn connect_seqpacket(
         text: bool,
 
         //@ Default defragmenter buffer limit
-        #[serde(default="default_max_send_datagram_size")]
+        #[serde(default = "default_max_send_datagram_size")]
         max_send_datagram_size: usize,
     }
     let opts: ConnectSeqpacketOpts = rhai::serde::from_dynamic(&opts)?;
@@ -426,7 +431,7 @@ fn listen_seqpacket(
         oneshot: bool,
 
         //@ Default defragmenter buffer limit
-        #[serde(default="default_max_send_datagram_size")]
+        #[serde(default = "default_max_send_datagram_size")]
         max_send_datagram_size: usize,
     }
     let opts: SeqpacketListenOpts = rhai::serde::from_dynamic(&opts)?;
@@ -462,7 +467,7 @@ fn listen_seqpacket(
                     let newspan = debug_span!("seqpacket_accept", i);
                     i += 1;
                     let dropper = if oneshot {
-                        let (a,b) = SignalOnDrop::new();
+                        let (a, b) = SignalOnDrop::new();
                         drop_notification = Some(b);
                         a
                     } else {

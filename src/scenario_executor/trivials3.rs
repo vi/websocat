@@ -3,7 +3,11 @@ use tracing::debug;
 
 use crate::scenario_executor::{scenario::callback_and_continue, types::Handle, utils1::HandleExt};
 
-use super::{scenario::ScenarioAccess, types::{Hangup, Task}, utils1::{RhResult, SimpleErr}};
+use super::{
+    scenario::ScenarioAccess,
+    types::{Hangup, Task},
+    utils1::{RhResult, SimpleErr},
+};
 
 pub struct TriggerableEventTrigger {
     tx: tokio::sync::oneshot::Sender<()>,
@@ -16,9 +20,11 @@ pub struct TriggerableEvent {
 
 //@ Create new one-time synchromisation object that allows to trigger a hangup event explicitly from Rhai code.
 fn triggerable_event_create() -> Handle<TriggerableEvent> {
-    let (tx,rx) = tokio::sync::oneshot::channel();
+    let (tx, rx) = tokio::sync::oneshot::channel();
     let signal = TriggerableEvent {
-        waiter_part: Some(Box::pin(async move {let _ = rx.await;})),
+        waiter_part: Some(Box::pin(async move {
+            let _ = rx.await;
+        })),
         trigger_part: Some(TriggerableEventTrigger { tx }),
     };
     Some(signal).wrap()
@@ -63,20 +69,16 @@ fn triggerable_event_fire(
 }
 
 //@ Create a Task that runs specified Rhai code when scheduled.
-fn task_wrap(
-    ctx: NativeCallContext,
-    continuation: FnPtr,
-) -> RhResult<Handle<Task>> {
+fn task_wrap(ctx: NativeCallContext, continuation: FnPtr) -> RhResult<Handle<Task>> {
     let the_scenario = ctx.get_scenario()?;
-    
-    let t : Task = Box::pin(async move {
+
+    let t: Task = Box::pin(async move {
         debug!("task_wrap");
         callback_and_continue::<()>(the_scenario, continuation, ()).await;
         Ok(())
     });
     Ok(Some(t).wrap())
 }
-
 
 pub fn register(engine: &mut Engine) {
     engine.register_fn("triggerable_event_create", triggerable_event_create);

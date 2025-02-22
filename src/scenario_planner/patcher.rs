@@ -216,7 +216,7 @@ impl SpecifierStack {
         Ok(())
     }
 
-    fn maybe_patch_existing_ws_request(&mut self, opts: &WebsocatArgs)-> anyhow::Result<()> {
+    fn maybe_patch_existing_ws_request(&mut self, opts: &WebsocatArgs) -> anyhow::Result<()> {
         for ovl in &mut self.overlays {
             match ovl {
                 Overlay::WsUpgrade { uri, host } => {
@@ -229,7 +229,7 @@ impl SpecifierStack {
                         }
                     }
                 }
-                _ => {},
+                _ => {}
             }
         }
         Ok(())

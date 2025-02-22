@@ -1,5 +1,8 @@
-use std::{ffi::OsString, io::{Cursor, Write}, sync::{Arc, Mutex}};
-
+use std::{
+    ffi::OsString,
+    io::{Cursor, Write},
+    sync::{Arc, Mutex},
+};
 
 #[derive(Clone)]
 pub struct SharedCursor(Arc<Mutex<Cursor<Vec<u8>>>>);
@@ -23,8 +26,8 @@ impl SharedCursor {
 
 pub async fn test_websocat(s: &str) {
     let mut argv: Vec<OsString> = vec!["websocat".into()];
-    argv.extend(shlex::split(s).unwrap().into_iter().map(|x|x.into()));
-    
+    argv.extend(shlex::split(s).unwrap().into_iter().map(|x| x.into()));
+
     let time_base = tokio::time::Instant::now();
     let stderr = SharedCursor::new();
     let registry = super::scenario_executor::types::Registry::default();
@@ -41,10 +44,10 @@ pub async fn test_websocat(s: &str) {
 
 pub async fn test_two_websocats(s1: &str, s2: &str) {
     let mut argv1: Vec<OsString> = vec!["websocat".into()];
-    argv1.extend(shlex::split(s1).unwrap().into_iter().map(|x|x.into()));
+    argv1.extend(shlex::split(s1).unwrap().into_iter().map(|x| x.into()));
     let mut argv2: Vec<OsString> = vec!["websocat".into()];
-    argv2.extend(shlex::split(s2).unwrap().into_iter().map(|x|x.into()));
-    
+    argv2.extend(shlex::split(s2).unwrap().into_iter().map(|x| x.into()));
+
     let time_base = tokio::time::Instant::now();
     let stderr1 = SharedCursor::new();
     let stderr2 = SharedCursor::new();

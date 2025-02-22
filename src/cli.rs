@@ -223,7 +223,7 @@ pub struct WebsocatArgs {
 
     /// Override buffer size for main data transfer session.
     /// Note that some overlays and endpoints may have separate buffers with sepaparately adjustable sizes.
-    /// 
+    ///
     /// Message can span multiple over multiple fragments and exceed this buffer size
     #[arg(long, short = 'B')]
     pub buffer_size: Option<usize>,
@@ -310,19 +310,19 @@ pub struct WebsocatArgs {
     pub no_lints: bool,
 
     /// Maximum size of an outgoing UDP datagram. Incoming datagram size is likely limited by --buffer-size.
-    #[arg(long, default_value="4096")]
+    #[arg(long, default_value = "4096")]
     pub udp_max_send_datagram_size: usize,
 
     /// Maximum size of an outgoing SEQPACKET datagram. Incoming datagram size is likely limited by --buffer-size.
-    #[arg(long, default_value="1048576")]
+    #[arg(long, default_value = "1048576")]
     pub seqpacket_max_send_datagram_size: usize,
 
     /// Use specified random seed instead of initialising RNG from OS.
     #[arg(long)]
     pub random_seed: Option<u64>,
 
-    /// Use specified max buffer size for 
-    #[arg(long, default_value="1024")]
+    /// Use specified max buffer size for
+    #[arg(long, default_value = "1024")]
     pub registry_connect_bufsize: usize,
 
     /// Use little-endian framing headers instead of big-endian for `lengthprefixed:` overlay.
@@ -338,7 +338,7 @@ pub struct WebsocatArgs {
     pub lengthprefixed_skip_write_direction: bool,
 
     /// Use this number of length header bytes for `lengthprefixed:` overlay.
-    #[arg(long, default_value="4")]
+    #[arg(long, default_value = "4")]
     pub lengthprefixed_nbytes: usize,
 
     /// Do not reassume message from fragments, stream them as chunks.
@@ -347,17 +347,17 @@ pub struct WebsocatArgs {
     pub lengthprefixed_continuations: bool,
 
     /// Maximum size of `lengthprefixed:` message (that needs to be reassembled from fragments)
-    /// 
+    ///
     /// Connections would fail when messages exceed this size.
-    /// 
+    ///
     /// Ignored if `--lengthprefixed-continuations` is active, but `nbytes`-based limitation can still fail connections.
-    #[arg(long, default_value="1048576")]
+    #[arg(long, default_value = "1048576")]
     pub lengthprefixed_max_message_size: usize,
 
     /// Include inline control messages (i.e. WebSocket pings or close frames) as content in `lengthprefixed:`.
-    /// 
+    ///
     /// A bit would be set to signify a control message and opcode will be prepended as the first byte.
-    /// 
+    ///
     /// When both continuations and contols are enabled, control messages may appear between continued data message chunks.
     /// Control messages can themselves be subject to continuations.
     #[arg(long)]
@@ -366,7 +366,7 @@ pub struct WebsocatArgs {
     /// Set a bit in the prefix of `lengthprefixed:` frames when the frame denotes a text WebSocket message instead of binary.
     #[arg(long)]
     pub lengthprefixed_tag_text: bool,
-    
+
     /// Stop automatic replying to WebSocket pings after sending specified number of pongs. May be zero to just disable replying to pongs.
     #[arg(long)]
     pub inhibit_pongs: Option<usize>,
