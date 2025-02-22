@@ -46,7 +46,7 @@ impl Endpoint {
                 fill_in_chmods(opts, &mut chmod_option);
 
                 printer.print_line(&format!(
-                    "listen_unix(#{{autospawn: true, {listenparams} {chmod_option} }}, {pathvar}, |{varnam}| {{",
+                    "listen_unix(#{{{listenparams} {chmod_option} }}, {pathvar}, |{varnam}| {{",
                 ));
                 printer.increase_indent();
                 Ok(varnam)

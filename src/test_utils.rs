@@ -1,7 +1,7 @@
 use std::{
     ffi::OsString,
     io::{Cursor, Write},
-    sync::{Arc, Mutex},
+    sync::{Arc, Mutex}, time::Duration,
 };
 
 #[derive(Clone)]
@@ -42,7 +42,7 @@ pub async fn test_websocat(s: &str) {
     assert!(ret.is_ok());
 }
 
-pub async fn test_two_websocats(s1: &str, s2: &str) {
+pub async fn test_two_websocats(s1: &str, s2: &str, wait_ms: u64) {
     let mut argv1: Vec<OsString> = vec!["websocat".into()];
     argv1.extend(shlex::split(s1).unwrap().into_iter().map(|x| x.into()));
     let mut argv2: Vec<OsString> = vec!["websocat".into()];
@@ -61,6 +61,8 @@ pub async fn test_two_websocats(s1: &str, s2: &str) {
 
     let h1 = tokio::spawn(wsc1);
 
+    tokio::time::sleep(Duration::from_millis(wait_ms)).await;
+
     let ret2 = wsc2.await;
     let ret1 = h1.await.unwrap();
 
@@ -75,4 +77,99 @@ pub async fn test_two_websocats(s1: &str, s2: &str) {
 
     assert!(ret1.is_ok());
     assert!(ret2.is_ok());
+}
+
+#[macro_export]
+macro_rules! t {
+    ($n:ident, $x:literal $(,)?) => {
+        #[tokio::test]
+        async fn $n() {
+            websocat::test_utils::test_websocat($x).await;
+        }
+    };
+}
+
+#[macro_export]
+macro_rules! t2 {
+    ($n:ident, $x:literal, $y:literal $(,)?) => {
+        #[tokio::test]
+        async fn $n() {
+            websocat::test_utils::test_two_websocats($x, $y, 0).await;
+        }
+    };
+}
+
+#[macro_export]
+macro_rules! t2w {
+    ($n:ident, $x:literal, $y:literal $(,)?) => {
+        #[tokio::test]
+        async fn $n() {
+            websocat::test_utils::test_two_websocats($x, $y, 50).await;
+        }
+    };
+}
+
+#[macro_export]
+macro_rules! t_unix {
+    ($n:ident, $x:literal $(,)?) => {
+        #[cfg(unix)]
+        #[tokio::test]
+        async fn $n() {
+            websocat::test_utils::test_websocat($x).await;
+        }
+    };
+}
+
+#[macro_export]
+macro_rules! t2w_unix {
+    ($n:ident, $x:literal, $y:literal $(,)?) => {
+        #[cfg(unix)]
+        #[tokio::test]
+        async fn $n() {
+            websocat::test_utils::test_two_websocats($x, $y, 50).await;
+        }
+    };
+}
+
+#[macro_export]
+macro_rules! t_online {
+    ($n:ident, $x:literal $(,)?) => {
+        #[cfg(feature="online_tests")]
+        #[tokio::test]
+        async fn $n() {
+            websocat::test_utils::test_websocat($x).await;
+        }
+    };
+}
+
+#[macro_export]
+macro_rules! t2w_online {
+    ($n:ident, $x:literal, $y:literal $(,)?) => {
+        #[cfg(feature="online_tests")]
+        #[tokio::test]
+        async fn $n() {
+            websocat::test_utils::test_two_websocats($x, $y, 50).await;
+        }
+    };
+}
+
+#[macro_export]
+macro_rules! t_linux {
+    ($n:ident, $x:literal $(,)?) => {
+        #[cfg(target_os = "linux")]
+        #[tokio::test]
+        async fn $n() {
+            websocat::test_utils::test_websocat($x).await;
+        }
+    };
+}
+#[macro_export]
+macro_rules! t2w_linux {
+    ($n:ident, $x:literal, $y:literal $(,)?) => {
+        #[cfg(target_os = "linux")]
+        #[tokio::test]
+        async fn $n() {
+            websocat::test_utils::test_two_websocats($x, $y, 50).await;
+        }
+    };
 }

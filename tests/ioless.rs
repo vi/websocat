@@ -1,22 +1,4 @@
-use websocat::test_utils::{test_websocat, test_two_websocats};
-
-macro_rules! t {
-    ($n:ident, $x:literal $(,)?) => {
-        #[tokio::test]
-        async fn $n() {
-            test_websocat($x).await;
-        }
-    };
-}
-
-macro_rules! t2 {
-    ($n:ident, $x:literal, $y:literal $(,)?) => {
-        #[tokio::test]
-        async fn $n() {
-            test_two_websocats($x, $y).await;
-        }
-    };
-}
+use websocat::{t,t2};
 
 t!(dummy, "-b dummy: dummy:");
 t!(mock1, "-bU mock_stream_socket:'w ABC' mock_stream_socket:'r ABC'");
