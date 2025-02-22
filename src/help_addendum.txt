@@ -27,6 +27,7 @@ Short list of endpoint prefixes:
   wss://
 
 Short list of overlay prefixes:
+  lengthprefixed:
   lines:
   log:
   read_chunk_limiter:

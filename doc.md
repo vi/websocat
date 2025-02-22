@@ -72,7 +72,7 @@ Options:
           paramemter for write_chunk_limiter: overlay, defaults to 1
 
       --separator <SEPARATOR>
-          override byte value that separates stdin-supplied text WebSocket messages from each othe from default '\n'
+          override byte value that separates stdin-supplied text WebSocket messages from each other from default '\n'
 
       --separator-n <SEPARATOR_N>
           require this number of newline (or other) bytes to separate WebSocket messages
@@ -236,6 +236,45 @@ Options:
           
           [default: 1024]
 
+      --lengthprefixed-little-endian
+          Use little-endian framing headers instead of big-endian for `lengthprefixed:` overlay
+
+      --lengthprefixed-skip-read-direction
+          Only affect one direction of the `lengthprefixed:` overlay, bypass tranformation for the other one
+
+      --lengthprefixed-skip-write-direction
+          Only affect one direction of the `lengthprefixed:` overlay, bypass tranformation for the other one
+
+      --lengthprefixed-nbytes <LENGTHPREFIXED_NBYTES>
+          Use this number of length header bytes for `lengthprefixed:` overlay
+          
+          [default: 4]
+
+      --lengthprefixed-continuations
+          Do not reassume message from fragments, stream them as chunks. Highest bit of the prefix would be set if the message is non-final
+
+      --lengthprefixed-max-message-size <LENGTHPREFIXED_MAX_MESSAGE_SIZE>
+          Maximum size of `lengthprefixed:` message (that needs to be reassembled from fragments)
+          
+          Connections would fail when messages exceed this size.
+          
+          Ignored if `--lengthprefixed-continuations` is active, but `nbytes`-based limitation can still fail connections.
+          
+          [default: 1048576]
+
+      --lengthprefixed-include-control
+          Include inline control messages (i.e. WebSocket pings or close frames) as content in `lengthprefixed:`.
+          
+          A bit would be set to signify a control message and opcode will be prepended as the first byte.
+          
+          When both continuations and contols are enabled, control messages may appear between continued data message chunks. Control messages can themselves be subject to continuations.
+
+      --lengthprefixed-tag-text
+          Set a bit in the prefix of `lengthprefixed:` frames when the frame denotes a text WebSocket message instead of binary
+
+      --inhibit-pongs <INHIBIT_PONGS>
+          Stop automatic replying to WebSocket pings after sending specified number of pongs. May be zero to just disable replying to pongs
+
   -h, --help
           Print help (see a summary with '-h')
 
@@ -271,6 +310,7 @@ Short list of endpoint prefixes:
   wss://
 
 Short list of overlay prefixes:
+  lengthprefixed:
   lines:
   log:
   read_chunk_limiter:
@@ -608,6 +648,15 @@ Prefixes:
 
 
 ## Overlays
+
+### LengthPrefixedChunks
+
+Convert downstream stream-oriended socket to packet-oriended socket by prefixing each message with its length
+(and maybe other flags, depending on options).
+
+Prefixes:
+
+* `lengthprefixed:`
 
 ### LineChunks
 
@@ -1283,6 +1332,31 @@ Parameters:
 * continuation (`Fn(IncomingRequest, Hangup) -> OutgoingResponse`) - Rhai function that will be called to continue processing
 
 Returns `Task`
+
+## length_prefixed_chunks
+
+Convert downstream stream socket into upstream packet socket using a byte separator
+
+If you want just source or sink conversion part, create incomplete socket, use this function, then extract the needed part from resulting incomplete socket.
+
+Parameters:
+
+* opts (`Dynamic`) - object map containing dynamic options to the function
+* x (`StreamSocket`)
+
+Returns `DatagramSocket`
+
+Options:
+
+* length_mask (`u64`) - Maximum message length that can be encoded in header, power of two minus one
+* nbytes (`usize`) - Number of bytes in header field
+* max_message_size (`usize`) - Maximum size of a message that can be encoded, unless `continuations` is set to true. Does not affect decoded messages.
+* little_endian (`bool`) - Encode header as a little-endian number instead of big endian
+* skip_read_direction (`bool`) - Inhibit adding header to data transferred in read direction, pass byte chunks unmodifed
+* skip_write_direction (`bool`) - Inhibit adding header to data transferred in read direction, pass byte chunks unmodifed
+* continuations (`Option<u64>`) - Do not defragment written messages,.write WebSocket frames instead of messages (and `or` specified number into the header).
+* controls (`Option<u64>`) - Also write pings, pongs and CloseFrame messages, setting specified bit (pre-shifted) in header and prepending opcode in condent. Length would include this prepended byte.  Affects read direction as well, allowing manually triggering WebSocket control messages.
+* tag_text (`Option<u64>`) - Set specified pre-shifted bit in header when dealing with text WebSocket messages. Note that with continuations, messages can be split into fragments in middle of a UTF-8 characters.
 
 ## line_chunks
 
@@ -1982,6 +2056,7 @@ Options:
 * no_close_frame (`bool`) - Do not emit ConnectionClose frame when writing part is getting shut down
 * shutdown_socket_on_eof (`bool`) - Propagate upstream writer shutdown to downstream
 * no_auto_buffer_wrap (`bool`) - Do not automatically wrap WebSocket frames writer in a write_buffer: overlay when it detects missing vectored writes support
+* max_ping_replies (`Option<usize>`) - Stop replying to WebSocket pings after sending this number of Pong frames.
 
 
 # Glossary
@@ -2003,6 +2078,7 @@ in Scenarios.
 * CLI arguments - combination of a positional arguments (typically Specifiers) and various 
 flags (e.g. `--binary`) and options (e.g. `--buffer-size 4096`) that affect Scenario Planner.
 * Packet = Datagram = Message - A byte buffer with associated flags. Correspond to one WebSocket message. Within WebSocket, packets can be split to chunks, but that should not affect user-visible properties.
+* Chunk = Frame - portion of data read or written to/from stream or datagram socket in one go. Maybe a fragment of a Message or be the whole Message.
 * Task - a logical thread of execution. Rhai code is expected to create and combine some tasks. Typically each connection runs in its own task. Corresponds to Tokio tasks.
 
 

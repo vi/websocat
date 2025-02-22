@@ -735,6 +735,7 @@ in Scenarios.
 * CLI arguments - combination of a positional arguments (typically Specifiers) and various 
 flags (e.g. `--binary`) and options (e.g. `--buffer-size 4096`) that affect Scenario Planner.
 * Packet = Datagram = Message - A byte buffer with associated flags. Correspond to one WebSocket message. Within WebSocket, packets can be split to chunks, but that should not affect user-visible properties.
+* Chunk = Frame - portion of data read or written to/from stream or datagram socket in one go. Maybe a fragment of a Message or be the whole Message.
 * Task - a logical thread of execution. Rhai code is expected to create and combine some tasks. Typically each connection runs in its own task. Corresponds to Tokio tasks.
 
 """)

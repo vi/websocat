@@ -124,6 +124,7 @@ struct WriteLineChunks {
     /// Separator bytes redacted from the chunk that may needed to be reinserted at the beginning of the next chunk
     indebted_separator_bytes: usize,
     chunk_already_processed: bool,
+    /// Does not cache big amount of data, only separator things
     debt: Option<Vec<u8>>,
     trim_bytes_from_start: usize,
     trim_bytes_from_end: usize,
