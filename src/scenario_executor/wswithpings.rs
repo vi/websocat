@@ -64,6 +64,7 @@ struct WsDecoderThatCoexistsWithPingReplies {
     /// Permit to finish writing series of frames that will be assembled as full Pong frame
     sem_permit: Option<OwnedSemaphorePermit>,
     ping_reply_in_progress: Option<PacketReadResult>,
+    pong_replies_limit: Option<usize>,
 }
 
 impl PacketRead for WsDecoderThatCoexistsWithPingReplies {
@@ -109,9 +110,23 @@ impl PacketRead for WsDecoderThatCoexistsWithPingReplies {
                 Poll::Ready(Err(e)) => Poll::Ready(Err(e)),
                 Poll::Ready(Ok(ret)) => {
                     if ret.flags.contains(BufferFlag::Ping) {
-                        trace!("ping detected, replying instead of passing upstream");
-                        this.ping_reply_in_progress = Some(ret);
-                        continue;
+                        let reply_to_this_ping = if let Some(ref mut pl) = this.pong_replies_limit {
+                            if *pl == 0 {
+                                debug!("Inhibiting this WebSocket ping reply due to --inhibit-pongs limit");
+                                false
+                            } else {
+                                *pl-=1;
+                                true
+                            }
+                        } else {
+                            true
+                        };
+
+                        if reply_to_this_ping {
+                            trace!("ping detected, replying instead of passing upstream");
+                            this.ping_reply_in_progress = Some(ret);
+                            continue;
+                        }
                     }
 
                     Poll::Ready(Ok(ret))
@@ -130,12 +145,14 @@ fn ws_wrap(
 ) -> RhResult<Handle<DatagramSocket>> {
     let span = debug_span!("ws_wrap");
     #[derive(serde::Deserialize)]
-    struct WsDecoderOpts {
+    struct Opts {
         //@ Mask outgoing frames and require unmasked incoming frames
         client: bool,
+
         //@ Accept masked (unmasked) frames in client (server) mode.
         #[serde(default)]
         ignore_masks: bool,
+
         //@ Inhibit flushing of underlying stream writer after each compelte message
         #[serde(default)]
         no_flush_after_each_message: bool,
@@ -153,8 +170,11 @@ fn ws_wrap(
         //@ vectored writes support
         #[serde(default)]
         no_auto_buffer_wrap: bool,
+
+        //@ Stop replying to WebSocket pings after sending this number of Pong frames.
+        max_ping_replies: Option<usize>,
     }
-    let opts: WsDecoderOpts = rhai::serde::from_dynamic(&opts)?;
+    let opts: Opts = rhai::serde::from_dynamic(&opts)?;
     let inner = ctx.lutbar(inner)?;
     debug!(parent: &span, inner=?inner, "options parsed");
     let StreamSocket { read, write, close } = inner;
@@ -197,32 +217,41 @@ fn ws_wrap(
         !opts.no_close_frame,
         opts.shutdown_socket_on_eof,
     );
+    let usuad_decoder = WsDecoder::new(span.clone(), inner_read, require_masked, require_unmasked);
 
-    let shared_encoder = WsEncoderThatCoexistsWithPongs {
-        inner: usual_encoder,
-        sem: PollSemaphore::new(Arc::new(tokio::sync::Semaphore::new(1))),
-    };
-    let shared_encoder = Arc::new(Mutex::new(shared_encoder));
-
-    let d = WsDecoder::new(span.clone(), inner_read, require_masked, require_unmasked);
-    let dd = WsDecoderThatCoexistsWithPingReplies {
-        inner: d,
-        writer: shared_encoder.clone(),
-        ping_reply_in_progress: None,
-        sem_permit: None,
-    };
-    let dr = DatagramRead { src: Box::pin(dd) };
-
-    let e = WsEncoderThatCoexistsWithPongsHandle {
-        inner: shared_encoder,
-        sem_permit: None,
-    };
-    let dw = DatagramWrite { snk: Box::pin(e) };
-
-    let x = DatagramSocket {
-        read: Some(dr),
-        write: Some(dw),
-        close,
+    let x = if opts.max_ping_replies == Some(0) {
+        DatagramSocket {
+            read: Some(DatagramRead { src: Box::pin(usuad_decoder) }),
+            write: Some(DatagramWrite { snk: Box::pin(usual_encoder) }),
+            close,
+        }
+    } else {
+        let shared_encoder = WsEncoderThatCoexistsWithPongs {
+            inner: usual_encoder,
+            sem: PollSemaphore::new(Arc::new(tokio::sync::Semaphore::new(1))),
+        };
+        let shared_encoder = Arc::new(Mutex::new(shared_encoder));
+    
+        let shared_decoder = WsDecoderThatCoexistsWithPingReplies {
+            inner: usuad_decoder,
+            writer: shared_encoder.clone(),
+            ping_reply_in_progress: None,
+            sem_permit: None,
+            pong_replies_limit: opts.max_ping_replies,
+        };
+        let dr = DatagramRead { src: Box::pin(shared_decoder) };
+    
+        let e = WsEncoderThatCoexistsWithPongsHandle {
+            inner: shared_encoder,
+            sem_permit: None,
+        };
+        let dw = DatagramWrite { snk: Box::pin(e) };
+    
+        DatagramSocket {
+            read: Some(dr),
+            write: Some(dw),
+            close,
+        }
     };
 
     debug!(parent: &span, w=?x, "wrapped");

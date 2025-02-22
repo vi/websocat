@@ -25,13 +25,19 @@ t!(mock3, "-b mock_stream_socket:'w QQ|w Q' mock_stream_socket:'r Q|r QQ'");
 t!(mock4, r#"-bu mock_stream_socket:'r AB\ \|CDE\x00\r\n\t' mock_stream_socket:'w\x41B \x7cCDE\0\r\n\t'"#);
 
 t!(wsll1, r#"-b  chunks:mock_stream_socket:'R ABC'  ws-lowlevel-server:mock_stream_socket:'W \x82\x03ABC' --no-close"#);
+t!(wsll1b, r#"-b  --inhibit-pongs=0 chunks:mock_stream_socket:'R ABC'  ws-lowlevel-server:mock_stream_socket:'W \x82\x03ABC' --no-close"#);
 t!(wsll2, r#"-b  chunks:mock_stream_socket:'R ABC'  ws-lowlevel-server:mock_stream_socket:'W \x82\x03ABC\x88\x00'"#);
+t!(wsll2b, r#"-b --inhibit-pongs=0  chunks:mock_stream_socket:'R ABC'  ws-lowlevel-server:mock_stream_socket:'W \x82\x03ABC\x88\x00'"#);
 t!(wsll3, r#"-b  chunks:mock_stream_socket:'R ABC'  ws-lowlevel-client:mock_stream_socket:'W \x82\x83\x1d\xfb\x9f\x97\\\xb9\xdc| W \x88\x80\xc5\xca\xbfb' --random-seed 2"#);
 t!(wsll4, r#"-b  chunks:mock_stream_socket:'W ABC|R qwerty'  ws-lowlevel-server:mock_stream_socket:'R \x82\x83\x1d\xfb\x9f\x97\\\xb9\xdc|W \x82\x06qwerty\x88\x00'"#);
+t!(wsll5, r#"-b  chunks:mock_stream_socket:'W ABC|R qwerty' --inhibit-pongs=0  ws-lowlevel-server:mock_stream_socket:'R \x82\x83\x1d\xfb\x9f\x97\\\xb9\xdc|W \x82\x06qwerty\x88\x00'"#);
 
-t!(wsll_pingreply1, r#"-b --no-close --random-seed 3 dummy:  ws-lowlevel-client:mock_stream_socket:'R \x89\x00 | W \x8a\x80\x85\x87T\xbd'"#);
-t!(wsll_pingreply2, r#"-b --no-close --random-seed 3 dummy:  ws-lowlevel-client:mock_stream_socket:'R \x89\x03ABC | W \x8a\x83\x85\x87T\xbd\xc4\xc5\x17'"#);
-t!(wsll_pingreply3, r#"-b --no-close dummy: ws-lowlevel-server:mock_stream_socket:'R \x89\x83\x85\x87T\xbd\xc4\xc5\x17 | W \x8a\x03ABC'"#);
+t!(wsll_pingreply1, r#"-b --no-close --random-seed 3 dummy:  ws-lowlevel-client:mock_stream_socket:'R \x89\x00| W \x8a\x80\x85\x87T\xbd'"#);
+t!(wsll_pingreply2, r#"-b --no-close --random-seed 3 dummy:  ws-lowlevel-client:mock_stream_socket:'R \x89\x03ABC| W \x8a\x83\x85\x87T\xbd\xc4\xc5\x17'"#);
+t!(wsll_pingreply3, r#"-b --no-close dummy: ws-lowlevel-server:mock_stream_socket:'R \x89\x83\x85\x87T\xbd\xc4\xc5\x17| W \x8a\x03ABC'"#);
+t!(wsll_pingreply4, r#"-b --no-close --inhibit-pongs=0 --random-seed 3 dummy:  ws-lowlevel-client:mock_stream_socket:'R \x89\x00'"#);
+t!(wsll_pingreply5, r#"-b --no-close --inhibit-pongs=1 --random-seed 3 dummy:  ws-lowlevel-client:mock_stream_socket:'R \x89\x00| W \x8a\x80\x85\x87T\xbd|R \x89\x00|R \x89\x00'"#);
+t!(wsll_pingreply6, r#"-b --no-close --inhibit-pongs=2 --random-seed 3 dummy:  ws-lowlevel-client:mock_stream_socket:'R \x89\x00| W \x8a\x80\x85\x87T\xbd|R \x89\x00|R \x89\x00| W \x8a\x80\x6c\xe4\x13\x63'"#);
 
 t2!(regstr1,
     "-b --oneshot registry-stream-listen: devnull:",

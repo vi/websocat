@@ -15,7 +15,7 @@ use super::{
         BufferFlag, BufferFlags, DatagramRead, DatagramSocket, DatagramWrite, Handle, PacketRead,
         PacketReadResult, PacketWrite, StreamRead, StreamSocket, StreamWrite,
     },
-    utils1::RhResult,
+    utils1::{IsControlFrame, RhResult},
     utils2::{Defragmenter, DefragmenterAddChunkResult},
 };
 
@@ -140,9 +140,6 @@ struct WriteLengthprefixedChunks {
 
 impl WriteLengthprefixedChunks {
     pub fn new(inner: StreamWrite, opts: Arc<OptsShared>) -> Self {
-        if opts.continuations.is_some() {
-            todo!()
-        }
         if opts.controls.is_some() {
             todo!()
         }
@@ -166,22 +163,44 @@ impl PacketWrite for WriteLengthprefixedChunks {
         let p = self.get_mut();
         let sw: &mut StreamWrite = &mut p.w;
 
-        let data: &[u8] = match p.degragmenter.add_chunk(buf_, flags) {
-            DefragmenterAddChunkResult::DontSendYet => {
+        let data: &[u8] = if p.opts.continuations .is_some() {
+            if flags.is_control() {
                 return Poll::Ready(Ok(()));
             }
-            DefragmenterAddChunkResult::Continunous(x) => x,
-            DefragmenterAddChunkResult::SizeLimitExceeded(_x) => {
-                warn!("Exceeded maximum allowed outgoing datagram size. Closing this session.");
-                return Poll::Ready(Err(std::io::ErrorKind::InvalidData.into()));
+            buf_
+        } else {
+            match p.degragmenter.add_chunk(buf_, flags) {
+                DefragmenterAddChunkResult::DontSendYet => {
+                    return Poll::Ready(Ok(()));
+                }
+                DefragmenterAddChunkResult::Continunous(x) => x,
+                DefragmenterAddChunkResult::SizeLimitExceeded(_x) => {
+                    warn!("Exceeded maximum allowed outgoing datagram size. Closing this session.");
+                    return Poll::Ready(Err(std::io::ErrorKind::InvalidData.into()));
+                }
             }
         };
+
+        if data.len() as u64 > p.opts.length_mask {
+            warn!("Message length is larger than `lengthprefixed:` header could handle. Closing this session.");
+            return Poll::Ready(Err(std::io::ErrorKind::InvalidData.into()));
+        }
 
         if p.header.is_none() {
             let mut h: u64 = (data.len() as u64) & p.opts.length_mask;
 
             if let Some(x) = p.opts.tag_text {
                 if flags.contains(BufferFlag::Text) {
+                    h |= x;
+                }
+            }
+            if let Some(x) = p.opts.continuations {
+                if flags.contains(BufferFlag::NonFinalChunk) {
+                    h |= x;
+                }
+            }
+            if let Some(x) = p.opts.controls {
+                if flags.is_control() {
                     h |= x;
                 }
             }

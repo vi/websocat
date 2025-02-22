@@ -363,4 +363,8 @@ pub struct WebsocatArgs {
     /// Set a bit in the prefix of `lengthprefixed:` frames when the frame denotes a text WebSocket message instead of binary.
     #[arg(long)]
     pub lengthprefixed_tag_text: bool,
+    
+    /// Stop automatic replying to WebSocket pings after sending specified number of pongs. May be zero to just disable replying to pongs.
+    #[arg(long)]
+    pub inhibit_pongs: Option<usize>,
 }

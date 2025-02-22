@@ -104,6 +104,9 @@ impl Overlay {
                 if opts.ws_shutdown_socket_on_eof {
                     oo.push_str("shutdown_socket_on_eof: true,")
                 }
+                if let Some(mp) = opts.inhibit_pongs {
+                    oo.push_str(&format!("max_ping_replies: {mp},"));
+                }
 
                 printer.print_line(&format!(
                     "let {ws} = ws_wrap(#{{{oo}client: {client_mode}}}, {inner_var});"
