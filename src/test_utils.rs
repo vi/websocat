@@ -79,6 +79,57 @@ pub async fn test_two_websocats(s1: &str, s2: &str, wait_ms: u64) {
     assert!(ret2.is_ok());
 }
 
+pub async fn test_three_websocats(s1: &str, s2: &str, s3: &str, wait1_ms: u64, wait2_ms: u64) {
+    let mut argv1: Vec<OsString> = vec!["websocat".into()];
+    argv1.extend(shlex::split(s1).unwrap().into_iter().map(|x| x.into()));
+    let mut argv2: Vec<OsString> = vec!["websocat".into()];
+    argv2.extend(shlex::split(s2).unwrap().into_iter().map(|x| x.into()));
+    let mut argv3: Vec<OsString> = vec!["websocat".into()];
+    argv3.extend(shlex::split(s3).unwrap().into_iter().map(|x| x.into()));
+
+    let time_base = tokio::time::Instant::now();
+    let stderr1 = SharedCursor::new();
+    let stderr2 = SharedCursor::new();
+    let stderr3 = SharedCursor::new();
+    let registry = super::scenario_executor::types::Registry::default();
+
+    //dbg!(&argv1, &argv2);
+
+    // Websocat instances can communicate using e.g. `registry-stream-listen:` and `registry-stream-connect:` specifiers.
+    let wsc1 = crate::websocat_main(argv1, stderr1.clone(), time_base, false, registry.clone());
+    let wsc2 = crate::websocat_main(argv2, stderr2.clone(), time_base, false, registry.clone());
+    let wsc3 = crate::websocat_main(argv3, stderr3.clone(), time_base, false, registry.clone());
+
+    let h1 = tokio::spawn(wsc1);
+
+    tokio::time::sleep(Duration::from_millis(wait1_ms)).await;
+
+    let h2 = tokio::spawn(wsc2);
+
+    tokio::time::sleep(Duration::from_millis(wait2_ms)).await;
+
+    let ret3 = wsc3.await;
+    let ret1 = h1.await.unwrap();
+    let ret2 = h2.await.unwrap();
+
+    if let Err(ref e) = ret1 {
+        std::io::stderr().write_all(&stderr1.content()).unwrap();
+        eprintln!("{}", e);
+    }
+    if let Err(ref e) = ret2 {
+        std::io::stderr().write_all(&stderr2.content()).unwrap();
+        eprintln!("{}", e);
+    }
+    if let Err(ref e) = ret3 {
+        std::io::stderr().write_all(&stderr3.content()).unwrap();
+        eprintln!("{}", e);
+    }
+
+    assert!(ret1.is_ok());
+    assert!(ret2.is_ok());
+    assert!(ret3.is_ok());
+}
+
 #[macro_export]
 macro_rules! t {
     ($n:ident, $x:literal $(,)?) => {
@@ -105,6 +156,16 @@ macro_rules! t2w {
         #[tokio::test]
         async fn $n() {
             websocat::test_utils::test_two_websocats($x, $y, 50).await;
+        }
+    };
+}
+
+#[macro_export]
+macro_rules! t3w {
+    ($n:ident, $x:literal, $y:literal, $z:literal $(,)?) => {
+        #[tokio::test]
+        async fn $n() {
+            websocat::test_utils::test_three_websocats($x, $y, $z, 50, 10).await;
         }
     };
 }

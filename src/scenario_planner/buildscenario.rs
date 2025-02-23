@@ -12,7 +12,7 @@ impl WebsocatInvocation {
         let mut right: String;
 
         if let Some(_tmo) = self.opts.global_timeout_ms {
-            printer.print_line("race([");
+            printer.print_line("race([{");
             printer.increase_indent();
         }
 
@@ -102,9 +102,9 @@ impl WebsocatInvocation {
 
         if let Some(tmo) = self.opts.global_timeout_ms {
             if self.opts.global_timeout_force_exit {
-                printer.print_line(&format!(",sequential([sleep_ms({tmo}), task_wrap(||exit_process(1))])"));
+                printer.print_line(&format!("}},sequential([sleep_ms({tmo}), task_wrap(||exit_process(1))])"));
             } else {
-                printer.print_line(&format!(",sleep_ms({tmo})"));
+                printer.print_line(&format!("}},sleep_ms({tmo})"));
             }
             printer.decrease_indent();
             printer.print_line("])");
