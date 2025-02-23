@@ -200,6 +200,37 @@ fn parallel(tasks: Vec<Dynamic>) -> Handle<Task> {
     .wrap_noerr()
 }
 
+//@ Execute specified tasks in parallel, aborting all others if one of them finishes.
+fn race(tasks: Vec<Dynamic>) -> Handle<Task> {
+    async move {
+        let mut waitees = Vec::with_capacity(tasks.len());
+        let (tx, mut rx) = tokio::sync::mpsc::channel::<()>(1);
+        for t in tasks {
+            let tx = tx.clone();
+            if let Some(t) = t.clone().try_cast::<Handle<Task>>() {
+                waitees.push(tokio::spawn(async move { run_task(t).await; let _ = tx.send(()); }));
+            } else if let Some(h) = t.try_cast::<Handle<Hangup>>() {
+                let Some(t) = h.lock().unwrap().take() else {
+                    error!("Attempt to run a null/taken hangup handle");
+                    continue;
+                };
+                waitees.push(tokio::spawn(async move { t.await; let _ = tx.send(()); }));
+            } else {
+                error!("Not a task or hangup in a list of tasks");
+                continue;
+            }
+        }
+
+        let _ = rx.recv().await;
+        debug!("one of `race`'s task finished, aborting others");
+
+        for w in waitees {
+            let _ = w.abort();
+        }
+    }
+    .wrap_noerr()
+}
+
 //@ Start execution of the specified task in background
 fn spawn_task(task: Handle<Task>) {
     let original_span = tracing::Span::current();
@@ -321,6 +352,7 @@ pub fn register(engine: &mut Engine) {
     engine.register_fn("sleep_ms", sleep_ms);
     engine.register_fn("sequential", sequential);
     engine.register_fn("parallel", parallel);
+    engine.register_fn("race", race);
     engine.register_fn("spawn_task", spawn_task);
 
     engine.register_fn("empty_hangup_handle", empty_close_handle);
