@@ -157,8 +157,11 @@ fn dummytask() -> Handle<Task> {
 
 //@ A task that finishes after specified number of milliseconds
 fn sleep_ms(ms: i64) -> Handle<Task> {
-    async move { tokio::time::sleep(std::time::Duration::from_millis(ms as u64)).await }
-        .wrap_noerr()
+    async move {
+        tokio::time::sleep(std::time::Duration::from_millis(ms as u64)).await;
+        debug!("sleep_ms finished");
+    }
+    .wrap_noerr()
 }
 
 //@ Execute specified tasks in order, starting another and previous one finishes.
@@ -208,13 +211,19 @@ fn race(tasks: Vec<Dynamic>) -> Handle<Task> {
         for t in tasks {
             let tx = tx.clone();
             if let Some(t) = t.clone().try_cast::<Handle<Task>>() {
-                waitees.push(tokio::spawn(async move { run_task(t).await; let _ = tx.send(()); }));
+                waitees.push(tokio::spawn(async move {
+                    run_task(t).await;
+                    let _ = tx.send(()).await;
+                }));
             } else if let Some(h) = t.try_cast::<Handle<Hangup>>() {
                 let Some(t) = h.lock().unwrap().take() else {
                     error!("Attempt to run a null/taken hangup handle");
                     continue;
                 };
-                waitees.push(tokio::spawn(async move { t.await; let _ = tx.send(()); }));
+                waitees.push(tokio::spawn(async move {
+                    t.await;
+                    let _ = tx.send(());
+                }));
             } else {
                 error!("Not a task or hangup in a list of tasks");
                 continue;

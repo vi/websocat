@@ -370,4 +370,12 @@ pub struct WebsocatArgs {
     /// Stop automatic replying to WebSocket pings after sending specified number of pongs. May be zero to just disable replying to pongs.
     #[arg(long)]
     pub inhibit_pongs: Option<usize>,
+
+    /// Abort whatever Websocat is doing after specified number of milliseconds, regardless of whether something is connected or not.
+    #[arg(long)]
+    pub global_timeout_ms: Option<u64>,
+
+    /// Force process exit when global timeout is reached
+    #[arg(long)]
+    pub global_timeout_force_exit: bool,
 }

@@ -2,6 +2,7 @@ use super::types::{Endpoint, WebsocatInvocation};
 
 pub enum Lint {
     StdoutOneshotWithoutExit,
+    StdoutGlobalTimeoutWithoutExit,
 }
 
 impl WebsocatInvocation {
@@ -14,6 +15,10 @@ impl WebsocatInvocation {
             if self.opts.oneshot && !self.opts.exit_after_one_session {
                 ret.push(Lint::StdoutOneshotWithoutExit);
             }
+
+            if self.opts.global_timeout_ms.is_some() && !self.opts.global_timeout_force_exit {
+                ret.push(Lint::StdoutGlobalTimeoutWithoutExit);
+            }
         }
 
         ret
@@ -25,6 +30,9 @@ impl std::fmt::Display for Lint {
         match self {
             Lint::StdoutOneshotWithoutExit => {
                 "--oneshot may fail to properly exit process when stdin is used (https://github.com/tokio-rs/tokio/issues/2466). If only stdout is needed, add -u; or add --exit-after-one-session to force exit after serving the connection.".fmt(f)
+            }
+            Lint::StdoutGlobalTimeoutWithoutExit => {
+                "--global-timeout-ms may fail to properly exit process when stdin is used (https://github.com/tokio-rs/tokio/issues/2466). You may want to also add the --global-timeout-force-exit option.".fmt(f)
             }
         }
     }
