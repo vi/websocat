@@ -7,7 +7,6 @@
 * Lints for unused options
 * TLS server
 * outgoing pings
-* oneshot mode
 * one message mode
 * Advanced UDP options
 * Advanced TCP options
@@ -24,7 +23,6 @@
 * async stdio
 * announcing listening ports
 * JSON RPC tool
-* lengthprefixed tool
 * exit of specific byte mode
 * print ping rtts
 * timestamp overlay
@@ -45,7 +43,6 @@
 * random
 * Prometheus intergration
 * simple ecnryptor/decryptor
-* assert node
 * waitfordata
 * left-to-right features to set envvars based on incoming request
 * Good, helpful `-v` logs
