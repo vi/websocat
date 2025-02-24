@@ -71,7 +71,7 @@ impl Endpoint {
             }
             Endpoint::TcpListen(_) => {
                 printer.decrease_indent();
-                printer.print_line("})");
+                printer.print_line("}, |listen_addr|{})");
             }
             Endpoint::TcpConnectByLateHostname { hostname: _ } => {
                 printer.decrease_indent();

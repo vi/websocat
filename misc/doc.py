@@ -80,7 +80,7 @@ class Function:
     args: List[FunctionArg]
     reg_calls: List[RegisterCall]
     opts: List[StructArg]
-    callbacks : List[Callback]
+    callbacks : Dict[str,List[Callback]]
 
 @dataclass
 class DocumentedIdent:
@@ -127,8 +127,13 @@ CB1_QUERY = qq('''(
   	function: (generic_function
         function:(identifier)@fnc
         type_arguments:(type_arguments
-        	(tuple_type)@params
+        	(_)@params
         )
+    )
+    arguments: (arguments
+      (_)
+      (_)@continuation_name
+      (_)
     )
     (#eq? @fnc "callback_and_continue")
 )''')
@@ -140,6 +145,10 @@ CB2_QUERY = qq('''(
     (#matches? @fnc "\.callback$")
     type_arguments: (type_arguments . (_)@ret (tuple_type)@params)
   )
+    arguments: (arguments
+      (_)@continuation_name
+      (_)
+    )
 )''')
 
 OPTS_QUERY = qq('''(
@@ -310,7 +319,7 @@ def outline(n: Tree) -> Outline:
 
             reg_calls : List[RegisterCall] = []
             struct_opts : List[StructArg] = []
-            callbacks : List[Callback] = []
+            callbacks : Dict[str,List[Callback]] = defaultdict(list)
 
             if regfncalls:=REGFN_QUERY.matches(c):
                 for regfncall in regfncalls:    
@@ -323,16 +332,18 @@ def outline(n: Tree) -> Outline:
                     params = cb1call[1]['params']
 
                     argtyps : List[str] = []
+                    callback_name = cb1call[1]['continuation_name'].text.decode()
                     rettyp='Handle<Task>'
 
                     for tuple_node in params.named_children:
                         argtyps.append(tuple_node.text.decode())
                             
-                    callbacks.append(Callback(rettyp,argtyps))
+                    callbacks[callback_name].append(Callback(rettyp,argtyps))
             if cb2calls := CB2_QUERY.matches(c):
                 for cb2call in cb2calls:
                     ret = cb2call[1]['ret']
                     params = cb2call[1]['params']
+                    callback_name = cb1call[1]['continuation_name'].text.decode()
 
                     argtyps = []
                     rettyp= ret.text.decode()
@@ -340,7 +351,7 @@ def outline(n: Tree) -> Outline:
                     for tuple_node in params.named_children:
                         argtyps.append(tuple_node.text.decode())
                             
-                    callbacks.append(Callback(rettyp,argtyps))
+                    callbacks[callback_name].append(Callback(rettyp,argtyps))
             
             if opts_structs := OPTS_QUERY.matches(c):
                 for opts_struct in opts_structs:
@@ -445,6 +456,12 @@ class TypeAndDoc:
     typ: str
     doc: str
 
+
+@dataclass
+class ExecutorFuncCallback:
+    params: List[str]
+    rettyp: str
+
 @dataclass
 class ExecutorFunc:
     rust_function: str
@@ -452,8 +469,7 @@ class ExecutorFunc:
     primary_doc: str
     params: List[Tuple[str, TypeAndDoc]]
     ret: TypeAndDoc
-    callback_params: List[str]
-    callback_return: str
+    callbacks: Dict[str, ExecutorFuncCallback]
     options: List[Tuple[str, TypeAndDoc]]
 
 def strip_handle(s : str) -> str:
@@ -478,15 +494,19 @@ def document_executor_function(f: ExecutorFunc) -> None:
             if x.typ != "FnPtr":
                 s += strip_handle(x.typ)
             else:
-                s += "Fn("
-                for (i,pt) in enumerate(f.callback_params):
-                    if i>0:
-                        s += ", "
-                    s += strip_handle(pt.strip())
-                s += ")"
-                if f.callback_return:
-                    s += " -> "
-                    s += strip_handle(f.callback_return)
+                if nam in f.callbacks:
+                    cbinfo = f.callbacks[nam]
+                    s += "Fn("
+                    for (i,pt) in enumerate(cbinfo.params):
+                        if i>0:
+                            s += ", "
+                        s += strip_handle(pt.strip())
+                    s += ")"
+                    if cbinfo.rettyp:
+                        s += " -> "
+                        s += strip_handle(cbinfo.rettyp)
+                else:
+                    s+="???"
                 if not x.doc:
                     x.doc = "Rhai function that will be called to continue processing"
             s += "`)"
@@ -630,11 +650,9 @@ def process_outline(o: Outline) -> Tuple[PlannerContent, List[ExecutorFunc]]:
                 approved_functitons[rc.fnname] = rc.rhname
     for f in o.functions:
         if f.name in approved_functitons:
-            cbparams : List[str] = []
-            cbret : str = ""
-            if f.callbacks:
-                cbret = f.callbacks[0].rettyp
-                cbparams = f.callbacks[0].argtyps
+            cbmap : Dict[ExecutorFuncCallback] = {}
+            for (k, v) in f.callbacks.items():
+                cbmap[k] = ExecutorFuncCallback(v[0].argtyps, v[0].rettyp)
             params = [ (x.name, TypeAndDoc(x.typ, " ".join(x.doc))) for x in f.args  ]
             params = [x for x in params if x[0] != "ctx"]
             displayname = approved_functitons[f.name]
@@ -652,8 +670,7 @@ def process_outline(o: Outline) -> Tuple[PlannerContent, List[ExecutorFunc]]:
                 "\n".join(f.doc),
                 params,
                 TypeAndDoc(f.rettyp, " ".join(f.retdoc)),
-                cbparams,
-                cbret,
+                cbmap,
                 [(x.name, TypeAndDoc(x.typ, " ".join(x.doc))) for x in f.opts]
             ))
 

@@ -275,6 +275,15 @@ Options:
       --inhibit-pongs <INHIBIT_PONGS>
           Stop automatic replying to WebSocket pings after sending specified number of pongs. May be zero to just disable replying to pongs
 
+      --global-timeout-ms <GLOBAL_TIMEOUT_MS>
+          Abort whatever Websocat is doing after specified number of milliseconds, regardless of whether something is connected or not
+
+      --global-timeout-force-exit
+          Force process exit when global timeout is reached
+
+      --stdout-announce-listening-ports
+          Print a line to stdout when a port you requested to be listened is ready to accept connections
+
   -h, --help
           Print help (see a summary with '-h')
 
@@ -543,7 +552,7 @@ Prefixes:
 
 ### TcpConnectByLateHostname
 
- 
+
 Connect to a TCP socket by hostname.
 Hostname resolution is repeated every time a connection is initated.
 If multiple address are resolved, they are tried simultaneously, first connected one wins.
@@ -1296,7 +1305,7 @@ Spawn a task that calls `continuation` when specified socket hangup handle fires
 Parameters:
 
 * hangup (`Hangup`)
-* continuation (`Fn()`) - Rhai function that will be called to continue processing
+* continuation (`Fn() -> Task`) - Rhai function that will be called to continue processing
 
 Returns `()`
 
@@ -1415,10 +1424,13 @@ Options:
 
 ## listen_tcp
 
+Listen TCP socket at specified address, executing `continuation` on each connection and `when_listening` once when the port is open
+
 Parameters:
 
 * opts (`Dynamic`) - object map containing dynamic options to the function
-* continuation (`Fn(StreamSocket, SocketAddr) -> Task`) - Rhai function that will be called to continue processing
+* continuation (`Fn(StreamSocket, SocketAddr) -> Task`) - Called on each connection
+* when_listening (`Fn(SocketAddr) -> Task`) - Called once after the port is bound
 
 Returns `Task`
 
@@ -1628,6 +1640,16 @@ Parameters:
 
 Returns `()`
 
+## race
+
+Execute specified tasks in parallel, aborting all others if one of them finishes.
+
+Parameters:
+
+* tasks (`Vec<Dynamic>`)
+
+Returns `Task`
+
 ## read_chunk_limiter
 
 Transform stream source so that reads become short reads if there is enough data. For development and testing.
@@ -1805,7 +1827,7 @@ Create a Task that runs specified Rhai code when scheduled.
 
 Parameters:
 
-* continuation (`Fn()`) - Rhai function that will be called to continue processing
+* continuation (`Fn() -> Task`) - Rhai function that will be called to continue processing
 
 Returns `Task`
 

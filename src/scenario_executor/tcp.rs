@@ -115,10 +115,14 @@ fn connect_tcp_race(
     .wrap())
 }
 
+//@ Listen TCP socket at specified address
 fn listen_tcp(
     ctx: NativeCallContext,
     opts: Dynamic,
+    //@ Called on each connection
     continuation: FnPtr,
+    //@ Called once after the port is bound
+    when_listening: FnPtr,
 ) -> RhResult<Handle<Task>> {
     let span = debug_span!("listen_tcp");
     let the_scenario = ctx.get_scenario()?;
@@ -144,6 +148,13 @@ fn listen_tcp(
     Ok(async move {
         debug!("node started");
         let l = tokio::net::TcpListener::bind(opts.addr).await?;
+
+        callback_and_continue::<(SocketAddr,)>(
+            the_scenario.clone(),
+            when_listening,
+            (opts.addr,),
+        )
+        .await;
 
         let mut drop_nofity = None;
 

@@ -378,4 +378,8 @@ pub struct WebsocatArgs {
     /// Force process exit when global timeout is reached
     #[arg(long)]
     pub global_timeout_force_exit: bool,
+
+    /// Print a line to stdout when a port you requested to be listened is ready to accept connections.
+    #[arg(long)]
+    stdout_announce_listening_ports: bool,
 }
