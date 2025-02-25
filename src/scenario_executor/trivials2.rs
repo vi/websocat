@@ -290,6 +290,12 @@ fn debug_print(ctx: NativeCallContext, x: Dynamic) -> RhResult<()> {
     Ok(())
 }
 
+
+//@ Print a string to stdout (synchronously)
+fn print_stdout(x: &str) {
+    print!("{x}");
+}
+
 //@ Create a stream socket with a read handle emits specified data, then EOF; and
 //@ write handle that ignores all incoming data and null hangup handle.
 fn literal_socket(data: String) -> Handle<StreamSocket> {
@@ -462,6 +468,7 @@ pub fn register(engine: &mut Engine) {
     engine.register_fn("write_buffer", write_buffer);
     engine.register_fn("b64str", b64str);
     engine.register_fn("dbg", debug_print);
+    engine.register_fn("print_stdout", print_stdout);
     engine.register_fn("literal_socket", literal_socket);
     engine.register_fn("literal_socket_base64", literal_socket_base64);
     engine.register_fn("read_stream_chunks", read_stream_chunks);

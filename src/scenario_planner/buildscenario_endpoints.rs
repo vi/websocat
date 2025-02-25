@@ -104,12 +104,12 @@ impl Endpoint {
         }
     }
 
-    pub(super) fn end_print(&self, printer: &mut ScenarioPrinter) {
+    pub(super) fn end_print(&self, printer: &mut ScenarioPrinter, opts: &WebsocatArgs) {
         match self {
             Endpoint::TcpConnectByIp(..)
             | Endpoint::TcpConnectByEarlyHostname { .. }
             | Endpoint::TcpListen { .. }
-            | Endpoint::TcpConnectByLateHostname { .. } => self.end_print_tcp(printer),
+            | Endpoint::TcpConnectByLateHostname { .. } => self.end_print_tcp(printer, opts),
             Endpoint::WsUrl(..) | Endpoint::WssUrl(..) | Endpoint::WsListen(..) => {
                 self.end_print_ws(printer)
             }

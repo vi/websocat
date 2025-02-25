@@ -59,7 +59,7 @@ impl Endpoint {
         }
     }
 
-    pub(super) fn end_print_tcp(&self, printer: &mut ScenarioPrinter) {
+    pub(super) fn end_print_tcp(&self, printer: &mut ScenarioPrinter, opts: &WebsocatArgs) {
         match self {
             Endpoint::TcpConnectByIp(_) => {
                 printer.decrease_indent();
@@ -69,9 +69,17 @@ impl Endpoint {
                 printer.decrease_indent();
                 printer.print_line("})");
             }
-            Endpoint::TcpListen(_) => {
+            Endpoint::TcpListen(addr) => {
                 printer.decrease_indent();
-                printer.print_line("}, |listen_addr|{})");
+                printer.print_line("}, |listen_addr|{sequential([");
+                printer.increase_indent();
+                if opts.stdout_announce_listening_ports {
+                    let ip = addr.ip();
+                    let port = addr.port();
+                    printer.print_line(&format!("print_stdout(\"LISTEN proto=tcp,ip={ip},port={port}\\n\")"));
+                }
+                printer.decrease_indent();
+                printer.print_line("])})");
             }
             Endpoint::TcpConnectByLateHostname { hostname: _ } => {
                 printer.decrease_indent();

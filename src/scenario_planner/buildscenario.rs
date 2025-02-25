@@ -88,13 +88,13 @@ impl WebsocatInvocation {
             ovl.end_print(&mut printer);
         }
 
-        self.right.innermost.end_print(&mut printer);
+        self.right.innermost.end_print(&mut printer, &self.opts);
 
         for ovl in self.left.overlays.iter().rev() {
             ovl.end_print(&mut printer);
         }
 
-        self.left.innermost.end_print(&mut printer);
+        self.left.innermost.end_print(&mut printer, &self.opts);
 
         for prepare_action in self.beginning.iter().rev() {
             prepare_action.end_print(&mut printer);

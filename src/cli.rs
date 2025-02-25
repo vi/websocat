@@ -381,5 +381,5 @@ pub struct WebsocatArgs {
 
     /// Print a line to stdout when a port you requested to be listened is ready to accept connections.
     #[arg(long)]
-    stdout_announce_listening_ports: bool,
+    pub stdout_announce_listening_ports: bool,
 }

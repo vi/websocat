@@ -168,7 +168,9 @@ fn sleep_ms(ms: i64) -> Handle<Task> {
 fn sequential(tasks: Vec<Dynamic>) -> Handle<Task> {
     async move {
         for t in tasks {
-            if let Some(t) = t.clone().try_cast::<Handle<Task>>() {
+            if t.is_unit() {
+                debug!("Ignoring null in sequential task list");
+            } else if let Some(t) = t.clone().try_cast::<Handle<Task>>() {
                 run_task(t).await;
             } else if let Some(h) = t.try_cast::<Handle<Hangup>>() {
                 let Some(t) = h.lock().unwrap().take() else {
@@ -210,7 +212,9 @@ fn race(tasks: Vec<Dynamic>) -> Handle<Task> {
         let (tx, mut rx) = tokio::sync::mpsc::channel::<()>(1);
         for t in tasks {
             let tx = tx.clone();
-            if let Some(t) = t.clone().try_cast::<Handle<Task>>() {
+            if t.is_unit() {
+                debug!("Ignoring null in sequential task list");
+            } else if let Some(t) = t.clone().try_cast::<Handle<Task>>() {
                 waitees.push(tokio::spawn(async move {
                     run_task(t).await;
                     let _ = tx.send(()).await;
