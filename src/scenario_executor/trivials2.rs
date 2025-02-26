@@ -277,23 +277,28 @@ fn b64str(ctx: NativeCallContext, x: &str) -> RhResult<String> {
     Ok(s)
 }
 
-//@ Debug print something to stderr
-fn debug_print(ctx: NativeCallContext, x: Dynamic) -> RhResult<()> {
-    let the_scenario = ctx.get_scenario()?;
-    let mut diago = the_scenario.diagnostic_output.lock().unwrap();
+//@ Turn any object into some string representation
+fn format_str(x: Dynamic) -> String {
     if x.is_blob() {
         let b = x.into_blob().unwrap();
-        let _ = writeln!(diago, "b{}", render_content(&b, false));
+        format!("b{}", render_content(&b, false))
     } else {
-        let _ = writeln!(diago, "{:?}", x);
+        format!("{:?}", x)
     }
-    Ok(())
 }
 
 
 //@ Print a string to stdout (synchronously)
 fn print_stdout(x: &str) {
     print!("{x}");
+}
+
+//@ Print a string to stderr (synchronously)
+fn print_stderr(ctx: NativeCallContext, x: &str) -> RhResult<()> {
+    let the_scenario = ctx.get_scenario()?;
+    let mut diago = the_scenario.diagnostic_output.lock().unwrap();
+    let _ = write!(diago, "{x}");
+    Ok(())
 }
 
 //@ Create a stream socket with a read handle emits specified data, then EOF; and
@@ -467,7 +472,8 @@ pub fn register(engine: &mut Engine) {
     engine.register_fn("dummy_datagram_socket", dummy_datagram_socket);
     engine.register_fn("write_buffer", write_buffer);
     engine.register_fn("b64str", b64str);
-    engine.register_fn("dbg", debug_print);
+    engine.register_fn("str", format_str);
+    engine.register_fn("print_stderr", print_stderr);
     engine.register_fn("print_stdout", print_stdout);
     engine.register_fn("literal_socket", literal_socket);
     engine.register_fn("literal_socket_base64", literal_socket_base64);

@@ -12,7 +12,7 @@ use crate::scenario_executor::{
     utils2::DefragmenterAddChunkResult,
 };
 use bytes::BytesMut;
-use futures::{future::OptionFuture, FutureExt};
+use futures::future::OptionFuture;
 use lru::LruCache;
 use rhai::{Dynamic, Engine, FnPtr, NativeCallContext};
 use tokio::{net::UdpSocket, sync::mpsc::error::TrySendError, time::Instant};
@@ -228,7 +228,10 @@ const fn default_max_send_datagram_size() -> usize {
 fn udp_server(
     ctx: NativeCallContext,
     opts: Dynamic,
-    continuation: FnPtr,
+    //@ Called once after the port is bound
+    when_listening: FnPtr,
+    //@ Called when new client is sending us datagrams
+    on_accept: FnPtr,
 ) -> RhResult<Handle<Task>> {
     let original_span = tracing::Span::current();
     let span = debug_span!(parent: original_span, "udp_server");
@@ -299,18 +302,33 @@ fn udp_server(
 
     debug!(parent: &span, addr=%opts.bind, "options parsed");
 
-    let Some(Ok(s)) = UdpSocket::bind(bind_addr).now_or_never() else {
-        return Err(ctx.err("Failed to bind UDP socket"));
-    };
-
-    let s = Arc::new(s);
-
-    let mut buf = BytesMut::new();
-
-    let mut clients_add_events: usize = 0;
-
     Ok(async move {
         debug!("node started");
+        let mut buf = BytesMut::new();
+    
+        let mut clients_add_events: usize = 0;
+
+        let s = UdpSocket::bind(bind_addr).await?;
+
+
+        let mut address_to_report = opts.bind;
+
+        if address_to_report.port() == 0 {
+            if let Ok(a) = s.local_addr() {
+                address_to_report = a;
+            } else {
+                warn!("Failed to obtain actual listening port");
+            }
+        }
+
+        callback_and_continue::<(SocketAddr,)>(
+            the_scenario.clone(),
+            when_listening,
+            (address_to_report,),
+        )
+        .await;
+
+        let s = Arc::new(s);
 
         'main_loop: loop {
             trace!("loop");
@@ -396,13 +414,13 @@ fn udp_server(
 
 
                         let the_scenario = the_scenario.clone();
-                        let continuation = continuation.clone();
+                        let on_accept = on_accept.clone();
                         tokio::spawn(async move {
                             let newspan = debug_span!("udp_accept", from=%from_addr);
                             debug!("accepted");
                             callback_and_continue::<(Handle<DatagramSocket>, SocketAddr)>(
                                 the_scenario,
-                                continuation,
+                                on_accept,
                                 (Some(socket).wrap(), from_addr),
                             )
                             .instrument(newspan)

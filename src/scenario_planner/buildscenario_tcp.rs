@@ -48,18 +48,31 @@ impl Endpoint {
                 let varnam = vars.getnewvarname("tcp");
                 let fromaddr = vars.getnewvarname("from");
                 let listenparams = opts.listening_parameters();
+
                 printer.print_line(&format!(
-                    "listen_tcp(#{{{listenparams}, addr: {a}}}, |{varnam}, {fromaddr}| {{",
+                    "listen_tcp(#{{{listenparams}, addr: {a}}}, |listen_addr|{{sequential([",
                     a = StrLit(addr),
                 ));
                 printer.increase_indent();
+
+                if opts.stdout_announce_listening_ports {
+                    printer.print_line(&"print_stdout(\"LISTEN proto=tcp,ip=\"+listen_addr.get_ip()+\",port=\"+str(listen_addr.get_port())+\"\\n\")");
+                }
+
+                printer.decrease_indent();
+                printer.print_line(&format!(
+                    "])}},  |{varnam}, {fromaddr}| {{",
+                ));
+                printer.increase_indent();
+
+
                 Ok(varnam)
             }
             _ => panic!(),
         }
     }
 
-    pub(super) fn end_print_tcp(&self, printer: &mut ScenarioPrinter, opts: &WebsocatArgs) {
+    pub(super) fn end_print_tcp(&self, printer: &mut ScenarioPrinter, _opts: &WebsocatArgs) {
         match self {
             Endpoint::TcpConnectByIp(_) => {
                 printer.decrease_indent();
@@ -69,17 +82,9 @@ impl Endpoint {
                 printer.decrease_indent();
                 printer.print_line("})");
             }
-            Endpoint::TcpListen(addr) => {
+            Endpoint::TcpListen(_addr) => {
                 printer.decrease_indent();
-                printer.print_line("}, |listen_addr|{sequential([");
-                printer.increase_indent();
-                if opts.stdout_announce_listening_ports {
-                    let ip = addr.ip();
-                    let port = addr.port();
-                    printer.print_line(&format!("print_stdout(\"LISTEN proto=tcp,ip={ip},port={port}\\n\")"));
-                }
-                printer.decrease_indent();
-                printer.print_line("])})");
+                printer.print_line("})");
             }
             Endpoint::TcpConnectByLateHostname { hostname: _ } => {
                 printer.decrease_indent();

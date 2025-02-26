@@ -1,3 +1,5 @@
+use std::net::SocketAddr;
+
 use rhai::{Engine, FnPtr, NativeCallContext};
 use tracing::debug;
 
@@ -80,10 +82,32 @@ fn task_wrap(ctx: NativeCallContext, continuation: FnPtr) -> RhResult<Handle<Tas
     Ok(Some(t).wrap())
 }
 
+//@ Extract IP address from SocketAddr
+fn sockaddr_get_ip(sa: &mut SocketAddr) -> String {
+    format!("{}",sa.ip())
+}
+
+//@ Extract port from SocketAddr
+fn sockaddr_get_port(sa: &mut SocketAddr) -> i64 {
+    sa.port().into()
+}
+
+//@ Build SocketAddr from IP and port
+fn make_socket_addr(ctx: NativeCallContext, ip: &str, port: i64) -> RhResult<SocketAddr> {
+    if let Ok(ip) = ip.parse() {
+        Ok(SocketAddr::new(ip, port as u16))
+    } else {
+        Err(ctx.err("Failed to parse IP address"))
+    }
+}
+
 pub fn register(engine: &mut Engine) {
     engine.register_fn("triggerable_event_create", triggerable_event_create);
     engine.register_fn("take_hangup", triggerable_event_take_hangup);
     engine.register_fn("take_trigger", triggerable_event_take_trigger);
     engine.register_fn("fire", triggerable_event_fire);
     engine.register_fn("task_wrap", task_wrap);
+    engine.register_fn("get_ip", sockaddr_get_ip);
+    engine.register_fn("get_port", sockaddr_get_port);
+    engine.register_fn("make_socket_addr", make_socket_addr);
 }

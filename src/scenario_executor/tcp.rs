@@ -4,7 +4,7 @@ use crate::scenario_executor::utils1::{wrap_as_stream_socket, TaskHandleExt2};
 use futures::{stream::FuturesUnordered, FutureExt, StreamExt};
 use rhai::{Dynamic, Engine, FnPtr, NativeCallContext};
 use tokio::net::TcpStream;
-use tracing::{debug, debug_span, error, Instrument};
+use tracing::{debug, debug_span, error, warn, Instrument};
 
 use crate::scenario_executor::{
     scenario::{callback_and_continue, ScenarioAccess},
@@ -119,10 +119,10 @@ fn connect_tcp_race(
 fn listen_tcp(
     ctx: NativeCallContext,
     opts: Dynamic,
-    //@ Called on each connection
-    continuation: FnPtr,
     //@ Called once after the port is bound
     when_listening: FnPtr,
+    //@ Called on each connection
+    on_accept: FnPtr,
 ) -> RhResult<Handle<Task>> {
     let span = debug_span!("listen_tcp");
     let the_scenario = ctx.get_scenario()?;
@@ -149,10 +149,20 @@ fn listen_tcp(
         debug!("node started");
         let l = tokio::net::TcpListener::bind(opts.addr).await?;
 
+        let mut address_to_report = opts.addr;
+
+        if address_to_report.port() == 0 {
+            if let Ok(a) = l.local_addr() {
+                address_to_report = a;
+            } else {
+                warn!("Failed to obtain actual listening port");
+            }
+        }
+
         callback_and_continue::<(SocketAddr,)>(
             the_scenario.clone(),
             when_listening,
-            (opts.addr,),
+            (address_to_report,),
         )
         .await;
 
@@ -160,7 +170,7 @@ fn listen_tcp(
 
         loop {
             let the_scenario = the_scenario.clone();
-            let continuation = continuation.clone();
+            let on_accept = on_accept.clone();
             match l.accept().await {
                 Ok((t, from)) => {
                     let newspan = debug_span!("tcp_accept", from=%from);
@@ -176,7 +186,7 @@ fn listen_tcp(
                     if !autospawn {
                         callback_and_continue::<(Handle<StreamSocket>, SocketAddr)>(
                             the_scenario,
-                            continuation,
+                            on_accept,
                             (h, from),
                         )
                         .instrument(newspan)
@@ -185,7 +195,7 @@ fn listen_tcp(
                         tokio::spawn(async move {
                             callback_and_continue::<(Handle<StreamSocket>, SocketAddr)>(
                                 the_scenario,
-                                continuation,
+                                on_accept,
                                 (h, from),
                             )
                             .instrument(newspan)

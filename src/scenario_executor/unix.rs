@@ -116,11 +116,15 @@ fn connect_unix(
     .wrap())
 }
 
+//@ Listen UNIX or abstract socket
 fn listen_unix(
     ctx: NativeCallContext,
     opts: Dynamic,
     mut path: OsString,
-    continuation: FnPtr,
+    //@ Called once after the port is bound
+    when_listening: FnPtr,
+    //@ Called on each accepted connection
+    on_accept: FnPtr,
 ) -> RhResult<Handle<Task>> {
     let span = debug_span!("listen_unix");
     let the_scenario = ctx.get_scenario()?;
@@ -159,11 +163,18 @@ fn listen_unix(
 
         maybe_chmod(opts.chmod, path, || l.accept().now_or_never()).await?;
 
+        callback_and_continue::<()>(
+            the_scenario.clone(),
+            when_listening,
+            (),
+        )
+        .await;
+
         let mut drop_nofity = None;
 
         loop {
             let the_scenario = the_scenario.clone();
-            let continuation = continuation.clone();
+            let on_accept = on_accept.clone();
             match l.accept().await {
                 Ok((t, from)) => {
                     let newspan = debug_span!("unix_accept", from=?from);
@@ -178,7 +189,7 @@ fn listen_unix(
                     if !autospawn {
                         callback_and_continue::<(Handle<StreamSocket>,)>(
                             the_scenario,
-                            continuation,
+                            on_accept,
                             (h,),
                         )
                         .instrument(newspan)
@@ -187,7 +198,7 @@ fn listen_unix(
                         tokio::spawn(async move {
                             callback_and_continue::<(Handle<StreamSocket>,)>(
                                 the_scenario,
-                                continuation,
+                                on_accept,
                                 (h,),
                             )
                             .instrument(newspan)
@@ -403,7 +414,10 @@ fn listen_seqpacket(
     ctx: NativeCallContext,
     opts: Dynamic,
     mut path: OsString,
-    continuation: FnPtr,
+    //@ Called once after the port is bound
+    when_listening: FnPtr,
+    //@ Call on each incoming connection
+    on_accept: FnPtr,
 ) -> RhResult<Handle<Task>> {
     let span = debug_span!("listen_seqpacket");
     let the_scenario = ctx.get_scenario()?;
@@ -455,13 +469,20 @@ fn listen_seqpacket(
 
         maybe_chmod(opts.chmod, path, || l.accept().now_or_never()).await?;
 
+        callback_and_continue::<()>(
+            the_scenario.clone(),
+            when_listening,
+            (),
+        )
+        .await;
+
         let mut i = 0;
 
         let mut drop_notification = None;
 
         loop {
             let the_scenario = the_scenario.clone();
-            let continuation = continuation.clone();
+            let on_accept = on_accept.clone();
             match l.accept().await {
                 Ok(s) => {
                     let newspan = debug_span!("seqpacket_accept", i);
@@ -495,7 +516,7 @@ fn listen_seqpacket(
                     if !autospawn {
                         callback_and_continue::<(Handle<DatagramSocket>,)>(
                             the_scenario,
-                            continuation,
+                            on_accept,
                             (h,),
                         )
                         .instrument(newspan)
@@ -504,7 +525,7 @@ fn listen_seqpacket(
                         tokio::spawn(async move {
                             callback_and_continue::<(Handle<DatagramSocket>,)>(
                                 the_scenario,
-                                continuation,
+                                on_accept,
                                 (h,),
                             )
                             .instrument(newspan)

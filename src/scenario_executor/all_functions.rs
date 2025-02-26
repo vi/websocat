@@ -63,6 +63,7 @@ macro_rules! all_types {
         $x!(OsString);
         $x!(TriggerableEvent);
         $x!(TriggerableEventTrigger);
+        $x!(SocketAddr);
     };
 }
 

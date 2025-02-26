@@ -45,8 +45,19 @@ impl Endpoint {
                 let mut chmod_option = "";
                 fill_in_chmods(opts, &mut chmod_option);
 
+
                 printer.print_line(&format!(
-                    "listen_unix(#{{{listenparams} {chmod_option} }}, {pathvar}, |{varnam}| {{",
+                    "listen_unix(#{{{listenparams} {chmod_option} }}, {pathvar}, ||{{sequential([",
+                ));
+                printer.increase_indent();
+
+                if opts.stdout_announce_listening_ports {
+                    printer.print_line(&"print_stdout(\"LISTEN proto=unix\\n\")");
+                }
+
+                printer.decrease_indent();
+                printer.print_line(&format!(
+                    "])}},  |{varnam}| {{",
                 ));
                 printer.increase_indent();
                 Ok(varnam)
@@ -77,7 +88,17 @@ impl Endpoint {
                 let listenparams = opts.listening_parameters();
 
                 printer.print_line(&format!(
-                    "listen_unix(#{{abstract: true, {listenparams} }}, {pathvar}, |{varnam}| {{",
+                    "listen_unix(#{{abstract: true, {listenparams} }}, {pathvar}, ||{{sequential([",
+                ));
+                printer.increase_indent();
+
+                if opts.stdout_announce_listening_ports {
+                    printer.print_line(&"print_stdout(\"LISTEN proto=unix\\n\")");
+                }
+
+                printer.decrease_indent();
+                printer.print_line(&format!(
+                    "])}},  |{varnam}| {{",
                 ));
                 printer.increase_indent();
                 Ok(varnam)
@@ -126,10 +147,21 @@ impl Endpoint {
                 let listenparams = opts.listening_parameters();
 
                 printer.print_line(&format!(
-                    "listen_seqpacket(#{{{listenparams} {chmod_option} {text_option} , max_send_datagram_size: {} }}, {pathvar}, |{varnam}| {{",
+                    "listen_seqpacket(#{{{listenparams} {chmod_option} {text_option} , max_send_datagram_size: {} }}, {pathvar}, ||{{sequential([",
                     opts.seqpacket_max_send_datagram_size,
                 ));
                 printer.increase_indent();
+
+                if opts.stdout_announce_listening_ports {
+                    printer.print_line(&"print_stdout(\"LISTEN proto=unix\\n\")");
+                }
+
+                printer.decrease_indent();
+                printer.print_line(&format!(
+                    "])}},  |{varnam}| {{",
+                ));
+                printer.increase_indent();
+
                 Ok(varnam)
             }
             Endpoint::AbstractSeqpacketConnect(path) => {
@@ -169,10 +201,21 @@ impl Endpoint {
                 let listenparams = opts.listening_parameters();
 
                 printer.print_line(&format!(
-                    "listen_seqpacket(#{{abstract:true, {listenparams} {text_option} , max_send_datagram_size: {} }}, {pathvar}, |{varnam}| {{",
+                    "listen_seqpacket(#{{abstract:true, {listenparams} {text_option} , max_send_datagram_size: {} }}, {pathvar}, ||{{sequential([",
                     opts.seqpacket_max_send_datagram_size,
                 ));
                 printer.increase_indent();
+
+                if opts.stdout_announce_listening_ports {
+                    printer.print_line(&"print_stdout(\"LISTEN proto=unix\\n\")");
+                }
+
+                printer.decrease_indent();
+                printer.print_line(&format!(
+                    "])}},  |{varnam}| {{",
+                ));
+                printer.increase_indent();
+
                 Ok(varnam)
             }
             _ => panic!(),

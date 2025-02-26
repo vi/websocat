@@ -73,6 +73,7 @@ impl Endpoint {
                 }
 
                 printer.print_line(&format!("let {varnam} = udp_socket(#{{{o}}});"));
+                
                 Ok(varnam)
             }
             Endpoint::UdpServer(a) => {
@@ -107,8 +108,17 @@ impl Endpoint {
                     opts.udp_max_send_datagram_size
                 ));
 
-                printer.print_line(&format!("udp_server(#{{{o}}}, |{varnam}, {fromaddr}| {{",));
+                printer.print_line(&format!("udp_server(#{{{o}}}, |listen_addr|{{sequential([",));
                 printer.increase_indent();
+
+                if opts.stdout_announce_listening_ports {
+                    printer.print_line(&"print_stdout(\"LISTEN proto=udp,ip=\"+listen_addr.get_ip()+\",port=\"+str(listen_addr.get_port())+\"\\n\")");
+                }
+
+                printer.decrease_indent();
+                printer.print_line(&format!("])}}, |{varnam}, {fromaddr}| {{",));
+                printer.increase_indent();
+
                 Ok(varnam)
             }
             _ => panic!(),

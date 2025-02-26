@@ -1197,16 +1197,6 @@ Options:
 * hex (`bool`) - Use hex lines instead of string literals with espaces
 * include_timestamps (`bool`) - Also print relative timestamps for each log message
 
-## dbg
-
-Debug print something to stderr
-
-Parameters:
-
-* x (`Dynamic`)
-
-Returns `()`
-
 ## display_pkts
 
 Sample sink for packets for demostration purposes
@@ -1297,6 +1287,26 @@ Parameters:
 * code (`i64`)
 
 Does not return anything.
+
+## get_ip
+
+Extract IP address from SocketAddr
+
+Parameters:
+
+* sa (`&mut SocketAddr`)
+
+Returns `String`
+
+## get_port
+
+Extract port from SocketAddr
+
+Parameters:
+
+* sa (`&mut SocketAddr`)
+
+Returns `i64`
 
 ## handle_hangup
 
@@ -1409,7 +1419,8 @@ Parameters:
 
 * opts (`Dynamic`) - object map containing dynamic options to the function
 * path (`OsString`)
-* continuation (`Fn(DatagramSocket) -> Task`) - Rhai function that will be called to continue processing
+* when_listening (`Fn() -> Task`) - Called once after the port is bound
+* on_accept (`Fn(DatagramSocket) -> Task`) - Call on each incoming connection
 
 Returns `Task`
 
@@ -1424,13 +1435,13 @@ Options:
 
 ## listen_tcp
 
-Listen TCP socket at specified address, executing `continuation` on each connection and `when_listening` once when the port is open
+Listen TCP socket at specified address
 
 Parameters:
 
 * opts (`Dynamic`) - object map containing dynamic options to the function
-* continuation (`Fn(StreamSocket, SocketAddr) -> Task`) - Called on each connection
 * when_listening (`Fn(SocketAddr) -> Task`) - Called once after the port is bound
+* on_accept (`Fn(StreamSocket, SocketAddr) -> Task`) - Called on each connection
 
 Returns `Task`
 
@@ -1442,11 +1453,14 @@ Options:
 
 ## listen_unix
 
+Listen UNIX or abstract socket
+
 Parameters:
 
 * opts (`Dynamic`) - object map containing dynamic options to the function
 * path (`OsString`)
-* continuation (`Fn(StreamSocket) -> Task`) - Rhai function that will be called to continue processing
+* when_listening (`Fn() -> Task`) - Called once after the port is bound
+* on_accept (`Fn(StreamSocket) -> Task`) - Called on each accepted connection
 
 Returns `Task`
 
@@ -1489,6 +1503,17 @@ Parameters:
 * continuation (`Fn(Vec<SocketAddr>) -> Task`) - Rhai function that will be called to continue processing
 
 Returns `Task`
+
+## make_socket_addr
+
+Build SocketAddr from IP and port
+
+Parameters:
+
+* ip (`&str`)
+* port (`i64`)
+
+Returns `SocketAddr`
 
 ## mock_stream_socket
 
@@ -1584,6 +1609,26 @@ Returns `Task`
 Create a Hangup handle that immediately resolves (i.e. signals hangup)
 
 Returns `Hangup`
+
+## print_stderr
+
+Print a string to stderr (synchronously)
+
+Parameters:
+
+* x (`&str`)
+
+Returns `()`
+
+## print_stdout
+
+Print a string to stdout (synchronously)
+
+Parameters:
+
+* x (`&str`)
+
+Does not return anything.
 
 ## put_hangup_part
 
@@ -1700,6 +1745,16 @@ Parameters:
 * task (`Task`)
 
 Does not return anything.
+
+## str
+
+Turn any object into some string representation
+
+Parameters:
+
+* x (`Dynamic`)
+
+Returns `String`
 
 ## stream_chunks
 
@@ -1900,7 +1955,8 @@ typically for connecting to a specific UDP endpoint
 Parameters:
 
 * opts (`Dynamic`) - object map containing dynamic options to the function
-* continuation (`Fn(DatagramSocket, SocketAddr) -> Task`) - Rhai function that will be called to continue processing
+* when_listening (`Fn(SocketAddr) -> Task`) - Called once after the port is bound
+* on_accept (`Fn(DatagramSocket, SocketAddr) -> Task`) - Called when new client is sending us datagrams
 
 Returns `Task`
 
