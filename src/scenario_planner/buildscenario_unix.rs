@@ -52,7 +52,13 @@ impl Endpoint {
                 printer.increase_indent();
 
                 if opts.stdout_announce_listening_ports {
-                    printer.print_line(&"print_stdout(\"LISTEN proto=unix\\n\")");
+                    printer.print_line(&"print_stdout(\"LISTEN proto=unix\\n\"),");
+                }
+                if let Some(ref x) = opts.exec_after_listen {
+                    printer.print_line(&format!(
+                        "system({}),",
+                        StrLit(x)
+                    ));
                 }
 
                 printer.decrease_indent();
@@ -93,7 +99,13 @@ impl Endpoint {
                 printer.increase_indent();
 
                 if opts.stdout_announce_listening_ports {
-                    printer.print_line(&"print_stdout(\"LISTEN proto=unix\\n\")");
+                    printer.print_line(&"print_stdout(\"LISTEN proto=unix\\n\"),");
+                }
+                if let Some(ref x) = opts.exec_after_listen {
+                    printer.print_line(&format!(
+                        "system({}),",
+                        StrLit(x)
+                    ));
                 }
 
                 printer.decrease_indent();
@@ -153,7 +165,13 @@ impl Endpoint {
                 printer.increase_indent();
 
                 if opts.stdout_announce_listening_ports {
-                    printer.print_line(&"print_stdout(\"LISTEN proto=unix\\n\")");
+                    printer.print_line(&"print_stdout(\"LISTEN proto=unix\\n\"),");
+                }
+                if let Some(ref x) = opts.exec_after_listen {
+                    printer.print_line(&format!(
+                        "system({}),",
+                        StrLit(x)
+                    ));
                 }
 
                 printer.decrease_indent();
@@ -204,10 +222,17 @@ impl Endpoint {
                     "listen_seqpacket(#{{abstract:true, {listenparams} {text_option} , max_send_datagram_size: {} }}, {pathvar}, ||{{sequential([",
                     opts.seqpacket_max_send_datagram_size,
                 ));
+
                 printer.increase_indent();
 
                 if opts.stdout_announce_listening_ports {
-                    printer.print_line(&"print_stdout(\"LISTEN proto=unix\\n\")");
+                    printer.print_line(&"print_stdout(\"LISTEN proto=unix\\n\"),");
+                }
+                if let Some(ref x) = opts.exec_after_listen {
+                    printer.print_line(&format!(
+                        "system({}),",
+                        StrLit(x)
+                    ));
                 }
 
                 printer.decrease_indent();

@@ -1,6 +1,6 @@
 use crate::{cli::WebsocatArgs, scenario_executor::utils1::ToNeutralAddress};
 
-use super::{scenarioprinter::ScenarioPrinter, types::Endpoint, utils::IdentifierGenerator};
+use super::{scenarioprinter::{ScenarioPrinter, StrLit}, types::Endpoint, utils::IdentifierGenerator};
 
 impl Endpoint {
     pub(super) fn begin_print_udp(
@@ -112,7 +112,20 @@ impl Endpoint {
                 printer.increase_indent();
 
                 if opts.stdout_announce_listening_ports {
-                    printer.print_line(&"print_stdout(\"LISTEN proto=udp,ip=\"+listen_addr.get_ip()+\",port=\"+str(listen_addr.get_port())+\"\\n\")");
+                    printer.print_line(&"print_stdout(\"LISTEN proto=udp,ip=\"+listen_addr.get_ip()+\",port=\"+str(listen_addr.get_port())+\"\\n\"),");
+                }
+                if let Some(ref x) = opts.exec_after_listen {
+                    if opts.exec_after_listen_append_port {
+                        printer.print_line(&format!(
+                            "system({} + \" \" + str(listen_addr.get_port())),",
+                            StrLit(x)
+                        ));
+                    } else {
+                        printer.print_line(&format!(
+                            "system({}),",
+                            StrLit(x)
+                        ));
+                    }
                 }
 
                 printer.decrease_indent();

@@ -253,6 +253,45 @@ fn child_wait(ctx: NativeCallContext, chld: &mut Handle<Child>) -> RhResult<Hand
     Ok(Some(s).wrap())
 }
 
+//@ Simplified function to just execute a command line
+fn simplified_exec(ctx: NativeCallContext, cmdline: &str) -> RhResult<Handle<Hangup>> {
+    let mut cmd : Command;
+    #[cfg(windows)] {
+        cmd = Command::new("cmd");
+        cmd.arg("/C");
+        cmd.raw_arg(cmdline);
+    }
+    #[cfg(not(windows))] {
+        cmd = Command::new("sh");
+        cmd.arg("-c");
+        cmd.arg(cmdline);
+    }
+
+    let mut c = match cmd.spawn() {
+        Ok(x) => {
+            debug!("spawned subprocess");
+            x
+        }
+        Err(e) => {
+            warn!("Process spawning failed: {e}");
+            return Err(ctx.err("Failed to spawn the process"))
+        }
+    };
+
+    let s: Hangup = Box::pin(async move {
+        match c.wait().await {
+            Ok(x) => {
+                debug!("child process exited with status {x}")
+            }
+            Err(e) => {
+                warn!("Failed to wait for a child process: {e}")
+            }
+        }
+    });
+
+    Ok(Some(s).wrap())
+}
+
 //@ Terminate a child process.
 //@ `Child` instance cannot be used after this.
 fn child_kill(ctx: NativeCallContext, chld: &mut Handle<Child>) -> RhResult<Handle<Hangup>> {
@@ -557,4 +596,6 @@ pub fn register(engine: &mut Engine) {
     engine.register_fn("gid", subprocess_gid);
     engine.register_fn("arg0", subprocess_arg0);
     engine.register_fn("arg0_osstr", subprocess_arg0_osstr);
+
+    engine.register_fn("system", simplified_exec);
 }

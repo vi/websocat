@@ -284,6 +284,16 @@ Options:
       --stdout-announce-listening-ports
           Print a line to stdout when a port you requested to be listened is ready to accept connections
 
+      --exec-after-listen <EXEC_AFTER_LISTEN>
+          Execute this command line after binding listening port
+          
+          Connections are not actually accepted until the command exits (exit code is ignored)
+
+      --exec-after-listen-append-port
+          Append TCP or UDP port number to command line specified in --exec-after-listen
+          
+          Makes listening port "0" practical.
+
   -h, --help
           Print help (see a summary with '-h')
 
@@ -1814,6 +1824,16 @@ Parameters:
 * program_name (`OsString`)
 
 Returns `Command`
+
+## system
+
+Simplified function to just execute a command line
+
+Parameters:
+
+* cmdline (`&str`)
+
+Returns `Hangup`
 
 ## take_hangup_part
 
