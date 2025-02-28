@@ -1,8 +1,14 @@
+use std::fmt::Display;
+
 use bytes::BytesMut;
+use rhai::NativeCallContext;
+use tracing::{debug, Span};
+
+use crate::scenario_executor::utils1::SimpleErr;
 
 use super::{
     types::{BufferFlag, BufferFlags, Registry},
-    utils1::IsControlFrame,
+    utils1::{IsControlFrame, RhResult},
 };
 
 /// Assembles datagram from multiple sequention concatenated parts
@@ -104,4 +110,39 @@ impl Registry {
 pub enum AddressOrFd<T> {
     Addr(T),
     Fd(i32),
+    NamedFd(String),
+}
+
+impl<T : Display> AddressOrFd<T> {
+    pub fn interpret(ctx : &NativeCallContext, span: &Span, addr: Option<T>, fd: Option<i32>, named_fd: Option<String>) -> RhResult<Self> {
+        let mut n = 0;
+        if addr.is_some() { n += 1}
+        if fd.is_some() { n += 1}
+        if named_fd.is_some() { n += 1}
+
+        if n != 1 {
+            return Err(ctx.err("Exactly one of `addr` or `fd` or `fd_named` must be specified"));
+        }
+
+        Ok(if let Some(x) = addr {
+            debug!(parent: span, listen_addr=%x, "options parsed");
+            AddressOrFd::Addr(x)
+        } else if let Some(x) = fd {
+            debug!(parent: span, fd=%x, "options parsed");
+            AddressOrFd::Fd(x)
+        }  else if let Some(x) = named_fd {
+            debug!(parent: span, named_fd=%x, "options parsed");
+            AddressOrFd::NamedFd(x)
+        } else {
+            unreachable!()
+        })
+    }
+}
+impl<T> AddressOrFd<T> {
+    pub fn addr(&self) -> Option<&T> {
+        match self {
+            AddressOrFd::Addr(x) => Some(x),
+            _ => None,
+        }
+    }
 }

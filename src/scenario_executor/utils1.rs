@@ -206,6 +206,8 @@ impl ToNeutralAddress for SocketAddr {
     }
 }
 
+pub const NEUTRAL_SOCKADDR4 : SocketAddr = SocketAddr::V4(std::net::SocketAddrV4::new(std::net::Ipv4Addr::UNSPECIFIED, 0));
+
 pub trait IsControlFrame {
     fn is_control(&self) -> bool;
 }

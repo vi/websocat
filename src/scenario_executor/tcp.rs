@@ -1,7 +1,7 @@
 use std::{net::SocketAddr, time::Duration};
 
 use crate::scenario_executor::{
-    utils1::{wrap_as_stream_socket, SimpleErr, TaskHandleExt2},
+    utils1::{wrap_as_stream_socket, SimpleErr, TaskHandleExt2, NEUTRAL_SOCKADDR4},
     utils2::AddressOrFd,
 };
 use futures::{stream::FuturesUnordered, FutureExt, StreamExt};
@@ -135,8 +135,11 @@ fn listen_tcp(
         //@ Socket address to bind listening socket tp
         addr: Option<SocketAddr>,
 
-        //@ Inherited file descriptor to
+        //@ Inherited file descriptor to accept connections from
         fd: Option<i32>,
+
+        //@ Inherited file named (`LISTEN_FDNAMES``) descriptor to accept connections from
+        named_fd: Option<String>,
 
         //@ Skip socket type check when using `fd`.
         #[serde(default)]
@@ -152,45 +155,33 @@ fn listen_tcp(
     }
     let opts: Opts = rhai::serde::from_dynamic(&opts)?;
 
-    if !(opts.addr.is_some() ^ opts.fd.is_some()) {
-        return Err(ctx.err("Exactly one of `addr` or `fd` must be specified"));
-    }
-
-    let a = if let Some(x) = opts.addr {
-        debug!(parent: &span, listen_addr=%x, "options parsed");
-        AddressOrFd::Addr(x)
-    } else if let Some(x) = opts.fd {
-        debug!(parent: &span, fd=%x, "options parsed");
-        AddressOrFd::Fd(x)
-    } else {
-        unreachable!()
-    };
+    let a = AddressOrFd::interpret(&ctx, &span, opts.addr, opts.fd, opts.named_fd)?;
 
     let autospawn = opts.autospawn;
 
     Ok(async move {
         debug!("node started");
+        
+        let mut address_to_report = *a.addr().unwrap_or(&NEUTRAL_SOCKADDR4);
+
         let l = match a {
             AddressOrFd::Addr(a) => tokio::net::TcpListener::bind(a).await?,
             #[cfg(not(unix))]
-            AddressOrFd::Fd(f) => {
+            AddressOrFd::Fd(..) | AddressOrFd::NamedFd(..) => {
                 error!("Inheriting listeners from parent processes is not supported outside UNIX platforms");
                 anyhow::bail!("Unsupported feature");
             }
             #[cfg(unix)]
             AddressOrFd::Fd(f) => {
-                use super::unix::{listen_from_fd,ListenFromFdOutcome,ListenFromFdType};
-                match unsafe { listen_from_fd(f, opts.fd_force.then_some(ListenFromFdType::Tcp))}? {
-                    ListenFromFdOutcome::Tcp(x) => x,
-                    x => {
-                        error!("File descriptor {f} has invalid socket type: {x:?}");
-                        anyhow::bail!("Unsupported feature");
-                    }
-                }
+                use super::unix::{listen_from_fd,ListenFromFdType};
+                unsafe{listen_from_fd(f, opts.fd_force.then_some(ListenFromFdType::Tcp), Some(ListenFromFdType::Tcp))}?.unwrap_tcp()
+            }
+            #[cfg(unix)]
+            AddressOrFd::NamedFd(f) => {
+                use super::unix::{listen_from_fd_named,ListenFromFdType};
+                unsafe{listen_from_fd_named(&f, opts.fd_force.then_some(ListenFromFdType::Tcp), Some(ListenFromFdType::Tcp))}?.unwrap_tcp()
             }
         };
-
-        let mut address_to_report = opts.addr.unwrap_or(SocketAddr::V4(std::net::SocketAddrV4::new(std::net::Ipv4Addr::UNSPECIFIED, 0)));
 
         if address_to_report.port() == 0 {
             if let Ok(a) = l.local_addr() {

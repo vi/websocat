@@ -559,6 +559,7 @@ fn listen_seqpacket(
 
 
 
+#[derive(Debug,PartialEq, Eq)]
 pub enum ListenFromFdType {
     Unix,
     Seqpacket,
@@ -572,11 +573,45 @@ pub enum ListenFromFdOutcome {
     Tcp(tokio::net::TcpListener),
     Udp(tokio::net::UdpSocket),
 }
+impl ListenFromFdOutcome {
+    pub fn unwrap_tcp(self) -> tokio::net::TcpListener {
+        if let ListenFromFdOutcome::Tcp(x) = self {
+            x
+        } else {
+            panic!()
+        }
+    }
+
+    pub fn unwrap_udp(self) -> tokio::net::UdpSocket {
+        if let ListenFromFdOutcome::Udp(x) = self {
+            x
+        } else {
+            panic!()
+        }
+    }
+
+    pub fn unwrap_seqpacket(self) -> tokio_seqpacket::UnixSeqpacketListener {
+        if let ListenFromFdOutcome::Seqpacket(x) = self {
+            x
+        } else {
+            panic!()
+        }
+    }
+
+    pub fn unwrap_unix(self) -> tokio::net::UnixListener {
+        if let ListenFromFdOutcome::Unix(x) = self {
+            x
+        } else {
+            panic!()
+        }
+    }
+}
 
 /// SATEFY: Tokio's interfal file descriptors and other io-unsafe things should not be specified as `fdnum`. Maybe `force_type` can also cause nastiness (not sure).
 pub unsafe fn listen_from_fd(
     fdnum: i32,
     force_type: Option<ListenFromFdType>,
+    assert_type: Option<ListenFromFdType>,
 ) -> Result<ListenFromFdOutcome, std::io::Error> {  
     use std::os::fd::{FromRawFd, RawFd, IntoRawFd};
 
@@ -626,6 +661,13 @@ pub unsafe fn listen_from_fd(
         }
     };
 
+    if let Some(at) = assert_type {
+        if at != typ {
+            error!("File descriptor {fd} has invalid socket type: {typ:?} instead of {at:?}");
+            return Err(std::io::ErrorKind::Other.into())
+        }
+    }
+
     s.set_nonblocking(true)?;
 
     let fd : RawFd = s.into_raw_fd();
@@ -648,6 +690,40 @@ pub unsafe fn listen_from_fd(
             ListenFromFdOutcome::Udp(tokio::net::UdpSocket::from_std(s)?)
         }
     })
+}
+
+/// SATEFY: Tokio's interfal file descriptors and other io-unsafe things should not be specified as `fdnum`. Maybe `force_type` can also cause nastiness (not sure).
+pub unsafe fn listen_from_fd_named(
+    fdname: &str,
+    force_type: Option<ListenFromFdType>,
+    assert_type: Option<ListenFromFdType>,
+) -> Result<ListenFromFdOutcome, std::io::Error> {
+    const SD_LISTEN_FDS_START: i32 = 3;
+
+    let (Ok(listen_fds), Ok(listen_fdnames)) = (std::env::var("LISTEN_FDS"), std::env::var("LISTEN_FDNAMES")) else {
+        error!("Cannot get LISTEN_FDS or LISTEN_FDNAMES environment variables to determine FD of `{fdname}`");
+        return Err(std::io::ErrorKind::Other.into())
+    };
+
+    let Ok(n) : Result<usize,_> = listen_fds.parse() else {
+        error!("Invalid value of LISTEN_FDS environment variable");
+        return Err(std::io::ErrorKind::Other.into())
+    };
+
+    let mut fd: i32 = SD_LISTEN_FDS_START;
+    for (i,name) in listen_fdnames.split(':').enumerate() {
+        if i>=n {
+            break;
+        }
+        debug!("Considering LISTEN_FDNAMES chunk `{name}`");
+        if name == fdname {
+            return listen_from_fd(fd, force_type, assert_type);
+        }
+        fd += 1;
+    }
+
+    error!("Named file descriptor `{fdname}` not found in LISTEN_FDNAMES");
+    return Err(std::io::ErrorKind::Other.into())
 }
 
 

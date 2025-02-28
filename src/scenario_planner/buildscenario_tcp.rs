@@ -44,25 +44,28 @@ impl Endpoint {
                 printer.increase_indent();
                 Ok(varnam)
             }
-            Endpoint::TcpListen(..) | Endpoint::TcpListenFd(..) => {
+            Endpoint::TcpListen(..)
+            | Endpoint::TcpListenFd(..)
+            | Endpoint::TcpListenFdNamed(..) => {
                 let varnam = vars.getnewvarname("tcp");
                 let fromaddr = vars.getnewvarname("from");
                 let listenparams = opts.listening_parameters();
 
-                match self {
+                let addrpart = match self {
                     Endpoint::TcpListen(addr) => {
-                        printer.print_line(&format!(
-                            "listen_tcp(#{{{listenparams}, addr: {a}}}, |listen_addr|{{sequential([",
-                            a = StrLit(addr),
-                        ));
+                        format!("addr: {a}", a = StrLit(addr),)
                     }
                     Endpoint::TcpListenFd(fd) => {
-                        printer.print_line(&format!(
-                            "listen_tcp(#{{{listenparams}, fd: {fd}}}, |listen_addr|{{sequential([",
-                        ));
+                        format!("fd: {fd}",)
+                    }
+                    Endpoint::TcpListenFdNamed(fdname) => {
+                        format!("named_fd: {a}", a = StrLit(fdname),)
                     }
                     _ => unreachable!(),
-                }
+                };
+                printer.print_line(&format!(
+                    "listen_tcp(#{{{listenparams}, {addrpart}}}, |listen_addr|{{sequential([",
+                ));
                 printer.increase_indent();
 
                 if opts.stdout_announce_listening_ports {
@@ -75,19 +78,13 @@ impl Endpoint {
                             StrLit(x)
                         ));
                     } else {
-                        printer.print_line(&format!(
-                            "system({}),",
-                            StrLit(x)
-                        ));
+                        printer.print_line(&format!("system({}),", StrLit(x)));
                     }
                 }
 
                 printer.decrease_indent();
-                printer.print_line(&format!(
-                    "])}},  |{varnam}, {fromaddr}| {{",
-                ));
+                printer.print_line(&format!("])}},  |{varnam}, {fromaddr}| {{",));
                 printer.increase_indent();
-
 
                 Ok(varnam)
             }
@@ -105,7 +102,7 @@ impl Endpoint {
                 printer.decrease_indent();
                 printer.print_line("})");
             }
-            Endpoint::TcpListen(..) | Endpoint::TcpListenFd(..) => {
+            Endpoint::TcpListen(..) | Endpoint::TcpListenFd(..) | Endpoint::TcpListenFdNamed(..) => {
                 printer.decrease_indent();
                 printer.print_line("})");
             }
