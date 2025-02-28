@@ -319,6 +319,8 @@ Short list of endpoint prefixes:
   stdio:
   tcp:
   tcp-listen:
+  tcp-listen-fd:
+  tcp-listen-fdname:
   udp-bind:
   udp:
   udp-server:
@@ -579,6 +581,30 @@ Prefixes:
 * `listen-tcp:`
 * `tcp-l:`
 * `l-tcp:`
+
+### TcpListenFd
+
+Listen for incoming TCP connections on one TCP socket that is already ready for accepting incoming conenctions,
+with specified file descriptor (inherited from parent process)
+
+Prefixes:
+
+* `tcp-listen-fd:`
+* `listen-tcp-fd:`
+* `tcp-l-fd:`
+* `l-tcp-fd:`
+
+### TcpListenFdNamed
+
+Listen for incoming TCP connections on one TCP socket that is already ready for accepting incoming conenctions,
+with specified file descriptor (inherited from parent process) based on LISTEN_FDNAMES environment variable (i.e. from SystemD)
+
+Prefixes:
+
+* `tcp-listen-fdname:`
+* `listen-tcp-fdname:`
+* `tcp-l-fdname:`
+* `l-tcp-fdname:`
 
 ### UdpBind
 
@@ -1457,7 +1483,10 @@ Returns `Task`
 
 Options:
 
-* addr (`SocketAddr`)
+* addr (`Option<SocketAddr>`) - Socket address to bind listening socket tp
+* fd (`Option<i32>`) - Inherited file descriptor to accept connections from
+* named_fd (`Option<String>`) - Inherited file named (`LISTEN_FDNAMES``) descriptor to accept connections from
+* fd_force (`bool`) - Skip socket type check when using `fd`.
 * autospawn (`bool`) - Automatically spawn a task for each accepted connection
 * oneshot (`bool`) - Exit listening loop after processing a single connection
 

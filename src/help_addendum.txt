@@ -17,6 +17,8 @@ Short list of endpoint prefixes:
   stdio:
   tcp:
   tcp-listen:
+  tcp-listen-fd:
+  tcp-listen-fdname:
   udp-bind:
   udp:
   udp-server:
