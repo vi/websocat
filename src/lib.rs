@@ -88,6 +88,14 @@ where
         rand_chacha::ChaCha12Rng::from_os_rng()
     };
 
+    if args.accept_from_fd {
+        writeln!(
+            diagnostic_output,
+            "--accept-from-fd is an obsolete Websocat1 option. Use e.g. `ws-u:unix-l-fd:3` instead."
+        )?;
+        anyhow::bail!("Invalid option");
+    }
+
     let global_scenario: &str;
     let scenario_file;
     let scenario_built_text;

@@ -394,4 +394,8 @@ pub struct WebsocatArgs {
     /// Makes listening port "0" practical.
     #[arg(long)]
     pub exec_after_listen_append_port: bool,
+
+    /// Show dedicated error message explaining how to migrate Websocat1's --accpet-from-fd to the new scheme
+    #[arg(long)]
+    pub accept_from_fd: bool,
 }
