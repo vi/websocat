@@ -84,7 +84,7 @@ fn task_wrap(ctx: NativeCallContext, continuation: FnPtr) -> RhResult<Handle<Tas
 
 //@ Extract IP address from SocketAddr
 fn sockaddr_get_ip(sa: &mut SocketAddr) -> String {
-    format!("{}",sa.ip())
+    format!("{}", sa.ip())
 }
 
 //@ Extract port from SocketAddr

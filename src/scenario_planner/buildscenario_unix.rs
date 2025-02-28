@@ -45,7 +45,6 @@ impl Endpoint {
                 let mut chmod_option = "";
                 fill_in_chmods(opts, &mut chmod_option);
 
-
                 printer.print_line(&format!(
                     "listen_unix(#{{{listenparams} {chmod_option} }}, {pathvar}, ||{{sequential([",
                 ));
@@ -55,16 +54,11 @@ impl Endpoint {
                     printer.print_line(&"print_stdout(\"LISTEN proto=unix\\n\"),");
                 }
                 if let Some(ref x) = opts.exec_after_listen {
-                    printer.print_line(&format!(
-                        "system({}),",
-                        StrLit(x)
-                    ));
+                    printer.print_line(&format!("system({}),", StrLit(x)));
                 }
 
                 printer.decrease_indent();
-                printer.print_line(&format!(
-                    "])}},  |{varnam}| {{",
-                ));
+                printer.print_line(&format!("])}},  |{varnam}| {{",));
                 printer.increase_indent();
                 Ok(varnam)
             }
@@ -102,16 +96,11 @@ impl Endpoint {
                     printer.print_line(&"print_stdout(\"LISTEN proto=unix\\n\"),");
                 }
                 if let Some(ref x) = opts.exec_after_listen {
-                    printer.print_line(&format!(
-                        "system({}),",
-                        StrLit(x)
-                    ));
+                    printer.print_line(&format!("system({}),", StrLit(x)));
                 }
 
                 printer.decrease_indent();
-                printer.print_line(&format!(
-                    "])}},  |{varnam}| {{",
-                ));
+                printer.print_line(&format!("])}},  |{varnam}| {{",));
                 printer.increase_indent();
                 Ok(varnam)
             }
@@ -168,16 +157,11 @@ impl Endpoint {
                     printer.print_line(&"print_stdout(\"LISTEN proto=unix\\n\"),");
                 }
                 if let Some(ref x) = opts.exec_after_listen {
-                    printer.print_line(&format!(
-                        "system({}),",
-                        StrLit(x)
-                    ));
+                    printer.print_line(&format!("system({}),", StrLit(x)));
                 }
 
                 printer.decrease_indent();
-                printer.print_line(&format!(
-                    "])}},  |{varnam}| {{",
-                ));
+                printer.print_line(&format!("])}},  |{varnam}| {{",));
                 printer.increase_indent();
 
                 Ok(varnam)
@@ -229,16 +213,11 @@ impl Endpoint {
                     printer.print_line(&"print_stdout(\"LISTEN proto=unix\\n\"),");
                 }
                 if let Some(ref x) = opts.exec_after_listen {
-                    printer.print_line(&format!(
-                        "system({}),",
-                        StrLit(x)
-                    ));
+                    printer.print_line(&format!("system({}),", StrLit(x)));
                 }
 
                 printer.decrease_indent();
-                printer.print_line(&format!(
-                    "])}},  |{varnam}| {{",
-                ));
+                printer.print_line(&format!("])}},  |{varnam}| {{",));
                 printer.increase_indent();
 
                 Ok(varnam)

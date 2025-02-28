@@ -102,7 +102,9 @@ impl WebsocatInvocation {
 
         if let Some(tmo) = self.opts.global_timeout_ms {
             if self.opts.global_timeout_force_exit {
-                printer.print_line(&format!("}},sequential([sleep_ms({tmo}), task_wrap(||exit_process(1))])"));
+                printer.print_line(&format!(
+                    "}},sequential([sleep_ms({tmo}), task_wrap(||exit_process(1))])"
+                ));
             } else {
                 printer.print_line(&format!("}},sleep_ms({tmo})"));
             }

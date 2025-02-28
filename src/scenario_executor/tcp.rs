@@ -1,7 +1,7 @@
 use std::{net::SocketAddr, time::Duration};
 
 use crate::scenario_executor::{
-    utils1::{wrap_as_stream_socket, SimpleErr, TaskHandleExt2, NEUTRAL_SOCKADDR4},
+    utils1::{wrap_as_stream_socket, TaskHandleExt2, NEUTRAL_SOCKADDR4},
     utils2::AddressOrFd,
 };
 use futures::{stream::FuturesUnordered, FutureExt, StreamExt};

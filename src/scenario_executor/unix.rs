@@ -163,12 +163,7 @@ fn listen_unix(
 
         maybe_chmod(opts.chmod, path, || l.accept().now_or_never()).await?;
 
-        callback_and_continue::<()>(
-            the_scenario.clone(),
-            when_listening,
-            (),
-        )
-        .await;
+        callback_and_continue::<()>(the_scenario.clone(), when_listening, ()).await;
 
         let mut drop_nofity = None;
 
@@ -469,12 +464,7 @@ fn listen_seqpacket(
 
         maybe_chmod(opts.chmod, path, || l.accept().now_or_never()).await?;
 
-        callback_and_continue::<()>(
-            the_scenario.clone(),
-            when_listening,
-            (),
-        )
-        .await;
+        callback_and_continue::<()>(the_scenario.clone(), when_listening, ()).await;
 
         let mut i = 0;
 
@@ -557,9 +547,7 @@ fn listen_seqpacket(
     .wrap())
 }
 
-
-
-#[derive(Debug,PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq)]
 pub enum ListenFromFdType {
     Unix,
     Seqpacket,
@@ -612,10 +600,10 @@ pub unsafe fn listen_from_fd(
     fdnum: i32,
     force_type: Option<ListenFromFdType>,
     assert_type: Option<ListenFromFdType>,
-) -> Result<ListenFromFdOutcome, std::io::Error> {  
-    use std::os::fd::{FromRawFd, RawFd, IntoRawFd};
+) -> Result<ListenFromFdOutcome, std::io::Error> {
+    use std::os::fd::{FromRawFd, IntoRawFd, RawFd};
 
-    use socket2::{Domain,Type};
+    use socket2::{Domain, Type};
 
     let fd: RawFd = (fdnum).into();
 
@@ -633,29 +621,21 @@ pub unsafe fn listen_from_fd(
                 e
             })?;
             match (sa.domain(), t) {
-                (Domain::UNIX, Type::STREAM) => {
-                    ListenFromFdType::Unix
-                }
+                (Domain::UNIX, Type::STREAM) => ListenFromFdType::Unix,
                 (Domain::UNIX, Type::DGRAM) => {
                     error!("File descriptor {fdnum} is an AF_UNIX datagram socket, this is currently not supported");
-                    return Err(std::io::ErrorKind::Other.into())
+                    return Err(std::io::ErrorKind::Other.into());
                 }
-                (Domain::UNIX, Type::SEQPACKET) => {
-                    ListenFromFdType::Seqpacket
-                }
+                (Domain::UNIX, Type::SEQPACKET) => ListenFromFdType::Seqpacket,
                 (Domain::VSOCK, _) => {
                     error!("File descriptor {fdnum} is a VSOCK socket, this is currently not supported");
-                    return Err(std::io::ErrorKind::Other.into())
+                    return Err(std::io::ErrorKind::Other.into());
                 }
-                (Domain::IPV4 | Domain::IPV6, Type::STREAM) => {
-                    ListenFromFdType::Tcp
-                }
-                (Domain::IPV4 | Domain::IPV6, Type::DGRAM) => {
-                    ListenFromFdType::Udp        
-                }
+                (Domain::IPV4 | Domain::IPV6, Type::STREAM) => ListenFromFdType::Tcp,
+                (Domain::IPV4 | Domain::IPV6, Type::DGRAM) => ListenFromFdType::Udp,
                 (d, t) => {
                     error!("File descriptor {fdnum} has unknown socket domain:type combination: {d:?}:{t:?}");
-                    return Err(std::io::ErrorKind::Other.into())
+                    return Err(std::io::ErrorKind::Other.into());
                 }
             }
         }
@@ -664,13 +644,13 @@ pub unsafe fn listen_from_fd(
     if let Some(at) = assert_type {
         if at != typ {
             error!("File descriptor {fd} has invalid socket type: {typ:?} instead of {at:?}");
-            return Err(std::io::ErrorKind::Other.into())
+            return Err(std::io::ErrorKind::Other.into());
         }
     }
 
     s.set_nonblocking(true)?;
 
-    let fd : RawFd = s.into_raw_fd();
+    let fd: RawFd = s.into_raw_fd();
 
     Ok(match typ {
         ListenFromFdType::Unix => {
@@ -686,7 +666,7 @@ pub unsafe fn listen_from_fd(
             ListenFromFdOutcome::Tcp(tokio::net::TcpListener::from_std(s)?)
         }
         ListenFromFdType::Udp => {
-            let s = unsafe { std::net::UdpSocket::from_raw_fd(fd)};
+            let s = unsafe { std::net::UdpSocket::from_raw_fd(fd) };
             ListenFromFdOutcome::Udp(tokio::net::UdpSocket::from_std(s)?)
         }
     })
@@ -700,19 +680,21 @@ pub unsafe fn listen_from_fd_named(
 ) -> Result<ListenFromFdOutcome, std::io::Error> {
     const SD_LISTEN_FDS_START: i32 = 3;
 
-    let (Ok(listen_fds), Ok(listen_fdnames)) = (std::env::var("LISTEN_FDS"), std::env::var("LISTEN_FDNAMES")) else {
+    let (Ok(listen_fds), Ok(listen_fdnames)) =
+        (std::env::var("LISTEN_FDS"), std::env::var("LISTEN_FDNAMES"))
+    else {
         error!("Cannot get LISTEN_FDS or LISTEN_FDNAMES environment variables to determine FD of `{fdname}`");
-        return Err(std::io::ErrorKind::Other.into())
+        return Err(std::io::ErrorKind::Other.into());
     };
 
-    let Ok(n) : Result<usize,_> = listen_fds.parse() else {
+    let Ok(n): Result<usize, _> = listen_fds.parse() else {
         error!("Invalid value of LISTEN_FDS environment variable");
-        return Err(std::io::ErrorKind::Other.into())
+        return Err(std::io::ErrorKind::Other.into());
     };
 
     let mut fd: i32 = SD_LISTEN_FDS_START;
-    for (i,name) in listen_fdnames.split(':').enumerate() {
-        if i>=n {
+    for (i, name) in listen_fdnames.split(':').enumerate() {
+        if i >= n {
             break;
         }
         debug!("Considering LISTEN_FDNAMES chunk `{name}`");
@@ -723,9 +705,8 @@ pub unsafe fn listen_from_fd_named(
     }
 
     error!("Named file descriptor `{fdname}` not found in LISTEN_FDNAMES");
-    return Err(std::io::ErrorKind::Other.into())
+    return Err(std::io::ErrorKind::Other.into());
 }
-
 
 pub fn register(engine: &mut Engine) {
     engine.register_fn("connect_unix", connect_unix);

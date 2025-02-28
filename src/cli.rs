@@ -384,13 +384,13 @@ pub struct WebsocatArgs {
     pub stdout_announce_listening_ports: bool,
 
     /// Execute this command line after binding listening port
-    /// 
+    ///
     /// Connections are not actually accepted until the command exits (exit code is ignored)
     #[arg(long)]
     pub exec_after_listen: Option<String>,
 
     /// Append TCP or UDP port number to command line specified in --exec-after-listen
-    /// 
+    ///
     /// Makes listening port "0" practical.
     #[arg(long)]
     pub exec_after_listen_append_port: bool,

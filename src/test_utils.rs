@@ -1,7 +1,8 @@
 use std::{
     ffi::OsString,
     io::{Cursor, Write},
-    sync::{Arc, Mutex}, time::Duration,
+    sync::{Arc, Mutex},
+    time::Duration,
 };
 
 #[derive(Clone)]
@@ -195,7 +196,7 @@ macro_rules! t2w_unix {
 #[macro_export]
 macro_rules! t_online {
     ($n:ident, $x:literal $(,)?) => {
-        #[cfg(feature="online_tests")]
+        #[cfg(feature = "online_tests")]
         #[tokio::test]
         async fn $n() {
             websocat::test_utils::test_websocat($x).await;
@@ -206,7 +207,7 @@ macro_rules! t_online {
 #[macro_export]
 macro_rules! t2w_online {
     ($n:ident, $x:literal, $y:literal $(,)?) => {
-        #[cfg(feature="online_tests")]
+        #[cfg(feature = "online_tests")]
         #[tokio::test]
         async fn $n() {
             websocat::test_utils::test_two_websocats($x, $y, 50).await;

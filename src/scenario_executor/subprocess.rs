@@ -255,13 +255,15 @@ fn child_wait(ctx: NativeCallContext, chld: &mut Handle<Child>) -> RhResult<Hand
 
 //@ Simplified function to just execute a command line
 fn simplified_exec(ctx: NativeCallContext, cmdline: &str) -> RhResult<Handle<Hangup>> {
-    let mut cmd : Command;
-    #[cfg(windows)] {
+    let mut cmd: Command;
+    #[cfg(windows)]
+    {
         cmd = Command::new("cmd");
         cmd.arg("/C");
         cmd.raw_arg(cmdline);
     }
-    #[cfg(not(windows))] {
+    #[cfg(not(windows))]
+    {
         cmd = Command::new("sh");
         cmd.arg("-c");
         cmd.arg(cmdline);
@@ -274,7 +276,7 @@ fn simplified_exec(ctx: NativeCallContext, cmdline: &str) -> RhResult<Handle<Han
         }
         Err(e) => {
             warn!("Process spawning failed: {e}");
-            return Err(ctx.err("Failed to spawn the process"))
+            return Err(ctx.err("Failed to spawn the process"));
         }
     };
 

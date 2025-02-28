@@ -287,7 +287,6 @@ fn format_str(x: Dynamic) -> String {
     }
 }
 
-
 //@ Print a string to stdout (synchronously)
 fn print_stdout(x: &str) {
     print!("{x}");

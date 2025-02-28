@@ -113,12 +113,24 @@ pub enum AddressOrFd<T> {
     NamedFd(String),
 }
 
-impl<T : Display> AddressOrFd<T> {
-    pub fn interpret(ctx : &NativeCallContext, span: &Span, addr: Option<T>, fd: Option<i32>, named_fd: Option<String>) -> RhResult<Self> {
+impl<T: Display> AddressOrFd<T> {
+    pub fn interpret(
+        ctx: &NativeCallContext,
+        span: &Span,
+        addr: Option<T>,
+        fd: Option<i32>,
+        named_fd: Option<String>,
+    ) -> RhResult<Self> {
         let mut n = 0;
-        if addr.is_some() { n += 1}
-        if fd.is_some() { n += 1}
-        if named_fd.is_some() { n += 1}
+        if addr.is_some() {
+            n += 1
+        }
+        if fd.is_some() {
+            n += 1
+        }
+        if named_fd.is_some() {
+            n += 1
+        }
 
         if n != 1 {
             return Err(ctx.err("Exactly one of `addr` or `fd` or `fd_named` must be specified"));
@@ -130,7 +142,7 @@ impl<T : Display> AddressOrFd<T> {
         } else if let Some(x) = fd {
             debug!(parent: span, fd=%x, "options parsed");
             AddressOrFd::Fd(x)
-        }  else if let Some(x) = named_fd {
+        } else if let Some(x) = named_fd {
             debug!(parent: span, named_fd=%x, "options parsed");
             AddressOrFd::NamedFd(x)
         } else {

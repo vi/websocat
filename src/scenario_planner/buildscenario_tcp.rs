@@ -102,7 +102,9 @@ impl Endpoint {
                 printer.decrease_indent();
                 printer.print_line("})");
             }
-            Endpoint::TcpListen(..) | Endpoint::TcpListenFd(..) | Endpoint::TcpListenFdNamed(..) => {
+            Endpoint::TcpListen(..)
+            | Endpoint::TcpListenFd(..)
+            | Endpoint::TcpListenFdNamed(..) => {
                 printer.decrease_indent();
                 printer.print_line("})");
             }

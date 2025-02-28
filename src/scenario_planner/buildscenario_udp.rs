@@ -1,6 +1,10 @@
 use crate::{cli::WebsocatArgs, scenario_executor::utils1::ToNeutralAddress};
 
-use super::{scenarioprinter::{ScenarioPrinter, StrLit}, types::Endpoint, utils::IdentifierGenerator};
+use super::{
+    scenarioprinter::{ScenarioPrinter, StrLit},
+    types::Endpoint,
+    utils::IdentifierGenerator,
+};
 
 impl Endpoint {
     pub(super) fn begin_print_udp(
@@ -73,7 +77,7 @@ impl Endpoint {
                 }
 
                 printer.print_line(&format!("let {varnam} = udp_socket(#{{{o}}});"));
-                
+
                 Ok(varnam)
             }
             Endpoint::UdpServer(a) => {
@@ -121,10 +125,7 @@ impl Endpoint {
                             StrLit(x)
                         ));
                     } else {
-                        printer.print_line(&format!(
-                            "system({}),",
-                            StrLit(x)
-                        ));
+                        printer.print_line(&format!("system({}),", StrLit(x)));
                     }
                 }
 
