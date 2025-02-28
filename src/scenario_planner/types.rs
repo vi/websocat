@@ -30,6 +30,8 @@ pub enum Endpoint {
     TcpConnectByIp(SocketAddr),
     //@ Listen for incoming TCP connections on one TCP socket, bound to the specified IPv4 or IPv6 address.
     TcpListen(SocketAddr),
+    //@ Listen for incoming TCP connections on one TCP socket, inherited from specified FD and ready to accept connections
+    TcpListenFd(i32),
     //@ Connect to specified WebSocket plain (insecure) URL
     WsUrl(Uri),
     //@ Connect to specified WebSocket TLS URL

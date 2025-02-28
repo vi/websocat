@@ -557,6 +557,100 @@ fn listen_seqpacket(
     .wrap())
 }
 
+
+
+pub enum ListenFromFdType {
+    Unix,
+    Seqpacket,
+    Tcp,
+    Udp,
+}
+#[derive(Debug)]
+pub enum ListenFromFdOutcome {
+    Unix(tokio::net::UnixListener),
+    Seqpacket(tokio_seqpacket::UnixSeqpacketListener),
+    Tcp(tokio::net::TcpListener),
+    Udp(tokio::net::UdpSocket),
+}
+
+/// SATEFY: Tokio's interfal file descriptors and other io-unsafe things should not be specified as `fdnum`. Maybe `force_type` can also cause nastiness (not sure).
+pub unsafe fn listen_from_fd(
+    fdnum: i32,
+    force_type: Option<ListenFromFdType>,
+) -> Result<ListenFromFdOutcome, std::io::Error> {  
+    use std::os::fd::{FromRawFd, RawFd, IntoRawFd};
+
+    use socket2::{Domain,Type};
+
+    let fd: RawFd = (fdnum).into();
+
+    let s = unsafe { socket2::Socket::from_raw_fd(fd) };
+
+    let typ = match force_type {
+        Some(x) => x,
+        None => {
+            let sa = s.local_addr().map_err(|e| {
+                error!("Failed to determine socket domain of file descriptor {fd}: {e}");
+                e
+            })?;
+            let t = s.r#type().map_err(|e| {
+                error!("Failed to determine socket type of file descriptor {fd}: {e}");
+                e
+            })?;
+            match (sa.domain(), t) {
+                (Domain::UNIX, Type::STREAM) => {
+                    ListenFromFdType::Unix
+                }
+                (Domain::UNIX, Type::DGRAM) => {
+                    error!("File descriptor {fdnum} is an AF_UNIX datagram socket, this is currently not supported");
+                    return Err(std::io::ErrorKind::Other.into())
+                }
+                (Domain::UNIX, Type::SEQPACKET) => {
+                    ListenFromFdType::Seqpacket
+                }
+                (Domain::VSOCK, _) => {
+                    error!("File descriptor {fdnum} is a VSOCK socket, this is currently not supported");
+                    return Err(std::io::ErrorKind::Other.into())
+                }
+                (Domain::IPV4 | Domain::IPV6, Type::STREAM) => {
+                    ListenFromFdType::Tcp
+                }
+                (Domain::IPV4 | Domain::IPV6, Type::DGRAM) => {
+                    ListenFromFdType::Udp        
+                }
+                (d, t) => {
+                    error!("File descriptor {fdnum} has unknown socket domain:type combination: {d:?}:{t:?}");
+                    return Err(std::io::ErrorKind::Other.into())
+                }
+            }
+        }
+    };
+
+    s.set_nonblocking(true)?;
+
+    let fd : RawFd = s.into_raw_fd();
+
+    Ok(match typ {
+        ListenFromFdType::Unix => {
+            let s = unsafe { std::os::unix::net::UnixListener::from_raw_fd(fd) };
+            ListenFromFdOutcome::Unix(tokio::net::UnixListener::from_std(s)?)
+        }
+        ListenFromFdType::Seqpacket => {
+            let s = tokio_seqpacket::UnixSeqpacketListener::from_raw_fd(fd)?;
+            ListenFromFdOutcome::Seqpacket(s)
+        }
+        ListenFromFdType::Tcp => {
+            let s = unsafe { std::net::TcpListener::from_raw_fd(fd) };
+            ListenFromFdOutcome::Tcp(tokio::net::TcpListener::from_std(s)?)
+        }
+        ListenFromFdType::Udp => {
+            let s = unsafe { std::net::UdpSocket::from_raw_fd(fd)};
+            ListenFromFdOutcome::Udp(tokio::net::UdpSocket::from_std(s)?)
+        }
+    })
+}
+
+
 pub fn register(engine: &mut Engine) {
     engine.register_fn("connect_unix", connect_unix);
     engine.register_fn("listen_unix", listen_unix);

@@ -73,6 +73,12 @@ impl ParseStrChunkResult<'_> {
             let s: &str = rest.try_into()?;
             let a: SocketAddr = s.parse()?;
             Ok(ParseStrChunkResult::Endpoint(Endpoint::TcpListen(a)))
+        } else if let Some(rest) =
+            x.strip_prefix_many(&["tcp-listen-fd:", "listen-tcp-fd:", "tcp-l-fd:", "l-tcp-fd:"])
+        {
+            let s: &str = rest.try_into()?;
+            let a: i32 = s.parse()?;
+            Ok(ParseStrChunkResult::Endpoint(Endpoint::TcpListenFd(a)))
         } else if x == "-" {
             Ok(ParseStrChunkResult::Endpoint(Endpoint::Stdio))
         } else if let Some(rest) = x.strip_prefix("stdio:") {

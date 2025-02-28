@@ -17,6 +17,7 @@ impl Endpoint {
             Endpoint::TcpConnectByIp(..)
             | Endpoint::TcpConnectByEarlyHostname { .. }
             | Endpoint::TcpListen { .. }
+            | Endpoint::TcpListenFd(..)
             | Endpoint::TcpConnectByLateHostname { .. } => {
                 self.begin_print_tcp(printer, vars, opts)
             }
@@ -109,6 +110,7 @@ impl Endpoint {
             Endpoint::TcpConnectByIp(..)
             | Endpoint::TcpConnectByEarlyHostname { .. }
             | Endpoint::TcpListen { .. }
+            | Endpoint::TcpListenFd(..)
             | Endpoint::TcpConnectByLateHostname { .. } => self.end_print_tcp(printer, opts),
             Endpoint::WsUrl(..) | Endpoint::WssUrl(..) | Endpoint::WsListen(..) => {
                 self.end_print_ws(printer)

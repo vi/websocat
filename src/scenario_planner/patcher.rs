@@ -366,6 +366,7 @@ impl SpecifierStack {
                 Endpoint::TcpConnectByLateHostname { .. } => true,
                 Endpoint::TcpConnectByIp(_) => true,
                 Endpoint::TcpListen(_) => true,
+                Endpoint::TcpListenFd(_) => true,
                 Endpoint::WsUrl(_) => false,
                 Endpoint::WssUrl(_) => false,
                 Endpoint::WsListen(_) => false,
@@ -432,6 +433,7 @@ impl Endpoint {
         match self {
             Endpoint::TcpConnectByIp(_) => CopyingType::ByteStream,
             Endpoint::TcpListen(_) => CopyingType::ByteStream,
+            Endpoint::TcpListenFd(_) => CopyingType::ByteStream,
             Endpoint::TcpConnectByEarlyHostname { .. } => CopyingType::ByteStream,
             Endpoint::TcpConnectByLateHostname { hostname: _ } => CopyingType::ByteStream,
             Endpoint::WsUrl(_) => CopyingType::Datarams,

@@ -44,15 +44,25 @@ impl Endpoint {
                 printer.increase_indent();
                 Ok(varnam)
             }
-            Endpoint::TcpListen(addr) => {
+            Endpoint::TcpListen(..) | Endpoint::TcpListenFd(..) => {
                 let varnam = vars.getnewvarname("tcp");
                 let fromaddr = vars.getnewvarname("from");
                 let listenparams = opts.listening_parameters();
 
-                printer.print_line(&format!(
-                    "listen_tcp(#{{{listenparams}, addr: {a}}}, |listen_addr|{{sequential([",
-                    a = StrLit(addr),
-                ));
+                match self {
+                    Endpoint::TcpListen(addr) => {
+                        printer.print_line(&format!(
+                            "listen_tcp(#{{{listenparams}, addr: {a}}}, |listen_addr|{{sequential([",
+                            a = StrLit(addr),
+                        ));
+                    }
+                    Endpoint::TcpListenFd(fd) => {
+                        printer.print_line(&format!(
+                            "listen_tcp(#{{{listenparams}, fd: {fd}}}, |listen_addr|{{sequential([",
+                        ));
+                    }
+                    _ => unreachable!(),
+                }
                 printer.increase_indent();
 
                 if opts.stdout_announce_listening_ports {
@@ -95,7 +105,7 @@ impl Endpoint {
                 printer.decrease_indent();
                 printer.print_line("})");
             }
-            Endpoint::TcpListen(_addr) => {
+            Endpoint::TcpListen(..) | Endpoint::TcpListenFd(..) => {
                 printer.decrease_indent();
                 printer.print_line("})");
             }

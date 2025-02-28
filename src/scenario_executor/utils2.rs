@@ -100,3 +100,8 @@ impl Registry {
         self.get_entry(id, |_, x| x.clone())
     }
 }
+
+pub enum AddressOrFd<T> {
+    Addr(T),
+    Fd(i32),
+}
