@@ -11,7 +11,8 @@ use crate::scenario_executor::{
 use futures::FutureExt;
 use rhai::{Dynamic, Engine, NativeCallContext};
 use tokio::{io::ReadBuf, net::UdpSocket};
-use tracing::{debug, debug_span, info, warn};
+#[allow(unused)]
+use tracing::{debug, debug_span, info, warn, error};
 
 use crate::scenario_executor::types::Handle;
 use std::sync::{Arc, RwLock};
@@ -295,7 +296,7 @@ fn udp_socket(ctx: NativeCallContext, opts: Dynamic) -> RhResult<Handle<Datagram
         #[cfg(not(unix))]
         AddressOrFd::Fd(..) | AddressOrFd::NamedFd(..) => {
             error!("Inheriting listeners from parent processes is not supported outside UNIX platforms");
-            anyhow::bail!("Unsupported feature");
+            return Err(ctx.err("Unsupported feature"));
         }
         #[cfg(unix)]
         AddressOrFd::Fd(_) | AddressOrFd::NamedFd(_) => {
