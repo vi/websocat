@@ -64,7 +64,6 @@ fn copy_bytes(
                 Ok(x) => debug!(parent: &span, nbytes=x, "finished"),
                 Err(e) => {
                     error!(parent: &span, error=%e, "error copying bytes");
-                    return;
                 }
             }
         } else {

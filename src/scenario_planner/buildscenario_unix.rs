@@ -72,7 +72,7 @@ impl Endpoint {
                 printer.increase_indent();
 
                 if opts.stdout_announce_listening_ports {
-                    printer.print_line(&"print_stdout(\"LISTEN proto=unix\\n\"),");
+                    printer.print_line("print_stdout(\"LISTEN proto=unix\\n\"),");
                 }
                 if let Some(ref x) = opts.exec_after_listen {
                     printer.print_line(&format!("system({}),", StrLit(x)));
@@ -114,7 +114,7 @@ impl Endpoint {
                 printer.increase_indent();
 
                 if opts.stdout_announce_listening_ports {
-                    printer.print_line(&"print_stdout(\"LISTEN proto=unix\\n\"),");
+                    printer.print_line("print_stdout(\"LISTEN proto=unix\\n\"),");
                 }
                 if let Some(ref x) = opts.exec_after_listen {
                     printer.print_line(&format!("system({}),", StrLit(x)));
@@ -196,7 +196,7 @@ impl Endpoint {
                 printer.increase_indent();
 
                 if opts.stdout_announce_listening_ports {
-                    printer.print_line(&"print_stdout(\"LISTEN proto=unix\\n\"),");
+                    printer.print_line("print_stdout(\"LISTEN proto=unix\\n\"),");
                 }
                 if let Some(ref x) = opts.exec_after_listen {
                     printer.print_line(&format!("system({}),", StrLit(x)));
@@ -252,7 +252,7 @@ impl Endpoint {
                 printer.increase_indent();
 
                 if opts.stdout_announce_listening_ports {
-                    printer.print_line(&"print_stdout(\"LISTEN proto=unix\\n\"),");
+                    printer.print_line("print_stdout(\"LISTEN proto=unix\\n\"),");
                 }
                 if let Some(ref x) = opts.exec_after_listen {
                     printer.print_line(&format!("system({}),", StrLit(x)));

@@ -105,7 +105,7 @@ impl AsyncRead for StreamReadLogger {
             ""
         };
         let maybefromprefix = if from_prefix && this.opts.verbose {
-            &"from_prefix "
+            "from_prefix "
         } else {
             ""
         };
@@ -405,10 +405,8 @@ fn stream_logger(
             })),
             prefix: Default::default(),
         });
-    } else {
-        if opts.verbose {
-            let _ = writeln!(diago, "{read_prefix}There is no read handle in this socket");
-        }
+    } else if opts.verbose {
+        let _ = writeln!(diago, "{read_prefix}There is no read handle in this socket");
     }
 
     if let Some(w) = wrapped.write.take() {
@@ -425,13 +423,11 @@ fn stream_logger(
                 },
             })),
         });
-    } else {
-        if opts.verbose {
-            let _ = writeln!(
-                diago,
-                "{write_prefix}There is no write handle in this socket"
-            );
-        }
+    } else if opts.verbose {
+        let _ = writeln!(
+            diago,
+            "{write_prefix}There is no write handle in this socket"
+        );
     }
 
     debug!(parent: &span, ?wrapped, "wrapped");
@@ -489,15 +485,13 @@ impl DatagramPrinter {
         let maybe_trailing_plus = if flags.contains(BufferFlag::NonFinalChunk) {
             *self.accumulated_size.get_or_insert_with(Default::default) += buffer_subset.len();
             "+"
+        } else if !control && self.accumulated_size.is_some() {
+            let mut accumulated_size = self.accumulated_size.take().unwrap();
+            accumulated_size += buffer_subset.len();
+            trailing_plus_buf = format!("={accumulated_size}");
+            &trailing_plus_buf
         } else {
-            if !control && self.accumulated_size.is_some() {
-                let mut accumulated_size = self.accumulated_size.take().unwrap();
-                accumulated_size += buffer_subset.len();
-                trailing_plus_buf = format!("={accumulated_size}");
-                &trailing_plus_buf
-            } else {
-                ""
-            }
+            ""
         };
         let maybe_leading_ellipsis = if !maybe_leading_plus.is_empty() {
             "..."
@@ -705,10 +699,8 @@ fn datagram_logger(
                 printer: DatagramPrinter::new(),
             })),
         });
-    } else {
-        if opts.verbose {
-            let _ = writeln!(diago, "{read_prefix}There is no read handle in this socket");
-        }
+    } else if opts.verbose {
+        let _ = writeln!(diago, "{read_prefix}There is no read handle in this socket");
     }
 
     if let Some(w) = wrapped.write.take() {
@@ -727,13 +719,11 @@ fn datagram_logger(
                 printer: DatagramPrinter::new(),
             })),
         });
-    } else {
-        if opts.verbose {
-            let _ = writeln!(
-                diago,
-                "{write_prefix}There is no read handle in this socket"
-            );
-        }
+    } else if opts.verbose {
+        let _ = writeln!(
+            diago,
+            "{write_prefix}There is no read handle in this socket"
+        );
     }
 
     debug!(parent: &span, ?wrapped, "wrapped");

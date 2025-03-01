@@ -35,7 +35,7 @@ impl Overlay {
                     oo.push_str(&format!("separator_n: {x},"));
                 }
                 if !opts.separator_inhibit_substitution {
-                    oo.push_str(&format!("substitute: 32,"));
+                    oo.push_str("substitute: 32,");
                 }
                 printer.print_line(&format!(
                     "let {varnam} = line_chunks(#{{{oo}}}, {inner_var});"

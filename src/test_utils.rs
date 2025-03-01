@@ -16,6 +16,12 @@ impl std::io::Write for SharedCursor {
         self.0.lock().unwrap().flush()
     }
 }
+impl Default for SharedCursor {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl SharedCursor {
     pub fn new() -> Self {
         Self(Arc::new(Mutex::new(Cursor::new(vec![]))))

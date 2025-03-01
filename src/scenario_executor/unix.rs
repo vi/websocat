@@ -396,10 +396,8 @@ fn connect_seqpacket(
 
     if opts.r#abstract {
         abstractify(&mut path);
-    } else {
-        if path.starts_with("@") {
-            warn!("Websocat4 no longer converts @-prefixed addresses to abstract namespace anymore")
-        }
+    } else if path.starts_with("@") {
+        warn!("Websocat4 no longer converts @-prefixed addresses to abstract namespace anymore")
     }
 
     Ok(async move {
@@ -489,10 +487,8 @@ fn listen_seqpacket(
 
     if opts.r#abstract {
         abstractify(&mut path);
-    } else {
-        if path.starts_with("@") {
-            warn!("Websocat4 no longer converts @-prefixed addresses to abstract namespace anymore")
-        }
+    } else if path.starts_with("@") {
+        warn!("Websocat4 no longer converts @-prefixed addresses to abstract namespace anymore")
     }
     let a =
         AddressOrFd::interpret_path(&ctx, &span, path, opts.fd, opts.named_fd, opts.r#abstract)?;
@@ -503,7 +499,7 @@ fn listen_seqpacket(
         let assertaddr = Some(ListenFromFdType::Seqpacket);
         let forceaddr = if opts.fd_force { assertaddr } else { None };
         let mut l = match &a {
-            AddressOrFd::Addr(path) => tokio_seqpacket::UnixSeqpacketListener::bind(&path)?,
+            AddressOrFd::Addr(path) => tokio_seqpacket::UnixSeqpacketListener::bind(path)?,
             AddressOrFd::Fd(f) => {
                 unsafe { listen_from_fd(*f, forceaddr, assertaddr) }?.unwrap_seqpacket()
             }
@@ -767,7 +763,7 @@ pub unsafe fn listen_from_fd_named(
     }
 
     error!("Named file descriptor `{fdname}` not found in LISTEN_FDNAMES");
-    return Err(std::io::ErrorKind::Other.into());
+    Err(std::io::ErrorKind::Other.into())
 }
 
 pub fn register(engine: &mut Engine) {

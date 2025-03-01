@@ -5,6 +5,12 @@ pub struct IdentifierGenerator {
     pub varnames: HashMap<&'static str, usize>,
 }
 
+impl Default for IdentifierGenerator {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl IdentifierGenerator {
     pub fn new() -> Self {
         IdentifierGenerator {
@@ -14,7 +20,7 @@ impl IdentifierGenerator {
     pub fn getnewvarname(&mut self, prefix: &'static str) -> String {
         let e = self.varnames.entry(prefix).or_default();
         *e += 1;
-        return format!("{prefix}{}", *e);
+        format!("{prefix}{}", *e)
     }
 }
 

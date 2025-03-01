@@ -417,14 +417,14 @@ impl PacketWrite for WriteLengthprefixedChunks {
             let bufs = [IoSlice::new(header_chunk), IoSlice::new(buf_chunk)];
             let mut n = ready!(sw.writer.as_mut().poll_write_vectored(cx, &bufs))?;
 
-            if header.len() > 0 {
+            if !header.is_empty() {
                 let x = n.min(header.len());
                 *header = header.split_off(x);
                 n -= x;
             }
             p.debt += n;
         }
-        return Poll::Ready(Ok(()));
+        Poll::Ready(Ok(()))
     }
 }
 

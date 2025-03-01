@@ -187,12 +187,10 @@ fn ws_wrap(
 
     let (require_masked, require_unmasked) = if opts.ignore_masks {
         (false, false)
+    } else if opts.client {
+        (false, true)
     } else {
-        if opts.client {
-            (false, true)
-        } else {
-            (true, false)
-        }
+        (true, false)
     };
 
     let mut maybe_buffered_write = inner_write;

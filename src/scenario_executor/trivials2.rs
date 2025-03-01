@@ -125,45 +125,6 @@ fn write_chunk_limiter(
     Ok(x.wrap())
 }
 
-#[allow(unused)] // TODO: expose this
-struct CacheBeforeStartingReading {
-    inner: StreamRead,
-    limit: usize,
-}
-
-impl AsyncRead for CacheBeforeStartingReading {
-    fn poll_read(
-        self: Pin<&mut Self>,
-        cx: &mut std::task::Context<'_>,
-        buf: &mut ReadBuf,
-    ) -> Poll<std::io::Result<()>> {
-        let this = self.get_mut();
-        let sr: &mut StreamRead = &mut this.inner;
-
-        if this.limit == 0 {}
-
-        if !sr.prefix.is_empty() {
-            let limit = buf.remaining().min(sr.prefix.len()).min(this.limit);
-            buf.put_slice(&sr.prefix.split_to(limit));
-            return Poll::Ready(Ok(()));
-        }
-
-        let b = buf.initialized_mut();
-        let limit = b.len().min(this.limit);
-        let b = &mut b[0..limit];
-        let mut rb = ReadBuf::new(b);
-
-        ready!(tokio::io::AsyncRead::poll_read(
-            sr.reader.as_mut(),
-            cx,
-            &mut rb
-        ))?;
-        let read_len = rb.filled().len();
-        buf.advance(read_len);
-        Poll::Ready(Ok(()))
-    }
-}
-
 //@ Create stream socket with null read, write and hangup handles.
 //@ Use `put_read_part` and `put_write_part` to fill in the data transfer directions.
 fn null_stream_socket() -> Handle<StreamSocket> {
@@ -412,7 +373,7 @@ impl PacketWrite for WriteStreamChunks {
             ))?;
             *p.debt += n;
         }
-        return Poll::Ready(Ok(()));
+        Poll::Ready(Ok(()))
     }
 }
 
@@ -445,7 +406,7 @@ fn stream_chunks(
     } = x
     {
         let write = DatagramWrite {
-            snk: Box::pin(WriteStreamChunks { w: w, debt: 0 }),
+            snk: Box::pin(WriteStreamChunks { w, debt: 0 }),
         };
         let read = DatagramRead {
             src: Box::pin(ReadStreamChunks(r)),

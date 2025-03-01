@@ -39,7 +39,7 @@ pub fn format_osstr(arg: &OsStr) -> String {
     #[allow(unreachable_code)]
     {
         let x = base64::prelude::BASE64_STANDARD.encode(arg.as_encoded_bytes());
-        return format!("osstr_base64_unchecked_encoded_bytes(\"{}\")", x);
+        format!("osstr_base64_unchecked_encoded_bytes(\"{}\")", x)
     }
 }
 

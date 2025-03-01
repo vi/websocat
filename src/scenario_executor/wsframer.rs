@@ -141,11 +141,7 @@ impl PacketWrite for WsEncoder {
                     if opcode.is_control() && fin {
                         this.flush_pending = true;
                     }
-                    let mask = if let Some(ref mut rng) = this.rng_for_mask {
-                        Some(rng.random())
-                    } else {
-                        None
-                    };
+                    let mask = this.rng_for_mask.as_mut().map(|rng| rng.random());
                     let mut payload_length = buf.len() as u64;
                     if !this.buffer_for_split_control_frames.is_empty() {
                         payload_length = this.buffer_for_split_control_frames.len() as u64;

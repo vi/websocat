@@ -29,12 +29,11 @@ impl WebsocatInvocation {
             self.right.maybe_early_resolve(&mut self.beginning, vars);
         }
         self.maybe_fill_in_tls_details(vars)?;
-        if self.opts.log_traffic {
-            if !self.right.insert_log_overlay() {
-                if !self.left.insert_log_overlay() {
-                    warn!("Failed to automaticelly insert log: overlay");
-                }
-            }
+        if self.opts.log_traffic
+            && !self.right.insert_log_overlay()
+            && !self.left.insert_log_overlay()
+        {
+            warn!("Failed to automaticelly insert log: overlay");
         }
         self.left.fill_in_log_overlay_type();
         self.right.fill_in_log_overlay_type();
@@ -73,14 +72,11 @@ impl WebsocatInvocation {
                 .iter_mut()
                 .chain(self.right.overlays.iter_mut())
             {
-                match x {
-                    Overlay::TlsClient { domain, .. } => {
-                        if domain != d {
-                            *domain = d.clone();
-                            patch_occurred = true;
-                        }
+                if let Overlay::TlsClient { domain, .. } = x {
+                    if domain != d {
+                        *domain = d.clone();
+                        patch_occurred = true;
                     }
-                    _ => (),
                 }
             }
             if !patch_occurred {
@@ -218,18 +214,15 @@ impl SpecifierStack {
 
     fn maybe_patch_existing_ws_request(&mut self, opts: &WebsocatArgs) -> anyhow::Result<()> {
         for ovl in &mut self.overlays {
-            match ovl {
-                Overlay::WsUpgrade { uri, host } => {
-                    if let Some(ref ws_c_uri) = opts.ws_c_uri {
-                        if uri == "/" && host.is_none() {
-                            let ws_c_uri = Uri::try_from(ws_c_uri)?;
-                            let MyUrlParts { auth, newurl } = MyUrlParts::process_url(&ws_c_uri)?;
-                            *uri = newurl;
-                            *host = auth.map(|x| x.to_string());
-                        }
+            if let Overlay::WsUpgrade { uri, host } = ovl {
+                if let Some(ref ws_c_uri) = opts.ws_c_uri {
+                    if uri == "/" && host.is_none() {
+                        let ws_c_uri = Uri::try_from(ws_c_uri)?;
+                        let MyUrlParts { auth, newurl } = MyUrlParts::process_url(&ws_c_uri)?;
+                        *uri = newurl;
+                        *host = auth.map(|x| x.to_string());
                     }
                 }
-                _ => {}
             }
         }
         Ok(())
@@ -286,15 +279,12 @@ impl SpecifierStack {
     }
 
     fn maybe_splitup_server_ws_endpoint(&mut self) -> anyhow::Result<()> {
-        match self.innermost {
-            Endpoint::WsListen(a) => {
-                self.innermost = Endpoint::TcpListen(a);
+        if let Endpoint::WsListen(a) = self.innermost {
+            self.innermost = Endpoint::TcpListen(a);
 
-                self.overlays.insert(0, Overlay::WsAccept {});
-                self.overlays
-                    .insert(1, Overlay::WsFramer { client_mode: false });
-            }
-            _ => (),
+            self.overlays.insert(0, Overlay::WsAccept {});
+            self.overlays
+                .insert(1, Overlay::WsFramer { client_mode: false });
         }
         Ok(())
     }
@@ -304,16 +294,13 @@ impl SpecifierStack {
         beginning: &mut Vec<PreparatoryAction>,
         vars: &mut IdentifierGenerator,
     ) {
-        match &self.innermost {
-            Endpoint::TcpConnectByLateHostname { hostname } => {
-                let varname_for_addrs = vars.getnewvarname("addrs");
-                beginning.push(PreparatoryAction::ResolveHostname {
-                    hostname: hostname.clone(),
-                    varname_for_addrs: varname_for_addrs.clone(),
-                });
-                self.innermost = Endpoint::TcpConnectByEarlyHostname { varname_for_addrs };
-            }
-            _ => (),
+        if let Endpoint::TcpConnectByLateHostname { hostname } = &self.innermost {
+            let varname_for_addrs = vars.getnewvarname("addrs");
+            beginning.push(PreparatoryAction::ResolveHostname {
+                hostname: hostname.clone(),
+                varname_for_addrs: varname_for_addrs.clone(),
+            });
+            self.innermost = Endpoint::TcpConnectByEarlyHostname { varname_for_addrs };
         }
     }
 

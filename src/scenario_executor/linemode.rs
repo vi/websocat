@@ -224,7 +224,7 @@ impl PacketWrite for WriteLineChunks {
                 let n = ready!(tokio::io::AsyncWrite::poll_write(
                     Pin::new(&mut this.w.writer),
                     cx,
-                    &debt
+                    debt
                 ))?;
                 if n >= debt.len() {
                     this.debt = None;
@@ -267,7 +267,7 @@ impl PacketWrite for WriteLineChunks {
             this.separator_offset += n;
         }
         this.chunk_already_processed = false;
-        return Poll::Ready(Ok(()));
+        Poll::Ready(Ok(()))
     }
 }
 

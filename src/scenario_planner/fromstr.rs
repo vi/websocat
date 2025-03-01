@@ -27,7 +27,7 @@ impl SpecifierStack {
         overlays.reverse();
 
         Ok(SpecifierStack {
-            innermost: innermost,
+            innermost,
             overlays,
         })
     }

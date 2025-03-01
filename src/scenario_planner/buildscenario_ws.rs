@@ -55,12 +55,12 @@ impl Overlay {
                 let mut oo = String::with_capacity(64);
                 oo.push_str("url: ");
                 oo.push_str(&format!("{}", StrLit(uri)));
-                oo.push_str(",");
+                oo.push(',');
 
                 if let Some(host) = host {
                     oo.push_str("host: ");
                     oo.push_str(&format!("{}", StrLit(&host)));
-                    oo.push_str(",");
+                    oo.push(',');
                 }
 
                 if opts.ws_dont_check_headers {

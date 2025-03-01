@@ -238,7 +238,7 @@ fn race(tasks: Vec<Dynamic>) -> Handle<Task> {
         debug!("one of `race`'s task finished, aborting others");
 
         for w in waitees {
-            let _ = w.abort();
+            w.abort();
         }
     }
     .wrap_noerr()

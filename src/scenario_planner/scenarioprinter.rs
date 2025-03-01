@@ -5,6 +5,12 @@ pub struct ScenarioPrinter {
     indent: usize,
 }
 
+impl Default for ScenarioPrinter {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl ScenarioPrinter {
     pub fn new() -> ScenarioPrinter {
         ScenarioPrinter {

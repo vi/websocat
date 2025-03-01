@@ -71,19 +71,19 @@ impl Endpoint {
 
                 let toaddr = opts.udp_bind_target_addr.unwrap_or(neutral);
                 o.push_str(&format!("addr: \"{toaddr}\","));
-                o.push_str(&format!("sendto_mode: true,"));
+                o.push_str("sendto_mode: true,");
 
                 if !opts.udp_bind_restrict_to_one_address {
-                    o.push_str(&format!("allow_other_addresses: true,"));
+                    o.push_str("allow_other_addresses: true,");
                 }
                 if udp_bind_redirect_to_last_seen_address {
-                    o.push_str(&format!("redirect_to_last_seen_address: true,"));
+                    o.push_str("redirect_to_last_seen_address: true,");
                 }
                 if udp_bind_connect_to_first_seen_address {
-                    o.push_str(&format!("connect_to_first_seen_address: true,"));
+                    o.push_str("connect_to_first_seen_address: true,");
                 }
                 if opts.udp_bind_inhibit_send_errors {
-                    o.push_str(&format!("inhibit_send_errors: true,"));
+                    o.push_str("inhibit_send_errors: true,");
                 }
                 o.push_str(&format!(
                     "max_send_datagram_size: {},",
@@ -91,7 +91,7 @@ impl Endpoint {
                 ));
 
                 if opts.text {
-                    o.push_str(&format!("tag_as_text: true,"));
+                    o.push_str("tag_as_text: true,");
                 }
 
                 printer.print_line(&format!("let {varnam} = udp_socket(#{{{o}}});"));
@@ -118,13 +118,13 @@ impl Endpoint {
                 }
 
                 if opts.udp_bind_inhibit_send_errors {
-                    o.push_str(&format!("inhibit_send_errors: true,"));
+                    o.push_str("inhibit_send_errors: true,");
                 }
                 if opts.text {
-                    o.push_str(&format!("tag_as_text: true,"));
+                    o.push_str("tag_as_text: true,");
                 }
                 if opts.udp_server_backpressure {
-                    o.push_str(&format!("backpressure: true,"));
+                    o.push_str("backpressure: true,");
                 }
                 if let Some(x) = opts.udp_server_timeout_ms {
                     o.push_str(&format!("timeout_ms: {x},"));
@@ -147,7 +147,7 @@ impl Endpoint {
                 printer.increase_indent();
 
                 if opts.stdout_announce_listening_ports {
-                    printer.print_line(&"print_stdout(\"LISTEN proto=udp,ip=\"+listen_addr.get_ip()+\",port=\"+str(listen_addr.get_port())+\"\\n\"),");
+                    printer.print_line("print_stdout(\"LISTEN proto=udp,ip=\"+listen_addr.get_ip()+\",port=\"+str(listen_addr.get_port())+\"\\n\"),");
                 }
                 if let Some(ref x) = opts.exec_after_listen {
                     if opts.exec_after_listen_append_port {

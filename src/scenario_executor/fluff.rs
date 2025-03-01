@@ -25,20 +25,20 @@ impl PacketRead for TrivialPkts {
     ) -> Poll<std::io::Result<PacketReadResult>> {
         let mut this = self.as_mut();
         if this.n == 0 {
-            return Poll::Ready(Ok(PacketReadResult {
+            Poll::Ready(Ok(PacketReadResult {
                 flags: BufferFlag::Eof.into(),
                 buffer_subset: 0..0,
-            }));
+            }))
         } else {
             let msg = format!("{}", this.n);
             let msg = msg.as_bytes();
             let l = msg.len();
             buf[..l].copy_from_slice(msg);
             this.n -= 1;
-            return Poll::Ready(Ok(PacketReadResult {
+            Poll::Ready(Ok(PacketReadResult {
                 flags: BufferFlag::Text.into(),
                 buffer_subset: 0..l,
-            }));
+            }))
         }
     }
 }
