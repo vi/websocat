@@ -609,7 +609,7 @@ pub enum ListenFromFdType {
 #[derive(Debug)]
 pub enum ListenFromFdOutcome {
     Unix(tokio::net::UnixListener),
-    #[cfg(any(target_os = "linux",target_os = "android",target_os = "freebsd"))]
+    #[cfg(any(target_os = "linux", target_os = "android", target_os = "freebsd"))]
     Seqpacket(tokio_seqpacket::UnixSeqpacketListener),
     Tcp(tokio::net::TcpListener),
     Udp(tokio::net::UdpSocket),
@@ -630,7 +630,7 @@ impl ListenFromFdOutcome {
             panic!()
         }
     }
-    #[cfg(any(target_os = "linux",target_os = "android",target_os = "freebsd"))]
+    #[cfg(any(target_os = "linux", target_os = "android", target_os = "freebsd"))]
     pub fn unwrap_seqpacket(self) -> tokio_seqpacket::UnixSeqpacketListener {
         if let ListenFromFdOutcome::Seqpacket(x) = self {
             x
@@ -712,13 +712,16 @@ pub unsafe fn listen_from_fd(
             ListenFromFdOutcome::Unix(tokio::net::UnixListener::from_std(s)?)
         }
         ListenFromFdType::Seqpacket => {
-            #[cfg(any(target_os = "linux",target_os = "android",target_os = "freebsd"))]
+            #[cfg(any(target_os = "linux", target_os = "android", target_os = "freebsd"))]
             {
                 let s = tokio_seqpacket::UnixSeqpacketListener::from_raw_fd(fd)?;
                 return Ok(ListenFromFdOutcome::Seqpacket(s));
             }
-            error!("Attempt to get a SOCK_SEQPACKET on platform where it is not supported");
-            return Err(std::io::ErrorKind::Other.into())
+            #[allow(unreachable_code)]
+            {
+                error!("Attempt to get a SOCK_SEQPACKET on platform where it is not supported");
+            }
+            return Err(std::io::ErrorKind::Other.into());
         }
         ListenFromFdType::Tcp => {
             let s = unsafe { std::net::TcpListener::from_raw_fd(fd) };

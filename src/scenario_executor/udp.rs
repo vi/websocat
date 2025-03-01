@@ -12,7 +12,7 @@ use futures::FutureExt;
 use rhai::{Dynamic, Engine, NativeCallContext};
 use tokio::{io::ReadBuf, net::UdpSocket};
 #[allow(unused)]
-use tracing::{debug, debug_span, info, warn, error};
+use tracing::{debug, debug_span, error, info, warn};
 
 use crate::scenario_executor::types::Handle;
 use std::sync::{Arc, RwLock};
