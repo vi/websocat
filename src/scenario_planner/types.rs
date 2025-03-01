@@ -68,14 +68,21 @@ pub enum Endpoint {
     //@ Byte stream socket that produces specified content (base64-encoded) and ignores incoming data
     LiteralBase64(String),
 
-    //@ Connect to the specified UNIX socket path
+    //@ Connect to the specified UNIX socket path using stream socket
     UnixConnect(OsString),
-    //@ Listen specified UNIX socket path
+    //@ Listen specified UNIX socket path for SOCK_STREAM connections
     UnixListen(OsString),
     //@ Connect to the specified abstract-namespaced UNIX socket (Linux)
     AbstractConnect(OsString),
     //@ Listen UNIX socket on specified abstract path (Linux)
     AbstractListen(OsString),
+
+    //@ Listen for incoming AF_UNIX SOCK_STREAM connections on one socket that is already ready for accepting incoming conenctions,
+    //@ with specified file descriptor (inherited from parent process)
+    UnixListenFd(i32),
+    //@ Listen for incoming AF_UNIX SOCK_STREAM connections on one socket that is already ready for accepting incoming conenctions,
+    //@ with specified file descriptor (inherited from parent process) based on LISTEN_FDNAMES environment variable (i.e. from SystemD)
+    UnixListenFdNamed(String),
 
     //@ Connect to specified UNIX SOCK_SEQPACKET socket by path
     //@

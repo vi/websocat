@@ -150,6 +150,46 @@ impl<T: Display> AddressOrFd<T> {
         })
     }
 }
+
+impl AddressOrFd<std::ffi::OsString> {
+    pub fn interpret_path(
+        ctx: &NativeCallContext,
+        span: &Span,
+        path: std::ffi::OsString,
+        fd: Option<i32>,
+        named_fd: Option<String>,
+        r#abstract: bool,
+    ) -> RhResult<Self> {
+        let mut n = 0;
+        if !path.is_empty() {
+            n += 1
+        }
+        if fd.is_some() {
+            n += 1
+        }
+        if named_fd.is_some() {
+            n += 1
+        }
+
+        if n != 1 {
+            return Err(ctx.err("Exactly one of `addr` or `fd` or `fd_named` must be specified"));
+        }
+
+        Ok(if !path.is_empty() {
+            debug!(parent: span, listen_addr=?path, r#abstract=r#abstract, "options parsed");
+            AddressOrFd::Addr(path)
+        } else if let Some(x) = fd {
+            debug!(parent: span, fd=%x, "options parsed");
+            AddressOrFd::Fd(x)
+        } else if let Some(x) = named_fd {
+            debug!(parent: span, named_fd=%x, "options parsed");
+            AddressOrFd::NamedFd(x)
+        } else {
+            unreachable!()
+        })
+    }
+}
+
 impl<T> AddressOrFd<T> {
     pub fn addr(&self) -> Option<&T> {
         match self {

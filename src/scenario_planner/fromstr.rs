@@ -253,6 +253,25 @@ impl ParseStrChunkResult<'_> {
                 rest.to_owned(),
             )))
         } else if let Some(rest) = x.strip_prefix_many(&[
+            "unix-listen-fd:",
+            "listen-unix-fd:",
+            "unix-l-fd:",
+            "l-unix-fd:",
+        ]) {
+            let s: &str = rest.try_into()?;
+            let a: i32 = s.parse()?;
+            Ok(ParseStrChunkResult::Endpoint(Endpoint::UnixListenFd(a)))
+        } else if let Some(rest) = x.strip_prefix_many(&[
+            "unix-listen-fdname:",
+            "listen-unix-fdname:",
+            "unix-l-fdname:",
+            "l-unix-fdname:",
+        ]) {
+            let s: &str = rest.try_into()?;
+            Ok(ParseStrChunkResult::Endpoint(Endpoint::UnixListenFdNamed(
+                s.to_owned(),
+            )))
+        } else if let Some(rest) = x.strip_prefix_many(&[
             "abstract:",
             "abstract-connect:",
             "connect-abstract:",

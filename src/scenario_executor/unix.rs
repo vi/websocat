@@ -1,5 +1,5 @@
 use std::{
-    ffi::OsString,
+    ffi::{OsStr, OsString},
     sync::Arc,
     task::{ready, Poll},
     time::Duration,
@@ -8,6 +8,7 @@ use std::{
 use crate::scenario_executor::{
     types::{DatagramRead, DatagramSocket, DatagramWrite},
     utils1::{wrap_as_stream_socket, SimpleErr, TaskHandleExt2},
+    utils2::AddressOrFd,
 };
 use futures::FutureExt;
 use rhai::{Dynamic, Engine, FnPtr, NativeCallContext};
@@ -34,12 +35,12 @@ fn abstractify(path: &mut OsString) {
 
 async fn maybe_chmod<T>(
     chmod: Option<u32>,
-    path: OsString,
+    path: &OsStr,
     mut acceptor: impl FnMut() -> Option<std::io::Result<T>>,
 ) -> Result<(), anyhow::Error> {
     if let Some(chmod) = chmod {
         use std::os::unix::fs::PermissionsExt;
-        match std::fs::set_permissions(&path, std::fs::Permissions::from_mode(chmod)) {
+        match std::fs::set_permissions(path, std::fs::Permissions::from_mode(chmod)) {
             Ok(_) => {
                 debug!(?path, chmod, "chmod");
             }
@@ -130,8 +131,18 @@ fn listen_unix(
     let the_scenario = ctx.get_scenario()?;
     debug!(parent: &span, "node created");
     #[derive(serde::Deserialize)]
-    struct UnixListenOpts {
-        //@ On Linux, connect ot an abstract-namespaced socket instead of file-based
+    struct Opts {
+        //@ Inherited file descriptor to accept connections from
+        fd: Option<i32>,
+
+        //@ Inherited file named (`LISTEN_FDNAMES``) descriptor to accept connections from
+        named_fd: Option<String>,
+
+        //@ Skip socket type check when using `fd`.
+        #[serde(default)]
+        fd_force: bool,
+
+        //@ On Linux, listen an abstract-namespaced socket instead of file-based
         #[serde(default)]
         r#abstract: bool,
 
@@ -147,9 +158,8 @@ fn listen_unix(
         #[serde(default)]
         oneshot: bool,
     }
-    let opts: UnixListenOpts = rhai::serde::from_dynamic(&opts)?;
+    let opts: Opts = rhai::serde::from_dynamic(&opts)?;
     //span.record("addr", field::display(opts.addr));
-    debug!(parent: &span, listen_addr=?path, r#abstract=opts.r#abstract, "options parsed");
 
     let autospawn = opts.autospawn;
 
@@ -157,11 +167,27 @@ fn listen_unix(
         abstractify(&mut path);
     }
 
+    let a =
+        AddressOrFd::interpret_path(&ctx, &span, path, opts.fd, opts.named_fd, opts.r#abstract)?;
+
     Ok(async move {
         debug!("node started");
-        let l = tokio::net::UnixListener::bind(&path)?;
 
-        maybe_chmod(opts.chmod, path, || l.accept().now_or_never()).await?;
+        let assertaddr = Some(ListenFromFdType::Unix);
+        let forceaddr = if opts.fd_force { assertaddr } else { None };
+        let l = match &a {
+            AddressOrFd::Addr(path) => tokio::net::UnixListener::bind(path)?,
+            AddressOrFd::Fd(f) => {
+                unsafe { listen_from_fd(*f, forceaddr, assertaddr) }?.unwrap_unix()
+            }
+            AddressOrFd::NamedFd(f) => {
+                unsafe { listen_from_fd_named(f, forceaddr, assertaddr) }?.unwrap_unix()
+            }
+        };
+
+        if let Some(path) = a.addr() {
+            maybe_chmod(opts.chmod, path, || l.accept().now_or_never()).await?;
+        }
 
         callback_and_continue::<()>(the_scenario.clone(), when_listening, ()).await;
 
@@ -462,7 +488,7 @@ fn listen_seqpacket(
         debug!("node started");
         let mut l = tokio_seqpacket::UnixSeqpacketListener::bind(&path)?;
 
-        maybe_chmod(opts.chmod, path, || l.accept().now_or_never()).await?;
+        maybe_chmod(opts.chmod, &path, || l.accept().now_or_never()).await?;
 
         callback_and_continue::<()>(the_scenario.clone(), when_listening, ()).await;
 
@@ -547,7 +573,7 @@ fn listen_seqpacket(
     .wrap())
 }
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub enum ListenFromFdType {
     Unix,
     Seqpacket,

@@ -24,6 +24,8 @@ Short list of endpoint prefixes:
   udp-server:
   unix:
   unix-listen:
+  unix-listen-fd:
+  unix-listen-fdname:
   ws-listen:
   ws://
   wss://

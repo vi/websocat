@@ -294,6 +294,9 @@ Options:
           
           Makes listening port "0" practical.
 
+      --accept-from-fd
+          Show dedicated error message explaining how to migrate Websocat1's --accpet-from-fd to the new scheme
+
   -h, --help
           Print help (see a summary with '-h')
 
@@ -326,6 +329,8 @@ Short list of endpoint prefixes:
   udp-server:
   unix:
   unix-listen:
+  unix-listen-fd:
+  unix-listen-fdname:
   ws-listen:
   ws://
   wss://
@@ -643,7 +648,7 @@ Prefixes:
 
 ### UnixConnect
 
-Connect to the specified UNIX socket path
+Connect to the specified UNIX socket path using stream socket
 
 Prefixes:
 
@@ -655,7 +660,7 @@ Prefixes:
 
 ### UnixListen
 
-Listen specified UNIX socket path
+Listen specified UNIX socket path for SOCK_STREAM connections
 
 Prefixes:
 
@@ -663,6 +668,30 @@ Prefixes:
 * `listen-unix:`
 * `unix-l:`
 * `l-unix:`
+
+### UnixListenFd
+
+Listen for incoming AF_UNIX SOCK_STREAM connections on one socket that is already ready for accepting incoming conenctions,
+with specified file descriptor (inherited from parent process)
+
+Prefixes:
+
+* `unix-listen-fd:`
+* `listen-unix-fd:`
+* `unix-l-fd:`
+* `l-unix-fd:`
+
+### UnixListenFdNamed
+
+Listen for incoming AF_UNIX SOCK_STREAM connections on one socket that is already ready for accepting incoming conenctions,
+with specified file descriptor (inherited from parent process) based on LISTEN_FDNAMES environment variable (i.e. from SystemD)
+
+Prefixes:
+
+* `unix-listen-fdname:`
+* `listen-unix-fdname:`
+* `unix-l-fdname:`
+* `l-unix-fdname:`
 
 ### WsListen
 
@@ -1505,7 +1534,10 @@ Returns `Task`
 
 Options:
 
-* abstract (`bool`) - On Linux, connect ot an abstract-namespaced socket instead of file-based
+* fd (`Option<i32>`) - Inherited file descriptor to accept connections from
+* named_fd (`Option<String>`) - Inherited file named (`LISTEN_FDNAMES``) descriptor to accept connections from
+* fd_force (`bool`) - Skip socket type check when using `fd`.
+* abstract (`bool`) - On Linux, listen an abstract-namespaced socket instead of file-based
 * chmod (`Option<u32>`) - Change filesystem mode (permissions) of the file after listening
 * autospawn (`bool`) - Automatically spawn a task for each accepted connection
 * oneshot (`bool`) - Exit listening loop after processing a single connection

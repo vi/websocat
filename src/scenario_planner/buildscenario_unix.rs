@@ -27,26 +27,47 @@ impl Endpoint {
                 printer.increase_indent();
                 Ok(varnam)
             }
-            Endpoint::UnixListen(path) => {
+            Endpoint::UnixListen(_)
+            | Endpoint::UnixListenFd(_)
+            | Endpoint::UnixListenFdNamed(_) => {
                 let pathvar = vars.getnewvarname("path");
-                if let Some(s) = path.to_str() {
-                    printer.print_line(&format!("let {pathvar} = osstr_str({});", StrLit(s)));
-                } else {
-                    printer.print_line(&format!("let {pathvar} = {};", format_osstr(path)));
-                }
 
-                if opts.unlink {
-                    printer.print_line(&format!("unlink_file({pathvar}, false);"));
+                let mut chmod_option = "";
+                let mut fd_options = "";
+                let fd_options_buf;
+                match self {
+                    Endpoint::UnixListen(path) => {
+                        if let Some(s) = path.to_str() {
+                            printer
+                                .print_line(&format!("let {pathvar} = osstr_str({});", StrLit(s)));
+                        } else {
+                            printer.print_line(&format!("let {pathvar} = {};", format_osstr(path)));
+                        }
+
+                        if opts.unlink {
+                            printer.print_line(&format!("unlink_file({pathvar}, false);"));
+                        }
+
+                        fill_in_chmods(opts, &mut chmod_option);
+                    }
+                    Endpoint::UnixListenFd(fd) => {
+                        printer.print_line(&format!("let {pathvar} = osstr_str(\"\");"));
+                        fd_options_buf = format!(",fd: {fd}");
+                        fd_options = &fd_options_buf;
+                    }
+                    Endpoint::UnixListenFdNamed(fd) => {
+                        printer.print_line(&format!("let {pathvar} = osstr_str(\"\");"));
+                        fd_options_buf = format!(",named_fd: {}", StrLit(fd));
+                        fd_options = &fd_options_buf;
+                    }
+                    _ => unreachable!(),
                 }
 
                 let varnam = vars.getnewvarname("unix");
                 let listenparams = opts.listening_parameters();
 
-                let mut chmod_option = "";
-                fill_in_chmods(opts, &mut chmod_option);
-
                 printer.print_line(&format!(
-                    "listen_unix(#{{{listenparams} {chmod_option} }}, {pathvar}, ||{{sequential([",
+                    "listen_unix(#{{{listenparams} {chmod_option} {fd_options}}}, {pathvar}, ||{{sequential([",
                 ));
                 printer.increase_indent();
 
@@ -228,35 +249,16 @@ impl Endpoint {
 
     pub(super) fn end_print_unix(&self, printer: &mut ScenarioPrinter) {
         match self {
-            Endpoint::UnixConnect(_) => {
-                printer.decrease_indent();
-                printer.print_line("})");
-            }
-            Endpoint::UnixListen(_) => {
-                printer.decrease_indent();
-                printer.print_line("})");
-            }
-            Endpoint::AbstractConnect(_) => {
-                printer.decrease_indent();
-                printer.print_line("})");
-            }
-            Endpoint::AbstractListen(_) => {
-                printer.decrease_indent();
-                printer.print_line("})");
-            }
-            Endpoint::SeqpacketConnect(_) => {
-                printer.decrease_indent();
-                printer.print_line("})");
-            }
-            Endpoint::SeqpacketListen(_) => {
-                printer.decrease_indent();
-                printer.print_line("})");
-            }
-            Endpoint::AbstractSeqpacketConnect(_) => {
-                printer.decrease_indent();
-                printer.print_line("})");
-            }
-            Endpoint::AbstractSeqpacketListen(_) => {
+            Endpoint::UnixConnect(_)
+            | Endpoint::UnixListen(_)
+            | Endpoint::AbstractConnect(_)
+            | Endpoint::AbstractListen(_)
+            | Endpoint::UnixListenFd(_)
+            | Endpoint::UnixListenFdNamed(_)
+            | Endpoint::SeqpacketConnect(_)
+            | Endpoint::SeqpacketListen(_)
+            | Endpoint::AbstractSeqpacketConnect(_)
+            | Endpoint::AbstractSeqpacketListen(_) => {
                 printer.decrease_indent();
                 printer.print_line("})");
             }
