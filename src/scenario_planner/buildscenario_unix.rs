@@ -145,22 +145,43 @@ impl Endpoint {
                 printer.increase_indent();
                 Ok(varnam)
             }
-            Endpoint::SeqpacketListen(path) => {
+            Endpoint::SeqpacketListen(_)
+            | Endpoint::SeqpacketListenFd(_)
+            | Endpoint::SeqpacketListenFdNamed(_) => {
                 let pathvar = vars.getnewvarname("path");
-                if let Some(s) = path.to_str() {
-                    printer.print_line(&format!("let {pathvar} = osstr_str({});", StrLit(s)));
-                } else {
-                    printer.print_line(&format!("let {pathvar} = {};", format_osstr(path)));
-                }
 
-                if opts.unlink {
-                    printer.print_line(&format!("unlink_file({pathvar}, false);"));
+                let mut chmod_option = "";
+                let mut fd_options = "";
+                let fd_options_buf;
+                match self {
+                    Endpoint::SeqpacketListen(path) => {
+                        if let Some(s) = path.to_str() {
+                            printer
+                                .print_line(&format!("let {pathvar} = osstr_str({});", StrLit(s)));
+                        } else {
+                            printer.print_line(&format!("let {pathvar} = {};", format_osstr(path)));
+                        }
+
+                        if opts.unlink {
+                            printer.print_line(&format!("unlink_file({pathvar}, false);"));
+                        }
+
+                        fill_in_chmods(opts, &mut chmod_option);
+                    }
+                    Endpoint::SeqpacketListenFd(fd) => {
+                        printer.print_line(&format!("let {pathvar} = osstr_str(\"\");"));
+                        fd_options_buf = format!(",fd: {fd}");
+                        fd_options = &fd_options_buf;
+                    }
+                    Endpoint::SeqpacketListenFdNamed(fd) => {
+                        printer.print_line(&format!("let {pathvar} = osstr_str(\"\");"));
+                        fd_options_buf = format!(",named_fd: {}", StrLit(fd));
+                        fd_options = &fd_options_buf;
+                    }
+                    _ => unreachable!(),
                 }
 
                 let varnam = vars.getnewvarname("unix");
-
-                let mut chmod_option = "";
-                fill_in_chmods(opts, &mut chmod_option);
 
                 let mut text_option = "";
                 if opts.text {
@@ -169,7 +190,7 @@ impl Endpoint {
                 let listenparams = opts.listening_parameters();
 
                 printer.print_line(&format!(
-                    "listen_seqpacket(#{{{listenparams} {chmod_option} {text_option} , max_send_datagram_size: {} }}, {pathvar}, ||{{sequential([",
+                    "listen_seqpacket(#{{{listenparams} {chmod_option} {text_option} {fd_options} , max_send_datagram_size: {} }}, {pathvar}, ||{{sequential([",
                     opts.seqpacket_max_send_datagram_size,
                 ));
                 printer.increase_indent();
@@ -257,6 +278,8 @@ impl Endpoint {
             | Endpoint::UnixListenFdNamed(_)
             | Endpoint::SeqpacketConnect(_)
             | Endpoint::SeqpacketListen(_)
+            | Endpoint::SeqpacketListenFd(_)
+            | Endpoint::SeqpacketListenFdNamed(_)
             | Endpoint::AbstractSeqpacketConnect(_)
             | Endpoint::AbstractSeqpacketListen(_) => {
                 printer.decrease_indent();

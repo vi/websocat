@@ -121,6 +121,7 @@ fn connect_unix(
 fn listen_unix(
     ctx: NativeCallContext,
     opts: Dynamic,
+    //@ Path to a socket file to create, name of abstract address to use or empty string if `fd` is used.
     mut path: OsString,
     //@ Called once after the port is bound
     when_listening: FnPtr,
@@ -434,6 +435,7 @@ fn connect_seqpacket(
 fn listen_seqpacket(
     ctx: NativeCallContext,
     opts: Dynamic,
+    //@ Path to a socket file to create, name of abstract address to use or empty string if `fd` is used.
     mut path: OsString,
     //@ Called once after the port is bound
     when_listening: FnPtr,
@@ -444,7 +446,17 @@ fn listen_seqpacket(
     let the_scenario = ctx.get_scenario()?;
     debug!(parent: &span, "node created");
     #[derive(serde::Deserialize)]
-    struct SeqpacketListenOpts {
+    struct Opts {
+        //@ Inherited file descriptor to accept connections from
+        fd: Option<i32>,
+
+        //@ Inherited file named (`LISTEN_FDNAMES``) descriptor to accept connections from
+        named_fd: Option<String>,
+
+        //@ Skip socket type check when using `fd`.
+        #[serde(default)]
+        fd_force: bool,
+
         //@ On Linux, connect ot an abstract-namespaced socket instead of file-based
         #[serde(default)]
         r#abstract: bool,
@@ -469,9 +481,8 @@ fn listen_seqpacket(
         #[serde(default = "default_max_send_datagram_size")]
         max_send_datagram_size: usize,
     }
-    let opts: SeqpacketListenOpts = rhai::serde::from_dynamic(&opts)?;
+    let opts: Opts = rhai::serde::from_dynamic(&opts)?;
     //span.record("addr", field::display(opts.addr));
-    debug!(parent: &span, listen_addr=?path, r#abstract=opts.r#abstract, "options parsed");
 
     let autospawn = opts.autospawn;
     let oneshot = opts.oneshot;
@@ -483,12 +494,27 @@ fn listen_seqpacket(
             warn!("Websocat4 no longer converts @-prefixed addresses to abstract namespace anymore")
         }
     }
+    let a =
+        AddressOrFd::interpret_path(&ctx, &span, path, opts.fd, opts.named_fd, opts.r#abstract)?;
 
     Ok(async move {
         debug!("node started");
-        let mut l = tokio_seqpacket::UnixSeqpacketListener::bind(&path)?;
 
-        maybe_chmod(opts.chmod, &path, || l.accept().now_or_never()).await?;
+        let assertaddr = Some(ListenFromFdType::Seqpacket);
+        let forceaddr = if opts.fd_force { assertaddr } else { None };
+        let mut l = match &a {
+            AddressOrFd::Addr(path) => tokio_seqpacket::UnixSeqpacketListener::bind(&path)?,
+            AddressOrFd::Fd(f) => {
+                unsafe { listen_from_fd(*f, forceaddr, assertaddr) }?.unwrap_seqpacket()
+            }
+            AddressOrFd::NamedFd(f) => {
+                unsafe { listen_from_fd_named(f, forceaddr, assertaddr) }?.unwrap_seqpacket()
+            }
+        };
+
+        if let Some(path) = a.addr() {
+            maybe_chmod(opts.chmod, path, || l.accept().now_or_never()).await?;
+        }
 
         callback_and_continue::<()>(the_scenario.clone(), when_listening, ()).await;
 

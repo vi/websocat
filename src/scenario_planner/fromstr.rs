@@ -316,6 +316,31 @@ impl ParseStrChunkResult<'_> {
                 rest.to_owned(),
             )))
         } else if let Some(rest) = x.strip_prefix_many(&[
+            "seqpacket-listen-fd:",
+            "listen-seqpacket-fd:",
+            "seqpacket-l-fd:",
+            "l-seqpacket-fd:",
+            "l-seqp-fd:",
+            "seqp-l-fd:",
+        ]) {
+            let s: &str = rest.try_into()?;
+            let a: i32 = s.parse()?;
+            Ok(ParseStrChunkResult::Endpoint(Endpoint::SeqpacketListenFd(
+                a,
+            )))
+        } else if let Some(rest) = x.strip_prefix_many(&[
+            "seqpacket-listen-fdname:",
+            "listen-seqpacket-fdname:",
+            "seqpacket-l-fdname:",
+            "l-seqpacket-fdname:",
+            "l-seqp-fdname:",
+            "seqp-l-fdname:",
+        ]) {
+            let s: &str = rest.try_into()?;
+            Ok(ParseStrChunkResult::Endpoint(
+                Endpoint::SeqpacketListenFdNamed(s.to_owned()),
+            ))
+        } else if let Some(rest) = x.strip_prefix_many(&[
             "seqpacket-abstract:",
             "seqpacket-abstract-connect:",
             "seqpacket-abstract-c:",

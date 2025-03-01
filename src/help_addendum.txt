@@ -14,6 +14,8 @@ Short list of endpoint prefixes:
   registry-stream-listen:
   seqpacket:
   seqpacket-listen:
+  seqpacket-listen-fd:
+  seqpacket-listen-fdname:
   stdio:
   tcp:
   tcp-listen:

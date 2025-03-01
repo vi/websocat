@@ -96,7 +96,14 @@ pub enum Endpoint {
     AbstractSeqpacketConnect(OsString),
     //@ Listen specified UNIX SOCK_SEQPACKET socket by abstract (Linux) name
     AbstractSeqpacketListen(OsString),
-    //@ Byte stream socket for tests
+    //@ Listen for incoming TCP connections on one TCP socket that is already ready for accepting incoming conenctions,
+    //@ with specified file descriptor (inherited from parent process)
+    SeqpacketListenFd(i32),
+    //@ Listen for incoming TCP connections on one TCP socket that is already ready for accepting incoming conenctions,
+    //@ with specified file descriptor (inherited from parent process) based on LISTEN_FDNAMES environment variable (i.e. from SystemD)
+    SeqpacketListenFdNamed(String),
+    //@ Byte stream socket for tests that can produce and consume (assert)
+    //@ data according to special scenario supplied as an argument
     MockStreamSocket(String),
     //@ Listen for virtual intra-Websocat stream connections at specified address
     RegistryStreamListen(String),

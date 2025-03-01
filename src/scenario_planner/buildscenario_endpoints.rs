@@ -75,6 +75,8 @@ impl Endpoint {
             | Endpoint::UnixListenFdNamed(_)
             | Endpoint::SeqpacketConnect(_)
             | Endpoint::SeqpacketListen(_)
+            | Endpoint::SeqpacketListenFd(_)
+            | Endpoint::SeqpacketListenFdNamed(_)
             | Endpoint::AbstractSeqpacketConnect(_)
             | Endpoint::AbstractSeqpacketListen(_) => self.begin_print_unix(printer, vars, opts),
             Endpoint::MockStreamSocket(s) => {
@@ -136,6 +138,8 @@ impl Endpoint {
             | Endpoint::UnixListenFdNamed(_)
             | Endpoint::SeqpacketConnect(_)
             | Endpoint::SeqpacketListen(_)
+            | Endpoint::SeqpacketListenFd(_)
+            | Endpoint::SeqpacketListenFdNamed(_)
             | Endpoint::AbstractSeqpacketConnect(_)
             | Endpoint::AbstractSeqpacketListen(_) => self.end_print_unix(printer),
             Endpoint::MockStreamSocket(_) => {}

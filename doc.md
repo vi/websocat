@@ -319,6 +319,8 @@ Short list of endpoint prefixes:
   registry-stream-listen:
   seqpacket:
   seqpacket-listen:
+  seqpacket-listen-fd:
+  seqpacket-listen-fdname:
   stdio:
   tcp:
   tcp-listen:
@@ -483,7 +485,8 @@ Prefixes:
 
 ### MockStreamSocket
 
-Byte stream socket for tests
+Byte stream socket for tests that can produce and consume (assert)
+data according to special scenario supplied as an argument
 
 Prefixes:
 
@@ -535,6 +538,34 @@ Prefixes:
 * `l-seqpacket:`
 * `l-seqp:`
 * `seqp-l:`
+
+### SeqpacketListenFd
+
+Listen for incoming TCP connections on one TCP socket that is already ready for accepting incoming conenctions,
+with specified file descriptor (inherited from parent process)
+
+Prefixes:
+
+* `seqpacket-listen-fd:`
+* `listen-seqpacket-fd:`
+* `seqpacket-l-fd:`
+* `l-seqpacket-fd:`
+* `l-seqp-fd:`
+* `seqp-l-fd:`
+
+### SeqpacketListenFdNamed
+
+Listen for incoming TCP connections on one TCP socket that is already ready for accepting incoming conenctions,
+with specified file descriptor (inherited from parent process) based on LISTEN_FDNAMES environment variable (i.e. from SystemD)
+
+Prefixes:
+
+* `seqpacket-listen-fdname:`
+* `listen-seqpacket-fdname:`
+* `seqpacket-l-fdname:`
+* `l-seqpacket-fdname:`
+* `l-seqp-fdname:`
+* `seqp-l-fdname:`
 
 ### Stdio
 
@@ -1483,7 +1514,7 @@ Options:
 Parameters:
 
 * opts (`Dynamic`) - object map containing dynamic options to the function
-* path (`OsString`)
+* path (`OsString`) - Path to a socket file to create, name of abstract address to use or empty string if `fd` is used.
 * when_listening (`Fn() -> Task`) - Called once after the port is bound
 * on_accept (`Fn(DatagramSocket) -> Task`) - Call on each incoming connection
 
@@ -1491,6 +1522,9 @@ Returns `Task`
 
 Options:
 
+* fd (`Option<i32>`) - Inherited file descriptor to accept connections from
+* named_fd (`Option<String>`) - Inherited file named (`LISTEN_FDNAMES``) descriptor to accept connections from
+* fd_force (`bool`) - Skip socket type check when using `fd`.
 * abstract (`bool`) - On Linux, connect ot an abstract-namespaced socket instead of file-based
 * chmod (`Option<u32>`) - Change filesystem mode (permissions) of the file after listening
 * autospawn (`bool`) - Automatically spawn a task for each accepted connection
@@ -1526,7 +1560,7 @@ Listen UNIX or abstract socket
 Parameters:
 
 * opts (`Dynamic`) - object map containing dynamic options to the function
-* path (`OsString`)
+* path (`OsString`) - Path to a socket file to create, name of abstract address to use or empty string if `fd` is used.
 * when_listening (`Fn() -> Task`) - Called once after the port is bound
 * on_accept (`Fn(StreamSocket) -> Task`) - Called on each accepted connection
 
