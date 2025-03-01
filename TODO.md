@@ -21,12 +21,10 @@
 * Compression overlay
 * base64 overlay
 * async stdio
-* announcing listening ports
 * JSON RPC tool
 * exit of specific byte mode
 * print ping rtts
 * timestamp overlay
-* accept-from-fd
 * expose more TLS options to high-level UI
 * just-generate-accept and just-generate-key
 * max messages
