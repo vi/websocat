@@ -138,7 +138,7 @@ fn mock_stream_socket(ctx: NativeCallContext, content: String) -> RhResult<Handl
                 buf.push(b);
                 state = Normal;
             }
-            (Wait, b @ (b'0'..b'9')) => {
+            (Wait, b @ (b'0'..=b'9')) => {
                 let d = match b {
                     b'0' => Duration::from_millis(1),
                     b'1' => Duration::from_millis(3),

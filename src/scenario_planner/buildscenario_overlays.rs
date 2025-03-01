@@ -47,7 +47,7 @@ impl Overlay {
                 let mut oo = String::new();
 
                 let nbytes = opts.lengthprefixed_nbytes;
-                if nbytes > 8 || nbytes < 1 {
+                if !(1..=8).contains(&nbytes) {
                     anyhow::bail!("`--lengthprefixed-nbytes` must be from 1 to 8");
                 }
                 let mut highest_unused_bit: u64 = 1 << (8 * nbytes - 1);

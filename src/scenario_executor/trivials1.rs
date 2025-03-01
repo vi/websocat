@@ -226,7 +226,7 @@ fn race(tasks: Vec<Dynamic>) -> Handle<Task> {
                 };
                 waitees.push(tokio::spawn(async move {
                     t.await;
-                    let _ = tx.send(());
+                    let _ = tx.send(()).await;
                 }));
             } else {
                 error!("Not a task or hangup in a list of tasks");
@@ -310,7 +310,7 @@ fn task2hangup(
     mode: i64,
 ) -> RhResult<Handle<Hangup>> {
     let x = ctx.lutbar(task)?;
-    if mode < 0 || mode > 2 {
+    if !(0..=2).contains(&mode) {
         return Err(ctx.err("Invalid mode"));
     }
     let y = async move {

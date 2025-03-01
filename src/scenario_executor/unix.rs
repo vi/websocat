@@ -644,7 +644,8 @@ impl ListenFromFdOutcome {
     }
 }
 
-/// SATEFY: Tokio's interfal file descriptors and other io-unsafe things should not be specified as `fdnum`. Maybe `force_type` can also cause nastiness (not sure).
+/// # Safety
+///  Tokio's interfal file descriptors and other io-unsafe things should not be specified as `fdnum`. Maybe `force_type` can also cause nastiness (not sure).
 pub unsafe fn listen_from_fd(
     fdnum: i32,
     force_type: Option<ListenFromFdType>,
@@ -654,7 +655,7 @@ pub unsafe fn listen_from_fd(
 
     use socket2::{Domain, Type};
 
-    let fd: RawFd = (fdnum).into();
+    let fd: RawFd = fdnum as RawFd;
 
     let s = unsafe { socket2::Socket::from_raw_fd(fd) };
 
@@ -730,7 +731,8 @@ pub unsafe fn listen_from_fd(
     })
 }
 
-/// SATEFY: Tokio's interfal file descriptors and other io-unsafe things should not be specified as `fdnum`. Maybe `force_type` can also cause nastiness (not sure).
+/// # Safety
+///  Tokio's interfal file descriptors and other io-unsafe things should not be specified as `fdnum`. Maybe `force_type` can also cause nastiness (not sure).
 pub unsafe fn listen_from_fd_named(
     fdname: &str,
     force_type: Option<ListenFromFdType>,

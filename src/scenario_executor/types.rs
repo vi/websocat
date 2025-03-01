@@ -107,14 +107,7 @@ pub struct DatagramSocket {
     pub close: Option<Hangup>,
 }
 
+pub type UniversalChannel = (flume::Sender<rhai::Dynamic>, flume::Receiver<rhai::Dynamic>);
+
 #[derive(Debug, Clone, Default)]
-pub struct Registry(
-    pub(super)  Arc<
-        Mutex<
-            std::collections::HashMap<
-                String,
-                (flume::Sender<rhai::Dynamic>, flume::Receiver<rhai::Dynamic>),
-            >,
-        >,
-    >,
-);
+pub struct Registry(pub(super) Arc<Mutex<std::collections::HashMap<String, UniversalChannel>>>);

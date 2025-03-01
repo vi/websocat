@@ -91,6 +91,7 @@ impl Endpoint {
                 } else {
                     printer.print_line(&format!("let {pathvar} = {};", format_osstr(path)));
                 }
+                #[allow(clippy::literal_string_with_formatting_args)]
                 printer.print_line(&format!(
                     "connect_unix(#{{abstract:true}}, {pathvar}, |{varnam}| {{",
                 ));

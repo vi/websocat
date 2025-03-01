@@ -377,9 +377,10 @@ fn ws_accept(
                     }
                 }
                 if opts.protocol_choose_first {
-                    for pp in p.as_bytes().split(|&x| x == b',') {
-                        let pp = pp.trim_ascii();
-                        break 'proto_chose Some(pp.to_owned());
+                    let mut protocols = p.as_bytes().split(|&x| x == b',');
+                    if let Some(first_protocol) = protocols.next() {
+                        let first_protocol = first_protocol.trim_ascii();
+                        break 'proto_chose Some(first_protocol.to_owned());
                     }
                 }
                 None

@@ -15,7 +15,7 @@ impl std::fmt::Debug for StreamSocket {
             w.fmt(f)?;
         }
         write!(f, ",")?;
-        if let Some(_) = self.close {
+        if self.close.is_some() {
             write!(f, "H")?;
         }
         write!(f, ")")?;
@@ -61,7 +61,7 @@ impl std::fmt::Debug for DatagramSocket {
             w.fmt(f)?;
         }
         write!(f, ",")?;
-        if let Some(_) = self.close {
+        if self.close.is_some() {
             write!(f, "H")?;
         }
         write!(f, ")")?;

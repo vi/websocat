@@ -7,7 +7,7 @@ use super::{
 };
 
 impl SpecifierStack {
-    pub fn from_str(mut x: &OsStr) -> anyhow::Result<SpecifierStack> {
+    pub fn my_from_str(mut x: &OsStr) -> anyhow::Result<SpecifierStack> {
         let innermost;
         let mut overlays = vec![];
 

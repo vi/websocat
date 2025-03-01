@@ -371,18 +371,17 @@ impl<T: AsyncWrite> AsyncWrite for StreamSocketWithDropNotification<T> {
     }
 }
 
+pub type PairOfDropMonitors = (
+    tokio::sync::oneshot::Receiver<()>,
+    tokio::sync::oneshot::Receiver<()>,
+);
+
 pub fn wrap_as_stream_socket<R: AsyncRead + Send + 'static, W: AsyncWrite + Send + 'static>(
     r: R,
     w: W,
     close: Option<Hangup>,
     needs_drop_monitor: bool,
-) -> (
-    StreamSocket,
-    Option<(
-        tokio::sync::oneshot::Receiver<()>,
-        tokio::sync::oneshot::Receiver<()>,
-    )>,
-) {
+) -> (StreamSocket, Option<PairOfDropMonitors>) {
     if !needs_drop_monitor {
         let (r, w) = (Box::pin(r), Box::pin(w));
 

@@ -131,8 +131,8 @@ where
             args.spec1 = s.into();
         }
 
-        let left_stack = SpecifierStack::from_str(&args.spec1)?;
-        let right_stack = SpecifierStack::from_str(&args.spec2.take().unwrap())?;
+        let left_stack = SpecifierStack::my_from_str(&args.spec1)?;
+        let right_stack = SpecifierStack::my_from_str(&args.spec2.take().unwrap())?;
 
         let mut invocation = WebsocatInvocation {
             left: left_stack,

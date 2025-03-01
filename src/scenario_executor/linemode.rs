@@ -157,6 +157,7 @@ impl PacketWrite for WriteLineChunks {
         flags: BufferFlags,
     ) -> Poll<std::io::Result<()>> {
         let this = self.get_mut();
+        #[allow(clippy::if_same_then_else)]
         let required_separator_len = if flags.contains(BufferFlag::NonFinalChunk) {
             0
         } else if flags.contains(BufferFlag::Eof) {

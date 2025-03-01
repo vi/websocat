@@ -302,6 +302,7 @@ impl PacketWrite for WriteLengthprefixedChunks {
             }
             buf_
         } else {
+            // we need to buffer continuation frames
             if flags.is_control() && p.opts.controls.is_some() {
                 if flags.contains(BufferFlag::NonFinalChunk) {
                     p.buffer_for_split_control_frames.extend_from_slice(buf_);
