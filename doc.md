@@ -331,6 +331,8 @@ Short list of endpoint prefixes:
   udp-fd:
   udp-fdname:
   udp-server:
+  udp-server-fd:
+  udp-server-fdname:
   unix:
   unix-listen:
   unix-listen-fd:
@@ -696,6 +698,22 @@ Connections get closed when there are too many active clients or by a timeout.
 Prefixes:
 
 * `udp-server:`
+
+### UdpServerFd
+
+Use inherited pre-bound UDP socket from specified file descriptor, spawning a task for each client
+
+Prefixes:
+
+* `udp-server-fd:`
+
+### UdpServerFdNamed
+
+Use inherited pre-bound UDP socket from specified file descriptor (using LISTEN_FDNAMES), spawning a task for each client
+
+Prefixes:
+
+* `udp-server-fdname:`
 
 ### UnixConnect
 
@@ -2097,7 +2115,10 @@ Returns `Task`
 
 Options:
 
-* bind (`SocketAddr`) - Specify address to bind the socket to.
+* bind (`Option<SocketAddr>`) - Specify address to bind the socket to.
+* fd (`Option<i32>`) - Inherited file descriptor to accept connections from
+* named_fd (`Option<String>`) - Inherited file named (`LISTEN_FDNAMES``) descriptor to accept connections from
+* fd_force (`bool`) - Skip socket type check when using `fd`.
 * timeout_ms (`Option<u64>`) - Mark the conection as closed when this number of milliseconds elapse without a new datagram from associated peer address
 * max_clients (`Option<usize>`) - Maximum number of simultaneously connected clients. If exceed, stale clients (based on the last received datagram) will be hung up.
 * buffer_size (`Option<usize>`) - Buffer size for receiving UDP datagrams. Default is 4096 bytes.

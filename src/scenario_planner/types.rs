@@ -58,6 +58,10 @@ pub enum Endpoint {
     //@ Bind UDP socket and spawn a separate task for each client.
     //@ Connections get closed when there are too many active clients or by a timeout.
     UdpServer(SocketAddr),
+    //@ Use inherited pre-bound UDP socket from specified file descriptor, spawning a task for each client
+    UdpServerFd(i32),
+    //@ Use inherited pre-bound UDP socket from specified file descriptor (using LISTEN_FDNAMES), spawning a task for each client
+    UdpServerFdNamed(String),
     //@ Execute given program as a subprocess and use its stdin/stdout as a socket.
     //@ Specify command line arguments using `--exec-args` command line option.
     Exec(OsString),

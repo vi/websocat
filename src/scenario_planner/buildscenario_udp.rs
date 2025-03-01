@@ -98,12 +98,25 @@ impl Endpoint {
 
                 Ok(varnam)
             }
-            Endpoint::UdpServer(a) => {
+            Endpoint::UdpServer(_) | Endpoint::UdpServerFd(_) | Endpoint::UdpServerFdNamed(_) => {
                 let varnam = vars.getnewvarname("udp");
                 let fromaddr = vars.getnewvarname("from");
 
                 let mut o = String::with_capacity(64);
-                o.push_str(&format!("bind: \"{a}\","));
+
+                match self {
+                    Endpoint::UdpServer(a) => {
+                        o.push_str(&format!("bind: \"{a}\","));
+                    }
+                    Endpoint::UdpServerFd(fd) => {
+                        o.push_str(&format!("fd: {fd},"));
+                    }
+                    Endpoint::UdpServerFdNamed(fdname) => {
+                        o.push_str(&format!("named_fd: {},", StrLit(fdname)));
+                    }
+                    _ => unreachable!(),
+                }
+
                 if opts.udp_bind_inhibit_send_errors {
                     o.push_str(&format!("inhibit_send_errors: true,"));
                 }
@@ -161,7 +174,7 @@ impl Endpoint {
         match self {
             Endpoint::UdpConnect(_) => {}
             Endpoint::UdpBind(_) | Endpoint::UdpFd(_) | Endpoint::UdpFdNamed(_) => (),
-            Endpoint::UdpServer(_) => {
+            Endpoint::UdpServer(_) | Endpoint::UdpServerFd(_) | Endpoint::UdpServerFdNamed(_) => {
                 printer.decrease_indent();
                 printer.print_line("})");
             }

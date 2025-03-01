@@ -8,8 +8,8 @@ use std::{
 use crate::scenario_executor::{
     scenario::{callback_and_continue, ScenarioAccess},
     types::{DatagramRead, DatagramSocket, DatagramWrite},
-    utils1::{HandleExt, SimpleErr},
-    utils2::DefragmenterAddChunkResult,
+    utils1::{HandleExt, SimpleErr, NEUTRAL_SOCKADDR4},
+    utils2::{AddressOrFd, DefragmenterAddChunkResult},
 };
 use bytes::BytesMut;
 use futures::future::OptionFuture;
@@ -238,9 +238,19 @@ fn udp_server(
     let the_scenario = ctx.get_scenario()?;
     debug!(parent: &span, "node created");
     #[derive(serde::Deserialize)]
-    struct UdpOpts {
+    struct Opts {
         //@ Specify address to bind the socket to.
-        bind: SocketAddr,
+        bind: Option<SocketAddr>,
+
+        //@ Inherited file descriptor to accept connections from
+        fd: Option<i32>,
+
+        //@ Inherited file named (`LISTEN_FDNAMES``) descriptor to accept connections from
+        named_fd: Option<String>,
+
+        //@ Skip socket type check when using `fd`.
+        #[serde(default)]
+        fd_force: bool,
 
         //@ Mark the conection as closed when this number
         //@ of milliseconds elapse without a new datagram
@@ -279,10 +289,8 @@ fn udp_server(
         #[serde(default = "default_max_send_datagram_size")]
         max_send_datagram_size: usize,
     }
-    let opts: UdpOpts = rhai::serde::from_dynamic(&opts)?;
+    let opts: Opts = rhai::serde::from_dynamic(&opts)?;
     //span.record("addr", field::display(opts.addr));
-
-    let bind_addr = opts.bind;
 
     let mut lru: LruCache<SocketAddr, Arc<ClientInfo>> = match opts.max_clients {
         None => LruCache::unbounded(),
@@ -300,7 +308,7 @@ fn udp_server(
         return Err(ctx.err("Invalid buffer_size 0"));
     }
 
-    debug!(parent: &span, addr=%opts.bind, "options parsed");
+    let a = AddressOrFd::interpret(&ctx, &span, opts.bind, opts.fd, opts.named_fd, None)?;
 
     Ok(async move {
         debug!("node started");
@@ -308,10 +316,35 @@ fn udp_server(
     
         let mut clients_add_events: usize = 0;
 
-        let s = UdpSocket::bind(bind_addr).await?;
 
+        let mut address_to_report = NEUTRAL_SOCKADDR4;
 
-        let mut address_to_report = opts.bind;
+        let s = match a {
+            AddressOrFd::Addr(a) => {
+                address_to_report = a;
+                UdpSocket::bind(a).await?
+            }
+            #[cfg(not(unix))]
+            AddressOrFd::Fd(..) | AddressOrFd::NamedFd(..) => {
+                error!("Inheriting listeners from parent processes is not supported outside UNIX platforms");
+                anyhow::bail!("Unsupported feature");
+            }
+            #[cfg(unix)]
+            AddressOrFd::Fd(_) | AddressOrFd::NamedFd(_) => {
+                use super::unix::{listen_from_fd, listen_from_fd_named, ListenFromFdType};
+    
+                let force_addr = opts.fd_force.then_some(ListenFromFdType::Udp);
+                let assert_addr = Some(ListenFromFdType::Udp);
+                let ret = match a {
+                    AddressOrFd::Addr(_) => unreachable!(),
+                    AddressOrFd::Fd(fd) => unsafe { listen_from_fd(fd, force_addr, assert_addr) },
+                    AddressOrFd::NamedFd(ref fd) => unsafe {
+                        listen_from_fd_named(fd, force_addr, assert_addr)
+                    },
+                };
+                ret?.unwrap_udp()
+            }
+        };
 
         if address_to_report.port() == 0 {
             if let Ok(a) = s.local_addr() {

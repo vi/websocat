@@ -33,6 +33,8 @@ impl Endpoint {
             Endpoint::UdpConnect(..)
             | Endpoint::UdpBind(..)
             | Endpoint::UdpServer(..)
+            | Endpoint::UdpServerFd(_)
+            | Endpoint::UdpServerFdNamed(_)
             | Endpoint::UdpFd(_)
             | Endpoint::UdpFdNamed(_) => self.begin_print_udp(printer, vars, opts),
             Endpoint::Exec(..) | Endpoint::Cmd(..) => self.begin_print_exec(printer, vars, opts),
@@ -127,6 +129,8 @@ impl Endpoint {
             Endpoint::UdpConnect(_)
             | Endpoint::UdpBind(_)
             | Endpoint::UdpServer(_)
+            | Endpoint::UdpServerFd(_)
+            | Endpoint::UdpServerFdNamed(_)
             | Endpoint::UdpFd(_)
             | Endpoint::UdpFdNamed(_) => self.end_print_udp(printer),
             Endpoint::Exec(_) | Endpoint::Cmd(_) => self.end_print_exec(printer),

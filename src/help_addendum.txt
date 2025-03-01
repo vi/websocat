@@ -26,6 +26,8 @@ Short list of endpoint prefixes:
   udp-fd:
   udp-fdname:
   udp-server:
+  udp-server-fd:
+  udp-server-fdname:
   unix:
   unix-listen:
   unix-listen-fd:
