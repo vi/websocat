@@ -328,6 +328,8 @@ Short list of endpoint prefixes:
   tcp-listen-fdname:
   udp-bind:
   udp:
+  udp-fd:
+  udp-fdname:
   udp-server:
   unix:
   unix-listen:
@@ -667,6 +669,24 @@ Prefixes:
 * `connect-udp:`
 * `udp-c:`
 * `c-udp:`
+
+### UdpFd
+
+Use inherited pre-bound UDP socket from specified file descriptor.
+
+Prefixes:
+
+* `udp-fd:`
+* `udp-bind-fd:`
+
+### UdpFdNamed
+
+Use inherited pre-bound UDP socket from specified file descriptor (using LISTEN_FDNAMES)
+
+Prefixes:
+
+* `udp-fdname:`
+* `udp-bind-fdname:`
 
 ### UdpServer
 
@@ -2102,7 +2122,10 @@ Returns `DatagramSocket`
 
 Options:
 
-* addr (`SocketAddr`) - Send datagrams to and expect datagrams from this address.
+* addr (`SocketAddr`) - Send datagrams to and expect datagrams from this address. Specify neutral address like 0.0.0.0:0 to blackhole outgoing packets until correct address is determined.
+* fd (`Option<i32>`) - Inherited file descriptor to accept connections from
+* named_fd (`Option<String>`) - Inherited file named (`LISTEN_FDNAMES``) descriptor to accept connections from
+* fd_force (`bool`) - Skip socket type check when using `fd`.
 * bind (`Option<SocketAddr>`) - Specify address to bind the socket to. By default it binds to `0.0.0.0:0` or `[::]:0`
 * sendto_mode (`bool`) - Use `sendto` instead of `connect` + `send`. This mode ignores ICMP reports that target is not reachable.
 * allow_other_addresses (`bool`) - Do not filter out incoming datagrams from addresses other than `addr`. Useless without `sendto_mode`.

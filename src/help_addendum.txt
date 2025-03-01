@@ -23,6 +23,8 @@ Short list of endpoint prefixes:
   tcp-listen-fdname:
   udp-bind:
   udp:
+  udp-fd:
+  udp-fdname:
   udp-server:
   unix:
   unix-listen:

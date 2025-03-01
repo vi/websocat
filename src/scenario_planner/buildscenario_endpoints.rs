@@ -30,9 +30,11 @@ impl Endpoint {
                 printer.print_line(&format!("let {varnam} = create_stdio();"));
                 Ok(varnam)
             }
-            Endpoint::UdpConnect(..) | Endpoint::UdpBind(..) | Endpoint::UdpServer(..) => {
-                self.begin_print_udp(printer, vars, opts)
-            }
+            Endpoint::UdpConnect(..)
+            | Endpoint::UdpBind(..)
+            | Endpoint::UdpServer(..)
+            | Endpoint::UdpFd(_)
+            | Endpoint::UdpFdNamed(_) => self.begin_print_udp(printer, vars, opts),
             Endpoint::Exec(..) | Endpoint::Cmd(..) => self.begin_print_exec(printer, vars, opts),
             Endpoint::DummyStream => {
                 let varnam = vars.getnewvarname("dummy");
@@ -122,9 +124,11 @@ impl Endpoint {
                 self.end_print_ws(printer)
             }
             Endpoint::Stdio => {}
-            Endpoint::UdpConnect(_) | Endpoint::UdpBind(_) | Endpoint::UdpServer(_) => {
-                self.end_print_udp(printer)
-            }
+            Endpoint::UdpConnect(_)
+            | Endpoint::UdpBind(_)
+            | Endpoint::UdpServer(_)
+            | Endpoint::UdpFd(_)
+            | Endpoint::UdpFdNamed(_) => self.end_print_udp(printer),
             Endpoint::Exec(_) | Endpoint::Cmd(_) => self.end_print_exec(printer),
             Endpoint::DummyStream => {}
             Endpoint::DummyDatagrams => {}

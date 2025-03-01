@@ -51,6 +51,10 @@ pub enum Endpoint {
     //@ Bind UDP socket to this address.
     //@ Commmand line options greatly affect behaviour of this endpoint. It can be turned into a flexible `UdpConnect` analogue.
     UdpBind(SocketAddr),
+    //@ Use inherited pre-bound UDP socket from specified file descriptor.
+    UdpFd(i32),
+    //@ Use inherited pre-bound UDP socket from specified file descriptor (using LISTEN_FDNAMES)
+    UdpFdNamed(String),
     //@ Bind UDP socket and spawn a separate task for each client.
     //@ Connections get closed when there are too many active clients or by a timeout.
     UdpServer(SocketAddr),

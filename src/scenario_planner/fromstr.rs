@@ -202,6 +202,15 @@ impl ParseStrChunkResult<'_> {
             let s: &str = rest.try_into()?;
             let a: SocketAddr = s.parse()?;
             Ok(ParseStrChunkResult::Endpoint(Endpoint::UdpBind(a)))
+        } else if let Some(rest) = x.strip_prefix_many(&["udp-fd:", "udp-bind-fd:"]) {
+            let s: &str = rest.try_into()?;
+            let a: i32 = s.parse()?;
+            Ok(ParseStrChunkResult::Endpoint(Endpoint::UdpFd(a)))
+        } else if let Some(rest) = x.strip_prefix_many(&["udp-fdname:", "udp-bind-fdname:"]) {
+            let s: &str = rest.try_into()?;
+            Ok(ParseStrChunkResult::Endpoint(Endpoint::UdpFdNamed(
+                s.to_owned(),
+            )))
         } else if let Some(rest) = x.strip_prefix("udp-server:") {
             let s: &str = rest.try_into()?;
             let a: SocketAddr = s.parse()?;

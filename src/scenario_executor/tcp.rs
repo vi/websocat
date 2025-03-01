@@ -155,7 +155,7 @@ fn listen_tcp(
     }
     let opts: Opts = rhai::serde::from_dynamic(&opts)?;
 
-    let a = AddressOrFd::interpret(&ctx, &span, opts.addr, opts.fd, opts.named_fd)?;
+    let a = AddressOrFd::interpret(&ctx, &span, opts.addr, opts.fd, opts.named_fd, None)?;
 
     let autospawn = opts.autospawn;
 

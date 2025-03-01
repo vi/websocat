@@ -1,4 +1,7 @@
-use crate::{cli::WebsocatArgs, scenario_executor::utils1::ToNeutralAddress};
+use crate::{
+    cli::WebsocatArgs,
+    scenario_executor::utils1::{ToNeutralAddress, NEUTRAL_SOCKADDR6},
+};
 
 use super::{
     scenarioprinter::{ScenarioPrinter, StrLit},
@@ -23,7 +26,7 @@ impl Endpoint {
                 ));
                 Ok(varnam)
             }
-            Endpoint::UdpBind(a) => {
+            Endpoint::UdpBind(_) | Endpoint::UdpFd(_) | Endpoint::UdpFdNamed(_) => {
                 let varnam = vars.getnewvarname("udp");
 
                 let mut udp_bind_redirect_to_last_seen_address =
@@ -48,10 +51,25 @@ impl Endpoint {
                     udp_bind_redirect_to_last_seen_address = true;
                 }
 
-                let toaddr = opts.udp_bind_target_addr.unwrap_or(a.to_neutral_address());
+                let mut neutral = NEUTRAL_SOCKADDR6;
 
                 let mut o = String::with_capacity(64);
-                o.push_str(&format!("bind: \"{a}\","));
+
+                match self {
+                    Endpoint::UdpBind(a) => {
+                        o.push_str(&format!("bind: \"{a}\","));
+                        neutral = a.to_neutral_address();
+                    }
+                    Endpoint::UdpFd(fd) => {
+                        o.push_str(&format!("fd: {fd},"));
+                    }
+                    Endpoint::UdpFdNamed(fdname) => {
+                        o.push_str(&format!("named_fd: {},", StrLit(fdname)));
+                    }
+                    _ => unreachable!(),
+                }
+
+                let toaddr = opts.udp_bind_target_addr.unwrap_or(neutral);
                 o.push_str(&format!("addr: \"{toaddr}\","));
                 o.push_str(&format!("sendto_mode: true,"));
 
@@ -142,7 +160,7 @@ impl Endpoint {
     pub(super) fn end_print_udp(&self, printer: &mut ScenarioPrinter) {
         match self {
             Endpoint::UdpConnect(_) => {}
-            Endpoint::UdpBind(_) => (),
+            Endpoint::UdpBind(_) | Endpoint::UdpFd(_) | Endpoint::UdpFdNamed(_) => (),
             Endpoint::UdpServer(_) => {
                 printer.decrease_indent();
                 printer.print_line("})");

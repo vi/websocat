@@ -6,6 +6,7 @@ use std::{
 use crate::scenario_executor::{
     types::{DatagramRead, DatagramSocket, DatagramWrite},
     utils1::{SimpleErr, ToNeutralAddress},
+    utils2::AddressOrFd,
 };
 use futures::FutureExt;
 use rhai::{Dynamic, Engine, NativeCallContext};
@@ -213,9 +214,20 @@ fn udp_socket(ctx: NativeCallContext, opts: Dynamic) -> RhResult<Handle<Datagram
     let span = debug_span!(parent: original_span, "udp_socket");
     debug!(parent: &span, "node created");
     #[derive(serde::Deserialize)]
-    struct UdpOpts {
+    struct Opts {
         //@ Send datagrams to and expect datagrams from this address.
+        //@ Specify neutral address like 0.0.0.0:0 to blackhole outgoing packets until correct address is determined.
         addr: SocketAddr,
+
+        //@ Inherited file descriptor to accept connections from
+        fd: Option<i32>,
+
+        //@ Inherited file named (`LISTEN_FDNAMES``) descriptor to accept connections from
+        named_fd: Option<String>,
+
+        //@ Skip socket type check when using `fd`.
+        #[serde(default)]
+        fd_force: bool,
 
         //@ Specify address to bind the socket to.
         //@ By default it binds to `0.0.0.0:0` or `[::]:0`
@@ -258,16 +270,54 @@ fn udp_socket(ctx: NativeCallContext, opts: Dynamic) -> RhResult<Handle<Datagram
         #[serde(default = "default_max_send_datagram_size")]
         max_send_datagram_size: usize,
     }
-    let opts: UdpOpts = rhai::serde::from_dynamic(&opts)?;
+    let opts: Opts = rhai::serde::from_dynamic(&opts)?;
     //span.record("addr", field::display(opts.addr));
-    debug!(parent: &span, addr=%opts.addr, "options parsed");
 
     let to_addr = opts.addr;
     let bind_addr = opts.bind.unwrap_or(to_addr.to_neutral_address());
 
-    let Some(Ok(s)) = UdpSocket::bind(bind_addr).now_or_never() else {
-        return Err(ctx.err("Failed to bind UDP socket"));
+    let a = AddressOrFd::interpret(
+        &ctx,
+        &span,
+        opts.bind,
+        opts.fd,
+        opts.named_fd,
+        Some(bind_addr),
+    )?;
+
+    let s = match a {
+        AddressOrFd::Addr(a) => {
+            let Some(Ok(s)) = UdpSocket::bind(a).now_or_never() else {
+                return Err(ctx.err("Failed to bind UDP socket"));
+            };
+            s
+        }
+        #[cfg(not(unix))]
+        AddressOrFd::Fd(..) | AddressOrFd::NamedFd(..) => {
+            error!("Inheriting listeners from parent processes is not supported outside UNIX platforms");
+            anyhow::bail!("Unsupported feature");
+        }
+        #[cfg(unix)]
+        AddressOrFd::Fd(_) | AddressOrFd::NamedFd(_) => {
+            use super::unix::{listen_from_fd, listen_from_fd_named, ListenFromFdType};
+
+            let force_addr = opts.fd_force.then_some(ListenFromFdType::Udp);
+            let assert_addr = Some(ListenFromFdType::Udp);
+            let ret = match a {
+                AddressOrFd::Addr(_) => unreachable!(),
+                AddressOrFd::Fd(fd) => unsafe { listen_from_fd(fd, force_addr, assert_addr) },
+                AddressOrFd::NamedFd(ref fd) => unsafe {
+                    listen_from_fd_named(fd, force_addr, assert_addr)
+                },
+            };
+
+            let Ok(s) = ret else {
+                return Err(ctx.err("Failed to get UDP socket"));
+            };
+            s.unwrap_udp()
+        }
     };
+
     if !opts.sendto_mode {
         match s.connect(to_addr).now_or_never() {
             Some(Ok(())) => (),

@@ -120,6 +120,7 @@ impl<T: Display> AddressOrFd<T> {
         addr: Option<T>,
         fd: Option<i32>,
         named_fd: Option<String>,
+        fallback: Option<T>,
     ) -> RhResult<Self> {
         let mut n = 0;
         if addr.is_some() {
@@ -132,12 +133,15 @@ impl<T: Display> AddressOrFd<T> {
             n += 1
         }
 
-        if n != 1 {
+        if n != 1 && fallback.is_none() {
             return Err(ctx.err("Exactly one of `addr` or `fd` or `fd_named` must be specified"));
+        }
+        if fallback.is_some() && n > 1 {
+            return Err(ctx.err("At most one of `bind` or `fd` or `fd_named` must be specified"));
         }
 
         Ok(if let Some(x) = addr {
-            debug!(parent: span, listen_addr=%x, "options parsed");
+            debug!(parent: span, addr=%x, "options parsed");
             AddressOrFd::Addr(x)
         } else if let Some(x) = fd {
             debug!(parent: span, fd=%x, "options parsed");
@@ -145,6 +149,9 @@ impl<T: Display> AddressOrFd<T> {
         } else if let Some(x) = named_fd {
             debug!(parent: span, named_fd=%x, "options parsed");
             AddressOrFd::NamedFd(x)
+        } else if let Some(x) = fallback {
+            debug!(parent: span, addr=%x, "options parsed");
+            AddressOrFd::Addr(x)
         } else {
             unreachable!()
         })
@@ -176,7 +183,7 @@ impl AddressOrFd<std::ffi::OsString> {
         }
 
         Ok(if !path.is_empty() {
-            debug!(parent: span, listen_addr=?path, r#abstract=r#abstract, "options parsed");
+            debug!(parent: span, addr=?path, r#abstract=r#abstract, "options parsed");
             AddressOrFd::Addr(path)
         } else if let Some(x) = fd {
             debug!(parent: span, fd=%x, "options parsed");

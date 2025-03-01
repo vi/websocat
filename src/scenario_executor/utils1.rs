@@ -210,6 +210,12 @@ pub const NEUTRAL_SOCKADDR4: SocketAddr = SocketAddr::V4(std::net::SocketAddrV4:
     std::net::Ipv4Addr::UNSPECIFIED,
     0,
 ));
+pub const NEUTRAL_SOCKADDR6: SocketAddr = SocketAddr::V6(std::net::SocketAddrV6::new(
+    std::net::Ipv6Addr::UNSPECIFIED,
+    0,
+    0,
+    0,
+));
 
 pub trait IsControlFrame {
     fn is_control(&self) -> bool;
