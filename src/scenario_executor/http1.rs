@@ -15,8 +15,10 @@ use tracing::{debug, debug_span, error, warn, Instrument};
 use crate::scenario_executor::{
     scenario::{callback_and_continue, ScenarioAccess},
     types::{Handle, Hangup, StreamRead, StreamSocket, StreamWrite, Task},
-    utils1::{HandleExt, HandleExt2, RhResult, SimpleErr, TaskHandleExt2},
+    utils1::{HandleExt, HandleExt2, RhResult, SimpleErr, TaskHandleExt2}, utils2::SocketFdI64,
 };
+
+use super::types::SocketFd;
 
 type EmptyBody = http_body_util::Empty<bytes::Bytes>;
 type IoType = TokioIo<tokio::io::Join<StreamRead, Pin<Box<dyn AsyncWrite + Send>>>>;
@@ -27,6 +29,7 @@ pub type OutgoingRequest = hyper::Request<EmptyBody>;
 pub struct Http1Client {
     sr: SendRequest<EmptyBody>,
     hup: Option<Hangup>,
+    fd: Option<SocketFd>,
 }
 
 static MAGIC_GUID: &str = "258EAFA5-E914-47DA-95CA-C5AB0DC85B11";
@@ -49,6 +52,7 @@ fn http1_client(
         read: Some(r),
         write: Some(w),
         close: c,
+        fd,
     }) = inner.lut()
     else {
         return Err(ctx.err("Incomplete underlying socket specified"));
@@ -78,7 +82,7 @@ fn http1_client(
             }
         }
     });
-    Ok(Some(Http1Client { sr, hup: c }).wrap())
+    Ok(Some(Http1Client { sr, hup: c, fd }).wrap())
 }
 
 //@ Perform WebSocket client handshake, then recover the downstream stream socket that was used for `http_client`.
@@ -194,6 +198,7 @@ fn ws_upgrade(
             read: Some(r),
             write: Some(StreamWrite { writer: w }),
             close: client.hup,
+            fd: client.fd,
         };
         debug!(s=?s, "upgraded");
         let h = s.wrap();
@@ -228,6 +233,7 @@ fn http1_serve(
             read: Some(r),
             write: Some(w),
             close: c,
+            fd,
         }) = inner.lut()
         else {
             bail!("Incomplete underlying socket specified")
@@ -249,9 +255,9 @@ fn http1_serve(
                 let h: Handle<IncomingRequest> = Some(rq).wrap();
 
                 let resp: Handle<OutgoingResponse> =
-                    match the_scenario.callback::<Handle<OutgoingResponse>, (Handle<IncomingRequest>, Handle<Hangup>)>(
+                    match the_scenario.callback::<Handle<OutgoingResponse>, (Handle<IncomingRequest>, Handle<Hangup>, i64)>(
                         continuation,
-                        (h, c),
+                        (h, c, fd.maybe_as_i64()),
                     ) {
                         Ok(x) => x,
                         Err(e) => {
@@ -296,6 +302,7 @@ fn ws_accept(
     custom_headers: rhai::Map,
     rq: Handle<IncomingRequest>,
     close_handle: Handle<Hangup>,
+    fd: i64,
     continuation: FnPtr,
 ) -> RhResult<Handle<OutgoingResponse>> {
     let original_span = tracing::Span::current();
@@ -465,6 +472,8 @@ fn ws_accept(
             read: Some(r),
             write: Some(StreamWrite { writer: w }),
             close: c,
+            // Safety: depends on scenario being reasonable and only forwarding this number, not inventing any weird tricks
+            fd: unsafe{SocketFd::from_i64(fd)},
         };
         debug!(s=?s, "accepted");
         let h = s.wrap();

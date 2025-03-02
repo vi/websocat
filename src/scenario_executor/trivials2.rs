@@ -132,6 +132,7 @@ fn null_stream_socket() -> Handle<StreamSocket> {
         read: None,
         write: None,
         close: None,
+        fd: None,
     })
     .wrap()
 }
@@ -143,6 +144,7 @@ fn null_datagram_socket() -> Handle<DatagramSocket> {
         read: None,
         write: None,
         close: None,
+        fd: None,
     })
     .wrap()
 }
@@ -162,6 +164,7 @@ fn dummy_stream_socket() -> Handle<StreamSocket> {
             writer: Box::pin(tokio::io::empty()),
         }),
         close: None,
+        fd: None,
     })
     .wrap()
 }
@@ -207,6 +210,7 @@ fn dummy_datagram_socket() -> Handle<DatagramSocket> {
             snk: Box::pin(DummyPkt),
         }),
         close: None,
+        fd: None,
     })
     .wrap()
 }
@@ -273,6 +277,7 @@ fn literal_socket(data: String) -> Handle<StreamSocket> {
             writer: Box::pin(tokio::io::empty()),
         }),
         close: None,
+        fd: None,
     })
     .wrap()
 }
@@ -292,6 +297,7 @@ fn literal_socket_base64(ctx: NativeCallContext, data: String) -> RhResult<Handl
             writer: Box::pin(tokio::io::empty()),
         }),
         close: None,
+        fd: None,
     })
     .wrap())
 }
@@ -403,6 +409,7 @@ fn stream_chunks(
         read: Some(r),
         write: Some(w),
         close,
+        fd,
     } = x
     {
         let write = DatagramWrite {
@@ -415,6 +422,7 @@ fn stream_chunks(
             read: Some(read),
             write: Some(write),
             close,
+            fd,
         };
         debug!(wrapped=?x, "stream_chunks");
         Ok(x.wrap())

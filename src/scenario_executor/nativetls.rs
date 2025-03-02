@@ -151,6 +151,7 @@ fn tls_client(
             read: Some(r),
             write: Some(w),
             close: c,
+            fd,
         } = inner
         else {
             bail!("Incomplete underlying socket specified")
@@ -174,6 +175,7 @@ fn tls_client(
                 writer: Box::pin(w),
             }),
             close: c,
+            fd,
         };
         debug!(s=?s, "connected");
         let h = s.wrap();

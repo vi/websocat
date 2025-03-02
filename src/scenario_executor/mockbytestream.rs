@@ -189,6 +189,7 @@ fn mock_stream_socket(ctx: NativeCallContext, content: String) -> RhResult<Handl
             writer: Box::pin(w),
         }),
         close: None,
+        fd: None,
     }
     .wrap())
 }

@@ -51,6 +51,7 @@ fn connect_registry_stream(
                 writer: Box::pin(w2),
             }),
             close: None,
+            fd: None,
         };
 
         let s2 = StreamSocket {
@@ -62,6 +63,7 @@ fn connect_registry_stream(
                 writer: Box::pin(w1),
             }),
             close: None,
+            fd: None,
         };
 
         let h1 = s1.wrap();

@@ -118,9 +118,10 @@ impl Overlay {
             Overlay::WsAccept {} => {
                 let ws = vars.getnewvarname("ws");
                 let hup = vars.getnewvarname("hup");
+                let fd = vars.getnewvarname("fd");
                 let rq = vars.getnewvarname("rq");
 
-                printer.print_line(&format!("http1_serve(#{{}}, {inner_var}, |{rq}, {hup}| {{"));
+                printer.print_line(&format!("http1_serve(#{{}}, {inner_var}, |{rq}, {hup}, {fd}| {{"));
                 printer.increase_indent();
 
                 let mut oo = String::new();
@@ -147,7 +148,7 @@ impl Overlay {
                 }
 
                 printer.print_line(&format!(
-                    "ws_accept(#{{{oo}}}, #{{{ch}}}, {rq}, {hup}, |{ws}| {{"
+                    "ws_accept(#{{{oo}}}, #{{{ch}}}, {rq}, {hup}, {fd}, |{ws}| {{"
                 ));
                 printer.increase_indent();
 

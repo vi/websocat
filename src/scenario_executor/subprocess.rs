@@ -227,6 +227,7 @@ fn child_socket(
             writer: Box::pin(StdinWrapper(Some(x))),
         }),
         close: None,
+        fd: None,
     };
 
     debug!(s=?s, "subprocess socket");

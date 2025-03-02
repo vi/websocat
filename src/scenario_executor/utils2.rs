@@ -7,7 +7,7 @@ use tracing::{debug, Span};
 use crate::scenario_executor::utils1::SimpleErr;
 
 use super::{
-    types::{BufferFlag, BufferFlags, Registry},
+    types::{BufferFlag, BufferFlags, Registry, SocketFd},
     utils1::{IsControlFrame, RhResult},
 };
 
@@ -203,5 +203,74 @@ impl<T> AddressOrFd<T> {
             AddressOrFd::Addr(x) => Some(x),
             _ => None,
         }
+    }
+}
+
+#[cfg(unix)]
+impl SocketFd {
+    pub fn as_i64(&self) -> i64 {
+        use std::os::fd::AsRawFd;
+        self.0.as_raw_fd() as i64
+    }
+
+    pub fn as_raw_fd(&self) -> std::os::fd::RawFd {
+        use std::os::fd::AsRawFd;
+        self.0.as_raw_fd()
+    }
+
+    /// # Safety
+    /// May be unsound. Soundness may depend on sanity of options supplied by end user.
+    /// `SocketFd` may be used to rip file descriptor away from e.g. TcpStream for use with `dup2`.
+    /// There is no code to check that it was not closed or to remove extra `TcpStream``.
+    pub unsafe fn new(x: std::os::fd::RawFd) -> Self {
+        if x as i64 == -1 {
+            panic!("Invalid file descriptor in SocketFd::new");
+        }
+        Self(
+            // # Safety
+            // May be IO-unsafe, soundness may depend on sanity of options supplied by end user.
+            unsafe { std::os::fd::BorrowedFd::borrow_raw(x) }
+        )
+    }
+
+
+    /// # Safety
+    /// Depends on other code (including end-user-supplied scenarios) not doing unreasonable things.
+    /// Intended to aid flexibility of low-lowlevel hacks and tricks.
+    pub unsafe fn from_i64(x: i64) -> Option<Self> {
+        if x == -1 {
+            None
+        } else {
+            Some(
+                // # Safety
+                // Depends on other code (including end-user-supplied scenarios) not doing unreasonable things
+                unsafe {
+                SocketFd::new(x as std::os::fd::RawFd)
+            })
+        }
+    }
+}
+
+pub trait SocketFdI64 {
+    fn maybe_as_i64(&self) -> i64;
+}
+
+impl SocketFdI64 for Option<SocketFd> {
+    fn maybe_as_i64(&self) -> i64 {
+        match self {
+            Some(x) => x.as_i64(),
+            None => -1,
+        }
+    }
+}
+
+#[cfg(not(unix))]
+impl SocketFd {
+    pub fn as_i64(&self) -> i64 {
+        -1
+    }
+
+    pub unsafe fn from_i64(_x: i64) -> Option<Self> {
+        None
     }
 }

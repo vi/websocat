@@ -12,7 +12,7 @@ use std::{
 };
 
 use super::types::{
-    BufferFlag, BufferFlags, DatagramSocket, Hangup, PacketWrite, StreamRead, StreamWrite,
+    BufferFlag, BufferFlags, DatagramSocket, Hangup, PacketWrite, SocketFd, StreamRead, StreamWrite
 };
 
 pub trait TaskHandleExt {
@@ -380,6 +380,7 @@ pub fn wrap_as_stream_socket<R: AsyncRead + Send + 'static, W: AsyncWrite + Send
     r: R,
     w: W,
     close: Option<Hangup>,
+    fd: Option<SocketFd>,
     needs_drop_monitor: bool,
 ) -> (StreamSocket, Option<PairOfDropMonitors>) {
     if !needs_drop_monitor {
@@ -393,6 +394,7 @@ pub fn wrap_as_stream_socket<R: AsyncRead + Send + 'static, W: AsyncWrite + Send
                 }),
                 write: Some(StreamWrite { writer: w }),
                 close,
+                fd,
             },
             None,
         )
@@ -409,7 +411,8 @@ pub fn wrap_as_stream_socket<R: AsyncRead + Send + 'static, W: AsyncWrite + Send
                     prefix: Default::default(),
                 }),
                 write: Some(StreamWrite { writer: w }),
-                close: None,
+                close,
+                fd,
             },
             Some((dn1, dn2)),
         )

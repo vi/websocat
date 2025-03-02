@@ -443,6 +443,7 @@ fn udp_server(
                                 snk: Box::pin(udp_send),
                             }),
                             close: hangup,
+                            fd: None,
                         };
 
 

@@ -23,10 +23,24 @@ pub struct StreamWrite {
     pub writer: Pin<Box<dyn AsyncWrite + Send>>,
 }
 
+/// File descriptor of the underlying socket, ignoring the overlays.
+/// 
+/// Note that `BorrowedFd` is used not according it its semantics, just to gain stable access to the niche at -1.
+#[cfg(unix)]
+#[repr(transparent)]
+#[derive(Clone, Copy)]
+pub struct SocketFd(pub std::os::fd::BorrowedFd<'static>);
+
+#[cfg(not(unix))]
+#[repr(transparent)]
+#[derive(Clone, Copy)]
+pub struct SocketFd(pub std::convert::Infallible);
+
 pub struct StreamSocket {
     pub read: Option<StreamRead>,
     pub write: Option<StreamWrite>,
     pub close: Option<Hangup>,
+    pub fd: Option<SocketFd>,
 }
 
 flagset::flags! {
@@ -105,6 +119,7 @@ pub struct DatagramSocket {
     pub read: Option<DatagramRead>,
     pub write: Option<DatagramWrite>,
     pub close: Option<Hangup>,
+    pub fd: Option<SocketFd>,
 }
 
 pub type UniversalChannel = (flume::Sender<rhai::Dynamic>, flume::Receiver<rhai::Dynamic>);

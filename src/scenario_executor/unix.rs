@@ -96,6 +96,7 @@ fn connect_unix(
     Ok(async move {
         debug!("node started");
         let t = UnixStream::connect(path).await?;
+        let mut fd = None;
         let (r, w) = t.into_split();
         let (r, w) = (Box::pin(r), Box::pin(w));
 
@@ -106,6 +107,7 @@ fn connect_unix(
             }),
             write: Some(StreamWrite { writer: w }),
             close: None,
+            fd,
         };
         debug!(s=?s, "connected");
         let h = s.wrap();
@@ -199,11 +201,12 @@ fn listen_unix(
             let on_accept = on_accept.clone();
             match l.accept().await {
                 Ok((t, from)) => {
+                    let mut fd = None;
                     let newspan = debug_span!("unix_accept", from=?from);
                     let (r, w) = t.into_split();
                     let (r, w) = (Box::pin(r), Box::pin(w));
 
-                    let (s, dn) = wrap_as_stream_socket(r, w, None, opts.oneshot);
+                    let (s, dn) = wrap_as_stream_socket(r, w, None, fd, opts.oneshot);
                     drop_nofity = dn;
 
                     debug!(parent: &newspan, s=?s,"accepted");
@@ -403,6 +406,7 @@ fn connect_seqpacket(
     Ok(async move {
         debug!("node started");
         let s = tokio_seqpacket::UnixSeqpacket::connect(path).await?;
+        let mut fd = None;
         let s = Arc::new((s, SignalOnDrop::new_neutral()));
         let r = SeqpacketSendAdapter {
             s: s.clone(),
@@ -418,6 +422,7 @@ fn connect_seqpacket(
             read: Some(DatagramRead { src: r }),
             write: Some(DatagramWrite { snk: w }),
             close: None,
+            fd,
         };
         debug!(s=?s, "connected");
         let h = s.wrap();
@@ -524,6 +529,7 @@ fn listen_seqpacket(
             match l.accept().await {
                 Ok(s) => {
                     let newspan = debug_span!("seqpacket_accept", i);
+                    let mut fd = None;
                     i += 1;
                     let dropper = if oneshot {
                         let (a, b) = SignalOnDrop::new();
@@ -547,6 +553,7 @@ fn listen_seqpacket(
                         read: Some(DatagramRead { src: r }),
                         write: Some(DatagramWrite { snk: w }),
                         close: None,
+                        fd,
                     };
 
                     debug!(parent: &newspan, s=?s,"accepted");

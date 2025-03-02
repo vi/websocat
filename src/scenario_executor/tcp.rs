@@ -36,6 +36,7 @@ fn connect_tcp(
     Ok(async move {
         debug!("node started");
         let t = TcpStream::connect(opts.addr).await?;
+        let mut fd = None;
         let (r, w) = t.into_split();
         let (r, w) = (Box::pin(r), Box::pin(w));
 
@@ -46,6 +47,7 @@ fn connect_tcp(
             }),
             write: Some(StreamWrite { writer: w }),
             close: None,
+            fd,
         };
         debug!(s=?s, "connected");
         let h = s.wrap();
@@ -96,6 +98,7 @@ fn connect_tcp_race(
                 }
             }
         };
+        let mut fd = None;
 
         let (r, w) = t.into_split();
         let (r, w) = (Box::pin(r), Box::pin(w));
@@ -107,6 +110,7 @@ fn connect_tcp_race(
             }),
             write: Some(StreamWrite { writer: w }),
             close: None,
+            fd,
         };
         debug!(s=?s, "connected");
         let h = s.wrap();
@@ -206,9 +210,10 @@ fn listen_tcp(
             match l.accept().await {
                 Ok((t, from)) => {
                     let newspan = debug_span!("tcp_accept", from=%from);
+                    let mut fd = None;
                     let (r, w) = t.into_split();
 
-                    let (s, dn) = wrap_as_stream_socket(r, w, None, opts.oneshot);
+                    let (s, dn) = wrap_as_stream_socket(r, w, None, fd, opts.oneshot);
                     drop_nofity = dn;
 
                     debug!(parent: &newspan, s=?s,"accepted");

@@ -493,6 +493,7 @@ fn length_prefixed_chunks(
         read: None,
         write: None,
         close: x.close,
+        fd: x.fd,
     };
 
     if let Some(r) = x.read {

@@ -179,7 +179,7 @@ fn ws_wrap(
     let opts: Opts = rhai::serde::from_dynamic(&opts)?;
     let inner = ctx.lutbar(inner)?;
     debug!(parent: &span, inner=?inner, "options parsed");
-    let StreamSocket { read, write, close } = inner;
+    let StreamSocket { read, write, close, fd } = inner;
 
     let (Some(inner_read), Some(inner_write)) = (read, write) else {
         return Err(ctx.err("Incomplete stream socket"));
@@ -228,6 +228,7 @@ fn ws_wrap(
                 snk: Box::pin(usual_encoder),
             }),
             close,
+            fd,
         }
     } else {
         let shared_encoder = WsEncoderThatCoexistsWithPongs {
@@ -257,6 +258,7 @@ fn ws_wrap(
             read: Some(dr),
             write: Some(dw),
             close,
+            fd,
         }
     };
 

@@ -318,6 +318,7 @@ fn udp_socket(ctx: NativeCallContext, opts: Dynamic) -> RhResult<Handle<Datagram
             s.unwrap_udp()
         }
     };
+    let mut fd = None;
 
     if !opts.sendto_mode {
         match s.connect(to_addr).now_or_never() {
@@ -342,6 +343,7 @@ fn udp_socket(ctx: NativeCallContext, opts: Dynamic) -> RhResult<Handle<Datagram
         read: Some(DatagramRead { src: Box::pin(ur) }),
         write: Some(DatagramWrite { snk: Box::pin(us) }),
         close: None,
+        fd,
     };
     debug!(s=?s, "created");
     Ok(s.wrap())

@@ -23,6 +23,7 @@ fn create_stdio() -> Handle<StreamSocket> {
             writer: Box::pin(tokio::io::stdout()),
         }),
         close: None,
+        fd: None,
     }
     .wrap()
 }
