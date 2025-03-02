@@ -49,6 +49,10 @@ libc = "0.2.169"
 [target.'cfg(all(unix,any(target_os = "linux",target_os = "android",target_os = "freebsd")))'.dependencies]
 tokio-seqpacket = "0.8.0"
 
+[target.'cfg(unix)'.dependencies]
+filedesc = "0.6.3"
+nix = { version = "0.29.0", features = ["uio"] }
+
 [features]
 default=["ssl"]
 native-tls-alpn = ["native-tls/alpn"]

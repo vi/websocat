@@ -317,6 +317,7 @@ Short list of endpoint prefixes:
   abstract-listen:
   seqpacket-abstract:
   seqpacket-abstract-listen:
+  async-fd:
   cmd:
   empty:
   devnull:
@@ -441,6 +442,17 @@ Prefixes:
 * `seqp-abs-l:`
 * `l-abs-seqp:`
 * `l-seqp-abs:`
+
+### AsyncFd
+
+Use specified inherited file desciptor for reading and writing, assuming it supports `read(2)` and `writev(2)` and can be put in epoll (or analogue).
+
+Trying to specify unexisting FD, especially low-numbered (e.g from 3 to 20) may lead to undefined behaviour.
+
+Prefixes:
+
+* `async-fd:`
+* `open-fd:`
 
 ### Cmd
 
@@ -1216,6 +1228,20 @@ Trigger the activatable part from an object created by `triggerable_event_create
 This should cause a hangup even on the associated Hangup object.
 
 Returns `()`
+
+## async_fd
+
+Use specified file descriptor for input/output, retuning a StreamSocket.
+
+If you want it as DatagramSocket, just wrap it in a `chunks` wrapper.
+
+May cause unsound behaviour if misused.
+
+Parameters:
+
+* fd (`i64`)
+
+Returns `StreamSocket`
 
 ## b64str
 

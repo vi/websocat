@@ -1,18 +1,24 @@
 use std::{
-    ffi::OsString,
+    ffi::{c_void, OsString},
+    io::IoSlice,
+    os::fd::RawFd,
     sync::Arc,
     task::{ready, Poll},
     time::Duration,
 };
 
 use crate::scenario_executor::{
-    types::{DatagramRead, DatagramSocket, DatagramWrite},
-    utils1::TaskHandleExt2,
+    types::{DatagramRead, DatagramSocket, DatagramWrite, SocketFd, StreamRead, StreamWrite},
+    utils1::{HandleExt, SimpleErr, TaskHandleExt2},
     utils2::AddressOrFd,
 };
+use filedesc::FileDesc;
 use futures::FutureExt;
+use libc::{fcntl, read, F_GETFL, F_SETFL, O_NONBLOCK};
+use nix::sys::uio::writev;
 use rhai::{Dynamic, Engine, FnPtr, NativeCallContext};
-use tracing::{debug, debug_span, error, warn, Instrument};
+use tokio::io::{unix::AsyncFd, AsyncRead, AsyncWrite};
+use tracing::{debug, debug_span, error, trace, warn, Instrument};
 
 use crate::scenario_executor::{
     scenario::{callback_and_continue, ScenarioAccess},
@@ -20,7 +26,7 @@ use crate::scenario_executor::{
 };
 
 use super::{
-    types::{BufferFlag, BufferFlags, PacketRead, PacketReadResult, PacketWrite},
+    types::{BufferFlag, BufferFlags, PacketRead, PacketReadResult, PacketWrite, StreamSocket},
     utils1::{RhResult, SignalOnDrop},
     utils2::{Defragmenter, DefragmenterAddChunkResult},
 };
@@ -371,9 +377,175 @@ fn listen_seqpacket(
     .wrap())
 }
 
+struct MyAsyncFd {
+    f: AsyncFd<FileDesc>,
+    need_to_restore_blocking_mode: bool,
+}
+
+impl Drop for MyAsyncFd {
+    fn drop(&mut self) {
+        if self.need_to_restore_blocking_mode {
+            let x = self.f.get_ref().as_raw_fd();
+
+            unsafe {
+                let mut flags = fcntl(x, F_GETFL, 0);
+                if flags == -1 {
+                    return;
+                }
+                flags &= !O_NONBLOCK;
+                if -1 == fcntl(x, F_SETFL, flags) {
+                    return;
+                }
+            }
+        }
+    }
+}
+
+impl MyAsyncFd {
+    /// # Safety
+    ///
+    /// Do not supply file descriptors that are not inherited from parent process, received from UNIX socket or exposed as raw FDs.
+    unsafe fn new(fd: RawFd) -> std::io::Result<Self> {
+        let need_to_restore_blocking_mode = unsafe {
+            let mut flags = fcntl(fd, F_GETFL, 0);
+            if flags == -1 {
+                error!("Failed to get flags of a user-specified file descriptor");
+                return Err(std::io::ErrorKind::Other.into());
+            }
+            if flags & O_NONBLOCK != 0 {
+                false
+            } else {
+                flags |= O_NONBLOCK;
+                if -1 == fcntl(fd, F_SETFL, flags) {
+                    error!("Failed to set flags of a user-specified file descriptor");
+                    return Err(std::io::ErrorKind::Other.into());
+                }
+                true
+            }
+        };
+        Ok(MyAsyncFd {
+            f: AsyncFd::new(FileDesc::from_raw_fd(fd))?,
+            need_to_restore_blocking_mode,
+        })
+    }
+}
+
+impl AsyncRead for MyAsyncFd {
+    fn poll_read(
+        self: std::pin::Pin<&mut Self>,
+        cx: &mut std::task::Context<'_>,
+        buf: &mut tokio::io::ReadBuf<'_>,
+    ) -> Poll<std::io::Result<()>> {
+        trace!("custom async fd: read");
+        let f = &mut self.get_mut().f;
+        loop {
+            let mut ready_guard = ready!(f.poll_read_ready(cx)?);
+
+            match ready_guard.try_io(|inner| {
+                let ptr = unsafe { buf.unfilled_mut() }.as_ptr() as *mut c_void;
+                let len = buf.capacity();
+                match unsafe { read(inner.get_ref().as_raw_fd(), ptr, len) } {
+                    x if x < 0 => Err(std::io::Error::last_os_error()),
+                    x => Ok(x as usize),
+                }
+            }) {
+                Ok(Ok(n)) => {
+                    unsafe {
+                        buf.assume_init(n);
+                    }
+                    buf.advance(n);
+
+                    return Poll::Ready(Ok(()));
+                }
+                Ok(Err(e)) => return Poll::Ready(Err(e)),
+                Err(_would_block) => continue,
+            }
+        }
+    }
+}
+
+impl AsyncWrite for MyAsyncFd {
+    fn poll_write(
+        self: std::pin::Pin<&mut Self>,
+        cx: &mut std::task::Context<'_>,
+        buf: &[u8],
+    ) -> Poll<Result<usize, std::io::Error>> {
+        let iov: [IoSlice<'_>; 1] = [IoSlice::new(buf)];
+        self.poll_write_vectored(cx, &iov[..])
+    }
+
+    fn poll_flush(
+        self: std::pin::Pin<&mut Self>,
+        _cx: &mut std::task::Context<'_>,
+    ) -> Poll<Result<(), std::io::Error>> {
+        return Poll::Ready(Ok(()));
+    }
+
+    fn poll_shutdown(
+        self: std::pin::Pin<&mut Self>,
+        _cx: &mut std::task::Context<'_>,
+    ) -> Poll<Result<(), std::io::Error>> {
+        debug!("reached write shutdown of custom async fd");
+        return Poll::Ready(Ok(()));
+    }
+
+    fn poll_write_vectored(
+        self: std::pin::Pin<&mut Self>,
+        cx: &mut std::task::Context<'_>,
+        bufs: &[IoSlice<'_>],
+    ) -> Poll<Result<usize, std::io::Error>> {
+        trace!("custom async fd: write");
+        let f = &mut self.get_mut().f;
+        loop {
+            let mut ready_guard = ready!(f.poll_write_ready(cx)?);
+
+            match ready_guard
+                .try_io(|inner| writev(inner, bufs).map_err(|x| std::io::Error::from(x)))
+            {
+                Ok(result) => return Poll::Ready(result),
+                Err(_would_block) => continue,
+            }
+        }
+    }
+
+    fn is_write_vectored(&self) -> bool {
+        true
+    }
+}
+
+//@ Use specified file descriptor for input/output, retuning a StreamSocket.
+//@
+//@ If you want it as DatagramSocket, just wrap it in a `chunks` wrapper.
+//@
+//@ May cause unsound behaviour if misused.
+fn async_fd(ctx: NativeCallContext, fd: i64) -> RhResult<Handle<StreamSocket>> {
+    let ff = fd as RawFd;
+    let Ok(f) = (unsafe { MyAsyncFd::new(ff) }) else {
+        return Err(ctx.err("Failed to wrap a fd using async_fd"));
+    };
+
+    let (r, w) = tokio::io::split(f);
+
+    let s = StreamSocket {
+        read: Some(StreamRead {
+            reader: Box::pin(r),
+            prefix: Default::default(),
+        }),
+        write: Some(StreamWrite {
+            writer: Box::pin(w),
+        }),
+        close: None,
+        fd: unsafe { SocketFd::from_i64(fd) },
+    };
+    debug!(s=?s, "wrapped async_fd");
+    Ok(Some(s).wrap())
+}
+
 pub fn register(engine: &mut Engine) {
     #[cfg(any(target_os = "linux", target_os = "android", target_os = "freebsd"))]
     engine.register_fn("connect_seqpacket", connect_seqpacket);
     #[cfg(any(target_os = "linux", target_os = "android", target_os = "freebsd"))]
     engine.register_fn("listen_seqpacket", listen_seqpacket);
+
+    engine.register_fn("async_fd", async_fd);
 }

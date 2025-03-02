@@ -265,6 +265,12 @@ impl Endpoint {
 
                 Ok(varnam)
             }
+            Endpoint::AsyncFd(fd) => {
+                let asyncfd = vars.getnewvarname("asyncfd");
+
+                printer.print_line(&format!("let {asyncfd} = async_fd({fd});"));
+                Ok(asyncfd)
+            }
             _ => panic!(),
         }
     }
@@ -286,6 +292,7 @@ impl Endpoint {
                 printer.decrease_indent();
                 printer.print_line("})");
             }
+            Endpoint::AsyncFd(_) => {}
             _ => panic!(),
         }
     }

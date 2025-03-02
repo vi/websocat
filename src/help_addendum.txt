@@ -3,6 +3,7 @@ Short list of endpoint prefixes:
   abstract-listen:
   seqpacket-abstract:
   seqpacket-abstract-listen:
+  async-fd:
   cmd:
   empty:
   devnull:

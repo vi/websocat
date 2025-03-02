@@ -384,6 +384,10 @@ impl ParseStrChunkResult<'_> {
             Ok(ParseStrChunkResult::Endpoint(
                 Endpoint::AbstractSeqpacketListen(rest.to_owned()),
             ))
+        } else if let Some(rest) = x.strip_prefix_many(&["async-fd:", "open-fd:"]) {
+            let s: &str = rest.try_into()?;
+            let a: i32 = s.parse()?;
+            Ok(ParseStrChunkResult::Endpoint(Endpoint::AsyncFd(a)))
         } else if let Some(rest) = x.strip_prefix_many(&["lines:"]) {
             Ok(ParseStrChunkResult::Overlay {
                 ovl: Overlay::LineChunks,

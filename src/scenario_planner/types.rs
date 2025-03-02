@@ -92,6 +92,11 @@ pub enum Endpoint {
     //@ with specified file descriptor (inherited from parent process) based on LISTEN_FDNAMES environment variable (i.e. from SystemD)
     UnixListenFdNamed(String),
 
+    //@ Use specified inherited file desciptor for reading and writing, assuming it supports `read(2)` and `writev(2)` and can be put in epoll (or analogue).
+    //@
+    //@ Trying to specify unexisting FD, especially low-numbered (e.g from 3 to 20) may lead to undefined behaviour.
+    AsyncFd(i32),
+
     //@ Connect to specified UNIX SOCK_SEQPACKET socket by path
     //@
     //@ Unlike Websocat1, @-prefixed addresses do not get converted to Linux abstract namespace

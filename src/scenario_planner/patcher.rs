@@ -390,6 +390,7 @@ impl SpecifierStack {
                 Endpoint::MockStreamSocket(_) => false,
                 Endpoint::RegistryStreamListen(_) => false,
                 Endpoint::RegistryStreamConnect(_) => false,
+                Endpoint::AsyncFd(_) => true,
             };
             if do_insert {
                 // datagram mode may be patched later
@@ -468,6 +469,7 @@ impl Endpoint {
             Endpoint::MockStreamSocket(_) => CopyingType::ByteStream,
             Endpoint::RegistryStreamListen(_) => CopyingType::ByteStream,
             Endpoint::RegistryStreamConnect(_) => CopyingType::ByteStream,
+            Endpoint::AsyncFd(_) => CopyingType::ByteStream,
         }
     }
 }
