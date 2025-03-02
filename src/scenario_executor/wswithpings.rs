@@ -179,7 +179,12 @@ fn ws_wrap(
     let opts: Opts = rhai::serde::from_dynamic(&opts)?;
     let inner = ctx.lutbar(inner)?;
     debug!(parent: &span, inner=?inner, "options parsed");
-    let StreamSocket { read, write, close, fd } = inner;
+    let StreamSocket {
+        read,
+        write,
+        close,
+        fd,
+    } = inner;
 
     let (Some(inner_read), Some(inner_write)) = (read, write) else {
         return Err(ctx.err("Incomplete stream socket"));

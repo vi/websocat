@@ -36,7 +36,16 @@ fn connect_tcp(
     Ok(async move {
         debug!("node started");
         let t = TcpStream::connect(opts.addr).await?;
+        #[allow(unused_assignments)]
         let mut fd = None;
+        #[cfg(unix)]
+        {
+            use std::os::fd::AsRawFd;
+            fd = Some(
+                // Safety: may be unsound, as it exposes raw FDs to end-user-specifiable scenarios
+                unsafe { super::types::SocketFd::new(t.as_raw_fd()) },
+            );
+        }
         let (r, w) = t.into_split();
         let (r, w) = (Box::pin(r), Box::pin(w));
 
@@ -98,7 +107,17 @@ fn connect_tcp_race(
                 }
             }
         };
+
+        #[allow(unused_assignments)]
         let mut fd = None;
+        #[cfg(unix)]
+        {
+            use std::os::fd::AsRawFd;
+            fd = Some(
+                // Safety: may be unsound, as it exposes raw FDs to end-user-specifiable scenarios
+                unsafe { super::types::SocketFd::new(t.as_raw_fd()) },
+            );
+        }
 
         let (r, w) = t.into_split();
         let (r, w) = (Box::pin(r), Box::pin(w));
@@ -210,7 +229,17 @@ fn listen_tcp(
             match l.accept().await {
                 Ok((t, from)) => {
                     let newspan = debug_span!("tcp_accept", from=%from);
+                    
+                    #[allow(unused_assignments)]
                     let mut fd = None;
+                    #[cfg(unix)]
+                    {
+                        use std::os::fd::AsRawFd;
+                        fd = Some(
+                            // Safety: may be unsound, as it exposes raw FDs to end-user-specifiable scenarios
+                            unsafe{super::types::SocketFd::new(t.as_raw_fd())});
+                    }
+
                     let (r, w) = t.into_split();
 
                     let (s, dn) = wrap_as_stream_socket(r, w, None, fd, opts.oneshot);

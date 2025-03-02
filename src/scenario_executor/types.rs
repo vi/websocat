@@ -24,8 +24,8 @@ pub struct StreamWrite {
 }
 
 /// File descriptor of the underlying socket, ignoring the overlays.
-/// 
-/// Note that `BorrowedFd` is used not according it its semantics, just to gain stable access to the niche at -1.
+///
+/// Note that `BorrowedFd` is used not according it its semantics, just to gain stable access to the niche at -1; like an optimized `RawFd`.
 #[cfg(unix)]
 #[repr(transparent)]
 #[derive(Clone, Copy)]

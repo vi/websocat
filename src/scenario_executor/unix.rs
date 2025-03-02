@@ -26,6 +26,7 @@ use super::{
     utils2::{Defragmenter, DefragmenterAddChunkResult},
 };
 use clap_lex::OsStrExt;
+use std::os::fd::AsRawFd;
 
 fn abstractify(path: &mut OsString) {
     let tmp = std::mem::take(path);
@@ -96,7 +97,12 @@ fn connect_unix(
     Ok(async move {
         debug!("node started");
         let t = UnixStream::connect(path).await?;
-        let mut fd = None;
+
+        let fd = Some(
+            // Safety: may be unsound, as it exposes raw FDs to end-user-specifiable scenarios
+            unsafe { super::types::SocketFd::new(t.as_raw_fd()) },
+        );
+
         let (r, w) = t.into_split();
         let (r, w) = (Box::pin(r), Box::pin(w));
 
@@ -201,7 +207,17 @@ fn listen_unix(
             let on_accept = on_accept.clone();
             match l.accept().await {
                 Ok((t, from)) => {
+                    #[allow(unused_assignments)]
                     let mut fd = None;
+                    #[cfg(unix)]
+                    {
+                        use std::os::fd::AsRawFd;
+                        fd = Some(
+                            // Safety: may be unsound, as it exposes raw FDs to end-user-specifiable scenarios
+                            unsafe { super::types::SocketFd::new(t.as_raw_fd()) },
+                        );
+                    }
+
                     let newspan = debug_span!("unix_accept", from=?from);
                     let (r, w) = t.into_split();
                     let (r, w) = (Box::pin(r), Box::pin(w));
@@ -406,7 +422,17 @@ fn connect_seqpacket(
     Ok(async move {
         debug!("node started");
         let s = tokio_seqpacket::UnixSeqpacket::connect(path).await?;
+
+        #[allow(unused_assignments)]
         let mut fd = None;
+        #[cfg(unix)]
+        {
+            fd = Some(
+                // Safety: may be unsound, as it exposes raw FDs to end-user-specifiable scenarios
+                unsafe { super::types::SocketFd::new(s.as_raw_fd()) },
+            );
+        }
+
         let s = Arc::new((s, SignalOnDrop::new_neutral()));
         let r = SeqpacketSendAdapter {
             s: s.clone(),
@@ -529,7 +555,12 @@ fn listen_seqpacket(
             match l.accept().await {
                 Ok(s) => {
                     let newspan = debug_span!("seqpacket_accept", i);
-                    let mut fd = None;
+
+                    let fd = Some(
+                        // Safety: may be unsound, as it exposes raw FDs to end-user-specifiable scenarios
+                        unsafe { super::types::SocketFd::new(s.as_raw_fd()) },
+                    );
+
                     i += 1;
                     let dropper = if oneshot {
                         let (a, b) = SignalOnDrop::new();

@@ -121,7 +121,9 @@ impl Overlay {
                 let fd = vars.getnewvarname("fd");
                 let rq = vars.getnewvarname("rq");
 
-                printer.print_line(&format!("http1_serve(#{{}}, {inner_var}, |{rq}, {hup}, {fd}| {{"));
+                printer.print_line(&format!(
+                    "http1_serve(#{{}}, {inner_var}, |{rq}, {hup}, {fd}| {{"
+                ));
                 printer.increase_indent();
 
                 let mut oo = String::new();

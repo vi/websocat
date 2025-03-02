@@ -229,10 +229,9 @@ impl SocketFd {
         Self(
             // # Safety
             // May be IO-unsafe, soundness may depend on sanity of options supplied by end user.
-            unsafe { std::os::fd::BorrowedFd::borrow_raw(x) }
+            unsafe { std::os::fd::BorrowedFd::borrow_raw(x) },
         )
     }
-
 
     /// # Safety
     /// Depends on other code (including end-user-supplied scenarios) not doing unreasonable things.
@@ -244,9 +243,8 @@ impl SocketFd {
             Some(
                 // # Safety
                 // Depends on other code (including end-user-supplied scenarios) not doing unreasonable things
-                unsafe {
-                SocketFd::new(x as std::os::fd::RawFd)
-            })
+                unsafe { SocketFd::new(x as std::os::fd::RawFd) },
+            )
         }
     }
 }

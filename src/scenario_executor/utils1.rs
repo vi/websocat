@@ -12,7 +12,7 @@ use std::{
 };
 
 use super::types::{
-    BufferFlag, BufferFlags, DatagramSocket, Hangup, PacketWrite, SocketFd, StreamRead, StreamWrite
+    BufferFlag, BufferFlags, DatagramSocket, Hangup, PacketWrite, SocketFd, StreamRead, StreamWrite,
 };
 
 pub trait TaskHandleExt {

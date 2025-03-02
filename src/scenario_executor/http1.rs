@@ -15,7 +15,8 @@ use tracing::{debug, debug_span, error, warn, Instrument};
 use crate::scenario_executor::{
     scenario::{callback_and_continue, ScenarioAccess},
     types::{Handle, Hangup, StreamRead, StreamSocket, StreamWrite, Task},
-    utils1::{HandleExt, HandleExt2, RhResult, SimpleErr, TaskHandleExt2}, utils2::SocketFdI64,
+    utils1::{HandleExt, HandleExt2, RhResult, SimpleErr, TaskHandleExt2},
+    utils2::SocketFdI64,
 };
 
 use super::types::SocketFd;
@@ -473,7 +474,7 @@ fn ws_accept(
             write: Some(StreamWrite { writer: w }),
             close: c,
             // Safety: depends on scenario being reasonable and only forwarding this number, not inventing any weird tricks
-            fd: unsafe{SocketFd::from_i64(fd)},
+            fd: unsafe { SocketFd::from_i64(fd) },
         };
         debug!(s=?s, "accepted");
         let h = s.wrap();

@@ -318,7 +318,17 @@ fn udp_socket(ctx: NativeCallContext, opts: Dynamic) -> RhResult<Handle<Datagram
             s.unwrap_udp()
         }
     };
+
+    #[allow(unused_assignments)]
     let mut fd = None;
+    #[cfg(unix)]
+    {
+        use std::os::fd::AsRawFd;
+        fd = Some(
+            // Safety: may be unsound, as it exposes raw FDs to end-user-specifiable scenarios
+            unsafe { super::types::SocketFd::new(s.as_raw_fd()) },
+        );
+    }
 
     if !opts.sendto_mode {
         match s.connect(to_addr).now_or_never() {
