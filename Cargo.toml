@@ -44,6 +44,7 @@ websocket-sans-io = "0.1.0"
 shlex = "1.3.0"
 flume = "0.11.1"
 socket2 = "0.5.8"
+libc = "0.2.169"
 
 [target.'cfg(all(unix,any(target_os = "linux",target_os = "android",target_os = "freebsd")))'.dependencies]
 tokio-seqpacket = "0.8.0"

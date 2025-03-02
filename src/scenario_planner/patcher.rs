@@ -42,6 +42,9 @@ impl WebsocatInvocation {
     }
 
     fn maybe_insert_chunker(&mut self) {
+        if self.opts.exec_dup2.is_some() {
+            return;
+        }
         match (self.left.get_copying_type(), self.right.get_copying_type()) {
             (CopyingType::ByteStream, CopyingType::ByteStream) => (),
             (CopyingType::Datarams, CopyingType::Datarams) => (),

@@ -572,6 +572,91 @@ fn subprocess_arg0_osstr(
     Ok(())
 }
 
+//@ `dup2` specified file descriptor over specified file descriptor numbers in the executed process
+#[cfg(unix)]
+fn subprocess_dup2(
+    ctx: NativeCallContext,
+    cmd: &mut Handle<Command>,
+    source_fd: i64,
+    destination_fds: rhai::Dynamic,
+    set_to_blocking: bool,
+) -> RhResult<()> {
+    let (mut c, cmd) = ctx.lutbar2m(cmd)?;
+
+    use libc::{c_int, dup2, fcntl, FD_CLOEXEC, F_GETFD, F_GETFL, F_SETFD, F_SETFL, O_NONBLOCK};
+
+    let src_fd = source_fd as c_int;
+
+    const MAX_DEST_FDS: usize = 16;
+
+    let mut dest_fds: [c_int; MAX_DEST_FDS] = [-1; MAX_DEST_FDS];
+
+    let destination_fds = destination_fds.as_array_ref()?;
+
+    if destination_fds.len() > MAX_DEST_FDS {
+        return Err(ctx.err("Too many destination file descriptors in subprocess_dup2"));
+    }
+
+    for (a, b) in destination_fds.iter().zip(dest_fds.iter_mut()) {
+        let x = a.as_int()?;
+        *b = x as c_int;
+    }
+
+    // # Safety
+    // No attempt to check if supplied source or target file descriptors are OK is made,
+    // it is responsibility of end user
+    unsafe {
+        c.pre_exec(move || {
+            let mut ok = true;
+            for x in dest_fds {
+                if x == -1 {
+                    continue;
+                }
+
+                if x != src_fd {
+                    if -1 == dup2(src_fd, x) {
+                        ok = false;
+                        break;
+                    }
+                } else {
+                    // Force file descriptor that is already in the needed slot to be inheritable
+                    let mut flags = fcntl(x, F_GETFD, 0);
+                    if flags == -1 {
+                        ok = false;
+                        break;
+                    }
+                    flags &= !FD_CLOEXEC;
+                    if -1 == fcntl(x, F_SETFD, flags) {
+                        ok = false;
+                        break;
+                    }
+                }
+
+                if set_to_blocking {
+                    let mut flags = fcntl(x, F_GETFL, 0);
+                    if flags == -1 {
+                        ok = false;
+                        break;
+                    }
+                    flags &= !O_NONBLOCK;
+                    if -1 == fcntl(x, F_SETFL, flags) {
+                        ok = false;
+                        break;
+                    }
+                }
+            }
+            if !ok {
+                Err(std::io::ErrorKind::Other.into())
+            } else {
+                Ok(())
+            }
+        })
+    };
+    cmd.put(c);
+
+    Ok(())
+}
+
 pub fn register(engine: &mut Engine) {
     engine.register_fn("subprocess_new", subprocess_new);
     engine.register_fn("subprocess_new_osstr", subprocess_new_osstr);
@@ -599,6 +684,9 @@ pub fn register(engine: &mut Engine) {
     engine.register_fn("gid", subprocess_gid);
     engine.register_fn("arg0", subprocess_arg0);
     engine.register_fn("arg0_osstr", subprocess_arg0_osstr);
+
+    #[cfg(unix)]
+    engine.register_fn("dup2", subprocess_dup2);
 
     engine.register_fn("system", simplified_exec);
 }

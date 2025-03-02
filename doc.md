@@ -135,6 +135,12 @@ Options:
       --exec-arg0 <EXEC_ARG0>
           On Unix, set first subprocess's argv[0] to this value
 
+      --exec-dup2 <EXEC_DUP2>
+          On Unix, use dup2 and forward sockets directly to child processes (ignoring any overlays) instead of piping though stdin/stdout. Argument is comma-separated list of file descriptor slots to duplicate the socket into, e.g. `0,1` for stdin and stdout
+
+      --exec-dup2-keep-nonblocking
+          When using --exec-dup2, do not set inherited file descriptors to blocking mode
+
       --dummy-hangup
           Make dummy nodes also immediately signal hangup
 
@@ -1052,6 +1058,18 @@ Parameters:
 
 Returns `()`
 
+## Command::dup2
+
+`dup2` specified file descriptor over specified file descriptor numbers in the executed process
+
+Parameters:
+
+* source_fd (`i64`)
+* destination_fds (`rhai::Dynamic`)
+* set_to_blocking (`bool`)
+
+Returns `()`
+
 ## Command::env
 
 Add or set environtment variable for the subprocess
@@ -1337,6 +1355,16 @@ Sample sink for packets for demostration purposes
 
 Returns `DatagramWrite`
 
+## drop
+
+Attempt to drop a socket or task or other handle
+
+Parameters:
+
+* x (`Dynamic`)
+
+Returns `()`
+
 ## dummy_datagram_socket
 
 Create datagram socket with a source handle that continuously emits
@@ -1422,6 +1450,16 @@ Parameters:
 
 Does not return anything.
 
+## get_fd
+
+Get underlying file descriptor from a socket, or -1 if is cannot be obtained
+
+Parameters:
+
+* x (`Dynamic`)
+
+Returns `i64`
+
 ## get_ip
 
 Extract IP address from SocketAddr
@@ -1482,7 +1520,7 @@ Parameters:
 
 * opts (`Dynamic`) - object map containing dynamic options to the function
 * inner (`StreamSocket`)
-* continuation (`Fn(IncomingRequest, Hangup) -> OutgoingResponse`) - Rhai function that will be called to continue processing
+* continuation (`Fn(IncomingRequest, Hangup, i64) -> OutgoingResponse`) - Rhai function that will be called to continue processing
 
 Returns `Task`
 
@@ -2208,6 +2246,7 @@ Parameters:
 * custom_headers (`rhai::Map`)
 * rq (`IncomingRequest`)
 * close_handle (`Hangup`)
+* fd (`i64`)
 * continuation (`Fn(StreamSocket) -> Task`) - Rhai function that will be called to continue processing
 
 Returns `OutgoingResponse`

@@ -193,6 +193,15 @@ pub struct WebsocatArgs {
     #[arg(long)]
     pub exec_arg0: Option<OsString>,
 
+    /// On Unix, use dup2 and forward sockets directly to child processes (ignoring any overlays) instead of piping though stdin/stdout.
+    /// Argument is comma-separated list of file descriptor slots to duplicate the socket into, e.g. `0,1` for stdin and stdout.
+    #[arg(long, value_delimiter = ',')]
+    pub exec_dup2: Option<Vec<i64>>,
+
+    /// When using --exec-dup2, do not set inherited file descriptors to blocking mode
+    #[arg(long)]
+    pub exec_dup2_keep_nonblocking: bool,
+
     /// Make dummy nodes also immediately signal hangup.
     #[arg(long)]
     pub dummy_hangup: bool,

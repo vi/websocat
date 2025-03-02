@@ -1,7 +1,7 @@
 use std::time::Duration;
 
 use rhai::{Dynamic, Engine, FnPtr, NativeCallContext};
-use tracing::{debug, debug_span, error, field, Instrument};
+use tracing::{debug, debug_span, error, field, warn, Instrument};
 
 use crate::scenario_executor::{
     debugfluff::PtrDbg,
@@ -10,9 +10,11 @@ use crate::scenario_executor::{
 };
 
 use super::{
+    http1::Http1Client,
     scenario::{callback_and_continue, ScenarioAccess},
     types::{DatagramSocket, Hangup},
     utils1::{ExtractHandleOrFail, HandleExt2, HangupHandleExt, SimpleErr, TaskHandleExt2},
+    utils2::SocketFdI64,
 };
 
 //@ Modify stream-oriented Socket, taking the read part and returning it separately. Leaves behind an incomplete socket.
@@ -348,6 +350,72 @@ fn hangup2task(ctx: NativeCallContext, hangup: Handle<Hangup>) -> RhResult<Handl
     Ok(y)
 }
 
+//@ Attempt to drop a socket or task or other handle
+fn drop_thing(ctx: NativeCallContext, x: Dynamic) -> RhResult<()> {
+    if let Some(t) = x.clone().try_cast::<Handle<Task>>() {
+        let t = ctx.lutbar(t)?;
+        debug!("Explicitly dropping a task");
+        drop(t)
+    } else if let Some(t) = x.clone().try_cast::<Handle<Hangup>>() {
+        let t = ctx.lutbar(t)?;
+        debug!("Explicitly dropping a hangup handle");
+        drop(t)
+    } else if let Some(t) = x.clone().try_cast::<Handle<StreamRead>>() {
+        let t = ctx.lutbar(t)?;
+        debug!("Explicitly dropping a stream reader");
+        drop(t)
+    } else if let Some(t) = x.clone().try_cast::<Handle<StreamWrite>>() {
+        let t = ctx.lutbar(t)?;
+        debug!("Explicitly dropping a stream writer");
+        drop(t)
+    } else if let Some(t) = x.clone().try_cast::<Handle<StreamSocket>>() {
+        let t = ctx.lutbar(t)?;
+        debug!("Explicitly dropping a stream socket");
+        drop(t)
+    } else if let Some(t) = x.clone().try_cast::<Handle<DatagramRead>>() {
+        let t = ctx.lutbar(t)?;
+        debug!("Explicitly dropping a datagram reader");
+        drop(t)
+    } else if let Some(t) = x.clone().try_cast::<Handle<DatagramWrite>>() {
+        let t = ctx.lutbar(t)?;
+        debug!("Explicitly dropping a datagram writer");
+        drop(t)
+    } else if let Some(t) = x.clone().try_cast::<Handle<DatagramSocket>>() {
+        let t = ctx.lutbar(t)?;
+        debug!("Explicitly dropping a datagram socket");
+        drop(t)
+    } else if let Some(t) = x.clone().try_cast::<Handle<Http1Client>>() {
+        let t = ctx.lutbar(t)?;
+        debug!("Explicitly dropping a http1 client");
+        drop(t)
+    } else {
+        warn!("Trying to explicitly drop an unknown thing");
+    }
+    Ok(())
+}
+
+//@ Get underlying file descriptor from a socket, or -1 if is cannot be obtained
+fn get_fd(ctx: NativeCallContext, x: Dynamic) -> RhResult<i64> {
+    if let Some(t) = x.clone().try_cast::<Handle<StreamSocket>>() {
+        let (t, b) = ctx.lutbar2(t)?;
+        let fd = t.fd.maybe_as_i64();
+        b.put(t);
+        Ok(fd)
+    } else if let Some(t) = x.clone().try_cast::<Handle<DatagramSocket>>() {
+        let (t, b) = ctx.lutbar2(t)?;
+        let fd = t.fd.maybe_as_i64();
+        b.put(t);
+        Ok(fd)
+    } else if let Some(t) = x.clone().try_cast::<Handle<Http1Client>>() {
+        let (t, b) = ctx.lutbar2(t)?;
+        let fd = t.fd.maybe_as_i64();
+        b.put(t);
+        Ok(fd)
+    } else {
+        Err(ctx.err("Wrong object type to try get_fd"))
+    }
+}
+
 pub fn register(engine: &mut Engine) {
     engine.register_fn("take_read_part", take_read_part);
     engine.register_fn("take_write_part", take_write_part);
@@ -377,4 +445,7 @@ pub fn register(engine: &mut Engine) {
 
     engine.register_fn("task2hangup", task2hangup);
     engine.register_fn("hangup2task", hangup2task);
+
+    engine.register_fn("drop", drop_thing);
+    engine.register_fn("get_fd", get_fd);
 }

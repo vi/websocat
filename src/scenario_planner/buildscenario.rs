@@ -1,6 +1,6 @@
 use super::{
     scenarioprinter::ScenarioPrinter,
-    types::{CopyingType, WebsocatInvocation},
+    types::{CopyingType, Endpoint, WebsocatInvocation},
     utils::IdentifierGenerator,
 };
 
@@ -70,12 +70,53 @@ impl WebsocatInvocation {
             printer.increase_indent();
         }
 
-        match self.get_copying_type() {
-            CopyingType::ByteStream => {
-                printer.print_line(&format!("exchange_bytes(#{{{opts}}}, {left}, {right})"));
+        if let Some(ref dfd) = self.opts.exec_dup2 {
+            // Special flow: direct socket FD to child process
+
+            if matches!(self.left.innermost, Endpoint::Exec(..) | Endpoint::Cmd(..)) {
+                anyhow::bail!("--exec-dup2 requires exec:/cmd: endpoint at the right side (second positional argument), not at the left side")
             }
-            CopyingType::Datarams => {
-                printer.print_line(&format!("exchange_packets(#{{{opts}}}, {left}, {right})"));
+            if !matches!(self.right.innermost, Endpoint::Exec(..) | Endpoint::Cmd(..)) {
+                anyhow::bail!(
+                    "--exec-dup2 requires right side (second positional argument) to be exec:/cmd:"
+                )
+            }
+
+            let var_chld = vars.getnewvarname("chld");
+            let var_fd = vars.getnewvarname("fd");
+
+            printer.print_line(&format!("let {var_fd} = get_fd({left});"));
+            printer.print_line(&format!("if {var_fd} == -1 {{ print_stderr(\"No raw file descriptor available\") }} else {{"));
+            printer.increase_indent();
+
+            let mut dup2_params = String::with_capacity(16);
+
+            dup2_params.push_str(&format!("{var_fd},["));
+
+            for x in dfd {
+                dup2_params.push_str(&format!("{x},"));
+            }
+            if self.opts.exec_dup2_keep_nonblocking {
+                dup2_params.push_str("],false");
+            } else {
+                dup2_params.push_str("],true");
+            }
+
+            printer.print_line(&format!("{right}.dup2({dup2_params});"));
+            printer.print_line(&format!("let {var_chld} = {right}.execute();"));
+            printer.print_line(&format!("drop({left});"));
+            printer.print_line(&format!("hangup2task({var_chld}.wait())"));
+            printer.decrease_indent();
+            printer.print_line("}");
+        } else {
+            // Usual flow: copy bytes streams / packets from left to right and back.
+            match self.get_copying_type() {
+                CopyingType::ByteStream => {
+                    printer.print_line(&format!("exchange_bytes(#{{{opts}}}, {left}, {right})"));
+                }
+                CopyingType::Datarams => {
+                    printer.print_line(&format!("exchange_packets(#{{{opts}}}, {left}, {right})"));
+                }
             }
         }
 

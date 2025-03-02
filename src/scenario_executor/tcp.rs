@@ -1,4 +1,4 @@
-use std::{net::SocketAddr, time::Duration};
+use std::{net::SocketAddr, pin::Pin, time::Duration};
 
 use crate::scenario_executor::{
     utils1::{wrap_as_stream_socket, TaskHandleExt2, NEUTRAL_SOCKADDR4},
@@ -15,6 +15,56 @@ use crate::scenario_executor::{
 };
 
 use super::utils1::RhResult;
+
+/// Control of TCP (or other sort of) socket may be suddenly yanked away,  e.g. using `--exec-dup`, so automatic shutdowns
+/// are not our friends. Just `close(2)` things when dropped without extra steps.
+struct TcpOwnedWriteHalfWithoutAutoShutdown(Option<tokio::net::tcp::OwnedWriteHalf>);
+
+impl tokio::io::AsyncWrite for TcpOwnedWriteHalfWithoutAutoShutdown {
+    fn poll_write(
+        mut self: Pin<&mut Self>,
+        cx: &mut std::task::Context<'_>,
+        buf: &[u8],
+    ) -> std::task::Poll<Result<usize, std::io::Error>> {
+        Pin::new(&mut self.0.as_mut().unwrap()).poll_write(cx, buf)
+    }
+
+    fn poll_flush(
+        mut self: Pin<&mut Self>,
+        cx: &mut std::task::Context<'_>,
+    ) -> std::task::Poll<Result<(), std::io::Error>> {
+        Pin::new(&mut self.0.as_mut().unwrap()).poll_flush(cx)
+    }
+
+    fn poll_shutdown(
+        mut self: Pin<&mut Self>,
+        cx: &mut std::task::Context<'_>,
+    ) -> std::task::Poll<Result<(), std::io::Error>> {
+        Pin::new(&mut self.0.as_mut().unwrap()).poll_shutdown(cx)
+    }
+
+    fn poll_write_vectored(
+        mut self: Pin<&mut Self>,
+        cx: &mut std::task::Context<'_>,
+        bufs: &[std::io::IoSlice<'_>],
+    ) -> std::task::Poll<Result<usize, std::io::Error>> {
+        Pin::new(&mut self.0.as_mut().unwrap()).poll_write_vectored(cx, bufs)
+    }
+
+    fn is_write_vectored(&self) -> bool {
+        self.0.as_ref().unwrap().is_write_vectored()
+    }
+}
+impl Drop for TcpOwnedWriteHalfWithoutAutoShutdown {
+    fn drop(&mut self) {
+        self.0.take().unwrap().forget();
+    }
+}
+impl TcpOwnedWriteHalfWithoutAutoShutdown {
+    fn new(w: tokio::net::tcp::OwnedWriteHalf) -> Self {
+        Self(Some(w))
+    }
+}
 
 fn connect_tcp(
     ctx: NativeCallContext,
@@ -47,6 +97,7 @@ fn connect_tcp(
             );
         }
         let (r, w) = t.into_split();
+        let w = TcpOwnedWriteHalfWithoutAutoShutdown::new(w);
         let (r, w) = (Box::pin(r), Box::pin(w));
 
         let s = StreamSocket {
@@ -120,6 +171,7 @@ fn connect_tcp_race(
         }
 
         let (r, w) = t.into_split();
+        let w = TcpOwnedWriteHalfWithoutAutoShutdown::new(w);
         let (r, w) = (Box::pin(r), Box::pin(w));
 
         let s = StreamSocket {
@@ -241,6 +293,7 @@ fn listen_tcp(
                     }
 
                     let (r, w) = t.into_split();
+                    let w = TcpOwnedWriteHalfWithoutAutoShutdown::new(w);
 
                     let (s, dn) = wrap_as_stream_socket(r, w, None, fd, opts.oneshot);
                     drop_nofity = dn;

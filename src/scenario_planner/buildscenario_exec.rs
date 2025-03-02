@@ -86,15 +86,20 @@ impl Endpoint {
         let var_chld = vars.getnewvarname("chld");
         let var_s = vars.getnewvarname("pstdio");
 
-        printer.print_line(&format!("{var_cmd}.configure_fds(2, 2, 1);"));
-        printer.print_line(&format!("let {var_chld} = {var_cmd}.execute();"));
-        printer.print_line(&format!("let {var_s} = {var_chld}.socket();"));
+        if opts.exec_dup2.is_none() {
+            printer.print_line(&format!("{var_cmd}.configure_fds(2, 2, 1);"));
+            printer.print_line(&format!("let {var_chld} = {var_cmd}.execute();"));
+            printer.print_line(&format!("let {var_s} = {var_chld}.socket();"));
 
-        if opts.exec_monitor_exits {
-            printer.print_line(&format!("put_hangup_part({var_s}, {var_chld}.wait());"));
+            if opts.exec_monitor_exits {
+                printer.print_line(&format!("put_hangup_part({var_s}, {var_chld}.wait());"));
+            }
+            Ok(var_s)
+        } else {
+            printer.print_line(&format!("{var_cmd}.configure_fds(1, 1, 1);"));
+
+            Ok(var_cmd)
         }
-
-        Ok(var_s)
     }
 
     pub(super) fn begin_print_exec(

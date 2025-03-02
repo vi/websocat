@@ -1,5 +1,6 @@
 use std::{
     ffi::{OsStr, OsString},
+    pin::Pin,
     sync::Arc,
     task::{ready, Poll},
     time::Duration,
@@ -69,6 +70,56 @@ async fn maybe_chmod<T>(
     Ok(())
 }
 
+/// Control of a socket may be suddenly yanked away,  e.g. using `--exec-dup`, so automatic shutdowns
+/// are not our friends. Just `close(2)` things when dropped without extra steps.
+struct UnixOwnedWriteHalfWithoutAutoShutdown(Option<tokio::net::unix::OwnedWriteHalf>);
+
+impl tokio::io::AsyncWrite for UnixOwnedWriteHalfWithoutAutoShutdown {
+    fn poll_write(
+        mut self: Pin<&mut Self>,
+        cx: &mut std::task::Context<'_>,
+        buf: &[u8],
+    ) -> std::task::Poll<Result<usize, std::io::Error>> {
+        Pin::new(&mut self.0.as_mut().unwrap()).poll_write(cx, buf)
+    }
+
+    fn poll_flush(
+        mut self: Pin<&mut Self>,
+        cx: &mut std::task::Context<'_>,
+    ) -> std::task::Poll<Result<(), std::io::Error>> {
+        Pin::new(&mut self.0.as_mut().unwrap()).poll_flush(cx)
+    }
+
+    fn poll_shutdown(
+        mut self: Pin<&mut Self>,
+        cx: &mut std::task::Context<'_>,
+    ) -> std::task::Poll<Result<(), std::io::Error>> {
+        Pin::new(&mut self.0.as_mut().unwrap()).poll_shutdown(cx)
+    }
+
+    fn poll_write_vectored(
+        mut self: Pin<&mut Self>,
+        cx: &mut std::task::Context<'_>,
+        bufs: &[std::io::IoSlice<'_>],
+    ) -> std::task::Poll<Result<usize, std::io::Error>> {
+        Pin::new(&mut self.0.as_mut().unwrap()).poll_write_vectored(cx, bufs)
+    }
+
+    fn is_write_vectored(&self) -> bool {
+        self.0.as_ref().unwrap().is_write_vectored()
+    }
+}
+impl Drop for UnixOwnedWriteHalfWithoutAutoShutdown {
+    fn drop(&mut self) {
+        self.0.take().unwrap().forget();
+    }
+}
+impl UnixOwnedWriteHalfWithoutAutoShutdown {
+    fn new(w: tokio::net::unix::OwnedWriteHalf) -> Self {
+        Self(Some(w))
+    }
+}
+
 //@ Connect to a UNIX stream socket of some kind
 fn connect_unix(
     ctx: NativeCallContext,
@@ -104,6 +155,7 @@ fn connect_unix(
         );
 
         let (r, w) = t.into_split();
+        let w = UnixOwnedWriteHalfWithoutAutoShutdown::new(w);
         let (r, w) = (Box::pin(r), Box::pin(w));
 
         let s = StreamSocket {
@@ -220,6 +272,7 @@ fn listen_unix(
 
                     let newspan = debug_span!("unix_accept", from=?from);
                     let (r, w) = t.into_split();
+                    let w = UnixOwnedWriteHalfWithoutAutoShutdown::new(w);
                     let (r, w) = (Box::pin(r), Box::pin(w));
 
                     let (s, dn) = wrap_as_stream_socket(r, w, None, fd, opts.oneshot);
