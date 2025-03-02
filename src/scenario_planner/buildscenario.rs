@@ -103,9 +103,13 @@ impl WebsocatInvocation {
             }
 
             printer.print_line(&format!("{right}.dup2({dup2_params});"));
-            printer.print_line(&format!("let {var_chld} = {right}.execute();"));
-            printer.print_line(&format!("drop({left});"));
-            printer.print_line(&format!("hangup2task({var_chld}.wait())"));
+            if self.opts.exec_dup2_execve {
+                printer.print_line(&format!("{right}.execve()"));
+            } else {
+                printer.print_line(&format!("let {var_chld} = {right}.execute();"));
+                printer.print_line(&format!("drop({left});"));
+                printer.print_line(&format!("hangup2task({var_chld}.wait())"));
+            }
             printer.decrease_indent();
             printer.print_line("}");
         } else {

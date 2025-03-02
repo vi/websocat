@@ -345,6 +345,20 @@ fn subprocess_spawn(ctx: NativeCallContext, cmd: &mut Handle<Command>) -> RhResu
     }
 }
 
+//@ Substitude Websocat process with the prepared command, abandoning other connections if they exist.
+#[cfg(unix)]
+fn subprocess_execve(ctx: NativeCallContext, cmd: &mut Handle<Command>) -> RhResult<Handle<Child>> {
+    use std::os::unix::process::CommandExt;
+
+    use tracing::error;
+    let c = ctx.lutbarm(cmd)?;
+    let mut c = c.into_std();
+    debug!("Substituting Websocat process with a command");
+    let e = c.exec();
+    error!("Failed to execve: {e}. Exiting anyway");
+    std::process::exit(127)
+}
+
 //@ Add literal, unescaped text to Windows's command line
 #[allow(unused)]
 fn subprocess_raw_windows_arg(
@@ -666,6 +680,8 @@ pub fn register(engine: &mut Engine) {
     engine.register_fn("execute_for_status", subprocess_execute_for_status);
     engine.register_fn("execute_for_output", subprocess_execute_for_output);
     engine.register_fn("execute", subprocess_spawn);
+    #[cfg(unix)]
+    engine.register_fn("execve", subprocess_execve);
     engine.register_fn("socket", child_socket);
     engine.register_fn("take_stderr", child_take_stderr);
     engine.register_fn("wait", child_wait);

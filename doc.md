@@ -141,6 +141,9 @@ Options:
       --exec-dup2-keep-nonblocking
           When using --exec-dup2, do not set inherited file descriptors to blocking mode
 
+      --exec-dup2-execve
+          on Unix, When using `--exec-dup2`, do not return to Websocat, instead substitude Websocat process with the given command
+
       --dummy-hangup
           Make dummy nodes also immediately signal hangup
 
@@ -1148,6 +1151,12 @@ Parameters:
 * continuation (`Fn(i64) -> Task`) - Rhai function that will be called to continue processing
 
 Returns `Task`
+
+## Command::execve
+
+Substitude Websocat process with the prepared command, abandoning other connections if they exist.
+
+Returns `Child`
 
 ## Command::gid
 

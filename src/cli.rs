@@ -202,6 +202,10 @@ pub struct WebsocatArgs {
     #[arg(long)]
     pub exec_dup2_keep_nonblocking: bool,
 
+    /// on Unix, When using `--exec-dup2`, do not return to Websocat, instead substitude Websocat process with the given command.
+    #[arg(long)]
+    pub exec_dup2_execve: bool,
+
     /// Make dummy nodes also immediately signal hangup.
     #[arg(long)]
     pub dummy_hangup: bool,
