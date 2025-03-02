@@ -35,7 +35,9 @@ pub mod scenario_executor {
     pub mod udp;
     pub mod udpserver;
     #[cfg(unix)]
-    pub mod unix;
+    pub mod unix1;
+    #[cfg(unix)]
+    pub mod unix2;
     pub mod utils1;
     pub mod utils2;
     pub mod wsframer;

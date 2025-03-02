@@ -331,7 +331,7 @@ fn udp_server(
             }
             #[cfg(unix)]
             AddressOrFd::Fd(_) | AddressOrFd::NamedFd(_) => {
-                use super::unix::{listen_from_fd, listen_from_fd_named, ListenFromFdType};
+                use super::unix1::{listen_from_fd, listen_from_fd_named, ListenFromFdType};
     
                 let force_addr = opts.fd_force.then_some(ListenFromFdType::Udp);
                 let assert_addr = Some(ListenFromFdType::Udp);

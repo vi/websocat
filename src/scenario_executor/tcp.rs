@@ -248,12 +248,12 @@ fn listen_tcp(
             }
             #[cfg(unix)]
             AddressOrFd::Fd(f) => {
-                use super::unix::{listen_from_fd,ListenFromFdType};
+                use super::unix1::{listen_from_fd,ListenFromFdType};
                 unsafe{listen_from_fd(f, opts.fd_force.then_some(ListenFromFdType::Tcp), Some(ListenFromFdType::Tcp))}?.unwrap_tcp()
             }
             #[cfg(unix)]
             AddressOrFd::NamedFd(f) => {
-                use super::unix::{listen_from_fd_named,ListenFromFdType};
+                use super::unix1::{listen_from_fd_named,ListenFromFdType};
                 unsafe{listen_from_fd_named(&f, opts.fd_force.then_some(ListenFromFdType::Tcp), Some(ListenFromFdType::Tcp))}?.unwrap_tcp()
             }
         };
