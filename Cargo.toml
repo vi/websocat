@@ -61,3 +61,6 @@ vendored_openssl = ["native-tls/vendored"]
 less_logs=["tracing/max_level_info"]
 ioful_tests=[]
 online_tests=[]
+
+[dev-dependencies]
+assert_cmd = "2.0.16"
