@@ -1,5 +1,5 @@
 # Build stage
-FROM rust:1.72-alpine3.18 AS cargo-build
+FROM rust:1.80.1-alpine3.20 AS cargo-build
 
 RUN apk add --no-cache musl-dev pkgconfig openssl-dev
 
@@ -19,7 +19,7 @@ RUN cargo build --release $CARGO_OPTS && \
     strip target/release/websocat
 
 # Final stage
-FROM alpine:3.18
+FROM alpine:3.20
 
 RUN apk add --no-cache libgcc
 
