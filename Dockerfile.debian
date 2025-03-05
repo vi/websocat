@@ -1,5 +1,5 @@
 # Build stage
-FROM rust:1.72.1-bookworm AS cargo-build
+FROM rust:1.80.1-bookworm AS cargo-build
 
 RUN apt-get update
 RUN apt-get install -y libgcc-12-dev libc6-dev pkg-config libssl-dev
