@@ -272,3 +272,13 @@ impl SocketFd {
         None
     }
 }
+
+pub trait PollSemaphoreNew2 {
+    fn new2(permits: usize) -> Self;
+}
+
+impl PollSemaphoreNew2 for tokio_util::sync::PollSemaphore {
+    fn new2(permits: usize) -> Self {
+        tokio_util::sync::PollSemaphore::new(std::sync::Arc::new(tokio::sync::Semaphore::new(permits)))
+    }
+}

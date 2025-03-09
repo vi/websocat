@@ -13,10 +13,7 @@ use tokio_util::sync::PollSemaphore;
 use tracing::{debug, debug_span, trace};
 
 use crate::scenario_executor::{
-    scenario::ScenarioAccess,
-    types::StreamWrite,
-    utils1::{ExtractHandleOrFail, SimpleErr},
-    wsframer::{WsDecoder, WsEncoder},
+    scenario::ScenarioAccess, types::StreamWrite, utils1::{ExtractHandleOrFail, SimpleErr}, utils2::PollSemaphoreNew2, wsframer::{WsDecoder, WsEncoder}
 };
 
 use super::{
@@ -238,7 +235,7 @@ fn ws_wrap(
     } else {
         let shared_encoder = WsEncoderThatCoexistsWithPongs {
             inner: usual_encoder,
-            sem: PollSemaphore::new(Arc::new(tokio::sync::Semaphore::new(1))),
+            sem: PollSemaphore::new2(1),
         };
         let shared_encoder = Arc::new(Mutex::new(shared_encoder));
 

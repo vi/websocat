@@ -31,6 +31,7 @@ pub mod scenario_executor {
     pub mod trivials1;
     pub mod trivials2;
     pub mod trivials3;
+    pub mod dgtools1;
     pub mod types;
     pub mod udp;
     pub mod udpserver;
