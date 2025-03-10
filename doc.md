@@ -356,6 +356,7 @@ Short list of overlay prefixes:
   lines:
   log:
   read_chunk_limiter:
+  reuse-raw:
   chunks:
   tls:
   write_buffer:
@@ -591,6 +592,12 @@ Prefixes:
 * `l-seqpacket-fdname:`
 * `l-seqp-fdname:`
 * `seqp-l-fdname:`
+
+### SimpleReuserEndpoint
+
+Implementation detail of `reuse-raw:` overlay
+
+This endpoint cannot be directly specified as a prefix to a positional CLI argument, there may be some other way to access it.
 
 ### Stdio
 
@@ -850,6 +857,15 @@ test and debug trickier code paths in various overlays
 Prefixes:
 
 * `read_chunk_limiter:`
+
+### SimpleReuser
+
+Share underlying datagram connection between multiple outer users
+
+Prefixes:
+
+* `reuse-raw:`
+* `raw-reuse:`
 
 ### StreamChunks
 
@@ -1209,6 +1225,40 @@ Parameters:
 * flags (`i64`)
 
 Returns `()`
+
+## DatagramSocketSlot::send
+
+Put DatagramSocket into its slot, e.g. to initialize a reuser.
+
+Acts immediately and returns a dummy task just as a convenience (to make Rhai scripts typecheck).
+
+Parameters:
+
+* socket (`DatagramSocket`)
+
+Returns `Task`
+
+## SimpleReuser::connect
+
+Obtain a shared DatagramSocket pointing to the socket that was specified as `inner` into `simple_reuser` function.
+
+Returns `DatagramSocket`
+
+## SimpleReuserListener::maybe_init_then_connect
+
+Initialize a persistent, shared DatagramSocket connection available for multiple clients (or just obtain a handle to it)
+
+Parameters:
+
+* opts (`Dynamic`) - object map containing dynamic options to the function
+* initializer (`Fn(DatagramSocketSlot) -> Task`) - Callback that is called on first call of this function and skipped on the rest (unless `recover` is set and needed) The callback is supposed to send a DatagramSocket to the slot.
+* continuation (`Fn(DatagramSocket) -> Task`) - Callback that is called every time
+
+Returns `Task`
+
+Options:
+
+* recover (`bool`) - Do not cache failed connection attempts, retry initialisation if a new client arrive. Note that successful, but closed connections are not considered failed and that regard and will stay cached. (use autoreconnect to handle that case)
 
 ## TriggerableEvent::take_hangup
 
@@ -1941,6 +1991,26 @@ Parameters:
 * tasks (`Vec<Dynamic>`)
 
 Returns `Task`
+
+## simple_reuser
+
+Create object that multiplexes multiple DatagramSocket connections into one,
+forwarding inner reads to arbitrary outer readers.
+
+If inner socket disconnects, reuser will not attempt to reestablish the connection
+
+Parameters:
+
+* inner (`DatagramSocket`) - Datagram socket to multiplex connections to
+
+Returns `SimpleReuser`
+
+## simple_reuser_listener
+
+Create an inactive SimpleReuserListener.
+It becomes active when `maybe_init_then_connect` is called the first time
+
+Returns `SimpleReuserListener`
 
 ## sleep_ms
 

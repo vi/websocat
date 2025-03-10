@@ -38,6 +38,8 @@ impl WebsocatInvocation {
         self.left.fill_in_log_overlay_type();
         self.right.fill_in_log_overlay_type();
         self.maybe_insert_chunker();
+        self.left.maybe_process_reuser(vars, &mut self.beginning)?;
+        self.right.maybe_process_reuser(vars, &mut self.beginning)?;
         Ok(())
     }
 
@@ -340,6 +342,7 @@ impl SpecifierStack {
                 Overlay::WriteChunkLimiter => (),
                 Overlay::WriteBuffer => (),
                 Overlay::LengthPrefixedChunks => (),
+                Overlay::SimpleReuser => (),
             }
         }
         if let Some(i) = index {
@@ -391,6 +394,7 @@ impl SpecifierStack {
                 Endpoint::RegistryStreamListen(_) => false,
                 Endpoint::RegistryStreamConnect(_) => false,
                 Endpoint::AsyncFd(_) => true,
+                Endpoint::SimpleReuserEndpoint(..) => false,
             };
             if do_insert {
                 // datagram mode may be patched later
@@ -403,6 +407,46 @@ impl SpecifierStack {
             }
             do_insert
         }
+    }
+
+    fn maybe_process_reuser(
+        &mut self,
+        vars: &mut IdentifierGenerator,
+        beginnings: &mut Vec<PreparatoryAction>,
+    ) -> anyhow::Result<()> {
+        let mut the_index = None;
+        for (i, ovl) in self.overlays.iter().enumerate() {
+            match ovl {
+                Overlay::SimpleReuser => {
+                    the_index = Some(i);
+                    break;
+                }
+                _ => (),
+            }
+        }
+
+        if let Some(i) = the_index {
+            let mut switcheroo = Box::new(SpecifierStack {
+                innermost: Endpoint::DummyDatagrams, // temporary
+                overlays: vec![],                    // temporary
+            });
+            std::mem::swap(self, &mut switcheroo);
+
+            // Preserve overlays specified before `reuse:`
+            self.overlays = Vec::from_iter(switcheroo.overlays.drain(i + 1..));
+            // Remove `reuse:` overlay itself, now that it has been turned into an endpoint
+            switcheroo.overlays.remove(i);
+
+            let varname = vars.getnewvarname("reuser");
+            beginnings.push(PreparatoryAction::CreateSimpleReuserListener {
+                varname_for_reuser: varname.clone(),
+            });
+            self.innermost = Endpoint::SimpleReuserEndpoint(varname, switcheroo);
+
+            // continue substituting other, nested reusers, if any
+            self.maybe_process_reuser(vars, beginnings)?;
+        }
+        Ok(())
     }
 }
 
@@ -470,6 +514,7 @@ impl Endpoint {
             Endpoint::RegistryStreamListen(_) => CopyingType::ByteStream,
             Endpoint::RegistryStreamConnect(_) => CopyingType::ByteStream,
             Endpoint::AsyncFd(_) => CopyingType::ByteStream,
+            Endpoint::SimpleReuserEndpoint(..) => CopyingType::Datarams,
         }
     }
 }
@@ -496,6 +541,7 @@ impl Overlay {
             Overlay::WriteChunkLimiter => CopyingType::ByteStream,
             Overlay::WriteBuffer => CopyingType::ByteStream,
             Overlay::LengthPrefixedChunks => CopyingType::Datarams,
+            Overlay::SimpleReuser => CopyingType::Datarams,
         }
     }
 }

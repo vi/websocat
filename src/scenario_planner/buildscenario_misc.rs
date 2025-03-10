@@ -37,6 +37,11 @@ impl PreparatoryAction {
                     ));
                 }
             }
+            PreparatoryAction::CreateSimpleReuserListener { varname_for_reuser } => {
+                printer.print_line(&format!(
+                    "let {varname_for_reuser} = simple_reuser_listener();"
+                ));
+            }
         }
         Ok(())
     }
@@ -47,6 +52,7 @@ impl PreparatoryAction {
                 printer.print_line("})");
             }
             PreparatoryAction::CreateTlsConnector { .. } => (),
+            PreparatoryAction::CreateSimpleReuserListener { .. } => (),
         }
     }
 }

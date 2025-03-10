@@ -153,7 +153,7 @@ fn put_hangup_part(ctx: NativeCallContext, h: Dynamic, x: Handle<Hangup>) -> RhR
 }
 
 //@ A task that immediately finishes
-fn dummytask() -> Handle<Task> {
+pub fn dummytask() -> Handle<Task> {
     async move {}.wrap_noerr()
 }
 

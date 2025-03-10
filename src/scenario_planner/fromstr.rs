@@ -420,6 +420,11 @@ impl ParseStrChunkResult<'_> {
             Ok(ParseStrChunkResult::Endpoint(
                 Endpoint::RegistryStreamConnect(s.to_owned()),
             ))
+        } else if let Some(rest) = x.strip_prefix_many(&["reuse-raw:", "raw-reuse:"]) {
+            Ok(ParseStrChunkResult::Overlay {
+                ovl: Overlay::SimpleReuser,
+                rest,
+            })
         } else {
             anyhow::bail!("Unknown specifier: {x:?}")
         }

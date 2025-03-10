@@ -126,3 +126,5 @@ pub type UniversalChannel = (flume::Sender<rhai::Dynamic>, flume::Receiver<rhai:
 
 #[derive(Debug, Clone, Default)]
 pub struct Registry(pub(super) Arc<Mutex<std::collections::HashMap<String, UniversalChannel>>>);
+
+pub type DatagramSocketSlot = tokio::sync::oneshot::Sender<DatagramSocket>;

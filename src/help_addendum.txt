@@ -42,6 +42,7 @@ Short list of overlay prefixes:
   lines:
   log:
   read_chunk_limiter:
+  reuse-raw:
   chunks:
   tls:
   write_buffer:

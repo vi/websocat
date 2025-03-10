@@ -13,7 +13,11 @@ use tokio_util::sync::PollSemaphore;
 use tracing::{debug, debug_span, trace};
 
 use crate::scenario_executor::{
-    scenario::ScenarioAccess, types::StreamWrite, utils1::{ExtractHandleOrFail, SimpleErr}, utils2::PollSemaphoreNew2, wsframer::{WsDecoder, WsEncoder}
+    scenario::ScenarioAccess,
+    types::StreamWrite,
+    utils1::{ExtractHandleOrFail, SimpleErr},
+    utils2::PollSemaphoreNew2,
+    wsframer::{WsDecoder, WsEncoder},
 };
 
 use super::{

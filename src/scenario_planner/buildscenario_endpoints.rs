@@ -112,6 +112,25 @@ impl Endpoint {
                 printer.increase_indent();
                 Ok(varnam)
             }
+            Endpoint::SimpleReuserEndpoint(varname, specifier_stack) => {
+                let slot = vars.getnewvarname("slot");
+                let conn = vars.getnewvarname("reuseconn");
+                printer.print_line(&format!(
+                    "{varname}.maybe_init_then_connect(#{{recover: true}}, |{slot}| {{"
+                ));
+                printer.increase_indent();
+
+                let x = specifier_stack.begin_print(printer, vars, opts)?;
+
+                printer.print_line(&format!("{slot}.send({x})"));
+
+                specifier_stack.end_print(printer, vars, opts)?;
+
+                printer.decrease_indent();
+                printer.print_line(&format!("}}, |{conn}| {{"));
+                printer.increase_indent();
+                Ok(conn)
+            }
         }
     }
 
@@ -154,6 +173,10 @@ impl Endpoint {
             | Endpoint::AbstractSeqpacketListen(_) => self.end_print_unix(printer),
             Endpoint::MockStreamSocket(_) => {}
             Endpoint::RegistryStreamListen(_) | Endpoint::RegistryStreamConnect(_) => {
+                printer.decrease_indent();
+                printer.print_line("})");
+            }
+            Endpoint::SimpleReuserEndpoint(..) => {
                 printer.decrease_indent();
                 printer.print_line("})");
             }

@@ -150,6 +150,9 @@ impl Overlay {
                 ));
                 Ok(inner_var.to_owned())
             }
+            Overlay::SimpleReuser => {
+                panic!("SimpleReuser is not supposed to emit scenario chunk as an overlay")
+            }
         }
     }
     pub(super) fn end_print(&self, printer: &mut ScenarioPrinter) {
@@ -170,6 +173,9 @@ impl Overlay {
             Overlay::ReadChunkLimiter => (),
             Overlay::WriteChunkLimiter => (),
             Overlay::WriteBuffer => (),
+            Overlay::SimpleReuser => {
+                panic!("SimpleReuser is not supposed to emit scenario chunk as an overlay")
+            }
         }
     }
 }

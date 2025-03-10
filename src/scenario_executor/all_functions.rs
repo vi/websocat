@@ -2,15 +2,16 @@ use std::net::SocketAddr;
 
 use rhai::{Dynamic, Engine};
 
+use super::dgtools1::{SimpleReuser, SimpleReuserListener};
 use super::http1::{
     Http1Client, IncomingRequest, IncomingResponse, OutgoingRequest, OutgoingResponse,
 };
 use super::trivials3::{TriggerableEvent, TriggerableEventTrigger};
+use super::types::DatagramSocketSlot;
 use super::types::{
     DatagramRead, DatagramSocket, DatagramWrite, Handle, Hangup, StreamRead, StreamSocket,
     StreamWrite, Task,
 };
-use super::dgtools1::SimpleReuser;
 use std::ffi::OsString;
 use tokio::process::{Child, Command};
 
@@ -69,6 +70,8 @@ macro_rules! all_types {
         $x!(TriggerableEventTrigger);
         $x!(SocketAddr);
         $x!(SimpleReuser);
+        $x!(SimpleReuserListener);
+        $x!(DatagramSocketSlot);
     };
 }
 

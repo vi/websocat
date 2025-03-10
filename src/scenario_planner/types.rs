@@ -122,6 +122,9 @@ pub enum Endpoint {
     RegistryStreamListen(String),
     //@ Connect to a virtual intra-Websocat address using stream socket
     RegistryStreamConnect(String),
+
+    //@ Implementation detail of `reuse-raw:` overlay
+    SimpleReuserEndpoint(String, Box<SpecifierStack>),
 }
 
 #[derive(Debug)]
@@ -184,6 +187,8 @@ pub enum Overlay {
     WriteChunkLimiter,
     //@ Insert write buffering layer that combines multiple write calls to one bigger
     WriteBuffer,
+    //@ Share underlying datagram connection between multiple outer users
+    SimpleReuser,
 }
 
 #[derive(Debug)]
@@ -201,6 +206,9 @@ pub enum PreparatoryAction {
     },
     CreateTlsConnector {
         varname_for_connector: String,
+    },
+    CreateSimpleReuserListener {
+        varname_for_reuser: String,
     },
 }
 

@@ -1,6 +1,8 @@
+use crate::cli::WebsocatArgs;
+
 use super::{
     scenarioprinter::ScenarioPrinter,
-    types::{CopyingType, Endpoint, WebsocatInvocation},
+    types::{CopyingType, Endpoint, SpecifierStack, WebsocatInvocation},
     utils::IdentifierGenerator,
 };
 
@@ -8,8 +10,8 @@ impl WebsocatInvocation {
     pub fn build_scenario(self, vars: &mut IdentifierGenerator) -> anyhow::Result<String> {
         let mut printer = ScenarioPrinter::new();
 
-        let mut left: String;
-        let mut right: String;
+        let left: String;
+        let right: String;
 
         if let Some(_tmo) = self.opts.global_timeout_ms {
             printer.print_line("race([{");
@@ -20,23 +22,8 @@ impl WebsocatInvocation {
             prepare_action.begin_print(&mut printer, &self.opts, vars)?;
         }
 
-        left = self
-            .left
-            .innermost
-            .begin_print(&mut printer, vars, &self.opts)?;
-
-        for ovl in &self.left.overlays {
-            left = ovl.begin_print(&mut printer, &left, vars, &self.opts)?;
-        }
-
-        right = self
-            .right
-            .innermost
-            .begin_print(&mut printer, vars, &self.opts)?;
-
-        for ovl in &self.right.overlays {
-            right = ovl.begin_print(&mut printer, &right, vars, &self.opts)?;
-        }
+        left = self.left.begin_print(&mut printer, vars, &self.opts)?;
+        right = self.right.begin_print(&mut printer, vars, &self.opts)?;
 
         if self.opts.exit_on_hangup {
             printer.print_line(&format!(
@@ -129,17 +116,8 @@ impl WebsocatInvocation {
             printer.decrease_indent();
         }
 
-        for ovl in self.right.overlays.iter().rev() {
-            ovl.end_print(&mut printer);
-        }
-
-        self.right.innermost.end_print(&mut printer, &self.opts);
-
-        for ovl in self.left.overlays.iter().rev() {
-            ovl.end_print(&mut printer);
-        }
-
-        self.left.innermost.end_print(&mut printer, &self.opts);
+        self.right.end_print(&mut printer, vars, &self.opts)?;
+        self.left.end_print(&mut printer, vars, &self.opts)?;
 
         for prepare_action in self.beginning.iter().rev() {
             prepare_action.end_print(&mut printer);
@@ -158,5 +136,37 @@ impl WebsocatInvocation {
         }
 
         Ok(printer.into_result())
+    }
+}
+
+impl SpecifierStack {
+    pub(super) fn begin_print(
+        &self,
+        printer: &mut ScenarioPrinter,
+        vars: &mut IdentifierGenerator,
+        opts: &WebsocatArgs,
+    ) -> anyhow::Result<String> {
+        let mut x: String = self.innermost.begin_print(printer, vars, opts)?;
+
+        for ovl in &self.overlays {
+            x = ovl.begin_print(printer, &x, vars, opts)?;
+        }
+
+        Ok(x)
+    }
+
+    pub(super) fn end_print(
+        &self,
+        printer: &mut ScenarioPrinter,
+        _vars: &mut IdentifierGenerator,
+        opts: &WebsocatArgs,
+    ) -> anyhow::Result<()> {
+        for ovl in self.overlays.iter().rev() {
+            ovl.end_print(printer);
+        }
+
+        self.innermost.end_print(printer, opts);
+
+        Ok(())
     }
 }
