@@ -14,7 +14,6 @@ pub mod scenario_executor {
     pub mod copydata;
 
     pub mod debugfluff;
-    pub mod reuser;
     pub mod fluff;
     pub mod http1;
     pub mod lengthprefixed;
@@ -26,6 +25,7 @@ pub mod scenario_executor {
     pub mod nativetls;
     pub mod osstr;
     pub mod registryconnectors;
+    pub mod reuser;
     pub mod scenario;
     pub mod subprocess;
     pub mod tcp;

@@ -87,6 +87,7 @@ pub async fn test_two_websocats(s1: &str, s2: &str, wait_ms: u64) {
 }
 
 pub async fn test_three_websocats(s1: &str, s2: &str, s3: &str, wait1_ms: u64, wait2_ms: u64) {
+    //tracing_subscriber::fmt::init();
     let mut argv1: Vec<OsString> = vec!["websocat".into()];
     argv1.extend(shlex::split(s1).unwrap().into_iter().map(|x| x.into()));
     let mut argv2: Vec<OsString> = vec!["websocat".into()];
@@ -176,7 +177,6 @@ macro_rules! t3w {
         }
     };
 }
-
 
 #[macro_export]
 macro_rules! t3w_p {

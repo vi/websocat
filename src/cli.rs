@@ -411,4 +411,8 @@ pub struct WebsocatArgs {
     /// Show dedicated error message explaining how to migrate Websocat1's --accpet-from-fd to the new scheme
     #[arg(long)]
     pub accept_from_fd: bool,
+
+    /// When using `reuse-raw:` (including automatically inserted), do not abort connections on unrecoverable broken messages
+    #[arg(long)]
+    pub reuser_tolerate_torn_msgs: bool,
 }

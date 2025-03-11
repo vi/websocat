@@ -115,8 +115,9 @@ impl Endpoint {
             Endpoint::SimpleReuserEndpoint(varname, specifier_stack) => {
                 let slot = vars.getnewvarname("slot");
                 let conn = vars.getnewvarname("reuseconn");
+                let strict_mode = !opts.reuser_tolerate_torn_msgs;
                 printer.print_line(&format!(
-                    "{varname}.maybe_init_then_connect(#{{recover: true}}, |{slot}| {{"
+                    "{varname}.maybe_init_then_connect(#{{connect_again: true, disconnect_on_broken_message: {strict_mode}}}, |{slot}| {{"
                 ));
                 printer.increase_indent();
 

@@ -9,7 +9,7 @@ use futures::FutureExt;
 use rhai::{Dynamic, Engine, FnPtr, NativeCallContext};
 use tokio::sync::OwnedSemaphorePermit;
 use tokio_util::sync::PollSemaphore;
-use tracing::{debug, debug_span, Instrument};
+use tracing::{debug, debug_span, warn, Instrument};
 
 use crate::scenario_executor::{
     scenario::{callback_and_continue, ScenarioAccess},
@@ -30,6 +30,10 @@ pub struct SimpleReuser {
     w_sem: PollSemaphore,
     r_sem: PollSemaphore,
     shared_close_notifier: Option<futures::future::Shared<Hangup>>,
+    disconnect_on_torn_datagram: bool,
+    reading_message_in_progress: bool,
+    writing_message_in_progress: Option<BufferFlags>,
+    writing_closed: bool,
 }
 
 enum SimpleReuserListenerInner {
@@ -43,6 +47,8 @@ pub struct SimpleReuserListener(Arc<tokio::sync::Mutex<SimpleReuserListenerInner
 struct SimpleReuserWriter {
     inner: Handle<SimpleReuser>,
     w_sem_permit: Option<OwnedSemaphorePermit>,
+    torn_message_measures: bool,
+    closemsg: Option<Box<[u8; 97]>>,
 }
 
 impl PacketWrite for SimpleReuserWriter {
@@ -59,8 +65,12 @@ impl PacketWrite for SimpleReuserWriter {
             return Poll::Ready(Err(ErrorKind::ConnectionReset.into()));
         };
 
+        if inner.writing_closed {
+            return Poll::Ready(Err(ErrorKind::ConnectionReset.into()));
+        }
+
         if flags.contains(BufferFlag::Eof) {
-            // do not propagate client disconnections to the reuser
+            // do not propagate client disconnections to the reuser's inner socket
             debug!("reuser client's disconnect");
             return Poll::Ready(Ok(()));
         }
@@ -70,14 +80,60 @@ impl PacketWrite for SimpleReuserWriter {
                 None => return Poll::Ready(Err(ErrorKind::ConnectionReset.into())),
                 Some(p) => this.w_sem_permit = Some(p),
             }
+            if inner.writing_message_in_progress.is_some() {
+                // semaphore was released by other client without resetting
+                // `writing_message_in_progress` back to `false`.
+                //
+                // This means other client abruptly disconnected
+                // while writing a chunked message without finishing it
+                // properly.
+
+                if inner.disconnect_on_torn_datagram {
+                    warn!("Shutting down writing to the reuser because of a broken message. Use --reuser-tolerate-torn-msgs flag to prefer mangled messages instead of disconnections.");
+                    this.torn_message_measures = true;
+                } else {
+                    warn!("Abrupt client disconnection caused a mangled message to be delivered to reuser's inner socket");
+                    this.torn_message_measures = true;
+                    return Poll::Ready(Err(ErrorKind::ConnectionReset.into()));
+                }
+            }
         }
 
         let Some(ref mut w) = inner.inner.write else {
             return Poll::Ready(Err(ErrorKind::ConnectionReset.into()));
         };
 
+        if this.torn_message_measures {
+            if inner.disconnect_on_torn_datagram {
+                if this.closemsg.is_none() {
+                    this.closemsg = Some(Box::new(*b"Partially written message to Websocat's `reuse-raw:` prevents further messages in this connection"));
+                }
+
+                ready!(PacketWrite::poll_write(
+                    w.snk.as_mut(),
+                    cx,
+                    &mut this.closemsg.as_mut().unwrap()[..],
+                    BufferFlag::Eof.into()
+                ))?;
+                inner.writing_closed = true;
+            } else {
+                let mut flags = inner.writing_message_in_progress.unwrap();
+                flags -= BufferFlag::NonFinalChunk;
+                ready!(PacketWrite::poll_write(w.snk.as_mut(), cx, &mut [], flags))?;
+            }
+            inner.writing_message_in_progress = None;
+            this.torn_message_measures = false;
+            this.closemsg = None;
+        }
+
         let ret = ready!(PacketWrite::poll_write(w.snk.as_mut(), cx, buf, flags));
-        this.w_sem_permit = None;
+
+        if flags.contains(BufferFlag::NonFinalChunk) {
+            inner.writing_message_in_progress = Some(flags);
+        } else {
+            inner.writing_message_in_progress = None;
+            this.w_sem_permit = None;
+        }
 
         Poll::Ready(ret)
     }
@@ -86,6 +142,10 @@ impl PacketWrite for SimpleReuserWriter {
 struct SimpleReuserReader {
     inner: Handle<SimpleReuser>,
     r_sem_permit: Option<OwnedSemaphorePermit>,
+    /// We have encountered a fragment of a message partially delivered
+    /// to other client and need to discard the remaining fragments of it prior
+    /// to reading the next message
+    discard_this_message: bool,
 }
 
 impl PacketRead for SimpleReuserReader {
@@ -100,11 +160,16 @@ impl PacketRead for SimpleReuserReader {
         let Some(inner) = inner.as_mut() else {
             return Poll::Ready(Err(ErrorKind::ConnectionReset.into()));
         };
-        
+
         if this.r_sem_permit.is_none() {
             match ready!(inner.r_sem.poll_acquire(cx)) {
                 None => return Poll::Ready(Err(ErrorKind::ConnectionReset.into())),
                 Some(p) => this.r_sem_permit = Some(p),
+            }
+
+            if inner.reading_message_in_progress {
+                debug!("Discarding the remains of a half-delivered message");
+                this.discard_this_message = true;
             }
         }
 
@@ -112,17 +177,35 @@ impl PacketRead for SimpleReuserReader {
             return Poll::Ready(Err(ErrorKind::ConnectionReset.into()));
         };
 
-        let ret = ready!(PacketRead::poll_read(r.src.as_mut(), cx, buf,));
+        loop {
+            let ret = ready!(PacketRead::poll_read(r.src.as_mut(), cx, buf,));
 
-        if let Ok(ref ret) = ret {
-            if ret.flags.contains(BufferFlag::NonFinalChunk) {
-                // TODO
+            if let Ok(ref ret) = ret {
+                match (
+                    this.discard_this_message,
+                    ret.flags.contains(BufferFlag::NonFinalChunk),
+                ) {
+                    (true, false) => {
+                        this.discard_this_message = false;
+                        continue;
+                    }
+                    (true, true) => {
+                        continue;
+                    }
+                    (false, true) => {
+                        inner.reading_message_in_progress = true;
+                        // do not release the semaphore permit yet
+                        return Poll::Ready(Ok(ret.clone()));
+                    }
+                    (false, false) => {
+                        inner.reading_message_in_progress = false;
+                        this.r_sem_permit = None;
+
+                        return Poll::Ready(Ok(ret.clone()));
+                    }
+                }
             }
         }
-
-        this.r_sem_permit = None;
-
-        Poll::Ready(ret)
     }
 }
 
@@ -135,13 +218,20 @@ fn simple_reuser_listener() -> RhResult<Handle<SimpleReuserListener>> {
     .wrap())
 }
 
-fn simple_reuser_inner(mut inner: DatagramSocket) -> Handle<SimpleReuser> {
+fn simple_reuser_inner(
+    mut inner: DatagramSocket,
+    disconnect_on_torn_datagram: bool,
+) -> Handle<SimpleReuser> {
     let shared_close_notifier = inner.close.take().map(|x| x.shared());
     let reuser = SimpleReuser {
         inner,
         w_sem: PollSemaphore::new2(1),
         r_sem: PollSemaphore::new2(1),
         shared_close_notifier,
+        disconnect_on_torn_datagram,
+        reading_message_in_progress: false,
+        writing_message_in_progress: None,
+        writing_closed: false,
     };
 
     Some(reuser).wrap()
@@ -155,9 +245,13 @@ fn simple_reuser(
     ctx: NativeCallContext,
     //@ Datagram socket to multiplex connections to
     inner: Handle<DatagramSocket>,
+    //@ Drop inner connection when user begins writing a message, but leaves before finishing it,
+    //@ leaving inner connection with incomplete message that cannot ever be completed.
+    //@ If `false`, the reuser would commit the torn message and continue processing.
+    disconnect_on_torn_datagram: bool,
 ) -> RhResult<Handle<SimpleReuser>> {
     let inner = ctx.lutbar(inner)?;
-    Ok(simple_reuser_inner(inner))
+    Ok(simple_reuser_inner(inner, disconnect_on_torn_datagram))
 }
 
 fn simple_reuser_connect_inner<E>(
@@ -174,11 +268,14 @@ fn simple_reuser_connect_inner<E>(
     let r = SimpleReuserReader {
         inner: r1,
         r_sem_permit: None,
+        discard_this_message: false,
     };
 
     let w = SimpleReuserWriter {
         inner: r2,
         w_sem_permit: None,
+        torn_message_measures: false,
+        closemsg: None,
     };
 
     let close = reuser
@@ -225,7 +322,11 @@ fn simple_reuser_listener_maybe_init_then_connect(
         //@ Note that successful, but closed connections are not considered failed and that regard and will stay cached.
         //@ (use autoreconnect to handle that case)
         #[serde(default)]
-        recover: bool,
+        connect_again: bool,
+
+        //@ Drop underlying connection if some client leaves in the middle of writing a message, leaving us with unrecoverably broken message.
+        #[serde(default)]
+        disconnect_on_broken_message: bool,
     }
     let opts: Opts = rhai::serde::from_dynamic(&opts)?;
     debug!(parent: &span, "options parsed");
@@ -245,7 +346,7 @@ fn simple_reuser_listener_maybe_init_then_connect(
         let mut gg = gg.lock().await;
 
         match *gg {
-            SimpleReuserListenerInner::Failed if !opts.recover => {
+            SimpleReuserListenerInner::Failed if !opts.connect_again => {
                 anyhow::bail!("This reuser previously failed initialisation");
             }
             SimpleReuserListenerInner::Active(ref mutex) => {
@@ -282,7 +383,7 @@ fn simple_reuser_listener_maybe_init_then_connect(
                     Ok(s) => {
                         debug!("reuser initialisastion finished");
 
-                        let rh = simple_reuser_inner(s);
+                        let rh = simple_reuser_inner(s, opts.disconnect_on_broken_message);
                         let rh2 = rh.clone();
 
                         *gg = SimpleReuserListenerInner::Active(rh2);

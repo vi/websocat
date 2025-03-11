@@ -187,7 +187,15 @@ pub enum Overlay {
     WriteChunkLimiter,
     //@ Insert write buffering layer that combines multiple write calls to one bigger
     WriteBuffer,
-    //@ Share underlying datagram connection between multiple outer users
+    //@ Share underlying datagram connection between multiple outer users.
+    //@
+    //@ All users can write messages to the socket, messages would be interleaved
+    //@ (though each individual message should be atomic).
+    //@ Messages coming from inner socket will be delivered to some one arbitrary connected user.
+    //@ If that users disconnect, they will route to some other user.
+    //@ A message can be lost when user disconnects.
+    //@ User disconnections while writing a message may abort the whole reuser
+    //@ (or result in a broken, trimmed message, depending on settings).
     SimpleReuser,
 }
 

@@ -2,10 +2,10 @@ use std::net::SocketAddr;
 
 use rhai::{Dynamic, Engine};
 
-use super::reuser::{SimpleReuser, SimpleReuserListener};
 use super::http1::{
     Http1Client, IncomingRequest, IncomingResponse, OutgoingRequest, OutgoingResponse,
 };
+use super::reuser::{SimpleReuser, SimpleReuserListener};
 use super::trivials3::{TriggerableEvent, TriggerableEventTrigger};
 use super::types::DatagramSocketSlot;
 use super::types::{

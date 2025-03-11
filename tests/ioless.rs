@@ -155,3 +155,31 @@ t3w_p!(reuser6,r#"-b --global-timeout-ms=5000 -E chunks:registry-stream-listen: 
 t3w_p!(reuser7,r#"-b --global-timeout-ms=5000 -E chunks:registry-stream-listen: reuse-raw:chunks:mock_stream_socket:'T6|R 123'"#,
             r#"-b --global-timeout-ms=50 chunks:registry-stream-connect: chunks:mock_stream_socket:''"#,
             r#"-b --global-timeout-ms=2000 chunks:registry-stream-connect: chunks:mock_stream_socket:'W 123'"#);
+t3w_p!(reuser_torn1,r#"-b --global-timeout-ms=5000 --lengthprefixed-nbytes=1 --lengthprefixed-continuations -E 
+                      chunks:registry-stream-listen: reuse-raw:lengthprefixed:mock_stream_socket:'R \x03AAA|T6|R \x03BBB|R \x03CCC'"#,
+            r#"-b --global-timeout-ms=50 chunks:registry-stream-connect: chunks:mock_stream_socket:'W AAA'"#,
+            r#"-b --global-timeout-ms=2000 chunks:registry-stream-connect: chunks:mock_stream_socket:'W BBB|W CCC'"#);
+t3w_p!(reuser_torn2,r#"-b --global-timeout-ms=5000 --lengthprefixed-nbytes=1 --lengthprefixed-continuations -E 
+                      chunks:registry-stream-listen: reuse-raw:lengthprefixed:mock_stream_socket:'R \x83AAA|T6|R \x03BBB|R \x03CCC'"#,
+            r#"-b --global-timeout-ms=50 chunks:registry-stream-connect: chunks:mock_stream_socket:'W AAA'"#,
+            r#"-b --global-timeout-ms=2000 chunks:registry-stream-connect: chunks:mock_stream_socket:'W CCC'"#);
+t3w_p!(reuser_torn3,r#"-b --global-timeout-ms=5000 --lengthprefixed-nbytes=1 --lengthprefixed-continuations -u
+                      lengthprefixed:registry-stream-listen: reuse-raw:lengthprefixed:mock_stream_socket:'W \x03AAA|W \x03BBB|W \x02CC|W \x02DD|W \x01E|W \x01F'"#,
+            r#"-b --global-timeout-ms=2000 -U registry-stream-connect: mock_stream_socket:'R \x03AAA|T5|R \x02CC|T5|R \x01E'"#,
+            r#"-b --global-timeout-ms=2000 -U registry-stream-connect: mock_stream_socket:'R \x03BBB|T5|R \x02DD|T5|R \x01F'"#);
+t3w_p!(reuser_torn4,r#"-b --global-timeout-ms=5000 --lengthprefixed-nbytes=1 --lengthprefixed-continuations -u
+                      lengthprefixed:registry-stream-listen: reuse-raw:lengthprefixed:mock_stream_socket:'W \x83AAA|W \x02CC|W \x83BBB|W \x02DD|W \x01E|W \x01F'"#,
+            r#"-b --global-timeout-ms=2000 -U registry-stream-connect: mock_stream_socket:'R \x83AAA|T5|R \x02CC|T5|R \x01E'"#,
+            r#"-b --global-timeout-ms=2000 -U registry-stream-connect: mock_stream_socket:'R \x83BBB|T5|R \x02DD|T5|R \x01F'"#);
+t3w_p!(reuser_torn5,r#"-b --global-timeout-ms=5000 --lengthprefixed-nbytes=1 --lengthprefixed-continuations -u
+                      lengthprefixed:registry-stream-listen: reuse-raw:lengthprefixed:mock_stream_socket:'W \x83AAA|W \x82CC|W \x01E|W \x83BBB|W \x02DD|W \x01F'"#,
+            r#"-b --global-timeout-ms=2000 -U registry-stream-connect: mock_stream_socket:'R \x83AAA|T5|R \x82CC|T5|R \x01E'"#,
+            r#"-b --global-timeout-ms=2000 -U registry-stream-connect: mock_stream_socket:'R \x83BBB|T5|R \x02DD|T5|R \x01F'"#);
+t3w_p!(reuser_torn6,r#"-b --global-timeout-ms=5000 --lengthprefixed-nbytes=2 --lengthprefixed-include-control --lengthprefixed-continuations -u
+                      lengthprefixed:registry-stream-listen: reuse-raw:lengthprefixed:mock_stream_socket:'W \x80\x03AAA|W \x80\x02CC'"#,
+            r#"-b --global-timeout-ms=2000 -U registry-stream-connect: mock_stream_socket:'R \x80\x03AAA|T5|R \x80\x02CC'"#,
+            r#"-b --global-timeout-ms=3000 -U registry-stream-connect: mock_stream_socket:'R \x80\x03BBB|T5|R \x00\x02DD|T5|R \x00\x01F'"#);
+/*t3w_p!(reuser_torn7,r#"-b --global-timeout-ms=5000 --lengthprefixed-nbytes=1 --lengthprefixed-continuations -u --reuser-tolerate-torn-msgs
+                      lengthprefixed:registry-stream-listen: reuse-raw:lengthprefixed:mock_stream_socket:'W \x83AAA|W \x82CC|W \x00|W \x83BBB\x02DD\x01F'"#,
+            r#"-b --global-timeout-ms=2000 -U registry-stream-connect: mock_stream_socket:'R \x83AAA|T5|R \x82CC'"#,
+            r#"-b --global-timeout-ms=2000 -U registry-stream-connect: mock_stream_socket:'R \x83BBB|T5|R \x02DD|T5|R \x01F'"#);*/
