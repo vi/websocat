@@ -2,7 +2,7 @@ use std::net::SocketAddr;
 
 use rhai::{Dynamic, Engine};
 
-use super::dgtools1::{SimpleReuser, SimpleReuserListener};
+use super::reuser::{SimpleReuser, SimpleReuserListener};
 use super::http1::{
     Http1Client, IncomingRequest, IncomingResponse, OutgoingRequest, OutgoingResponse,
 };
@@ -20,7 +20,7 @@ pub fn register_functions(engine: &mut Engine) {
     super::trivials1::register(engine);
     super::trivials2::register(engine);
     super::trivials3::register(engine);
-    super::dgtools1::register(engine);
+    super::reuser::register(engine);
     super::linemode::register(engine);
     super::lengthprefixed::register(engine);
     super::logoverlay::register(engine);

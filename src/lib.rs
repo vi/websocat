@@ -14,7 +14,7 @@ pub mod scenario_executor {
     pub mod copydata;
 
     pub mod debugfluff;
-    pub mod dgtools1;
+    pub mod reuser;
     pub mod fluff;
     pub mod http1;
     pub mod lengthprefixed;

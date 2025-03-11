@@ -177,6 +177,17 @@ macro_rules! t3w {
     };
 }
 
+
+#[macro_export]
+macro_rules! t3w_p {
+    ($n:ident, $x:literal, $y:literal, $z:literal $(,)?) => {
+        #[tokio::test(start_paused = true)]
+        async fn $n() {
+            websocat::test_utils::test_three_websocats($x, $y, $z, 50, 10).await;
+        }
+    };
+}
+
 #[macro_export]
 macro_rules! t_unix {
     ($n:ident, $x:literal $(,)?) => {

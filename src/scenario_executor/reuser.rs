@@ -58,6 +58,13 @@ impl PacketWrite for SimpleReuserWriter {
         let Some(inner) = inner.as_mut() else {
             return Poll::Ready(Err(ErrorKind::ConnectionReset.into()));
         };
+
+        if flags.contains(BufferFlag::Eof) {
+            // do not propagate client disconnections to the reuser
+            debug!("reuser client's disconnect");
+            return Poll::Ready(Ok(()));
+        }
+
         if this.w_sem_permit.is_none() {
             match ready!(inner.w_sem.poll_acquire(cx)) {
                 None => return Poll::Ready(Err(ErrorKind::ConnectionReset.into())),
@@ -93,6 +100,7 @@ impl PacketRead for SimpleReuserReader {
         let Some(inner) = inner.as_mut() else {
             return Poll::Ready(Err(ErrorKind::ConnectionReset.into()));
         };
+        
         if this.r_sem_permit.is_none() {
             match ready!(inner.r_sem.poll_acquire(cx)) {
                 None => return Poll::Ready(Err(ErrorKind::ConnectionReset.into())),

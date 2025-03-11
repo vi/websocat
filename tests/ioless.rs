@@ -1,4 +1,4 @@
-use websocat::{t,t2};
+use websocat::{t,t2,t3w_p};
 
 t!(dummy, "-b dummy: dummy:");
 t!(mock1, "-bU mock_stream_socket:'w ABC' mock_stream_socket:'r ABC'");
@@ -138,3 +138,20 @@ t!(linew5, r#"-ut
 t!(linew6, r#"-ut --separator-n=2
                     chunks:mock_stream_socket:'R abc|R def\n|R \nQWE\n\n| R 456\n678\n'
                     lines:write_chunk_limiter:mock_stream_socket:'W abc\n\n|W def\n\n|W QWE\n \n\n|W 456\n678\n\n'"#);
+
+
+t!(reuser1, r#"-b chunks:mock_stream_socket:'R abc|R def|W 123|W 456|R qwerty' reuse-raw:chunks:mock_stream_socket:'W abc|W def|R 123|R 456|W qwerty'"#);
+t!(reuser2, r#"-b chunks:mock_stream_socket:'W abc|R def|W 123|W 456|R qwerty' reuse-raw:chunks:mock_stream_socket:'R abc|W def|R 123|R 456|W qwerty'"#);
+t2!(reuser3,r#"-b --oneshot chunks:registry-stream-listen: reuse-raw:chunks:mock_stream_socket:'R abc|W def|R 123|R 456|W qwerty'"#,
+            r#"-b chunks:registry-stream-connect: chunks:mock_stream_socket:'W abc|R def|W 123|W 456|R qwerty'"#);
+t2!(reuser4,r#"-b --oneshot chunks:registry-stream-listen: reuse-raw:chunks:mock_stream_socket:'R abc|W def|R 123|R 456|W qwerty'"#,
+            r#"-b chunks:registry-stream-connect: chunks:mock_stream_socket:'W abc|R def|W 123|W 456|R qwerty'"#);
+t3w_p!(reuser5,r#"-b --global-timeout-ms=5000 chunks:registry-stream-listen: reuse-raw:chunks:mock_stream_socket:'W 123|W QWE|W 456'"#,
+            r#"-b chunks:registry-stream-connect: chunks:mock_stream_socket:'R 123|T5|R 456'"#,
+            r#"-b chunks:registry-stream-connect: chunks:mock_stream_socket:'R QWE'"#);
+t3w_p!(reuser6,r#"-b --global-timeout-ms=5000 -E chunks:registry-stream-listen: reuse-raw:chunks:mock_stream_socket:'T6|R 123'"#,
+            r#"-b --global-timeout-ms=2000 chunks:registry-stream-connect: chunks:mock_stream_socket:'W 123'"#,
+            r#"-b --global-timeout-ms=50 chunks:registry-stream-connect: chunks:mock_stream_socket:''"#);
+t3w_p!(reuser7,r#"-b --global-timeout-ms=5000 -E chunks:registry-stream-listen: reuse-raw:chunks:mock_stream_socket:'T6|R 123'"#,
+            r#"-b --global-timeout-ms=50 chunks:registry-stream-connect: chunks:mock_stream_socket:''"#,
+            r#"-b --global-timeout-ms=2000 chunks:registry-stream-connect: chunks:mock_stream_socket:'W 123'"#);
