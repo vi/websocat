@@ -7,7 +7,10 @@ use scenario_executor::{
     types::{Handle, Registry, Task},
     utils1::run_task,
 };
-use scenario_planner::{types::WebsocatInvocation, utils::IdentifierGenerator};
+use scenario_planner::{
+    types::{ScenarioPrinter, WebsocatInvocation},
+    utils::IdentifierGenerator,
+};
 
 use crate::scenario_planner::types::SpecifierStack;
 
@@ -87,9 +90,9 @@ where
     D: std::io::Write + Send + 'static,
 {
     let mut argv = argv.into_iter().multipeek();
-   
+
     let _zeroeth_arg = argv.peek();
-    let first_arg : OsString = argv.peek().map(|x|x.clone().into()).unwrap_or_default();
+    let first_arg: OsString = argv.peek().map(|x| x.clone().into()).unwrap_or_default();
     let _compose_mode = {
         if first_arg == "--compose" {
             argv.next();
@@ -109,10 +112,7 @@ where
     };
 
     if args.compose {
-        writeln!(
-            diagnostic_output,
-            "--compose must be the first option"
-        )?;
+        writeln!(diagnostic_output, "--compose must be the first option")?;
         anyhow::bail!("Invalid option");
     }
 
@@ -170,6 +170,7 @@ where
         };
 
         let mut idgen = IdentifierGenerator::new();
+        let mut printer = ScenarioPrinter::new();
 
         if !invocation.opts.no_lints {
             for lint in invocation.lints() {
@@ -189,7 +190,8 @@ where
             return Ok(());
         }
 
-        scenario_built_text = invocation.build_scenario(&mut idgen)?;
+        invocation.print_scenario(&mut idgen, &mut printer)?;
+        scenario_built_text = printer.into_result();
         global_scenario = &scenario_built_text;
 
         if dump_spec {

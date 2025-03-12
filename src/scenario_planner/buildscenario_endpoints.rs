@@ -1,17 +1,12 @@
-use crate::cli::WebsocatArgs;
-
 use super::{
-    scenarioprinter::{ScenarioPrinter, StrLit},
-    types::Endpoint,
-    utils::IdentifierGenerator,
+    scenarioprinter::StrLit,
+    types::{Endpoint, ScenarioPrintingEnvironment},
 };
 
 impl Endpoint {
     pub(super) fn begin_print(
         &self,
-        printer: &mut ScenarioPrinter,
-        vars: &mut IdentifierGenerator,
-        opts: &WebsocatArgs,
+        env: &mut ScenarioPrintingEnvironment<'_>,
     ) -> anyhow::Result<String> {
         match self {
             Endpoint::TcpConnectByIp(..)
@@ -19,15 +14,14 @@ impl Endpoint {
             | Endpoint::TcpListen { .. }
             | Endpoint::TcpListenFd(..)
             | Endpoint::TcpListenFdNamed(..)
-            | Endpoint::TcpConnectByLateHostname { .. } => {
-                self.begin_print_tcp(printer, vars, opts)
-            }
+            | Endpoint::TcpConnectByLateHostname { .. } => self.begin_print_tcp(env),
             Endpoint::WsUrl(..) | Endpoint::WssUrl(..) | Endpoint::WsListen(..) => {
-                self.begin_print_ws(printer, vars, opts)
+                self.begin_print_ws(env)
             }
             Endpoint::Stdio => {
-                let varnam = vars.getnewvarname("stdio");
-                printer.print_line(&format!("let {varnam} = create_stdio();"));
+                let varnam = env.vars.getnewvarname("stdio");
+                env.printer
+                    .print_line(&format!("let {varnam} = create_stdio();"));
                 Ok(varnam)
             }
             Endpoint::UdpConnect(..)
@@ -36,36 +30,39 @@ impl Endpoint {
             | Endpoint::UdpServerFd(_)
             | Endpoint::UdpServerFdNamed(_)
             | Endpoint::UdpFd(_)
-            | Endpoint::UdpFdNamed(_) => self.begin_print_udp(printer, vars, opts),
-            Endpoint::Exec(..) | Endpoint::Cmd(..) => self.begin_print_exec(printer, vars, opts),
+            | Endpoint::UdpFdNamed(_) => self.begin_print_udp(env),
+            Endpoint::Exec(..) | Endpoint::Cmd(..) => self.begin_print_exec(env),
             Endpoint::DummyStream => {
-                let varnam = vars.getnewvarname("dummy");
-                printer.print_line(&format!("let {varnam} = dummy_stream_socket();"));
-                if opts.dummy_hangup {
-                    printer.print_line(&format!(
+                let varnam = env.vars.getnewvarname("dummy");
+                env.printer
+                    .print_line(&format!("let {varnam} = dummy_stream_socket();"));
+                if env.opts.dummy_hangup {
+                    env.printer.print_line(&format!(
                         "put_hangup_part({varnam}, pre_triggered_hangup_handle());"
                     ));
                 }
                 Ok(varnam)
             }
             Endpoint::DummyDatagrams => {
-                let varnam = vars.getnewvarname("dummy");
-                printer.print_line(&format!("let {varnam} = dummy_datagram_socket();"));
-                if opts.dummy_hangup {
-                    printer.print_line(&format!(
+                let varnam = env.vars.getnewvarname("dummy");
+                env.printer
+                    .print_line(&format!("let {varnam} = dummy_datagram_socket();"));
+                if env.opts.dummy_hangup {
+                    env.printer.print_line(&format!(
                         "put_hangup_part({varnam}, pre_triggered_hangup_handle());"
                     ));
                 }
                 Ok(varnam)
             }
             Endpoint::Literal(s) => {
-                let varnam = vars.getnewvarname("lit");
-                printer.print_line(&format!("let {varnam} = literal_socket({});", StrLit(s)));
+                let varnam = env.vars.getnewvarname("lit");
+                env.printer
+                    .print_line(&format!("let {varnam} = literal_socket({});", StrLit(s)));
                 Ok(varnam)
             }
             Endpoint::LiteralBase64(s) => {
-                let varnam = vars.getnewvarname("lit");
-                printer.print_line(&format!(
+                let varnam = env.vars.getnewvarname("lit");
+                env.printer.print_line(&format!(
                     "let {varnam} = literal_socket_base64({});",
                     StrLit(s)
                 ));
@@ -83,68 +80,68 @@ impl Endpoint {
             | Endpoint::SeqpacketListenFd(_)
             | Endpoint::SeqpacketListenFdNamed(_)
             | Endpoint::AbstractSeqpacketConnect(_)
-            | Endpoint::AbstractSeqpacketListen(_) => self.begin_print_unix(printer, vars, opts),
+            | Endpoint::AbstractSeqpacketListen(_) => self.begin_print_unix(env),
             Endpoint::MockStreamSocket(s) => {
-                let varnam = vars.getnewvarname("mock");
-                printer.print_line(&format!(
+                let varnam = env.vars.getnewvarname("mock");
+                env.printer.print_line(&format!(
                     "let {varnam} = mock_stream_socket({});",
                     StrLit(s)
                 ));
                 Ok(varnam)
             }
             Endpoint::RegistryStreamListen(addr) => {
-                let listenparams = opts.listening_parameters();
-                let varnam = vars.getnewvarname("reg");
-                printer.print_line(&format!(
+                let listenparams = env.opts.listening_parameters();
+                let varnam = env.vars.getnewvarname("reg");
+                env.printer.print_line(&format!(
                     "listen_registry_stream(#{{{listenparams}, addr: {a}}}, |{varnam}| {{",
                     a = StrLit(addr)
                 ));
-                printer.increase_indent();
+                env.printer.increase_indent();
                 Ok(varnam)
             }
             Endpoint::RegistryStreamConnect(addr) => {
-                let mbs = opts.registry_connect_bufsize;
-                let varnam = vars.getnewvarname("reg");
-                printer.print_line(&format!(
+                let mbs = env.opts.registry_connect_bufsize;
+                let varnam = env.vars.getnewvarname("reg");
+                env.printer.print_line(&format!(
                     "connect_registry_stream(#{{addr: {a}, max_buf_size: {mbs}}}, |{varnam}| {{",
                     a = StrLit(addr)
                 ));
-                printer.increase_indent();
+                env.printer.increase_indent();
                 Ok(varnam)
             }
             Endpoint::SimpleReuserEndpoint(varname, specifier_stack) => {
-                let slot = vars.getnewvarname("slot");
-                let conn = vars.getnewvarname("reuseconn");
-                let strict_mode = !opts.reuser_tolerate_torn_msgs;
-                printer.print_line(&format!(
+                let slot = env.vars.getnewvarname("slot");
+                let conn = env.vars.getnewvarname("reuseconn");
+                let strict_mode = !env.opts.reuser_tolerate_torn_msgs;
+                env.printer.print_line(&format!(
                     "{varname}.maybe_init_then_connect(#{{connect_again: true, disconnect_on_broken_message: {strict_mode}}}, |{slot}| {{"
                 ));
-                printer.increase_indent();
+                env.printer.increase_indent();
 
-                let x = specifier_stack.begin_print(printer, vars, opts)?;
+                let x = specifier_stack.begin_print(env)?;
 
-                printer.print_line(&format!("{slot}.send({x})"));
+                env.printer.print_line(&format!("{slot}.send({x})"));
 
-                specifier_stack.end_print(printer, vars, opts)?;
+                specifier_stack.end_print(env)?;
 
-                printer.decrease_indent();
-                printer.print_line(&format!("}}, |{conn}| {{"));
-                printer.increase_indent();
+                env.printer.decrease_indent();
+                env.printer.print_line(&format!("}}, |{conn}| {{"));
+                env.printer.increase_indent();
                 Ok(conn)
             }
         }
     }
 
-    pub(super) fn end_print(&self, printer: &mut ScenarioPrinter, opts: &WebsocatArgs) {
+    pub(super) fn end_print(&self, env: &mut ScenarioPrintingEnvironment<'_>) {
         match self {
             Endpoint::TcpConnectByIp(..)
             | Endpoint::TcpConnectByEarlyHostname { .. }
             | Endpoint::TcpListen { .. }
             | Endpoint::TcpListenFd(..)
             | Endpoint::TcpListenFdNamed(..)
-            | Endpoint::TcpConnectByLateHostname { .. } => self.end_print_tcp(printer, opts),
+            | Endpoint::TcpConnectByLateHostname { .. } => self.end_print_tcp(env),
             Endpoint::WsUrl(..) | Endpoint::WssUrl(..) | Endpoint::WsListen(..) => {
-                self.end_print_ws(printer)
+                self.end_print_ws(env)
             }
             Endpoint::Stdio => {}
             Endpoint::UdpConnect(_)
@@ -153,8 +150,8 @@ impl Endpoint {
             | Endpoint::UdpServerFd(_)
             | Endpoint::UdpServerFdNamed(_)
             | Endpoint::UdpFd(_)
-            | Endpoint::UdpFdNamed(_) => self.end_print_udp(printer),
-            Endpoint::Exec(_) | Endpoint::Cmd(_) => self.end_print_exec(printer),
+            | Endpoint::UdpFdNamed(_) => self.end_print_udp(env),
+            Endpoint::Exec(_) | Endpoint::Cmd(_) => self.end_print_exec(env),
             Endpoint::DummyStream => {}
             Endpoint::DummyDatagrams => {}
             Endpoint::Literal(_) => {}
@@ -171,15 +168,15 @@ impl Endpoint {
             | Endpoint::SeqpacketListenFd(_)
             | Endpoint::SeqpacketListenFdNamed(_)
             | Endpoint::AbstractSeqpacketConnect(_)
-            | Endpoint::AbstractSeqpacketListen(_) => self.end_print_unix(printer),
+            | Endpoint::AbstractSeqpacketListen(_) => self.end_print_unix(env),
             Endpoint::MockStreamSocket(_) => {}
             Endpoint::RegistryStreamListen(_) | Endpoint::RegistryStreamConnect(_) => {
-                printer.decrease_indent();
-                printer.print_line("})");
+                env.printer.decrease_indent();
+                env.printer.print_line("})");
             }
             Endpoint::SimpleReuserEndpoint(..) => {
-                printer.decrease_indent();
-                printer.print_line("})");
+                env.printer.decrease_indent();
+                env.printer.print_line("})");
             }
         }
     }

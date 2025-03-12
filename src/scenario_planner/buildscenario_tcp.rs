@@ -1,55 +1,51 @@
-use crate::cli::WebsocatArgs;
-
 use super::{
-    scenarioprinter::{ScenarioPrinter, StrLit},
-    types::Endpoint,
-    utils::IdentifierGenerator,
+    scenarioprinter::StrLit,
+    types::{Endpoint, ScenarioPrintingEnvironment},
 };
 
 impl Endpoint {
     pub(super) fn begin_print_tcp(
         &self,
-        printer: &mut ScenarioPrinter,
-        vars: &mut IdentifierGenerator,
-        opts: &WebsocatArgs,
+        env: &mut ScenarioPrintingEnvironment<'_>,
     ) -> anyhow::Result<String> {
         match self {
             Endpoint::TcpConnectByIp(addr) => {
-                let varnam = vars.getnewvarname("tcp");
-                printer.print_line(&format!(
+                let varnam = env.vars.getnewvarname("tcp");
+                env.printer.print_line(&format!(
                     "connect_tcp(#{{addr: {a}}}, |{varnam}| {{",
                     a = StrLit(addr)
                 ));
-                printer.increase_indent();
+                env.printer.increase_indent();
                 Ok(varnam)
             }
             Endpoint::TcpConnectByEarlyHostname { varname_for_addrs } => {
-                let varnam = vars.getnewvarname("tcp");
-                printer.print_line(&format!(
+                let varnam = env.vars.getnewvarname("tcp");
+                env.printer.print_line(&format!(
                     "connect_tcp_race(#{{}}, {varname_for_addrs}, |{varnam}| {{"
                 ));
-                printer.increase_indent();
+                env.printer.increase_indent();
                 Ok(varnam)
             }
             Endpoint::TcpConnectByLateHostname { hostname } => {
-                let addrs = vars.getnewvarname("addrs");
-                printer.print_line(&format!(
+                let addrs = env.vars.getnewvarname("addrs");
+                env.printer.print_line(&format!(
                     "lookup_host({h}, |{addrs}| {{",
                     h = StrLit(hostname)
                 ));
-                printer.increase_indent();
+                env.printer.increase_indent();
 
-                let varnam = vars.getnewvarname("tcp");
-                printer.print_line(&format!("connect_tcp_race(#{{}}, {addrs}, |{varnam}| {{"));
-                printer.increase_indent();
+                let varnam = env.vars.getnewvarname("tcp");
+                env.printer
+                    .print_line(&format!("connect_tcp_race(#{{}}, {addrs}, |{varnam}| {{"));
+                env.printer.increase_indent();
                 Ok(varnam)
             }
             Endpoint::TcpListen(..)
             | Endpoint::TcpListenFd(..)
             | Endpoint::TcpListenFdNamed(..) => {
-                let varnam = vars.getnewvarname("tcp");
-                let fromaddr = vars.getnewvarname("from");
-                let listenparams = opts.listening_parameters();
+                let varnam = env.vars.getnewvarname("tcp");
+                let fromaddr = env.vars.getnewvarname("from");
+                let listenparams = env.opts.listening_parameters();
 
                 let addrpart = match self {
                     Endpoint::TcpListen(addr) => {
@@ -63,28 +59,29 @@ impl Endpoint {
                     }
                     _ => unreachable!(),
                 };
-                printer.print_line(&format!(
+                env.printer.print_line(&format!(
                     "listen_tcp(#{{{listenparams}, {addrpart}}}, |listen_addr|{{sequential([",
                 ));
-                printer.increase_indent();
+                env.printer.increase_indent();
 
-                if opts.stdout_announce_listening_ports {
-                    printer.print_line("print_stdout(\"LISTEN proto=tcp,ip=\"+listen_addr.get_ip()+\",port=\"+str(listen_addr.get_port())+\"\\n\"),");
+                if env.opts.stdout_announce_listening_ports {
+                    env.printer.print_line("print_stdout(\"LISTEN proto=tcp,ip=\"+listen_addr.get_ip()+\",port=\"+str(listen_addr.get_port())+\"\\n\"),");
                 }
-                if let Some(ref x) = opts.exec_after_listen {
-                    if opts.exec_after_listen_append_port {
-                        printer.print_line(&format!(
+                if let Some(ref x) = env.opts.exec_after_listen {
+                    if env.opts.exec_after_listen_append_port {
+                        env.printer.print_line(&format!(
                             "system({} + \" \" + str(listen_addr.get_port())),",
                             StrLit(x)
                         ));
                     } else {
-                        printer.print_line(&format!("system({}),", StrLit(x)));
+                        env.printer.print_line(&format!("system({}),", StrLit(x)));
                     }
                 }
 
-                printer.decrease_indent();
-                printer.print_line(&format!("])}},  |{varnam}, {fromaddr}| {{",));
-                printer.increase_indent();
+                env.printer.decrease_indent();
+                env.printer
+                    .print_line(&format!("])}},  |{varnam}, {fromaddr}| {{",));
+                env.printer.increase_indent();
 
                 Ok(varnam)
             }
@@ -92,28 +89,28 @@ impl Endpoint {
         }
     }
 
-    pub(super) fn end_print_tcp(&self, printer: &mut ScenarioPrinter, _opts: &WebsocatArgs) {
+    pub(super) fn end_print_tcp(&self, env: &mut ScenarioPrintingEnvironment<'_>) {
         match self {
             Endpoint::TcpConnectByIp(_) => {
-                printer.decrease_indent();
-                printer.print_line("})");
+                env.printer.decrease_indent();
+                env.printer.print_line("})");
             }
             Endpoint::TcpConnectByEarlyHostname { .. } => {
-                printer.decrease_indent();
-                printer.print_line("})");
+                env.printer.decrease_indent();
+                env.printer.print_line("})");
             }
             Endpoint::TcpListen(..)
             | Endpoint::TcpListenFd(..)
             | Endpoint::TcpListenFdNamed(..) => {
-                printer.decrease_indent();
-                printer.print_line("})");
+                env.printer.decrease_indent();
+                env.printer.print_line("})");
             }
             Endpoint::TcpConnectByLateHostname { hostname: _ } => {
-                printer.decrease_indent();
-                printer.print_line("})");
+                env.printer.decrease_indent();
+                env.printer.print_line("})");
 
-                printer.decrease_indent();
-                printer.print_line("})");
+                env.printer.decrease_indent();
+                env.printer.print_line("})");
             }
             _ => panic!(),
         }

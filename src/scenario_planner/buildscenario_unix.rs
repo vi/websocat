@@ -2,35 +2,35 @@ use crate::cli::WebsocatArgs;
 
 use super::{
     buildscenario_exec::format_osstr,
-    scenarioprinter::{ScenarioPrinter, StrLit},
-    types::Endpoint,
-    utils::IdentifierGenerator,
+    scenarioprinter::StrLit,
+    types::{Endpoint, ScenarioPrintingEnvironment},
 };
 
 impl Endpoint {
     pub(super) fn begin_print_unix(
         &self,
-        printer: &mut ScenarioPrinter,
-        vars: &mut IdentifierGenerator,
-        opts: &WebsocatArgs,
+        env: &mut ScenarioPrintingEnvironment<'_>,
     ) -> anyhow::Result<String> {
         match self {
             Endpoint::UnixConnect(path) => {
-                let varnam = vars.getnewvarname("unix");
-                let pathvar = vars.getnewvarname("path");
+                let varnam = env.vars.getnewvarname("unix");
+                let pathvar = env.vars.getnewvarname("path");
                 if let Some(s) = path.to_str() {
-                    printer.print_line(&format!("let {pathvar} = osstr_str({});", StrLit(s)));
+                    env.printer
+                        .print_line(&format!("let {pathvar} = osstr_str({});", StrLit(s)));
                 } else {
-                    printer.print_line(&format!("let {pathvar} = {};", format_osstr(path)));
+                    env.printer
+                        .print_line(&format!("let {pathvar} = {};", format_osstr(path)));
                 }
-                printer.print_line(&format!("connect_unix(#{{}}, {pathvar}, |{varnam}| {{",));
-                printer.increase_indent();
+                env.printer
+                    .print_line(&format!("connect_unix(#{{}}, {pathvar}, |{varnam}| {{",));
+                env.printer.increase_indent();
                 Ok(varnam)
             }
             Endpoint::UnixListen(_)
             | Endpoint::UnixListenFd(_)
             | Endpoint::UnixListenFdNamed(_) => {
-                let pathvar = vars.getnewvarname("path");
+                let pathvar = env.vars.getnewvarname("path");
 
                 let mut chmod_option = "";
                 let mut fd_options = "";
@@ -38,118 +38,130 @@ impl Endpoint {
                 match self {
                     Endpoint::UnixListen(path) => {
                         if let Some(s) = path.to_str() {
-                            printer
+                            env.printer
                                 .print_line(&format!("let {pathvar} = osstr_str({});", StrLit(s)));
                         } else {
-                            printer.print_line(&format!("let {pathvar} = {};", format_osstr(path)));
+                            env.printer
+                                .print_line(&format!("let {pathvar} = {};", format_osstr(path)));
                         }
 
-                        if opts.unlink {
-                            printer.print_line(&format!("unlink_file({pathvar}, false);"));
+                        if env.opts.unlink {
+                            env.printer
+                                .print_line(&format!("unlink_file({pathvar}, false);"));
                         }
 
-                        fill_in_chmods(opts, &mut chmod_option);
+                        fill_in_chmods(env.opts, &mut chmod_option);
                     }
                     Endpoint::UnixListenFd(fd) => {
-                        printer.print_line(&format!("let {pathvar} = osstr_str(\"\");"));
+                        env.printer
+                            .print_line(&format!("let {pathvar} = osstr_str(\"\");"));
                         fd_options_buf = format!(",fd: {fd}");
                         fd_options = &fd_options_buf;
                     }
                     Endpoint::UnixListenFdNamed(fd) => {
-                        printer.print_line(&format!("let {pathvar} = osstr_str(\"\");"));
+                        env.printer
+                            .print_line(&format!("let {pathvar} = osstr_str(\"\");"));
                         fd_options_buf = format!(",named_fd: {}", StrLit(fd));
                         fd_options = &fd_options_buf;
                     }
                     _ => unreachable!(),
                 }
 
-                let varnam = vars.getnewvarname("unix");
-                let listenparams = opts.listening_parameters();
+                let varnam = env.vars.getnewvarname("unix");
+                let listenparams = env.opts.listening_parameters();
 
-                printer.print_line(&format!(
+                env.printer.print_line(&format!(
                     "listen_unix(#{{{listenparams} {chmod_option} {fd_options}}}, {pathvar}, ||{{sequential([",
                 ));
-                printer.increase_indent();
+                env.printer.increase_indent();
 
-                if opts.stdout_announce_listening_ports {
-                    printer.print_line("print_stdout(\"LISTEN proto=unix\\n\"),");
+                if env.opts.stdout_announce_listening_ports {
+                    env.printer
+                        .print_line("print_stdout(\"LISTEN proto=unix\\n\"),");
                 }
-                if let Some(ref x) = opts.exec_after_listen {
-                    printer.print_line(&format!("system({}),", StrLit(x)));
+                if let Some(ref x) = env.opts.exec_after_listen {
+                    env.printer.print_line(&format!("system({}),", StrLit(x)));
                 }
 
-                printer.decrease_indent();
-                printer.print_line(&format!("])}},  |{varnam}| {{",));
-                printer.increase_indent();
+                env.printer.decrease_indent();
+                env.printer.print_line(&format!("])}},  |{varnam}| {{",));
+                env.printer.increase_indent();
                 Ok(varnam)
             }
             Endpoint::AbstractConnect(path) => {
-                let varnam = vars.getnewvarname("unix");
-                let pathvar = vars.getnewvarname("path");
+                let varnam = env.vars.getnewvarname("unix");
+                let pathvar = env.vars.getnewvarname("path");
                 if let Some(s) = path.to_str() {
-                    printer.print_line(&format!("let {pathvar} = osstr_str({});", StrLit(s)));
+                    env.printer
+                        .print_line(&format!("let {pathvar} = osstr_str({});", StrLit(s)));
                 } else {
-                    printer.print_line(&format!("let {pathvar} = {};", format_osstr(path)));
+                    env.printer
+                        .print_line(&format!("let {pathvar} = {};", format_osstr(path)));
                 }
                 #[allow(clippy::literal_string_with_formatting_args)]
-                printer.print_line(&format!(
+                env.printer.print_line(&format!(
                     "connect_unix(#{{abstract:true}}, {pathvar}, |{varnam}| {{",
                 ));
-                printer.increase_indent();
+                env.printer.increase_indent();
                 Ok(varnam)
             }
             Endpoint::AbstractListen(path) => {
-                let pathvar = vars.getnewvarname("path");
+                let pathvar = env.vars.getnewvarname("path");
                 if let Some(s) = path.to_str() {
-                    printer.print_line(&format!("let {pathvar} = osstr_str({});", StrLit(s)));
+                    env.printer
+                        .print_line(&format!("let {pathvar} = osstr_str({});", StrLit(s)));
                 } else {
-                    printer.print_line(&format!("let {pathvar} = {};", format_osstr(path)));
+                    env.printer
+                        .print_line(&format!("let {pathvar} = {};", format_osstr(path)));
                 }
 
-                let varnam = vars.getnewvarname("unix");
-                let listenparams = opts.listening_parameters();
+                let varnam = env.vars.getnewvarname("unix");
+                let listenparams = env.opts.listening_parameters();
 
-                printer.print_line(&format!(
+                env.printer.print_line(&format!(
                     "listen_unix(#{{abstract: true, {listenparams} }}, {pathvar}, ||{{sequential([",
                 ));
-                printer.increase_indent();
+                env.printer.increase_indent();
 
-                if opts.stdout_announce_listening_ports {
-                    printer.print_line("print_stdout(\"LISTEN proto=unix\\n\"),");
+                if env.opts.stdout_announce_listening_ports {
+                    env.printer
+                        .print_line("print_stdout(\"LISTEN proto=unix\\n\"),");
                 }
-                if let Some(ref x) = opts.exec_after_listen {
-                    printer.print_line(&format!("system({}),", StrLit(x)));
+                if let Some(ref x) = env.opts.exec_after_listen {
+                    env.printer.print_line(&format!("system({}),", StrLit(x)));
                 }
 
-                printer.decrease_indent();
-                printer.print_line(&format!("])}},  |{varnam}| {{",));
-                printer.increase_indent();
+                env.printer.decrease_indent();
+                env.printer.print_line(&format!("])}},  |{varnam}| {{",));
+                env.printer.increase_indent();
                 Ok(varnam)
             }
             Endpoint::SeqpacketConnect(path) => {
-                let varnam = vars.getnewvarname("unix");
-                let pathvar = vars.getnewvarname("path");
+                let varnam = env.vars.getnewvarname("unix");
+                let pathvar = env.vars.getnewvarname("path");
                 if let Some(s) = path.to_str() {
-                    printer.print_line(&format!("let {pathvar} = osstr_str({});", StrLit(s)));
+                    env.printer
+                        .print_line(&format!("let {pathvar} = osstr_str({});", StrLit(s)));
                 } else {
-                    printer.print_line(&format!("let {pathvar} = {};", format_osstr(path)));
+                    env.printer
+                        .print_line(&format!("let {pathvar} = {};", format_osstr(path)));
                 }
                 let mut text_option = "";
-                if opts.text {
+                if env.opts.text {
                     text_option = "text: true";
                 }
 
-                printer.print_line(&format!(
+                env.printer.print_line(&format!(
                     "connect_seqpacket(#{{ max_send_datagram_size: {} , {text_option}, }}, {pathvar}, |{varnam}| {{",
-                    opts.seqpacket_max_send_datagram_size,
+                    env.opts.seqpacket_max_send_datagram_size,
                 ));
-                printer.increase_indent();
+                env.printer.increase_indent();
                 Ok(varnam)
             }
             Endpoint::SeqpacketListen(_)
             | Endpoint::SeqpacketListenFd(_)
             | Endpoint::SeqpacketListenFdNamed(_) => {
-                let pathvar = vars.getnewvarname("path");
+                let pathvar = env.vars.getnewvarname("path");
 
                 let mut chmod_option = "";
                 let mut fd_options = "";
@@ -157,125 +169,136 @@ impl Endpoint {
                 match self {
                     Endpoint::SeqpacketListen(path) => {
                         if let Some(s) = path.to_str() {
-                            printer
+                            env.printer
                                 .print_line(&format!("let {pathvar} = osstr_str({});", StrLit(s)));
                         } else {
-                            printer.print_line(&format!("let {pathvar} = {};", format_osstr(path)));
+                            env.printer
+                                .print_line(&format!("let {pathvar} = {};", format_osstr(path)));
                         }
 
-                        if opts.unlink {
-                            printer.print_line(&format!("unlink_file({pathvar}, false);"));
+                        if env.opts.unlink {
+                            env.printer
+                                .print_line(&format!("unlink_file({pathvar}, false);"));
                         }
 
-                        fill_in_chmods(opts, &mut chmod_option);
+                        fill_in_chmods(env.opts, &mut chmod_option);
                     }
                     Endpoint::SeqpacketListenFd(fd) => {
-                        printer.print_line(&format!("let {pathvar} = osstr_str(\"\");"));
+                        env.printer
+                            .print_line(&format!("let {pathvar} = osstr_str(\"\");"));
                         fd_options_buf = format!(",fd: {fd}");
                         fd_options = &fd_options_buf;
                     }
                     Endpoint::SeqpacketListenFdNamed(fd) => {
-                        printer.print_line(&format!("let {pathvar} = osstr_str(\"\");"));
+                        env.printer
+                            .print_line(&format!("let {pathvar} = osstr_str(\"\");"));
                         fd_options_buf = format!(",named_fd: {}", StrLit(fd));
                         fd_options = &fd_options_buf;
                     }
                     _ => unreachable!(),
                 }
 
-                let varnam = vars.getnewvarname("unix");
+                let varnam = env.vars.getnewvarname("unix");
 
                 let mut text_option = "";
-                if opts.text {
+                if env.opts.text {
                     text_option = ", text: true";
                 }
-                let listenparams = opts.listening_parameters();
+                let listenparams = env.opts.listening_parameters();
 
-                printer.print_line(&format!(
+                env.printer.print_line(&format!(
                     "listen_seqpacket(#{{{listenparams} {chmod_option} {text_option} {fd_options} , max_send_datagram_size: {} }}, {pathvar}, ||{{sequential([",
-                    opts.seqpacket_max_send_datagram_size,
+                    env.opts.seqpacket_max_send_datagram_size,
                 ));
-                printer.increase_indent();
+                env.printer.increase_indent();
 
-                if opts.stdout_announce_listening_ports {
-                    printer.print_line("print_stdout(\"LISTEN proto=unix\\n\"),");
+                if env.opts.stdout_announce_listening_ports {
+                    env.printer
+                        .print_line("print_stdout(\"LISTEN proto=unix\\n\"),");
                 }
-                if let Some(ref x) = opts.exec_after_listen {
-                    printer.print_line(&format!("system({}),", StrLit(x)));
+                if let Some(ref x) = env.opts.exec_after_listen {
+                    env.printer.print_line(&format!("system({}),", StrLit(x)));
                 }
 
-                printer.decrease_indent();
-                printer.print_line(&format!("])}},  |{varnam}| {{",));
-                printer.increase_indent();
+                env.printer.decrease_indent();
+                env.printer.print_line(&format!("])}},  |{varnam}| {{",));
+                env.printer.increase_indent();
 
                 Ok(varnam)
             }
             Endpoint::AbstractSeqpacketConnect(path) => {
-                let varnam = vars.getnewvarname("unix");
-                let pathvar = vars.getnewvarname("path");
+                let varnam = env.vars.getnewvarname("unix");
+                let pathvar = env.vars.getnewvarname("path");
                 if let Some(s) = path.to_str() {
-                    printer.print_line(&format!("let {pathvar} = osstr_str({});", StrLit(s)));
+                    env.printer
+                        .print_line(&format!("let {pathvar} = osstr_str({});", StrLit(s)));
                 } else {
-                    printer.print_line(&format!("let {pathvar} = {};", format_osstr(path)));
+                    env.printer
+                        .print_line(&format!("let {pathvar} = {};", format_osstr(path)));
                 }
                 let mut text_option = "";
-                if opts.text {
+                if env.opts.text {
                     text_option = ", text: true";
                 }
 
-                printer.print_line(&format!(
+                env.printer.print_line(&format!(
                     "connect_seqpacket(#{{abstract:true {text_option}, max_send_datagram_size: {}}}, {pathvar}, |{varnam}| {{",
-                    opts.seqpacket_max_send_datagram_size,
+                    env.opts.seqpacket_max_send_datagram_size,
                 ));
-                printer.increase_indent();
+                env.printer.increase_indent();
                 Ok(varnam)
             }
             Endpoint::AbstractSeqpacketListen(path) => {
-                let pathvar = vars.getnewvarname("path");
+                let pathvar = env.vars.getnewvarname("path");
                 if let Some(s) = path.to_str() {
-                    printer.print_line(&format!("let {pathvar} = osstr_str({});", StrLit(s)));
+                    env.printer
+                        .print_line(&format!("let {pathvar} = osstr_str({});", StrLit(s)));
                 } else {
-                    printer.print_line(&format!("let {pathvar} = {};", format_osstr(path)));
+                    env.printer
+                        .print_line(&format!("let {pathvar} = {};", format_osstr(path)));
                 }
 
-                let varnam = vars.getnewvarname("unix");
+                let varnam = env.vars.getnewvarname("unix");
 
                 let mut text_option = "";
-                if opts.text {
+                if env.opts.text {
                     text_option = ", text: true";
                 }
-                let listenparams = opts.listening_parameters();
+                let listenparams = env.opts.listening_parameters();
 
-                printer.print_line(&format!(
+                env.printer.print_line(&format!(
                     "listen_seqpacket(#{{abstract:true, {listenparams} {text_option} , max_send_datagram_size: {} }}, {pathvar}, ||{{sequential([",
-                    opts.seqpacket_max_send_datagram_size,
+                    env.opts.seqpacket_max_send_datagram_size,
                 ));
 
-                printer.increase_indent();
+                env.printer.increase_indent();
 
-                if opts.stdout_announce_listening_ports {
-                    printer.print_line("print_stdout(\"LISTEN proto=unix\\n\"),");
+                if env.opts.stdout_announce_listening_ports {
+                    env.printer
+                        .print_line("print_stdout(\"LISTEN proto=unix\\n\"),");
                 }
-                if let Some(ref x) = opts.exec_after_listen {
-                    printer.print_line(&format!("system({}),", StrLit(x)));
+                if let Some(ref x) = env.opts.exec_after_listen {
+                    env.printer.print_line(&format!("system({}),", StrLit(x)));
                 }
 
-                printer.decrease_indent();
-                printer.print_line(&format!("])}},  |{varnam}| {{",));
-                printer.increase_indent();
+                env.printer.decrease_indent();
+                env.printer.print_line(&format!("])}},  |{varnam}| {{",));
+                env.printer.increase_indent();
 
                 Ok(varnam)
             }
             Endpoint::AsyncFd(fd) => {
-                let asyncfd = vars.getnewvarname("asyncfd");
+                let asyncfd = env.vars.getnewvarname("asyncfd");
 
-                printer.print_line(&format!("let {asyncfd} = async_fd({fd});"));
+                env.printer
+                    .print_line(&format!("let {asyncfd} = async_fd({fd});"));
                 Ok(asyncfd)
             }
             _ => panic!(),
         }
     }
 
-    pub(super) fn end_print_unix(&self, printer: &mut ScenarioPrinter) {
+    pub(super) fn end_print_unix(&self, env: &mut ScenarioPrintingEnvironment<'_>) {
         match self {
             Endpoint::UnixConnect(_)
             | Endpoint::UnixListen(_)
@@ -289,8 +312,8 @@ impl Endpoint {
             | Endpoint::SeqpacketListenFdNamed(_)
             | Endpoint::AbstractSeqpacketConnect(_)
             | Endpoint::AbstractSeqpacketListen(_) => {
-                printer.decrease_indent();
-                printer.print_line("})");
+                env.printer.decrease_indent();
+                env.printer.print_line("})");
             }
             Endpoint::AsyncFd(_) => {}
             _ => panic!(),

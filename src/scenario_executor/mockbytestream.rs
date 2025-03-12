@@ -89,7 +89,7 @@ fn mock_stream_socket(ctx: NativeCallContext, content: String) -> RhResult<Handl
             (WaitingForCommandCharacter, b'T') => {
                 state = Wait;
             }
-            (WaitingForCommandCharacter, b'N'|b'n') => {
+            (WaitingForCommandCharacter, b'N' | b'n') => {
                 buf.clear();
                 bufmode = BufferMode::SetName;
                 state = JustAfterCommandCharacter;

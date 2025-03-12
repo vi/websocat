@@ -233,3 +233,11 @@ pub enum CopyingType {
     ByteStream,
     Datarams,
 }
+
+pub use super::scenarioprinter::ScenarioPrinter;
+pub use super::utils::IdentifierGenerator;
+pub struct ScenarioPrintingEnvironment<'a> {
+    pub printer: &'a mut ScenarioPrinter,
+    pub opts: &'a WebsocatArgs,
+    pub vars: &'a mut IdentifierGenerator,
+}

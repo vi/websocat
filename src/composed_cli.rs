@@ -259,7 +259,12 @@ pub fn parse(
                 a.push(Box::new(c));
                 expr.push(Thing::Composed(ComposedArgument::Race(a)));
             }
-            (Race|Parallel|Sequential, Semicolon|Circumflex|Ampersand,Simple|Bracketed, _) => {
+            (
+                Race | Parallel | Sequential,
+                Semicolon | Circumflex | Ampersand,
+                Simple | Bracketed,
+                _,
+            ) => {
                 anyhow::bail!("Cannot mix different operations in --composed mode. Use parentheses to specify priority explicitly.")
             }
             (Empty, Empty, Simple | Parallel | Sequential | Race, false) => {
@@ -399,7 +404,11 @@ fn test_parse5() {
         ]),
     );
     assert_eq!(
-        parse(vec!["ppp", "&", "(", "(", "qqq", ")", ")", "&", "(", "(", "www", "^", "sss", "^", "ttt", ")", ";", "eee", ";", "ooo", ")"]).unwrap(),
+        parse(vec![
+            "ppp", "&", "(", "(", "qqq", ")", ")", "&", "(", "(", "www", "^", "sss", "^", "ttt",
+            ")", ";", "eee", ";", "ooo", ")"
+        ])
+        .unwrap(),
         ComposedArgument::Parallel(vec![
             Box::new(ComposedArgument::Simple(vec!["w".into(), "ppp".into()])),
             Box::new(ComposedArgument::Simple(vec!["w".into(), "qqq".into()])),
@@ -417,14 +426,13 @@ fn test_parse5() {
 }
 #[test]
 fn test_parse_err() {
-    parse(vec!["(", "qqq",]).unwrap_err();
-    parse(vec!["(",]).unwrap_err();
-    parse(vec![")",]).unwrap_err();
-    parse(vec!["&",]).unwrap_err();
+    parse(vec!["(", "qqq"]).unwrap_err();
+    parse(vec!["("]).unwrap_err();
+    parse(vec![")"]).unwrap_err();
+    parse(vec!["&"]).unwrap_err();
     parse(vec!["qqq", ";"]).unwrap_err();
     parse(vec!["^", "qqq"]).unwrap_err();
     parse(vec!["www", "^", "qqq", "&", "eee"]).unwrap_err();
     parse(vec!["www", ";", "qqq", "&", "eee"]).unwrap_err();
     parse(vec!["www", "&", "qqq", ";", "eee"]).unwrap_err();
 }
-

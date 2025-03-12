@@ -1,35 +1,43 @@
-use crate::cli::WebsocatArgs;
-
 use super::{
     scenarioprinter::ScenarioPrinter,
-    types::{CopyingType, Endpoint, SpecifierStack, WebsocatInvocation},
+    types::{
+        CopyingType, Endpoint, ScenarioPrintingEnvironment, SpecifierStack, WebsocatInvocation,
+    },
     utils::IdentifierGenerator,
 };
 
 impl WebsocatInvocation {
-    pub fn build_scenario(self, vars: &mut IdentifierGenerator) -> anyhow::Result<String> {
-        let mut printer = ScenarioPrinter::new();
+    pub fn print_scenario(
+        self,
+        vars: &mut IdentifierGenerator,
+        printer: &mut ScenarioPrinter,
+    ) -> anyhow::Result<()> {
+        let mut env = ScenarioPrintingEnvironment {
+            printer,
+            opts: &self.opts,
+            vars,
+        };
 
         let left: String;
         let right: String;
 
         if let Some(_tmo) = self.opts.global_timeout_ms {
-            printer.print_line("race([{");
-            printer.increase_indent();
+            env.printer.print_line("race([{");
+            env.printer.increase_indent();
         }
 
         for prepare_action in &self.beginning {
-            prepare_action.begin_print(&mut printer, &self.opts, vars)?;
+            prepare_action.begin_print(&mut env)?;
         }
 
-        left = self.left.begin_print(&mut printer, vars, &self.opts)?;
-        right = self.right.begin_print(&mut printer, vars, &self.opts)?;
+        left = self.left.begin_print(&mut env)?;
+        right = self.right.begin_print(&mut env)?;
 
         if self.opts.exit_on_hangup {
-            printer.print_line(&format!(
+            env.printer.print_line(&format!(
                 "try {{ handle_hangup(take_hangup_part({left}), || {{  sleep_ms(50); exit_process(0); }} ); }} catch {{}}")
             );
-            printer.print_line(&format!(
+            env.printer.print_line(&format!(
                 "try {{ handle_hangup(take_hangup_part({right}), || {{  sleep_ms(50); exit_process(0); }} ); }} catch {{}}")
             );
         }
@@ -53,8 +61,8 @@ impl WebsocatInvocation {
         }
 
         if self.opts.exit_after_one_session {
-            printer.print_line("sequential([");
-            printer.increase_indent();
+            env.printer.print_line("sequential([");
+            env.printer.increase_indent();
         }
 
         if let Some(ref dfd) = self.opts.exec_dup2 {
@@ -69,12 +77,13 @@ impl WebsocatInvocation {
                 )
             }
 
-            let var_chld = vars.getnewvarname("chld");
-            let var_fd = vars.getnewvarname("fd");
+            let var_chld = env.vars.getnewvarname("chld");
+            let var_fd = env.vars.getnewvarname("fd");
 
-            printer.print_line(&format!("let {var_fd} = get_fd({left});"));
-            printer.print_line(&format!("if {var_fd} == -1 {{ print_stderr(\"No raw file descriptor available\") }} else {{"));
-            printer.increase_indent();
+            env.printer
+                .print_line(&format!("let {var_fd} = get_fd({left});"));
+            env.printer.print_line(&format!("if {var_fd} == -1 {{ print_stderr(\"No raw file descriptor available\") }} else {{"));
+            env.printer.increase_indent();
 
             let mut dup2_params = String::with_capacity(16);
 
@@ -89,38 +98,43 @@ impl WebsocatInvocation {
                 dup2_params.push_str("],true");
             }
 
-            printer.print_line(&format!("{right}.dup2({dup2_params});"));
+            env.printer
+                .print_line(&format!("{right}.dup2({dup2_params});"));
             if self.opts.exec_dup2_execve {
-                printer.print_line(&format!("{right}.execve()"));
+                env.printer.print_line(&format!("{right}.execve()"));
             } else {
-                printer.print_line(&format!("let {var_chld} = {right}.execute();"));
-                printer.print_line(&format!("drop({left});"));
-                printer.print_line(&format!("hangup2task({var_chld}.wait())"));
+                env.printer
+                    .print_line(&format!("let {var_chld} = {right}.execute();"));
+                env.printer.print_line(&format!("drop({left});"));
+                env.printer
+                    .print_line(&format!("hangup2task({var_chld}.wait())"));
             }
-            printer.decrease_indent();
-            printer.print_line("}");
+            env.printer.decrease_indent();
+            env.printer.print_line("}");
         } else {
             // Usual flow: copy bytes streams / packets from left to right and back.
             match self.get_copying_type() {
                 CopyingType::ByteStream => {
-                    printer.print_line(&format!("exchange_bytes(#{{{opts}}}, {left}, {right})"));
+                    env.printer
+                        .print_line(&format!("exchange_bytes(#{{{opts}}}, {left}, {right})"));
                 }
                 CopyingType::Datarams => {
-                    printer.print_line(&format!("exchange_packets(#{{{opts}}}, {left}, {right})"));
+                    env.printer
+                        .print_line(&format!("exchange_packets(#{{{opts}}}, {left}, {right})"));
                 }
             }
         }
 
         if self.opts.exit_after_one_session {
-            printer.print_line(",task_wrap(||exit_process(0))])");
-            printer.decrease_indent();
+            env.printer.print_line(",task_wrap(||exit_process(0))])");
+            env.printer.decrease_indent();
         }
 
-        self.right.end_print(&mut printer, vars, &self.opts)?;
-        self.left.end_print(&mut printer, vars, &self.opts)?;
+        self.right.end_print(&mut env)?;
+        self.left.end_print(&mut env)?;
 
         for prepare_action in self.beginning.iter().rev() {
-            prepare_action.end_print(&mut printer);
+            prepare_action.end_print(&mut env);
         }
 
         if let Some(tmo) = self.opts.global_timeout_ms {
@@ -135,21 +149,19 @@ impl WebsocatInvocation {
             printer.print_line("])");
         }
 
-        Ok(printer.into_result())
+        Ok(())
     }
 }
 
 impl SpecifierStack {
     pub(super) fn begin_print(
         &self,
-        printer: &mut ScenarioPrinter,
-        vars: &mut IdentifierGenerator,
-        opts: &WebsocatArgs,
+        env: &mut ScenarioPrintingEnvironment<'_>,
     ) -> anyhow::Result<String> {
-        let mut x: String = self.innermost.begin_print(printer, vars, opts)?;
+        let mut x: String = self.innermost.begin_print(env)?;
 
         for ovl in &self.overlays {
-            x = ovl.begin_print(printer, &x, vars, opts)?;
+            x = ovl.begin_print(env, &x)?;
         }
 
         Ok(x)
@@ -157,15 +169,13 @@ impl SpecifierStack {
 
     pub(super) fn end_print(
         &self,
-        printer: &mut ScenarioPrinter,
-        _vars: &mut IdentifierGenerator,
-        opts: &WebsocatArgs,
+        env: &mut ScenarioPrintingEnvironment<'_>,
     ) -> anyhow::Result<()> {
         for ovl in self.overlays.iter().rev() {
-            ovl.end_print(printer);
+            ovl.end_print(env);
         }
 
-        self.innermost.end_print(printer, opts);
+        self.innermost.end_print(env);
 
         Ok(())
     }

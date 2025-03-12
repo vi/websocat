@@ -1,17 +1,14 @@
-use crate::cli::{CustomHeader, WebsocatArgs};
+use crate::cli::CustomHeader;
 
 use super::{
-    scenarioprinter::{ScenarioPrinter, StrLit},
-    types::{Endpoint, Overlay},
-    utils::IdentifierGenerator,
+    scenarioprinter::StrLit,
+    types::{Endpoint, Overlay, ScenarioPrintingEnvironment},
 };
 
 impl Endpoint {
     pub(super) fn begin_print_ws(
         &self,
-        _printer: &mut ScenarioPrinter,
-        _vars: &mut IdentifierGenerator,
-        _opts: &WebsocatArgs,
+        _env: &mut ScenarioPrintingEnvironment<'_>,
     ) -> anyhow::Result<String> {
         match self {
             Endpoint::WsUrl(..) | Endpoint::WssUrl(..) | Endpoint::WsListen(..) => {
@@ -23,7 +20,7 @@ impl Endpoint {
         }
     }
 
-    pub(super) fn end_print_ws(&self, _printer: &mut ScenarioPrinter) {
+    pub(super) fn end_print_ws(&self, _env: &mut ScenarioPrintingEnvironment<'_>) {
         match self {
             Endpoint::WsUrl(..) | Endpoint::WssUrl(..) | Endpoint::WsListen(..) => {
                 panic!(
@@ -38,17 +35,15 @@ impl Endpoint {
 impl Overlay {
     pub(super) fn begin_print_ws(
         &self,
-        printer: &mut ScenarioPrinter,
+        env: &mut ScenarioPrintingEnvironment<'_>,
         inner_var: &str,
-        vars: &mut IdentifierGenerator,
-        opts: &WebsocatArgs,
     ) -> anyhow::Result<String> {
         match self {
             Overlay::WsUpgrade { uri, host } => {
-                let httpclient = vars.getnewvarname("http");
-                let wsframes = vars.getnewvarname("wsframes");
+                let httpclient = env.vars.getnewvarname("http");
+                let wsframes = env.vars.getnewvarname("wsframes");
 
-                printer.print_line(&format!(
+                env.printer.print_line(&format!(
                     "let {httpclient} = http1_client(#{{}}, {inner_var});"
                 ));
 
@@ -63,52 +58,52 @@ impl Overlay {
                     oo.push(',');
                 }
 
-                if opts.ws_dont_check_headers {
+                if env.opts.ws_dont_check_headers {
                     oo.push_str("lax: true,")
                 }
-                if opts.ws_omit_headers {
+                if env.opts.ws_omit_headers {
                     oo.push_str("omit_headers: true,")
                 }
 
                 let mut ch = String::new();
-                for CustomHeader { name, value } in &opts.header {
+                for CustomHeader { name, value } in &env.opts.header {
                     ch.push_str(&format!("{}:{},", StrLit(name), StrLit(value)))
                 }
-                if let Some(ref proto) = opts.protocol {
+                if let Some(ref proto) = env.opts.protocol {
                     ch.push_str(&format!("\"Sec-WebSocket-Protocol\":{},", StrLit(proto)))
                 }
 
-                printer.print_line(&format!(
+                env.printer.print_line(&format!(
                     "ws_upgrade(#{{{oo}}}, #{{{ch}}}, {httpclient}, |{wsframes}| {{"
                 ));
-                printer.increase_indent();
+                env.printer.increase_indent();
 
                 Ok(wsframes)
             }
             Overlay::WsFramer { client_mode } => {
-                let ws = vars.getnewvarname("ws");
+                let ws = env.vars.getnewvarname("ws");
 
                 let mut oo = String::with_capacity(0);
-                if opts.no_close {
+                if env.opts.no_close {
                     oo.push_str("no_close_frame: true,")
                 }
-                if opts.ws_no_flush {
+                if env.opts.ws_no_flush {
                     oo.push_str("no_flush_after_each_message: true,")
                 }
-                if opts.ws_ignore_invalid_masks {
+                if env.opts.ws_ignore_invalid_masks {
                     oo.push_str("ignore_masks: true,")
                 }
-                if opts.ws_no_auto_buffer {
+                if env.opts.ws_no_auto_buffer {
                     oo.push_str("no_auto_buffer_wrap: true,")
                 }
-                if opts.ws_shutdown_socket_on_eof {
+                if env.opts.ws_shutdown_socket_on_eof {
                     oo.push_str("shutdown_socket_on_eof: true,")
                 }
-                if let Some(mp) = opts.inhibit_pongs {
+                if let Some(mp) = env.opts.inhibit_pongs {
                     oo.push_str(&format!("max_ping_replies: {mp},"));
                 }
 
-                printer.print_line(&format!(
+                env.printer.print_line(&format!(
                     "let {ws} = ws_wrap(#{{{oo}client: {client_mode}}}, {inner_var});"
                 ));
 
@@ -116,43 +111,43 @@ impl Overlay {
             }
 
             Overlay::WsAccept {} => {
-                let ws = vars.getnewvarname("ws");
-                let hup = vars.getnewvarname("hup");
-                let fd = vars.getnewvarname("fd");
-                let rq = vars.getnewvarname("rq");
+                let ws = env.vars.getnewvarname("ws");
+                let hup = env.vars.getnewvarname("hup");
+                let fd = env.vars.getnewvarname("fd");
+                let rq = env.vars.getnewvarname("rq");
 
-                printer.print_line(&format!(
+                env.printer.print_line(&format!(
                     "http1_serve(#{{}}, {inner_var}, |{rq}, {hup}, {fd}| {{"
                 ));
-                printer.increase_indent();
+                env.printer.increase_indent();
 
                 let mut oo = String::new();
 
-                if opts.ws_dont_check_headers {
+                if env.opts.ws_dont_check_headers {
                     oo.push_str("lax: true,")
                 }
-                if opts.ws_omit_headers {
+                if env.opts.ws_omit_headers {
                     oo.push_str("omit_headers: true,")
                 }
-                if opts.server_protocol_choose_first {
+                if env.opts.server_protocol_choose_first {
                     oo.push_str("protocol_choose_first: true,");
                 }
-                if let Some(ref x) = opts.server_protocol {
+                if let Some(ref x) = env.opts.server_protocol {
                     oo.push_str(&format!("choose_protocol: {},", StrLit(x)));
-                    if !opts.server_protocol_lax {
+                    if !env.opts.server_protocol_lax {
                         oo.push_str("require_protocol: true,");
                     }
                 }
 
                 let mut ch = String::new();
-                for CustomHeader { name, value } in &opts.server_header {
+                for CustomHeader { name, value } in &env.opts.server_header {
                     ch.push_str(&format!("{}:{},", StrLit(name), StrLit(value)))
                 }
 
-                printer.print_line(&format!(
+                env.printer.print_line(&format!(
                     "ws_accept(#{{{oo}}}, #{{{ch}}}, {rq}, {hup}, {fd}, |{ws}| {{"
                 ));
-                printer.increase_indent();
+                env.printer.increase_indent();
 
                 Ok(ws)
             }
@@ -170,21 +165,21 @@ impl Overlay {
         }
     }
 
-    pub(super) fn end_print_ws(&self, printer: &mut ScenarioPrinter) {
+    pub(super) fn end_print_ws(&self, env: &mut ScenarioPrintingEnvironment<'_>) {
         match self {
             Overlay::WsUpgrade { .. } => {
-                printer.decrease_indent();
-                printer.print_line("})");
+                env.printer.decrease_indent();
+                env.printer.print_line("})");
             }
             Overlay::WsFramer { .. } => (),
             Overlay::WsClient => panic!(),
             Overlay::WsServer => panic!(),
             Overlay::WsAccept { .. } => {
-                printer.decrease_indent();
-                printer.print_line("})");
+                env.printer.decrease_indent();
+                env.printer.print_line("})");
 
-                printer.decrease_indent();
-                printer.print_line("})");
+                env.printer.decrease_indent();
+                env.printer.print_line("})");
             }
             _ => panic!(),
         }
