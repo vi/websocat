@@ -1,3 +1,4 @@
+#![cfg_attr(rustfmt, rustfmt::skip)]
 use websocat::{t,t2,t3w_p};
 
 t!(dummy, "-b dummy: dummy:");

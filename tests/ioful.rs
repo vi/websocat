@@ -1,5 +1,6 @@
 #![cfg(feature="ioful_tests")]
 #![allow(unused)]
+#![cfg_attr(rustfmt, rustfmt::skip)]
 
 use websocat::{t,t2w,t3w,t_linux,t2w_linux,t_unix,t2w_unix,t_online,t2w_online,test_utils::{test_websocat,test_two_websocats}};
 
