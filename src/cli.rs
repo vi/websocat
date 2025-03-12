@@ -403,6 +403,7 @@ pub struct WebsocatArgs {
     pub global_timeout_force_exit: bool,
 
     /// Wait for this number of milliseconds before starting endpoints.
+    /// Mostly indended for testing Websocat, in combination with --compose mode.
     #[arg(long)]
     pub sleep_ms_before_start: Option<u64>,
 

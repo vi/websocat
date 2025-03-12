@@ -21,6 +21,12 @@ impl WebsocatInvocation {
         let left: String;
         let right: String;
 
+        if let Some(tmo) = self.opts.sleep_ms_before_start {
+            env.printer
+                .print_line(&format!("sequential([sleep_ms({tmo}),{{"));
+            env.printer.increase_indent();
+        }
+
         if let Some(_tmo) = self.opts.global_timeout_ms {
             env.printer.print_line("race([{");
             env.printer.increase_indent();
@@ -147,6 +153,10 @@ impl WebsocatInvocation {
             }
             printer.decrease_indent();
             printer.print_line("])");
+        }
+        if let Some(_tmo) = self.opts.sleep_ms_before_start {
+            printer.decrease_indent();
+            printer.print_line("}])");
         }
 
         Ok(())
