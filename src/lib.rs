@@ -11,6 +11,8 @@ pub mod scenario_executor {
     pub mod mockbytestream;
     #[cfg(feature = "ssl")]
     pub mod nativetls;
+    #[cfg(feature = "rustls")]
+    pub mod rustls;
     pub mod osstr;
     pub mod registryconnectors;
     pub mod reuser;

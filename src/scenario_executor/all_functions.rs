@@ -35,6 +35,8 @@ pub fn register_functions(engine: &mut Engine) {
     super::wswithpings::register(engine);
     #[cfg(feature = "ssl")]
     super::nativetls::register(engine);
+    #[cfg(feature = "rustls")]
+    super::rustls::register(engine);
     super::subprocess::register(engine);
     super::osstr::register(engine);
     #[cfg(unix)]
