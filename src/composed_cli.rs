@@ -265,7 +265,7 @@ pub fn parse(
                 Simple | Bracketed,
                 _,
             ) => {
-                anyhow::bail!("Cannot mix different operations in --composed mode. Use parentheses to specify priority explicitly.")
+                anyhow::bail!("Cannot naively mix different operations in --compose mode. Use parentheses to specify priority explicitly.")
             }
             (Empty, Empty, Simple | Parallel | Sequential | Race, false) => {
                 let Some(Thing::Composed(x)) = expr.pop() else {

@@ -35,6 +35,11 @@ pub struct WebsocatArgs {
     pub dump_spec: bool,
 
     /// do not execute this Websocat invocation, print debug representation of specified arguments.
+    /// In --compose mode it should be the second argument (i.e. just after --compose)
+    #[arg(long)]
+    pub dump_spec_phase0: bool,
+
+    /// do not execute this Websocat invocation, print debug representation of specified arguments.
     #[arg(long)]
     pub dump_spec_phase1: bool,
 
@@ -322,6 +327,11 @@ pub struct WebsocatArgs {
     #[arg(long)]
     pub no_lints: bool,
 
+    /// Do not automatically transform endpoints and overlays to their appropriate low-level form.
+    /// Many things will fail in this mode.
+    #[arg(long)]
+    pub no_fixups: bool,
+
     /// Maximum size of an outgoing UDP datagram. Incoming datagram size is likely limited by --buffer-size.
     #[arg(long, default_value = "4096")]
     pub udp_max_send_datagram_size: usize,
@@ -424,4 +434,44 @@ pub struct WebsocatArgs {
     /// This argument must come first.
     #[arg(long)]
     pub compose: bool,
+}
+
+/// Subset of command line arguments that describes the whole Websocat operation even when `--compose` subscenarios are used.
+#[derive(Default)]
+pub struct WebsocatGlobalArgs {
+    pub random_seed: Option<u64>,
+    pub dump_spec: bool,
+    pub scenario: Option<PathBuf>,
+    pub dump_spec_phase0: bool,
+}
+
+impl WebsocatGlobalArgs {
+    pub fn hoover(&mut self, args: &WebsocatArgs) -> anyhow::Result<()> {
+        if args.random_seed.is_some() {
+            if self.random_seed.is_none() {
+                self.random_seed = args.random_seed;
+            } else if self.random_seed != args.random_seed {
+                anyhow::bail!("Conflicing --random-seeed specified");
+            }
+        }
+        if args.compose {
+            anyhow::bail!("--compose must be the first argument");
+        }
+        if args.scenario {
+            if args.spec2.is_some() {
+                anyhow::bail!("In --scenario mode only one argument is expected")
+            }
+            if self.scenario.is_some() {
+                anyhow::bail!("Conflicting --scenario options");
+            }
+            self.scenario = Some(args.spec1.clone().into());
+        }
+        if args.dump_spec {
+            self.dump_spec = true
+        }
+        if args.dump_spec_phase0 {
+            self.dump_spec_phase0 = true;
+        }
+        Ok(())
+    }
 }

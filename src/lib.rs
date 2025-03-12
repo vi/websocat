@@ -1,5 +1,6 @@
 use std::ffi::OsString;
 
+use cli::{WebsocatArgs, WebsocatGlobalArgs};
 use itertools::Itertools;
 use rand::SeedableRng;
 use scenario_executor::{
@@ -91,53 +92,119 @@ where
 {
     let mut argv = argv.into_iter().multipeek();
 
+    let mut global_args = WebsocatGlobalArgs::default();
+
+    let global_scenario: &str;
+    let scenario_file;
+    let scenario_built_text;
+
     let _zeroeth_arg = argv.peek();
     let first_arg: OsString = argv.peek().map(|x| x.clone().into()).unwrap_or_default();
-    let _compose_mode = {
+    let second_arg: OsString = argv.peek().map(|x| x.clone().into()).unwrap_or_default();
+    let compose_mode = {
         if first_arg == "--compose" {
-            argv.next();
+            if second_arg == "--dump-spec-phase0" {
+                global_args.dump_spec_phase0 = true;
+            }
             true
         } else {
             false
         }
     };
 
-    let mut args = cli::WebsocatArgs::parse_from(argv);
-    let dump_spec = args.dump_spec;
+    if !compose_mode {
+        let args = cli::WebsocatArgs::parse_from(argv);
+        if args.dump_spec_phase0 {
+            writeln!(diagnostic_output, "{:?}", args)?;
+        }
+        global_args.hoover(&args)?;
 
-    let prng = if let Some(seed) = args.random_seed {
+        if let Some(scenario_filename) = global_args.scenario {
+            if compose_mode {
+                anyhow::bail!("--scenario and --compose are incompatible");
+            }
+            scenario_file = std::fs::read(scenario_filename)?;
+            global_scenario = std::str::from_utf8(&scenario_file[..])?;
+        } else {
+            let mut idgen = IdentifierGenerator::new();
+            let mut printer = ScenarioPrinter::new();
+
+            let mut invocation = WebsocatInvocation::from_args(args, &mut diagnostic_output)?;
+            if invocation.prepare(&mut diagnostic_output, &mut idgen)? {
+                return Ok(());
+            }
+
+            invocation.print_scenario(&mut idgen, &mut printer)?;
+            scenario_built_text = printer.into_result();
+            global_scenario = &scenario_built_text;
+        }
+    } else {
+        argv.next();
+        argv.next();
+
+        let composed = composed_cli::parse(argv)?;
+
+        if global_args.dump_spec_phase0 {
+            writeln!(diagnostic_output, "{:?}", composed)?;
+            return Ok(());
+        }
+
+        let mut idgen = IdentifierGenerator::new();
+        let mut printer = ScenarioPrinter::new();
+
+        composed.print(
+            &mut printer,
+            &mut idgen,
+            &mut global_args,
+            &mut diagnostic_output,
+        )?;
+
+        scenario_built_text = printer.into_result();
+        global_scenario = &scenario_built_text;
+    }
+
+    if global_args.dump_spec {
+        if allow_stdout {
+            println!("{}", global_scenario);
+        } else {
+            writeln!(diagnostic_output, "{}", global_scenario)?;
+        }
+        return Ok(());
+    }
+
+    let prng = if let Some(seed) = global_args.random_seed {
         rand_chacha::ChaCha12Rng::seed_from_u64(seed)
     } else {
         rand_chacha::ChaCha12Rng::from_os_rng()
     };
 
-    if args.compose {
-        writeln!(diagnostic_output, "--compose must be the first option")?;
-        anyhow::bail!("Invalid option");
+    let ctx = load_scenario(
+        global_scenario,
+        Box::new(diagnostic_output),
+        time_base,
+        Box::new(prng),
+        registry,
+    )?;
+    let task: Handle<Task> = ctx.execute()?;
+    run_task(task).await;
+
+    Ok(())
+}
+
+impl WebsocatArgs {
+    pub fn cook_args(&mut self) -> anyhow::Result<()> {
+        Ok(())
     }
+}
 
-    if args.accept_from_fd {
-        writeln!(
-            diagnostic_output,
-            "--accept-from-fd is an obsolete Websocat1 option. Use e.g. `ws-u:unix-l-fd:3` instead."
-        )?;
-        anyhow::bail!("Invalid option");
-    }
-
-    let global_scenario: &str;
-    let scenario_file;
-    let scenario_built_text;
-    if args.scenario {
-        if args.spec2.is_some() {
-            writeln!(
-                diagnostic_output,
-                "In --scenario mode only one argument is expected"
-            )?;
-        }
-
-        scenario_file = std::fs::read(args.spec1)?;
-        global_scenario = std::str::from_utf8(&scenario_file[..])?;
-    } else {
+impl WebsocatInvocation {
+    pub fn from_args<D>(
+        mut args: cli::WebsocatArgs,
+        diagnostic_output: &mut D,
+    ) -> anyhow::Result<Self>
+    where
+        D: std::io::Write + Send + 'static,
+    {
         if args.spec2.is_none() {
             args.spec2 = Some("stdio:".to_owned().into());
             if !args.binary && !args.text {
@@ -162,57 +229,104 @@ where
         let left_stack = SpecifierStack::my_from_str(&args.spec1)?;
         let right_stack = SpecifierStack::my_from_str(&args.spec2.take().unwrap())?;
 
-        let mut invocation = WebsocatInvocation {
+        Ok(WebsocatInvocation {
             left: left_stack,
             right: right_stack,
             opts: args,
             beginning: vec![],
-        };
+        })
+    }
 
-        let mut idgen = IdentifierGenerator::new();
-        let mut printer = ScenarioPrinter::new();
-
-        if !invocation.opts.no_lints {
-            for lint in invocation.lints() {
+    pub fn prepare<D>(
+        &mut self,
+        diagnostic_output: &mut D,
+        vars: &mut IdentifierGenerator,
+    ) -> anyhow::Result<bool>
+    where
+        D: std::io::Write + Send + 'static,
+    {
+        if !self.opts.no_lints {
+            for lint in self.lints() {
                 writeln!(diagnostic_output, "warning: {lint}")?;
             }
         }
 
-        if !invocation.opts.dump_spec_phase1 {
-            invocation.patches(&mut idgen)?;
+        if !self.opts.dump_spec_phase1 && !self.opts.no_fixups {
+            self.patches(vars)?;
         }
 
-        if invocation.opts.dump_spec_phase1 || invocation.opts.dump_spec_phase2 {
-            writeln!(diagnostic_output, "{:#?}", invocation.left)?;
-            writeln!(diagnostic_output, "{:#?}", invocation.right)?;
-            writeln!(diagnostic_output, "{:#?}", invocation.opts)?;
-            writeln!(diagnostic_output, "{:#?}", invocation.beginning)?;
-            return Ok(());
+        if self.opts.dump_spec_phase1 || self.opts.dump_spec_phase2 {
+            writeln!(diagnostic_output, "{:#?}", self.left)?;
+            writeln!(diagnostic_output, "{:#?}", self.right)?;
+            writeln!(diagnostic_output, "{:#?}", self.opts)?;
+            writeln!(diagnostic_output, "{:#?}", self.beginning)?;
+            return Ok(true);
         }
 
-        invocation.print_scenario(&mut idgen, &mut printer)?;
-        scenario_built_text = printer.into_result();
-        global_scenario = &scenario_built_text;
-
-        if dump_spec {
-            if allow_stdout {
-                println!("{}", global_scenario);
-            } else {
-                writeln!(diagnostic_output, "{}", global_scenario)?;
-            }
-            return Ok(());
-        }
+        Ok(false)
     }
+}
 
-    let ctx = load_scenario(
-        global_scenario,
-        Box::new(diagnostic_output),
-        time_base,
-        Box::new(prng),
-        registry,
-    )?;
-    let task: Handle<Task> = ctx.execute()?;
-    run_task(task).await;
+impl composed_cli::ComposedArgument {
+    fn print<D>(
+        &self,
+        printer: &mut ScenarioPrinter,
+        vars: &mut IdentifierGenerator,
+        global: &mut WebsocatGlobalArgs,
+        diagnostic_output: &mut D,
+    ) -> anyhow::Result<()>
+    where
+        D: std::io::Write + Send + 'static,
+    {
+        match self {
+            composed_cli::ComposedArgument::Simple(argv) => {
+                let args = cli::WebsocatArgs::parse_from(argv);
+                global.hoover(&args)?;
 
-    Ok(())
+                let mut invocation = WebsocatInvocation::from_args(args, diagnostic_output)?;
+                if invocation.prepare(diagnostic_output, vars)? {
+                    anyhow::bail!("In --compose mode only --dump-spec and --dump-spec-phase0 are supported, not phase1 or phase2")
+                }
+
+                invocation.print_scenario(vars, printer)?;
+            }
+            composed_cli::ComposedArgument::Parallel(vec) => {
+                printer.print_line("parallel([{");
+                for (i, x) in vec.iter().enumerate() {
+                    if i != 0 {
+                        printer.print_line("},{");
+                    }
+                    printer.increase_indent();
+                    x.print(printer, vars, global, diagnostic_output)?;
+                    printer.decrease_indent();
+                }
+                printer.print_line("}])");
+            }
+            composed_cli::ComposedArgument::Sequential(vec) => {
+                printer.print_line("sequential([{");
+                for (i, x) in vec.iter().enumerate() {
+                    if i != 0 {
+                        printer.print_line("},{");
+                    }
+                    printer.increase_indent();
+                    x.print(printer, vars, global, diagnostic_output)?;
+                    printer.decrease_indent();
+                }
+                printer.print_line("}])");
+            }
+            composed_cli::ComposedArgument::Race(vec) => {
+                printer.print_line("race([{");
+                for (i, x) in vec.iter().enumerate() {
+                    if i != 0 {
+                        printer.print_line("},{");
+                    }
+                    printer.increase_indent();
+                    x.print(printer, vars, global, diagnostic_output)?;
+                    printer.decrease_indent();
+                }
+                printer.print_line("}])");
+            }
+        }
+        Ok(())
+    }
 }
