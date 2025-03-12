@@ -392,6 +392,10 @@ pub struct WebsocatArgs {
     #[arg(long)]
     pub global_timeout_force_exit: bool,
 
+    /// Wait for this number of milliseconds before starting endpoints.
+    #[arg(long)]
+    pub sleep_ms_before_start: Option<u64>,
+
     /// Print a line to stdout when a port you requested to be listened is ready to accept connections.
     #[arg(long)]
     pub stdout_announce_listening_ports: bool,
@@ -415,4 +419,9 @@ pub struct WebsocatArgs {
     /// When using `reuse-raw:` (including automatically inserted), do not abort connections on unrecoverable broken messages
     #[arg(long)]
     pub reuser_tolerate_torn_msgs: bool,
+
+    /// Interpret special command line arguments like `&`, `;`, `(` and `)` as separators for composed scenarios mode.
+    /// This argument must come first.
+    #[arg(long)]
+    pub compose: bool,
 }

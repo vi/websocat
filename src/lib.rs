@@ -1,3 +1,6 @@
+use std::ffi::OsString;
+
+use itertools::Itertools;
 use rand::SeedableRng;
 use scenario_executor::{
     scenario::load_scenario,
@@ -68,6 +71,7 @@ pub mod scenario_planner {
 }
 
 pub mod cli;
+pub mod composed_cli;
 pub mod test_utils;
 
 pub async fn websocat_main<I, T, D>(
@@ -82,6 +86,19 @@ where
     T: Into<std::ffi::OsString> + Clone,
     D: std::io::Write + Send + 'static,
 {
+    let mut argv = argv.into_iter().multipeek();
+   
+    let _zeroeth_arg = argv.peek();
+    let first_arg : OsString = argv.peek().map(|x|x.clone().into()).unwrap_or_default();
+    let _compose_mode = {
+        if first_arg == "--compose" {
+            argv.next();
+            true
+        } else {
+            false
+        }
+    };
+
     let mut args = cli::WebsocatArgs::parse_from(argv);
     let dump_spec = args.dump_spec;
 
@@ -90,6 +107,14 @@ where
     } else {
         rand_chacha::ChaCha12Rng::from_os_rng()
     };
+
+    if args.compose {
+        writeln!(
+            diagnostic_output,
+            "--compose must be the first option"
+        )?;
+        anyhow::bail!("Invalid option");
+    }
 
     if args.accept_from_fd {
         writeln!(

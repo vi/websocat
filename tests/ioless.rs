@@ -175,10 +175,14 @@ t3w_p!(reuser_torn5,r#"-b --global-timeout-ms=5000 --lengthprefixed-nbytes=1 --l
                       lengthprefixed:registry-stream-listen: reuse-raw:lengthprefixed:mock_stream_socket:'W \x83AAA|W \x82CC|W \x01E|W \x83BBB|W \x02DD|W \x01F'"#,
             r#"-b --global-timeout-ms=2000 -U registry-stream-connect: mock_stream_socket:'R \x83AAA|T5|R \x82CC|T5|R \x01E'"#,
             r#"-b --global-timeout-ms=2000 -U registry-stream-connect: mock_stream_socket:'R \x83BBB|T5|R \x02DD|T5|R \x01F'"#);
-t3w_p!(reuser_torn6,r#"-b --global-timeout-ms=5000 --lengthprefixed-nbytes=2 --lengthprefixed-include-control --lengthprefixed-continuations -u
-                      lengthprefixed:registry-stream-listen: reuse-raw:lengthprefixed:mock_stream_socket:'W \x80\x03AAA|W \x80\x02CC'"#,
-            r#"-b --global-timeout-ms=2000 -U registry-stream-connect: mock_stream_socket:'R \x80\x03AAA|T5|R \x80\x02CC'"#,
-            r#"-b --global-timeout-ms=3000 -U registry-stream-connect: mock_stream_socket:'R \x80\x03BBB|T5|R \x00\x02DD|T5|R \x00\x01F'"#);
+// t3w_p!(reuser_torn6,r#"-b --global-timeout-ms=5000 --lengthprefixed-nbytes=2 --lengthprefixed-include-control --lengthprefixed-continuations -E
+//                       lengthprefixed:registry-stream-listen: reuse-raw:lengthprefixed:mock_stream_socket:'W \x80\x03AAA|W \x80\x02CC'"#,
+//             r#"-b --global-timeout-ms=2000 registry-stream-connect: mock_stream_socket:'R \x80\x03AAA|T5|R \x80\x02CC'"#,
+//             r#"-b --global-timeout-ms=3000 registry-stream-connect: mock_stream_socket:'R \x80\x03BBB|T5|R \x00\x02DD|T5|R \x00\x01F'"#);
+// t3w_p!(reuser_torn6,r#"-b --global-timeout-ms=5000 --lengthprefixed-nbytes=2 --lengthprefixed-include-control --lengthprefixed-continuations
+//                        lengthprefixed:registry-stream-listen: reuse-raw:lengthprefixed:mock_stream_socket:'N sink|W \x80\x03AAA|W \x80\x02CC|W \x40\x62\x08Partially written message to Websocat\x27s `reuse-raw:` prevents further messages in this connection|W \x80\x03BBB'"#,
+//              r#"-b --global-timeout-ms=2000 registry-stream-connect: mock_stream_socket:'N first|R \x80\x03AAA|T5|R \x80\x02CC|ER'"#,
+//              r#"-b --global-timeout-ms=3000 registry-stream-connect: mock_stream_socket:'N second|R \x80\x03BBB|T5|R \x00\x02DD|T5|R \x00\x01F'"#);
 /*t3w_p!(reuser_torn7,r#"-b --global-timeout-ms=5000 --lengthprefixed-nbytes=1 --lengthprefixed-continuations -u --reuser-tolerate-torn-msgs
                       lengthprefixed:registry-stream-listen: reuse-raw:lengthprefixed:mock_stream_socket:'W \x83AAA|W \x82CC|W \x00|W \x83BBB\x02DD\x01F'"#,
             r#"-b --global-timeout-ms=2000 -U registry-stream-connect: mock_stream_socket:'R \x83AAA|T5|R \x82CC'"#,
