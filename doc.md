@@ -20,6 +20,9 @@ Options:
       --dump-spec
           do not execute this Websocat invocation, print equivalent Rhai script instead
 
+      --dump-spec-phase0
+          do not execute this Websocat invocation, print debug representation of specified arguments. In --compose mode it should be the second argument (i.e. just after --compose)
+
       --dump-spec-phase1
           do not execute this Websocat invocation, print debug representation of specified arguments
 
@@ -227,6 +230,9 @@ Options:
       --no-lints
           Do not display warnings about potential CLI misusage
 
+      --no-fixups
+          Do not automatically transform endpoints and overlays to their appropriate low-level form. Many things will fail in this mode
+
       --udp-max-send-datagram-size <UDP_MAX_SEND_DATAGRAM_SIZE>
           Maximum size of an outgoing UDP datagram. Incoming datagram size is likely limited by --buffer-size
           
@@ -290,6 +296,9 @@ Options:
       --global-timeout-force-exit
           Force process exit when global timeout is reached
 
+      --sleep-ms-before-start <SLEEP_MS_BEFORE_START>
+          Wait for this number of milliseconds before starting endpoints
+
       --stdout-announce-listening-ports
           Print a line to stdout when a port you requested to be listened is ready to accept connections
 
@@ -305,6 +314,12 @@ Options:
 
       --accept-from-fd
           Show dedicated error message explaining how to migrate Websocat1's --accpet-from-fd to the new scheme
+
+      --reuser-tolerate-torn-msgs
+          When using `reuse-raw:` (including automatically inserted), do not abort connections on unrecoverable broken messages
+
+      --compose
+          Interpret special command line arguments like `&`, `;`, `(` and `)` as separators for composed scenarios mode. This argument must come first
 
   -h, --help
           Print help (see a summary with '-h')
@@ -860,7 +875,15 @@ Prefixes:
 
 ### SimpleReuser
 
-Share underlying datagram connection between multiple outer users
+Share underlying datagram connection between multiple outer users.
+
+All users can write messages to the socket, messages would be interleaved
+(though each individual message should be atomic).
+Messages coming from inner socket will be delivered to some one arbitrary connected user.
+If that users disconnect, they will route to some other user.
+A message can be lost when user disconnects.
+User disconnections while writing a message may abort the whole reuser
+(or result in a broken, trimmed message, depending on settings).
 
 Prefixes:
 
@@ -1258,7 +1281,8 @@ Returns `Task`
 
 Options:
 
-* recover (`bool`) - Do not cache failed connection attempts, retry initialisation if a new client arrive. Note that successful, but closed connections are not considered failed and that regard and will stay cached. (use autoreconnect to handle that case)
+* connect_again (`bool`) - Do not cache failed connection attempts, retry initialisation if a new client arrive. Note that successful, but closed connections are not considered failed and that regard and will stay cached. (use autoreconnect to handle that case)
+* disconnect_on_broken_message (`bool`) - Drop underlying connection if some client leaves in the middle of writing a message, leaving us with unrecoverably broken message.
 
 ## TriggerableEvent::take_hangup
 
@@ -2002,6 +2026,7 @@ If inner socket disconnects, reuser will not attempt to reestablish the connecti
 Parameters:
 
 * inner (`DatagramSocket`) - Datagram socket to multiplex connections to
+* disconnect_on_torn_datagram (`bool`) - Drop inner connection when user begins writing a message, but leaves before finishing it, leaving inner connection with incomplete message that cannot ever be completed. If `false`, the reuser would commit the torn message and continue processing.
 
 Returns `SimpleReuser`
 
