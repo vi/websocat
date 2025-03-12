@@ -31,6 +31,7 @@ fn mock_stream_socket(ctx: NativeCallContext, content: String) -> RhResult<Handl
     enum BufferMode {
         Read,
         Write,
+        SetName,
     }
 
     #[derive(Copy, Clone, Debug)]
@@ -58,6 +59,9 @@ fn mock_stream_socket(ctx: NativeCallContext, content: String) -> RhResult<Handl
                 BufferMode::Read => {
                     builder.read(&buf);
                 }
+                BufferMode::SetName => {
+                    builder.name(String::from_utf8_lossy(&buf[..]).to_string());
+                }
             }
             buf.clear();
         };
@@ -84,6 +88,11 @@ fn mock_stream_socket(ctx: NativeCallContext, content: String) -> RhResult<Handl
             }
             (WaitingForCommandCharacter, b'T') => {
                 state = Wait;
+            }
+            (WaitingForCommandCharacter, b'N'|b'n') => {
+                buf.clear();
+                bufmode = BufferMode::SetName;
+                state = JustAfterCommandCharacter;
             }
             (JustAfterCommandCharacter | Normal, b'|') => {
                 commit_buffer!();
