@@ -431,8 +431,11 @@ pub struct WebsocatArgs {
     #[arg(long)]
     pub reuser_tolerate_torn_msgs: bool,
 
-    /// Interpret special command line arguments like `&`, `;`, `(` and `)` as separators for composed scenarios mode.
+    /// Interpret special command line arguments like `&`, `;`, '^', `(` and `)` as separators for composed scenarios mode.
     /// This argument must come first.
+    /// 
+    /// This allows to execute multiple subscenarios in one Websocat invocation, sequentially (;), in parallel (&)
+    /// or in parallel with early exit (^). You can also use parentheses to combine disparate operations.
     #[arg(long)]
     pub compose: bool,
 }
