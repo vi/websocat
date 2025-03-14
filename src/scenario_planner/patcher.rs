@@ -7,7 +7,7 @@ use crate::cli::WebsocatArgs;
 
 use super::{
     types::{
-        CopyingType, Endpoint, Overlay, PreparatoryAction, SpecifierStack, WebsocatInvocation
+        CopyingType, Endpoint, Overlay, PreparatoryAction, SpecifierStack, WebsocatInvocation,
     },
     utils::IdentifierGenerator,
 };
@@ -70,7 +70,10 @@ impl WebsocatInvocation {
     }
 
     fn maybe_insert_reuser(&mut self) {
-        if self.left.is_multiconn(&self.opts) && self.right.prefers_being_single(&self.opts) {
+        if self.get_copying_type() == CopyingType::Datarams
+            && self.left.is_multiconn(&self.opts)
+            && self.right.prefers_being_single(&self.opts)
+        {
             self.right.overlays.push(Overlay::SimpleReuser);
         }
     }
@@ -628,17 +631,17 @@ impl SpecifierStack {
             Endpoint::TcpConnectByEarlyHostname { .. } => false,
             Endpoint::TcpConnectByLateHostname { .. } => false,
             Endpoint::TcpConnectByIp(..) => false,
-            Endpoint::TcpListen(..)  => false,
+            Endpoint::TcpListen(..) => false,
             Endpoint::TcpListenFd(..) => false,
-            Endpoint::TcpListenFdNamed(..)  => false,
+            Endpoint::TcpListenFdNamed(..) => false,
             Endpoint::WsUrl(..) => false,
             Endpoint::WssUrl(..) => false,
-            Endpoint::WsListen(..)  => false,
+            Endpoint::WsListen(..) => false,
             Endpoint::Stdio => true,
             Endpoint::UdpConnect(..) => false,
-            Endpoint::UdpBind(..) => false,
-            Endpoint::UdpFd(_) => false,
-            Endpoint::UdpFdNamed(_) => false,
+            Endpoint::UdpBind(..) => true,
+            Endpoint::UdpFd(_) => true,
+            Endpoint::UdpFdNamed(_) => true,
             Endpoint::UdpServer(..) => false,
             Endpoint::UdpServerFd(_) => false,
             Endpoint::UdpServerFdNamed(_) => false,
@@ -649,20 +652,20 @@ impl SpecifierStack {
             Endpoint::Literal(_) => false,
             Endpoint::LiteralBase64(_) => false,
             Endpoint::UnixConnect(..) => false,
-            Endpoint::UnixListen(..)  => false,
+            Endpoint::UnixListen(..) => false,
             Endpoint::AbstractConnect(..) => false,
-            Endpoint::AbstractListen(..)  => false,
-            Endpoint::UnixListenFd(_)  => false,
+            Endpoint::AbstractListen(..) => false,
+            Endpoint::UnixListenFd(_) => false,
             Endpoint::UnixListenFdNamed(_) => false,
             Endpoint::AsyncFd(_) => true,
             Endpoint::SeqpacketConnect(..) => false,
-            Endpoint::SeqpacketListen(..)  => false,
-            Endpoint::AbstractSeqpacketConnect(..)  => false,
+            Endpoint::SeqpacketListen(..) => false,
+            Endpoint::AbstractSeqpacketConnect(..) => false,
             Endpoint::AbstractSeqpacketListen(..) => false,
-            Endpoint::SeqpacketListenFd(..)  => false,
+            Endpoint::SeqpacketListenFd(..) => false,
             Endpoint::SeqpacketListenFdNamed(..) => false,
             Endpoint::MockStreamSocket(..) => false,
-            Endpoint::RegistryStreamListen(..)  => false,
+            Endpoint::RegistryStreamListen(..) => false,
             Endpoint::RegistryStreamConnect(..) => false,
             Endpoint::SimpleReuserEndpoint(..) => false,
         };
