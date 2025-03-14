@@ -478,6 +478,8 @@ def strip_handle(s : str) -> str:
     return s.strip()
 
 def document_executor_function(f: ExecutorFunc) -> None:
+    if "doc(hidden)" in f.primary_doc:
+        return
     print("## " + f.rhai_function)
     print("")
     if f.primary_doc != "":

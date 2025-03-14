@@ -2288,23 +2288,6 @@ Options:
 
 * domain (`String`)
 
-## tls_client
-
-Perform TLS handshake using downstream stream-oriented socket, then expose stream-oriented socket interface to upstream that encrypts/decryptes the data.
-
-Parameters:
-
-* opts (`Dynamic`) - object map containing dynamic options to the function
-* connector (`Arc<TlsConnector>`)
-* inner (`StreamSocket`)
-* continuation (`Fn(StreamSocket) -> Task`) - Rhai function that will be called to continue processing
-
-Returns `Task`
-
-Options:
-
-* domain (`String`)
-
 ## tls_client_connector
 
 Create environment for using TLS clients.
@@ -2326,17 +2309,6 @@ Options:
 * danger_accept_invalid_certs (`bool`)
 * danger_accept_invalid_hostnames (`bool`)
 * no_sni (`bool`)
-
-## tls_client_connector
-
-Create environment for using TLS clients.
-
-Parameters:
-
-* _ctx (`NativeCallContext`)
-* opts (`Dynamic`) - object map containing dynamic options to the function
-
-Returns `Arc<TlsConnector>`
 
 ## triggerable_event_create
 

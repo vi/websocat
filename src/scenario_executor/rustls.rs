@@ -18,11 +18,14 @@ use super::{
     utils1::RhResult,
 };
 
+//@ doc(hidden)
 //@ Create environment for using TLS clients.
 fn tls_client_connector(_ctx: NativeCallContext, opts: Dynamic) -> RhResult<Arc<TlsConnector>> {
     debug!("tls_client_connector");
     #[derive(serde::Deserialize)]
-    struct Opts {}
+    struct Opts {
+
+    }
     let _opts: Opts = rhai::serde::from_dynamic(&opts)?;
     debug!("options parsed");
 
@@ -37,6 +40,7 @@ fn tls_client_connector(_ctx: NativeCallContext, opts: Dynamic) -> RhResult<Arc<
     Ok(Arc::new(connector))
 }
 
+//@ doc(hidden)
 //@ Perform TLS handshake using downstream stream-oriented socket, then expose stream-oriented socket interface to upstream that encrypts/decryptes the data.
 fn tls_client(
     ctx: NativeCallContext,
