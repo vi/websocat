@@ -426,7 +426,19 @@ impl ParseStrChunkResult<'_> {
                 ovl: Overlay::SimpleReuser,
                 rest,
             })
-        } else {
+        } else if let Some(rest) = x.strip_prefix_many(&["readfile:"]) {
+            Ok(ParseStrChunkResult::Endpoint(Endpoint::ReadFile(
+                rest.to_owned(),
+            )))
+        } else if let Some(rest) = x.strip_prefix_many(&["writefile:"]) {
+            Ok(ParseStrChunkResult::Endpoint(Endpoint::WriteFile(
+                rest.to_owned(),
+            )))
+        } else if let Some(rest) = x.strip_prefix_many(&["appendfile:"]) {
+            Ok(ParseStrChunkResult::Endpoint(Endpoint::AppendFile(
+                rest.to_owned(),
+            )))
+        }else {
             anyhow::bail!("Unknown specifier: {x:?}")
         }
     }

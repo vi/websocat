@@ -438,6 +438,14 @@ pub struct WebsocatArgs {
     /// or in parallel with early exit (^). You can also use parentheses to combine disparate operations.
     #[arg(long)]
     pub compose: bool,
+
+    /// For `writefile:` endpoint, do not overwrite existing files.
+    #[arg(long)]
+    pub write_file_no_overwrite: bool,
+
+    /// For `writefile:` endpoint, do not overwrite existing files, instead use other, neighbouring file names.
+    #[arg(long)]
+    pub write_file_auto_rename: bool,
 }
 
 /// Subset of command line arguments that describes the whole Websocat operation even when `--compose` subscenarios are used.

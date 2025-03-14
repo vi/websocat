@@ -1,6 +1,5 @@
 use super::{
-    scenarioprinter::StrLit,
-    types::{Endpoint, ScenarioPrintingEnvironment},
+    buildscenario_exec::format_osstr, scenarioprinter::StrLit, types::{Endpoint, ScenarioPrintingEnvironment}
 };
 
 impl Endpoint {
@@ -129,6 +128,42 @@ impl Endpoint {
                 env.printer.increase_indent();
                 Ok(conn)
             }
+            Endpoint::ReadFile(p) 
+            | Endpoint::WriteFile(p)
+            | Endpoint::AppendFile(p) =>  {
+
+                let mut oo = String::with_capacity(32);
+
+                match self {
+                    Endpoint::ReadFile(..) => {
+                        oo += "write: false";
+                    }
+                    Endpoint::WriteFile(..) => {
+                        oo += "write: true";
+                        if env.opts.write_file_no_overwrite {
+                            oo += ", no_overwrite: true";
+                        }
+                        if env.opts.write_file_auto_rename {
+                            oo += ", auto_rename: true";
+                        }
+                    }
+                    Endpoint::AppendFile(..) => {
+                        oo += "append: true";
+                    }
+                    _ => unreachable!(),
+                }
+
+                let pathnam = env.vars.getnewvarname("path");
+                let varnam = env.vars.getnewvarname("file");
+
+                env.printer.print_line(&format!("let {pathnam} = {};", format_osstr(p)));
+
+                env.printer.print_line(&format!(
+                    "file_socket(#{{{oo}}}, {pathnam}, |{varnam}| {{",
+                ));
+                env.printer.increase_indent();
+                Ok(varnam)
+            }
         }
     }
 
@@ -175,6 +210,12 @@ impl Endpoint {
                 env.printer.print_line("})");
             }
             Endpoint::SimpleReuserEndpoint(..) => {
+                env.printer.decrease_indent();
+                env.printer.print_line("})");
+            }
+            Endpoint::ReadFile(..) 
+            | Endpoint::WriteFile(..)
+            | Endpoint::AppendFile(..) => {
                 env.printer.decrease_indent();
                 env.printer.print_line("})");
             }

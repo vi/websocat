@@ -3,6 +3,7 @@ Short list of endpoint prefixes:
   abstract-listen:
   seqpacket-abstract:
   seqpacket-abstract-listen:
+  appendfile:
   async-fd:
   cmd:
   empty:
@@ -11,6 +12,7 @@ Short list of endpoint prefixes:
   literal:
   literal-base64:
   mock_stream_socket:
+  readfile:
   registry-stream-connect:
   registry-stream-listen:
   seqpacket:
@@ -33,6 +35,7 @@ Short list of endpoint prefixes:
   unix-listen:
   unix-listen-fd:
   unix-listen-fdname:
+  writefile:
   ws-listen:
   ws://
   wss://

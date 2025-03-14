@@ -405,6 +405,9 @@ impl SpecifierStack {
                 Endpoint::RegistryStreamConnect(_) => false,
                 Endpoint::AsyncFd(_) => true,
                 Endpoint::SimpleReuserEndpoint(..) => false,
+                Endpoint::ReadFile(..) => false,
+                Endpoint::WriteFile(..) => false,
+                Endpoint::AppendFile(..) => false,
             };
             if do_insert {
                 // datagram mode may be patched later
@@ -526,6 +529,9 @@ impl Endpoint {
             Endpoint::RegistryStreamConnect(_) => CopyingType::ByteStream,
             Endpoint::AsyncFd(_) => CopyingType::ByteStream,
             Endpoint::SimpleReuserEndpoint(..) => CopyingType::Datarams,
+            Endpoint::ReadFile(..) => CopyingType::ByteStream,
+            Endpoint::WriteFile(..) => CopyingType::ByteStream,
+            Endpoint::AppendFile(..) => CopyingType::ByteStream,
         }
     }
 }
@@ -601,6 +607,9 @@ impl SpecifierStack {
             Endpoint::RegistryStreamListen(..) => !opts.oneshot,
             Endpoint::RegistryStreamConnect(..) => false,
             Endpoint::SimpleReuserEndpoint(..) => false,
+            Endpoint::ReadFile(..) => false,
+            Endpoint::WriteFile(..) => false,
+            Endpoint::AppendFile(..) => false,
         };
 
         for x in &self.overlays {
@@ -626,7 +635,7 @@ impl SpecifierStack {
     }
 
     /// Does not like reentrant usage
-    fn prefers_being_single(&self, _opts: &WebsocatArgs) -> bool {
+    fn prefers_being_single(&self, opts: &WebsocatArgs) -> bool {
         let mut singler = match self.innermost {
             Endpoint::TcpConnectByEarlyHostname { .. } => false,
             Endpoint::TcpConnectByLateHostname { .. } => false,
@@ -668,6 +677,9 @@ impl SpecifierStack {
             Endpoint::RegistryStreamListen(..) => false,
             Endpoint::RegistryStreamConnect(..) => false,
             Endpoint::SimpleReuserEndpoint(..) => false,
+            Endpoint::ReadFile(..) => false,
+            Endpoint::WriteFile(..) => !opts.write_file_no_overwrite,
+            Endpoint::AppendFile(..) => true,
         };
 
         for x in &self.overlays {

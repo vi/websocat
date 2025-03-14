@@ -323,6 +323,12 @@ Options:
           
           This allows to execute multiple subscenarios in one Websocat invocation, sequentially (;), in parallel (&) or in parallel with early exit (^). You can also use parentheses to combine disparate operations.
 
+      --write-file-no-overwrite
+          For `writefile:` endpoint, do not overwrite existing files
+
+      --write-file-auto-rename
+          For `writefile:` endpoint, do not overwrite existing files, instead use other, neighbouring file names
+
   -h, --help
           Print help (see a summary with '-h')
 
@@ -334,6 +340,7 @@ Short list of endpoint prefixes:
   abstract-listen:
   seqpacket-abstract:
   seqpacket-abstract-listen:
+  appendfile:
   async-fd:
   cmd:
   empty:
@@ -342,6 +349,7 @@ Short list of endpoint prefixes:
   literal:
   literal-base64:
   mock_stream_socket:
+  readfile:
   registry-stream-connect:
   registry-stream-listen:
   seqpacket:
@@ -364,6 +372,7 @@ Short list of endpoint prefixes:
   unix-listen:
   unix-listen-fd:
   unix-listen-fdname:
+  writefile:
   ws-listen:
   ws://
   wss://
@@ -461,6 +470,14 @@ Prefixes:
 * `l-abs-seqp:`
 * `l-seqp-abs:`
 
+### AppendFile
+
+Append to specified file.
+
+Prefixes:
+
+* `appendfile:`
+
 ### AsyncFd
 
 Use specified inherited file desciptor for reading and writing, assuming it supports `read(2)` and `writev(2)` and can be put in epoll (or analogue).
@@ -535,6 +552,14 @@ Prefixes:
 
 * `mock_stream_socket:`
 * `mock-stream-socket:`
+
+### ReadFile
+
+Read specified file. Ignores writes.
+
+Prefixes:
+
+* `readfile:`
 
 ### RegistryStreamConnect
 
@@ -806,6 +831,14 @@ Prefixes:
 * `listen-unix-fdname:`
 * `unix-l-fdname:`
 * `l-unix-fdname:`
+
+### WriteFile
+
+Write specified file.
+
+Prefixes:
+
+* `writefile:`
 
 ### WsListen
 
@@ -1560,6 +1593,25 @@ Parameters:
 * code (`i64`)
 
 Does not return anything.
+
+## file_socket
+
+Open specifid file and read/write it.
+
+Parameters:
+
+* opts (`Dynamic`) - object map containing dynamic options to the function
+* path (`OsString`)
+* continuation (`Fn(StreamSocket) -> Task`) - Rhai function that will be called to continue processing
+
+Returns `Task`
+
+Options:
+
+* write (`bool`) - Open specified file for writing, not reading
+* append (`bool`) - Open specified file for appending, not reading
+* no_overwrite (`bool`) - Do not overwrite existing files, instead use modified randomized name. Only relevant for `write` mode.
+* auto_rename (`bool`) - Do not overwrite existing files, instead use modified randomized name. Only relevant for `write` mode.
 
 ## get_fd
 

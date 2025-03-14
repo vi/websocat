@@ -125,6 +125,15 @@ pub enum Endpoint {
 
     //@ Implementation detail of `reuse-raw:` overlay
     SimpleReuserEndpoint(String, Box<SpecifierStack>),
+
+    //@ Read specified file. Ignores writes.
+    ReadFile(OsString),
+
+    //@ Write specified file.
+    WriteFile(OsString),
+
+    //@ Append to specified file.
+    AppendFile(OsString),
 }
 
 #[derive(Debug)]
