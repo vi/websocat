@@ -297,7 +297,7 @@ Options:
           Force process exit when global timeout is reached
 
       --sleep-ms-before-start <SLEEP_MS_BEFORE_START>
-          Wait for this number of milliseconds before starting endpoints
+          Wait for this number of milliseconds before starting endpoints. Mostly indended for testing Websocat, in combination with --compose mode
 
       --stdout-announce-listening-ports
           Print a line to stdout when a port you requested to be listened is ready to accept connections
@@ -319,7 +319,9 @@ Options:
           When using `reuse-raw:` (including automatically inserted), do not abort connections on unrecoverable broken messages
 
       --compose
-          Interpret special command line arguments like `&`, `;`, `(` and `)` as separators for composed scenarios mode. This argument must come first
+          Interpret special command line arguments like `&`, `;`, '^', `(` and `)` as separators for composed scenarios mode. This argument must come first.
+          
+          This allows to execute multiple subscenarios in one Websocat invocation, sequentially (;), in parallel (&) or in parallel with early exit (^). You can also use parentheses to combine disparate operations.
 
   -h, --help
           Print help (see a summary with '-h')
@@ -2234,6 +2236,23 @@ Options:
 
 * domain (`String`)
 
+## tls_client
+
+Perform TLS handshake using downstream stream-oriented socket, then expose stream-oriented socket interface to upstream that encrypts/decryptes the data.
+
+Parameters:
+
+* opts (`Dynamic`) - object map containing dynamic options to the function
+* connector (`Arc<TlsConnector>`)
+* inner (`StreamSocket`)
+* continuation (`Fn(StreamSocket) -> Task`) - Rhai function that will be called to continue processing
+
+Returns `Task`
+
+Options:
+
+* domain (`String`)
+
 ## tls_client_connector
 
 Create environment for using TLS clients.
@@ -2255,6 +2274,17 @@ Options:
 * danger_accept_invalid_certs (`bool`)
 * danger_accept_invalid_hostnames (`bool`)
 * no_sni (`bool`)
+
+## tls_client_connector
+
+Create environment for using TLS clients.
+
+Parameters:
+
+* _ctx (`NativeCallContext`)
+* opts (`Dynamic`) - object map containing dynamic options to the function
+
+Returns `Arc<TlsConnector>`
 
 ## triggerable_event_create
 
@@ -2487,5 +2517,9 @@ flags (e.g. `--binary`) and options (e.g. `--buffer-size 4096`) that affect Scen
 * Chunk = Frame - portion of data read or written to/from stream or datagram socket in one go. Maybe a fragment of a Message or be the whole Message.
 * Task - a logical thread of execution. Rhai code is expected to create and combine some tasks. Typically each connection runs in its own task. Corresponds to Tokio tasks.
 * Hangup - similar to Task, but used in context of signaling various events, especially abrupt reset of sockets.
+* Specifier stack - Invididual components of a Specifier - Endpoint and a vector of Overlays.
+* Left side, first specifier - first positional argument you have specified at the left side of the Websocat CLI invocation (maybe after some transformation). Designed to handle both one-time use connectors and multi-use listeners.
+* Right side, second specifier - second positional argument of the Websocat CLI invocation (may be auto-generated). Designed for single-use things to attach to connections obtained from the Left side.
+* Listener - Type of Specifier that waits for incoming connections, swapning a task with a Socket for each incoming connection.
 
 
