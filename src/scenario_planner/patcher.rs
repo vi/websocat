@@ -38,6 +38,7 @@ impl WebsocatInvocation {
         self.left.fill_in_log_overlay_type();
         self.right.fill_in_log_overlay_type();
         self.maybe_insert_chunker();
+        self.maybe_insert_reuser();
         self.left.maybe_process_reuser(vars, &mut self.beginning)?;
         self.right.maybe_process_reuser(vars, &mut self.beginning)?;
         Ok(())
@@ -66,6 +67,12 @@ impl WebsocatInvocation {
             }
         }
         assert_eq!(self.left.get_copying_type(), self.right.get_copying_type());
+    }
+
+    fn maybe_insert_reuser(&mut self) {
+        if self.left.is_multiconn(&self.opts) && self.right.prefers_being_single(&self.opts) {
+            self.right.overlays.push(Overlay::SimpleReuser);
+        }
     }
 
     fn maybe_fill_in_tls_details(&mut self, vars: &mut IdentifierGenerator) -> anyhow::Result<()> {
@@ -543,5 +550,141 @@ impl Overlay {
             Overlay::LengthPrefixedChunks => CopyingType::Datarams,
             Overlay::SimpleReuser => CopyingType::Datarams,
         }
+    }
+}
+
+impl SpecifierStack {
+    /// Expected to emit multiple connections in parallel
+    fn is_multiconn(&self, opts: &WebsocatArgs) -> bool {
+        let mut multiconn = match self.innermost {
+            Endpoint::TcpConnectByEarlyHostname { .. } => false,
+            Endpoint::TcpConnectByLateHostname { .. } => false,
+            Endpoint::TcpConnectByIp(..) => false,
+            Endpoint::TcpListen(..) => !opts.oneshot,
+            Endpoint::TcpListenFd(..) => !opts.oneshot,
+            Endpoint::TcpListenFdNamed(..) => !opts.oneshot,
+            Endpoint::WsUrl(..) => false,
+            Endpoint::WssUrl(..) => false,
+            Endpoint::WsListen(..) => !opts.oneshot,
+            Endpoint::Stdio => false,
+            Endpoint::UdpConnect(..) => false,
+            Endpoint::UdpBind(..) => false,
+            Endpoint::UdpFd(_) => false,
+            Endpoint::UdpFdNamed(_) => false,
+            Endpoint::UdpServer(..) => !opts.oneshot,
+            Endpoint::UdpServerFd(_) => !opts.oneshot,
+            Endpoint::UdpServerFdNamed(_) => !opts.oneshot,
+            Endpoint::Exec(..) => false,
+            Endpoint::Cmd(..) => false,
+            Endpoint::DummyStream => false,
+            Endpoint::DummyDatagrams => false,
+            Endpoint::Literal(_) => false,
+            Endpoint::LiteralBase64(_) => false,
+            Endpoint::UnixConnect(..) => false,
+            Endpoint::UnixListen(..) => !opts.oneshot,
+            Endpoint::AbstractConnect(..) => false,
+            Endpoint::AbstractListen(..) => !opts.oneshot,
+            Endpoint::UnixListenFd(_) => !opts.oneshot,
+            Endpoint::UnixListenFdNamed(_) => !opts.oneshot,
+            Endpoint::AsyncFd(_) => false,
+            Endpoint::SeqpacketConnect(..) => false,
+            Endpoint::SeqpacketListen(..) => !opts.oneshot,
+            Endpoint::AbstractSeqpacketConnect(..) => false,
+            Endpoint::AbstractSeqpacketListen(..) => !opts.oneshot,
+            Endpoint::SeqpacketListenFd(..) => !opts.oneshot,
+            Endpoint::SeqpacketListenFdNamed(..) => !opts.oneshot,
+            Endpoint::MockStreamSocket(..) => false,
+            Endpoint::RegistryStreamListen(..) => !opts.oneshot,
+            Endpoint::RegistryStreamConnect(..) => false,
+            Endpoint::SimpleReuserEndpoint(..) => false,
+        };
+
+        for x in &self.overlays {
+            match x {
+                Overlay::WsUpgrade { .. } => {}
+                Overlay::WsAccept { .. } => {}
+                Overlay::WsFramer { .. } => {}
+                Overlay::WsClient => {}
+                Overlay::WsServer => {}
+                Overlay::TlsClient { .. } => {}
+                Overlay::StreamChunks => {}
+                Overlay::LineChunks => {}
+                Overlay::LengthPrefixedChunks => {}
+                Overlay::Log { .. } => {}
+                Overlay::ReadChunkLimiter => {}
+                Overlay::WriteChunkLimiter => {}
+                Overlay::WriteBuffer => {}
+                Overlay::SimpleReuser => multiconn = false,
+            }
+        }
+
+        multiconn
+    }
+
+    /// Does not like reentrant usage
+    fn prefers_being_single(&self, _opts: &WebsocatArgs) -> bool {
+        let mut singler = match self.innermost {
+            Endpoint::TcpConnectByEarlyHostname { .. } => false,
+            Endpoint::TcpConnectByLateHostname { .. } => false,
+            Endpoint::TcpConnectByIp(..) => false,
+            Endpoint::TcpListen(..)  => false,
+            Endpoint::TcpListenFd(..) => false,
+            Endpoint::TcpListenFdNamed(..)  => false,
+            Endpoint::WsUrl(..) => false,
+            Endpoint::WssUrl(..) => false,
+            Endpoint::WsListen(..)  => false,
+            Endpoint::Stdio => true,
+            Endpoint::UdpConnect(..) => false,
+            Endpoint::UdpBind(..) => false,
+            Endpoint::UdpFd(_) => false,
+            Endpoint::UdpFdNamed(_) => false,
+            Endpoint::UdpServer(..) => false,
+            Endpoint::UdpServerFd(_) => false,
+            Endpoint::UdpServerFdNamed(_) => false,
+            Endpoint::Exec(..) => false,
+            Endpoint::Cmd(..) => false,
+            Endpoint::DummyStream => false,
+            Endpoint::DummyDatagrams => false,
+            Endpoint::Literal(_) => false,
+            Endpoint::LiteralBase64(_) => false,
+            Endpoint::UnixConnect(..) => false,
+            Endpoint::UnixListen(..)  => false,
+            Endpoint::AbstractConnect(..) => false,
+            Endpoint::AbstractListen(..)  => false,
+            Endpoint::UnixListenFd(_)  => false,
+            Endpoint::UnixListenFdNamed(_) => false,
+            Endpoint::AsyncFd(_) => true,
+            Endpoint::SeqpacketConnect(..) => false,
+            Endpoint::SeqpacketListen(..)  => false,
+            Endpoint::AbstractSeqpacketConnect(..)  => false,
+            Endpoint::AbstractSeqpacketListen(..) => false,
+            Endpoint::SeqpacketListenFd(..)  => false,
+            Endpoint::SeqpacketListenFdNamed(..) => false,
+            Endpoint::MockStreamSocket(..) => false,
+            Endpoint::RegistryStreamListen(..)  => false,
+            Endpoint::RegistryStreamConnect(..) => false,
+            Endpoint::SimpleReuserEndpoint(..) => false,
+        };
+
+        for x in &self.overlays {
+            match x {
+                Overlay::WsUpgrade { .. } => {}
+                Overlay::WsAccept { .. } => {}
+                Overlay::WsFramer { .. } => {}
+                Overlay::WsClient => {}
+                Overlay::WsServer => {}
+                Overlay::TlsClient { .. } => {}
+                Overlay::StreamChunks => {}
+                Overlay::LineChunks => {}
+                Overlay::LengthPrefixedChunks => {}
+                Overlay::Log { .. } => {}
+                Overlay::ReadChunkLimiter => {}
+                Overlay::WriteChunkLimiter => {}
+                Overlay::WriteBuffer => {}
+                Overlay::SimpleReuser => singler = false,
+            }
+        }
+
+        singler
     }
 }
