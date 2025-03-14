@@ -1,6 +1,9 @@
-# For alpha release
+# For second alpha release
 
-(none remain)
+* --origin and --ua helpers
+* `random:`
+* write changelog
+* `-0` helper
 
 # Later
 
