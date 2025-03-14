@@ -45,7 +45,7 @@ impl Endpoint {
             | Endpoint::TcpListenFdNamed(..) => {
                 let varnam = env.vars.getnewvarname("tcp");
                 let fromaddr = env.vars.getnewvarname("from");
-                let listenparams = env.opts.listening_parameters();
+                let listenparams = env.opts.listening_parameters(env.position);
 
                 let addrpart = match self {
                     Endpoint::TcpListen(addr) => {

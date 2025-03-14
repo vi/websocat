@@ -68,7 +68,7 @@ impl Endpoint {
                 }
 
                 let varnam = env.vars.getnewvarname("unix");
-                let listenparams = env.opts.listening_parameters();
+                let listenparams = env.opts.listening_parameters(env.position);
 
                 env.printer.print_line(&format!(
                     "listen_unix(#{{{listenparams} {chmod_option} {fd_options}}}, {pathvar}, ||{{sequential([",
@@ -116,7 +116,7 @@ impl Endpoint {
                 }
 
                 let varnam = env.vars.getnewvarname("unix");
-                let listenparams = env.opts.listening_parameters();
+                let listenparams = env.opts.listening_parameters(env.position);
 
                 env.printer.print_line(&format!(
                     "listen_unix(#{{abstract: true, {listenparams} }}, {pathvar}, ||{{sequential([",
@@ -204,7 +204,7 @@ impl Endpoint {
                 if env.opts.text {
                     text_option = ", text: true";
                 }
-                let listenparams = env.opts.listening_parameters();
+                let listenparams = env.opts.listening_parameters(env.position);
 
                 env.printer.print_line(&format!(
                     "listen_seqpacket(#{{{listenparams} {chmod_option} {text_option} {fd_options} , max_send_datagram_size: {} }}, {pathvar}, ||{{sequential([",
@@ -264,7 +264,7 @@ impl Endpoint {
                 if env.opts.text {
                     text_option = ", text: true";
                 }
-                let listenparams = env.opts.listening_parameters();
+                let listenparams = env.opts.listening_parameters(env.position);
 
                 env.printer.print_line(&format!(
                     "listen_seqpacket(#{{abstract:true, {listenparams} {text_option} , max_send_datagram_size: {} }}, {pathvar}, ||{{sequential([",

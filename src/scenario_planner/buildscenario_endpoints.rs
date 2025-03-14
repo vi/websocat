@@ -90,7 +90,7 @@ impl Endpoint {
                 Ok(varnam)
             }
             Endpoint::RegistryStreamListen(addr) => {
-                let listenparams = env.opts.listening_parameters();
+                let listenparams = env.opts.listening_parameters(env.position);
                 let varnam = env.vars.getnewvarname("reg");
                 env.printer.print_line(&format!(
                     "listen_registry_stream(#{{{listenparams}, addr: {a}}}, |{varnam}| {{",

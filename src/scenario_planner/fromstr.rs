@@ -2,12 +2,12 @@ use clap_lex::OsStrExt;
 use std::{ffi::OsStr, net::SocketAddr};
 
 use super::{
-    types::{Endpoint, Overlay, SpecifierStack},
+    types::{Endpoint, Overlay, SpecifierPosition, SpecifierStack},
     utils::StripPrefixMany,
 };
 
 impl SpecifierStack {
-    pub fn my_from_str(mut x: &OsStr) -> anyhow::Result<SpecifierStack> {
+    pub fn my_from_str(mut x: &OsStr, position: SpecifierPosition) -> anyhow::Result<SpecifierStack> {
         let innermost;
         let mut overlays = vec![];
 
@@ -29,6 +29,7 @@ impl SpecifierStack {
         Ok(SpecifierStack {
             innermost,
             overlays,
+            position,
         })
     }
 }

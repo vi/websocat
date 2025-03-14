@@ -2,7 +2,7 @@ use crate::cli::WebsocatArgs;
 
 use super::{
     scenarioprinter::StrLit,
-    types::{PreparatoryAction, ScenarioPrintingEnvironment},
+    types::{PreparatoryAction, ScenarioPrintingEnvironment, SpecifierPosition},
 };
 
 impl PreparatoryAction {
@@ -55,8 +55,8 @@ impl PreparatoryAction {
 }
 
 impl WebsocatArgs {
-    pub fn listening_parameters(&self) -> &'static str {
-        if !self.oneshot {
+    pub fn listening_parameters(&self, position: SpecifierPosition) -> &'static str {
+        if !self.oneshot && position == SpecifierPosition::Left {
             "autospawn: true, oneshot: false"
         } else {
             "autospawn: false, oneshot: true"

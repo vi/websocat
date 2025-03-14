@@ -1,7 +1,7 @@
 use super::{
     scenarioprinter::ScenarioPrinter,
     types::{
-        CopyingType, Endpoint, ScenarioPrintingEnvironment, SpecifierStack, WebsocatInvocation,
+        CopyingType, Endpoint, ScenarioPrintingEnvironment, SpecifierPosition, SpecifierStack, WebsocatInvocation
     },
     utils::IdentifierGenerator,
 };
@@ -16,6 +16,7 @@ impl WebsocatInvocation {
             printer,
             opts: &self.opts,
             vars,
+            position: SpecifierPosition::Left,
         };
 
         let left: String;
@@ -37,6 +38,7 @@ impl WebsocatInvocation {
         }
 
         left = self.left.begin_print(&mut env)?;
+        env.position = SpecifierPosition::Right;
         right = self.right.begin_print(&mut env)?;
 
         if self.opts.exit_on_hangup {
@@ -137,6 +139,7 @@ impl WebsocatInvocation {
         }
 
         self.right.end_print(&mut env)?;
+        env.position = SpecifierPosition::Left;
         self.left.end_print(&mut env)?;
 
         for prepare_action in self.beginning.iter().rev() {

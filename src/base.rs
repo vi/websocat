@@ -13,7 +13,7 @@ use super::scenario_planner::{
     utils::IdentifierGenerator,
 };
 
-use crate::scenario_planner::types::SpecifierStack;
+use crate::scenario_planner::types::{SpecifierPosition, SpecifierStack};
 
 use clap::Parser;
 
@@ -166,8 +166,8 @@ impl WebsocatInvocation {
             args.spec1 = s.into();
         }
 
-        let left_stack = SpecifierStack::my_from_str(&args.spec1)?;
-        let right_stack = SpecifierStack::my_from_str(&args.spec2.take().unwrap())?;
+        let left_stack = SpecifierStack::my_from_str(&args.spec1, SpecifierPosition::Left)?;
+        let right_stack = SpecifierStack::my_from_str(&args.spec2.take().unwrap(), SpecifierPosition::Right)?;
 
         Ok(WebsocatInvocation {
             left: left_stack,

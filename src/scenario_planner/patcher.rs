@@ -7,7 +7,7 @@ use crate::cli::WebsocatArgs;
 
 use super::{
     types::{
-        CopyingType, Endpoint, Overlay, PreparatoryAction, SpecifierStack, WebsocatInvocation,
+        CopyingType, Endpoint, Overlay, PreparatoryAction, SpecifierStack, WebsocatInvocation
     },
     utils::IdentifierGenerator,
 };
@@ -436,6 +436,7 @@ impl SpecifierStack {
             let mut switcheroo = Box::new(SpecifierStack {
                 innermost: Endpoint::DummyDatagrams, // temporary
                 overlays: vec![],                    // temporary
+                position: self.position,
             });
             std::mem::swap(self, &mut switcheroo);
 

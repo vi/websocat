@@ -199,11 +199,20 @@ pub enum Overlay {
     SimpleReuser,
 }
 
+#[derive(Debug,Clone, Copy,PartialEq, Eq)]
+pub enum SpecifierPosition {
+    /// First positional argument of Websocat CLI, for listeners and connectors
+    Left,
+    /// First positional argument of Websocat CLI, for connectors
+    Right,
+}
+
 #[derive(Debug)]
 pub struct SpecifierStack {
     pub innermost: Endpoint,
     /// zeroeth element is the last specified overlay, e.g. `ws-ll:` in `reuse:autoreconnect:ws-ll:tcp:127.0.0.1:1234`.
     pub overlays: Vec<Overlay>,
+    pub position: SpecifierPosition,
 }
 
 #[derive(Debug)]
@@ -240,4 +249,5 @@ pub struct ScenarioPrintingEnvironment<'a> {
     pub printer: &'a mut ScenarioPrinter,
     pub opts: &'a WebsocatArgs,
     pub vars: &'a mut IdentifierGenerator,
+    pub position: SpecifierPosition,
 }
