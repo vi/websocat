@@ -1,4 +1,3 @@
-#![allow(unused)]
 use std::ffi::OsString;
 
 #[derive(Debug, PartialEq)]
@@ -20,6 +19,7 @@ pub enum ComposedArgument {
 }
 
 // no gen blocks, so vectors everywhere
+#[allow(unused_assignments)]
 fn parse1(
     a: impl IntoIterator<Item = impl Into<std::ffi::OsString>>,
 ) -> Vec<ComposedArgumentsEvent> {
@@ -137,7 +137,7 @@ pub fn parse(
         if let Some(x) = xx {
             match x {
                 Thing::Terminal(t) => match &evts[*t] {
-                    ComposedArgumentsEvent::ArgBlock(vec) => ArgBlock,
+                    ComposedArgumentsEvent::ArgBlock(..) => ArgBlock,
                     ComposedArgumentsEvent::OpenBracket => OpenBracket,
                     ComposedArgumentsEvent::CloseBracket => CloseBracket,
                     ComposedArgumentsEvent::Ampersand => Ampersand,
@@ -145,18 +145,19 @@ pub fn parse(
                     ComposedArgumentsEvent::Circumflex => Circumflex,
                 },
                 Thing::Composed(composed_argument) => match composed_argument {
-                    ComposedArgument::Simple(vec) => Simple,
-                    ComposedArgument::Parallel(vec) => Parallel,
-                    ComposedArgument::Sequential(vec) => Sequential,
-                    ComposedArgument::Race(vec) => Race,
+                    ComposedArgument::Simple(..) => Simple,
+                    ComposedArgument::Parallel(..) => Parallel,
+                    ComposedArgument::Sequential(..) => Sequential,
+                    ComposedArgument::Race(..) => Race,
                 },
-                Thing::BracketedExpression(vec) => Bracketed,
+                Thing::BracketedExpression(..) => Bracketed,
             }
         } else {
             Empty
         }
     };
 
+    #[allow(unused_variables)]
     loop {
         let more_events = events.len() > current_event;
         let cur_typ = thing_type(expr.last(), &events);
@@ -288,8 +289,6 @@ pub fn parse(
             }
         }
     }
-
-    todo!()
 }
 
 #[test]
