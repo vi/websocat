@@ -556,7 +556,7 @@ impl Overlay {
 
 impl SpecifierStack {
     /// Expected to emit multiple connections in parallel
-    fn is_multiconn(&self, opts: &WebsocatArgs) -> bool {
+    pub(super) fn is_multiconn(&self, opts: &WebsocatArgs) -> bool {
         let mut multiconn = match self.innermost {
             Endpoint::TcpConnectByEarlyHostname { .. } => false,
             Endpoint::TcpConnectByLateHostname { .. } => false,

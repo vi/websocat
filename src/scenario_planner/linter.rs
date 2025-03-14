@@ -3,6 +3,7 @@ use super::types::{Endpoint, WebsocatInvocation};
 pub enum Lint {
     StdoutOneshotWithoutExit,
     StdoutGlobalTimeoutWithoutExit,
+    ListenerAtTheWrongSide,
 }
 
 impl WebsocatInvocation {
@@ -21,6 +22,10 @@ impl WebsocatInvocation {
             }
         }
 
+        if !self.left.is_multiconn(&self.opts) && self.right.is_multiconn(&self.opts) {
+            ret.push(Lint::ListenerAtTheWrongSide);
+        }
+
         ret
     }
 }
@@ -33,6 +38,9 @@ impl std::fmt::Display for Lint {
             }
             Lint::StdoutGlobalTimeoutWithoutExit => {
                 "--global-timeout-ms may fail to properly exit process when stdin is used (https://github.com/tokio-rs/tokio/issues/2466). You may want to also add the --global-timeout-force-exit option.".fmt(f)
+            }
+            Lint::ListenerAtTheWrongSide => {
+                "Listening specifier should be the first specifier (at the left side) in command line. It would server only one connection if found at the right side. Use --oneshot if this is intended".fmt(f)
             }
         }
     }
