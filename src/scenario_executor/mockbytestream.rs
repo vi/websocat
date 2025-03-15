@@ -20,8 +20,8 @@ use super::{
 //@
 //@ * `R` - make the socket return specified chunk of data
 //@ * `W` - make the socket wait for incoming data and check if it matches the sample
-//@ * 'ER' / `EW` - inject read or write error
-//@ * 'T0` ... `T9` - sleep for some time interval, from small to large.
+//@ * `ER` / `EW` - inject read or write error
+//@ * `T0` ... `T9` - sleep for some time interval, from small to large.
 //@
 //@ Example: `R hello|R world|W ping |R pong|T5|R zero byte \0 other escapes \| \xff \r\n\t|EW`
 fn mock_stream_socket(ctx: NativeCallContext, content: String) -> RhResult<Handle<StreamSocket>> {

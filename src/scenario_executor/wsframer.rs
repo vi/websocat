@@ -247,7 +247,7 @@ impl PacketWrite for WsEncoder {
     }
 }
 
-//@ Wrap downstream stream-orinted writer to make expose packet-orinted sink using WebSocket framing
+//@ Wrap downstream stream-oriented writer to make expose packet-oriented sink using WebSocket framing
 fn ws_encoder(
     ctx: NativeCallContext,
     opts: Dynamic,
@@ -466,7 +466,7 @@ impl WsDecoder {
     }
 }
 
-//@ Wrap downstream stream-orinted reader to make expose packet-orinted source using WebSocket framing
+//@ Wrap downstream stream-oriented reader to make expose packet-oriented source using WebSocket framing
 fn ws_decoder(
     ctx: NativeCallContext,
     opts: Dynamic,
@@ -478,7 +478,7 @@ fn ws_decoder(
         //@ Require decoded frames to be masked (i.e. coming from a client)
         #[serde(default)]
         require_masked: bool,
-        //@ Require decoded frames to be masked (i.e. coming from a server)
+        //@ Require decoded frames to be unmasked (i.e. coming from a server)
         #[serde(default)]
         require_unmasked: bool,
     }

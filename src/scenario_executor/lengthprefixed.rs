@@ -462,10 +462,10 @@ fn length_prefixed_chunks(
         #[serde(default)]
         skip_write_direction: bool,
 
-        //@ Do not defragment written messages,.write WebSocket frames instead of messages (and `or` specified number into the header).
+        //@ Do not defragment written messages, write WebSocket frames instead of messages (and bitwise-or specified number into the header).
         continuations: Option<u64>,
 
-        //@ Also write pings, pongs and CloseFrame messages, setting specified bit (pre-shifted) in header and prepending opcode in condent.
+        //@ Also write pings, pongs and CloseFrame messages, setting specified bit (pre-shifted) in header and prepending opcode in content.
         //@ Length would include this prepended byte.
         //@
         //@ Affects read direction as well, allowing manually triggering WebSocket control messages.

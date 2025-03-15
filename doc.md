@@ -1731,8 +1731,8 @@ Options:
 * little_endian (`bool`) - Encode header as a little-endian number instead of big endian
 * skip_read_direction (`bool`) - Inhibit adding header to data transferred in read direction, pass byte chunks unmodifed
 * skip_write_direction (`bool`) - Inhibit adding header to data transferred in read direction, pass byte chunks unmodifed
-* continuations (`Option<u64>`) - Do not defragment written messages,.write WebSocket frames instead of messages (and `or` specified number into the header).
-* controls (`Option<u64>`) - Also write pings, pongs and CloseFrame messages, setting specified bit (pre-shifted) in header and prepending opcode in condent. Length would include this prepended byte.  Affects read direction as well, allowing manually triggering WebSocket control messages.
+* continuations (`Option<u64>`) - Do not defragment written messages, write WebSocket frames instead of messages (and bitwise-or specified number into the header).
+* controls (`Option<u64>`) - Also write pings, pongs and CloseFrame messages, setting specified bit (pre-shifted) in header and prepending opcode in content. Length would include this prepended byte.  Affects read direction as well, allowing manually triggering WebSocket control messages.
 * tag_text (`Option<u64>`) - Set specified pre-shifted bit in header when dealing with text WebSocket messages. Note that with continuations, messages can be split into fragments in middle of a UTF-8 characters.
 
 ## line_chunks
@@ -1895,8 +1895,8 @@ Operations:
 
 * `R` - make the socket return specified chunk of data
 * `W` - make the socket wait for incoming data and check if it matches the sample
-* 'ER' / `EW` - inject read or write error
-* 'T0` ... `T9` - sleep for some time interval, from small to large.
+* `ER` / `EW` - inject read or write error
+* `T0` ... `T9` - sleep for some time interval, from small to large.
 
 Example: `R hello|R world|W ping |R pong|T5|R zero byte \0 other escapes \| \xff \r\n\t|EW`
 
@@ -2489,7 +2489,7 @@ Options:
 
 ## ws_decoder
 
-Wrap downstream stream-orinted reader to make expose packet-orinted source using WebSocket framing
+Wrap downstream stream-oriented reader to make expose packet-oriented source using WebSocket framing
 
 Parameters:
 
@@ -2501,11 +2501,11 @@ Returns `DatagramRead`
 Options:
 
 * require_masked (`bool`) - Require decoded frames to be masked (i.e. coming from a client)
-* require_unmasked (`bool`) - Require decoded frames to be masked (i.e. coming from a server)
+* require_unmasked (`bool`) - Require decoded frames to be unmasked (i.e. coming from a server)
 
 ## ws_encoder
 
-Wrap downstream stream-orinted writer to make expose packet-orinted sink using WebSocket framing
+Wrap downstream stream-oriented writer to make expose packet-oriented sink using WebSocket framing
 
 Parameters:
 
@@ -2585,8 +2585,7 @@ Rhai functions API is also intended to be semver-stable API of Websocat.
 in Scenarios.
 * Scenario Planner - part of Websocat implementation that parses command line arguments and prepares a Scenario
 * Scenario Executor - part of Websocat implementation that executes a Scenario.
-* CLI arguments - combination of a positional arguments (typically Specifiers) and various 
-flags (e.g. `--binary`) and options (e.g. `--buffer-size 4096`) that affect Scenario Planner.
+* CLI arguments - combination of a positional arguments (typically Specifiers) and various flags (e.g. `--binary`) and options (e.g. `--buffer-size 4096`) that affect Scenario Planner. Sometimes, in narrow sense, it may refer to an individual block of `--compose`-ed arguments.
 * Packet = Datagram = Message - A byte buffer with associated flags. Correspond to one WebSocket message. Within WebSocket, packets can be split to chunks, but that should not affect user-visible properties.
 * Chunk = Frame - portion of data read or written to/from stream or datagram socket in one go. Maybe a fragment of a Message or be the whole Message.
 * Task - a logical thread of execution. Rhai code is expected to create and combine some tasks. Typically each connection runs in its own task. Corresponds to Tokio tasks.
