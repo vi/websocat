@@ -66,6 +66,12 @@ impl Overlay {
                 }
 
                 let mut ch = String::new();
+                if let Some(ref x) = env.opts.origin {
+                    ch.push_str(&format!("\"Origin\":{},", StrLit(x)));
+                }
+                if let Some(ref x) = env.opts.ua {
+                    ch.push_str(&format!("\"User-Agent\":{},", StrLit(x)));
+                }
                 for CustomHeader { name, value } in &env.opts.header {
                     ch.push_str(&format!("{}:{},", StrLit(name), StrLit(value)))
                 }

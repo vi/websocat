@@ -1,6 +1,5 @@
 # For second alpha release
 
-* --origin and --ua helpers
 * `random:`
 * write changelog
 * `-0` helper

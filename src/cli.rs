@@ -446,6 +446,14 @@ pub struct WebsocatArgs {
     /// For `writefile:` endpoint, do not overwrite existing files, instead use other, neighbouring file names.
     #[arg(long)]
     pub write_file_auto_rename: bool,
+
+    /// Add Origin HTTP header to Websocket client request.
+    #[arg(long)]
+    pub origin: Option<String>,
+
+    /// Add User-Agent HTTP header to Websocket client request.
+    #[arg(long)]
+    pub ua: Option<String>,
 }
 
 /// Subset of command line arguments that describes the whole Websocat operation even when `--compose` subscenarios are used.

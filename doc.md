@@ -329,6 +329,12 @@ Options:
       --write-file-auto-rename
           For `writefile:` endpoint, do not overwrite existing files, instead use other, neighbouring file names
 
+      --origin <ORIGIN>
+          Add Origin HTTP header to Websocket client request
+
+      --ua <UA>
+          Add User-Agent HTTP header to Websocket client request
+
   -h, --help
           Print help (see a summary with '-h')
 
