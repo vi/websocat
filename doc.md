@@ -891,7 +891,7 @@ Prefixes:
 
 ### Zero
 
-Generate zero ndom bytes
+Generate zero bytes
 
 Prefixes:
 
