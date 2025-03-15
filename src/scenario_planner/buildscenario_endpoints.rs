@@ -20,7 +20,14 @@ impl Endpoint {
             Endpoint::Stdio => {
                 let varnam = env.vars.getnewvarname("stdio");
                 env.printer
-                    .print_line(&format!("let {varnam} = create_stdio();"));
+                    .print_line(&format!("let {varnam} = stdio_socket();"));
+                Ok(varnam)
+            }
+            Endpoint::Random => {
+                let varnam = env.vars.getnewvarname("random");
+                let fast = env.opts.random_fast;
+                env.printer
+                    .print_line(&format!("let {varnam} = random_socket(#{{fast: {fast}}});"));
                 Ok(varnam)
             }
             Endpoint::UdpConnect(..)
@@ -219,6 +226,7 @@ impl Endpoint {
                 env.printer.decrease_indent();
                 env.printer.print_line("})");
             }
+            Endpoint::Random => {}
         }
     }
 }

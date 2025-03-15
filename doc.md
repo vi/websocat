@@ -338,6 +338,9 @@ Options:
       --ua <UA>
           Add User-Agent HTTP header to Websocket client request
 
+      --random-fast
+          For `random:` endpoint, use smaller and faster RNG instead of secure one
+
   -h, --help
           Print help (see a summary with '-h')
 
@@ -358,6 +361,7 @@ Short list of endpoint prefixes:
   literal:
   literal-base64:
   mock_stream_socket:
+  random:
   readfile:
   registry-stream-connect:
   registry-stream-listen:
@@ -561,6 +565,14 @@ Prefixes:
 
 * `mock_stream_socket:`
 * `mock-stream-socket:`
+
+### Random
+
+Generate random bytes
+
+Prefixes:
+
+* `random:`
 
 ### ReadFile
 
@@ -1466,13 +1478,6 @@ Parameters:
 
 Returns `Task`
 
-## create_stdio
-
-Obtain a stream socket made of stdin and stdout.
-This spawns a OS thread to handle interactions with the stdin/stdout and may be inefficient.
-
-Returns `StreamSocket`
-
 ## datagram_logger
 
 Wrap datagram socket in an overlay that logs every inner read and write to stderr.
@@ -2048,6 +2053,20 @@ Parameters:
 
 Returns `Task`
 
+## random_socket
+
+Create a StreamSocket that reads random bytes (affected by --random-seed) and ignores writes
+
+Parameters:
+
+* opts (`Dynamic`) - object map containing dynamic options to the function
+
+Returns `StreamSocket`
+
+Options:
+
+* fast (`bool`) - Use small, less secure RNG instead of slower secure one.
+
 ## read_chunk_limiter
 
 Transform stream source so that reads become short reads if there is enough data. For development and testing.
@@ -2119,6 +2138,13 @@ Parameters:
 * task (`Task`)
 
 Does not return anything.
+
+## stdio_socket
+
+Obtain a stream socket made of stdin and stdout.
+This spawns a OS thread to handle interactions with the stdin/stdout and may be inefficient.
+
+Returns `StreamSocket`
 
 ## str
 

@@ -134,6 +134,9 @@ pub enum Endpoint {
 
     //@ Append to specified file.
     AppendFile(OsString),
+
+    //@ Generate random bytes
+    Random,
 }
 
 #[derive(Debug)]

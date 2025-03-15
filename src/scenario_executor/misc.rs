@@ -1,6 +1,8 @@
-use std::net::SocketAddr;
+use std::{net::SocketAddr, pin::Pin, task::Poll};
 
-use rhai::{Engine, FnPtr, NativeCallContext};
+use rand::{RngCore, SeedableRng};
+use rhai::{Dynamic, Engine, FnPtr, NativeCallContext};
+use tokio::io::AsyncRead;
 use tracing::{debug, debug_span, Instrument};
 
 use crate::scenario_executor::{
@@ -13,7 +15,7 @@ use super::{types::Task, utils1::RhResult};
 
 //@ Obtain a stream socket made of stdin and stdout.
 //@ This spawns a OS thread to handle interactions with the stdin/stdout and may be inefficient.
-fn create_stdio() -> Handle<StreamSocket> {
+fn stdio_socket() -> Handle<StreamSocket> {
     StreamSocket {
         read: Some(StreamRead {
             reader: Box::pin(tokio::io::stdin()),
@@ -50,7 +52,70 @@ fn lookup_host(
     .wrap())
 }
 
+struct RandomReader<R>(R);
+
+impl<R: RngCore + Unpin> AsyncRead for RandomReader<R> {
+    fn poll_read(
+        self: std::pin::Pin<&mut Self>,
+        _cx: &mut std::task::Context<'_>,
+        buf: &mut tokio::io::ReadBuf<'_>,
+    ) -> Poll<std::io::Result<()>> {
+        let this = self.get_mut();
+        let b = buf.initialize_unfilled();
+
+        this.0.fill_bytes(b);
+
+        let n = b.len();
+        buf.advance(n);
+
+        return Poll::Ready(Ok(()))
+    }
+}
+
+//@ Create a StreamSocket that reads random bytes (affected by --random-seed) and ignores writes
+fn random_socket(
+    ctx: NativeCallContext,
+    opts: Dynamic,
+) -> RhResult<Handle<StreamSocket>> {
+    let the_scenario = ctx.get_scenario()?;
+    #[derive(serde::Deserialize)]
+    struct Opts {
+        //@ Use small, less secure RNG instead of slower secure one.
+        #[serde(default)]
+        fast: bool,
+    }
+    let opts: Opts = rhai::serde::from_dynamic(&opts)?;
+
+    debug!("random_socket: options parsed");
+
+    
+    let r : Pin<Box<dyn AsyncRead + Send + 'static>> = if !opts.fast {
+        let rng = rand_chacha::ChaCha12Rng::from_rng(&mut the_scenario.prng.lock().unwrap());
+        Box::pin(RandomReader(rng))
+    } else {
+        let rng = rand_pcg::Pcg64::from_rng(&mut the_scenario.prng.lock().unwrap());
+        Box::pin(RandomReader(rng))
+    };
+
+    let w = Box::pin(tokio::io::empty());
+
+    let s = StreamSocket {
+        read: Some(StreamRead {
+            reader: r,
+            prefix: Default::default(),
+        }),
+        write: Some(StreamWrite { writer: w }),
+        close: None,
+        fd: None,
+    };
+    
+    let h = s.wrap();
+    Ok(h)
+
+}
+
 pub fn register(engine: &mut Engine) {
-    engine.register_fn("create_stdio", create_stdio);
+    engine.register_fn("stdio_socket", stdio_socket);
     engine.register_fn("lookup_host", lookup_host);
+    engine.register_fn("random_socket", random_socket);
 }

@@ -1,7 +1,6 @@
 # For second alpha release
 
-* `random:`
-* write changelog
+* changelog from alpha1 to alpha2
 
 # Later
 

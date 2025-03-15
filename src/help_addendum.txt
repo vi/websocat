@@ -12,6 +12,7 @@ Short list of endpoint prefixes:
   literal:
   literal-base64:
   mock_stream_socket:
+  random:
   readfile:
   registry-stream-connect:
   registry-stream-listen:

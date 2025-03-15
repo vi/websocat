@@ -438,7 +438,12 @@ impl ParseStrChunkResult<'_> {
             Ok(ParseStrChunkResult::Endpoint(Endpoint::AppendFile(
                 rest.to_owned(),
             )))
-        }else {
+        } else if let Some(rest) = x.strip_prefix("random:") {
+            if !rest.is_empty() {
+                anyhow::bail!("random: endpoint does not take any argument. Use --random-seed to specify seed");
+            }
+            Ok(ParseStrChunkResult::Endpoint(Endpoint::Random))
+        } else {
             anyhow::bail!("Unknown specifier: {x:?}")
         }
     }

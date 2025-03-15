@@ -458,6 +458,10 @@ pub struct WebsocatArgs {
     /// Add User-Agent HTTP header to Websocket client request.
     #[arg(long)]
     pub ua: Option<String>,
+
+    /// For `random:` endpoint, use smaller and faster RNG instead of secure one
+    #[arg(long)]
+    pub random_fast: bool,
 }
 
 /// Subset of command line arguments that describes the whole Websocat operation even when `--compose` subscenarios are used.
