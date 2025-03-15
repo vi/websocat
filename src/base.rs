@@ -195,6 +195,12 @@ impl WebsocatInvocation {
             self.patches(vars)?;
         }
 
+        if !self.opts.no_lints {
+            for lint in self.lints2() {
+                writeln!(diagnostic_output, "warning: {lint}")?;
+            }
+        }
+
         if self.opts.dump_spec_phase1 || self.opts.dump_spec_phase2 {
             writeln!(diagnostic_output, "{:#?}", self.left)?;
             writeln!(diagnostic_output, "{:#?}", self.right)?;

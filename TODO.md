@@ -2,7 +2,6 @@
 
 * `random:`
 * write changelog
-* `-0` helper
 
 # Later
 

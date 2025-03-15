@@ -83,6 +83,9 @@ Options:
       --separator-inhibit-substitution
           prevent mangling incoming text WebSocket by replacing `\n`  (or other separator sequence) with spaces (and trimming leading and trailing separator bytes)
 
+  -0, --null-terminated
+          Same as setting `--separator` to `0`. Make text mode messages separated by zero byte instead of newline
+
       --udp-bind-target-addr <UDP_BIND_TARGET_ADDR>
           initial target sendto address for `udp-bind:` mode. If unset, it will try to send to neutral address (unsuccessfully)
 

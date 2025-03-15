@@ -1,9 +1,10 @@
-use super::types::{Endpoint, WebsocatInvocation};
+use super::types::{CopyingType, Endpoint, WebsocatInvocation};
 
 pub enum Lint {
     StdoutOneshotWithoutExit,
     StdoutGlobalTimeoutWithoutExit,
     ListenerAtTheWrongSide,
+    UnusedSeparatorOption,
 }
 
 impl WebsocatInvocation {
@@ -28,6 +29,20 @@ impl WebsocatInvocation {
 
         ret
     }
+
+    pub fn lints2(&self) -> Vec<Lint> {
+        let mut ret = vec![];
+
+        if self.get_copying_type() == CopyingType::ByteStream
+            && (self.opts.separator.is_some()
+                || self.opts.separator_n.is_some()
+                || self.opts.null_terminated)
+        {
+            ret.push(Lint::UnusedSeparatorOption)
+        }
+
+        ret
+    }
 }
 
 impl std::fmt::Display for Lint {
@@ -42,6 +57,9 @@ impl std::fmt::Display for Lint {
             Lint::ListenerAtTheWrongSide => {
                 "Listening specifier should be the first specifier (at the left side) in command line. It would server only one connection if found at the right side. Use --oneshot if this is intended".fmt(f)
             }
+            Lint::UnusedSeparatorOption => {
+                "You have specified separator-related option (--separator or --separator-n or --null-terminated), but Websocat is operating in bytestream-oriented mode where separators are not used. Consider `-t` option or `lines:` overlay.".fmt(f)
+            },
         }
     }
 }

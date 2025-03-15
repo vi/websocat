@@ -27,6 +27,9 @@ impl Overlay {
                 if let Some(ref x) = env.opts.separator {
                     oo.push_str(&format!("separator: {x},"));
                 }
+                if env.opts.null_terminated {
+                    oo.push_str("separator: 0,");
+                }
                 if let Some(ref x) = env.opts.separator_n {
                     oo.push_str(&format!("separator_n: {x},"));
                 }

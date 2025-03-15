@@ -121,6 +121,10 @@ pub struct WebsocatArgs {
     #[arg(long)]
     pub separator_inhibit_substitution: bool,
 
+    /// Same as setting `--separator` to `0`. Make text mode messages separated by zero byte instead of newline.
+    #[arg(long, short='0')]
+    pub null_terminated: bool,
+
     /// initial target sendto address for `udp-bind:` mode.
     /// If unset, it will try to send to neutral address (unsuccessfully).
     #[arg(long)]
