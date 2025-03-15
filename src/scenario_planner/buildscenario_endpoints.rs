@@ -23,6 +23,12 @@ impl Endpoint {
                     .print_line(&format!("let {varnam} = stdio_socket();"));
                 Ok(varnam)
             }
+            Endpoint::Zero => {
+                let varnam = env.vars.getnewvarname("zero");
+                env.printer
+                    .print_line(&format!("let {varnam} = zero_socket();"));
+                Ok(varnam)
+            }
             Endpoint::Random => {
                 let varnam = env.vars.getnewvarname("random");
                 let fast = env.opts.random_fast;
@@ -227,6 +233,7 @@ impl Endpoint {
                 env.printer.print_line("})");
             }
             Endpoint::Random => {}
+            Endpoint::Zero => {},
         }
     }
 }

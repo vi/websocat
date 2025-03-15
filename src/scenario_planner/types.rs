@@ -137,6 +137,9 @@ pub enum Endpoint {
 
     //@ Generate random bytes
     Random,
+
+    //@ Generate zero ndom bytes
+    Zero,
 }
 
 #[derive(Debug)]

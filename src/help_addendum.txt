@@ -40,6 +40,7 @@ Short list of endpoint prefixes:
   ws-listen:
   ws://
   wss://
+  zero:
 
 Short list of overlay prefixes:
   lengthprefixed:

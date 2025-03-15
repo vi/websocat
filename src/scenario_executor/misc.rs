@@ -68,15 +68,12 @@ impl<R: RngCore + Unpin> AsyncRead for RandomReader<R> {
         let n = b.len();
         buf.advance(n);
 
-        return Poll::Ready(Ok(()))
+        return Poll::Ready(Ok(()));
     }
 }
 
 //@ Create a StreamSocket that reads random bytes (affected by --random-seed) and ignores writes
-fn random_socket(
-    ctx: NativeCallContext,
-    opts: Dynamic,
-) -> RhResult<Handle<StreamSocket>> {
+fn random_socket(ctx: NativeCallContext, opts: Dynamic) -> RhResult<Handle<StreamSocket>> {
     let the_scenario = ctx.get_scenario()?;
     #[derive(serde::Deserialize)]
     struct Opts {
@@ -88,8 +85,7 @@ fn random_socket(
 
     debug!("random_socket: options parsed");
 
-    
-    let r : Pin<Box<dyn AsyncRead + Send + 'static>> = if !opts.fast {
+    let r: Pin<Box<dyn AsyncRead + Send + 'static>> = if !opts.fast {
         let rng = rand_chacha::ChaCha12Rng::from_rng(&mut the_scenario.prng.lock().unwrap());
         Box::pin(RandomReader(rng))
     } else {
@@ -108,14 +104,48 @@ fn random_socket(
         close: None,
         fd: None,
     };
-    
+
     let h = s.wrap();
     Ok(h)
+}
 
+struct ZeroReader;
+
+impl AsyncRead for ZeroReader {
+    fn poll_read(
+        self: std::pin::Pin<&mut Self>,
+        _cx: &mut std::task::Context<'_>,
+        buf: &mut tokio::io::ReadBuf<'_>,
+    ) -> Poll<std::io::Result<()>> {
+        let b = buf.initialize_unfilled();
+        let n = b.len();
+        buf.advance(n);
+
+        return Poll::Ready(Ok(()));
+    }
+}
+
+//@ Create a StreamSocket that reads zero bytes and ignores writes
+fn zero_socket() -> Handle<StreamSocket> {
+    let s = StreamSocket {
+        read: Some(StreamRead {
+            reader: Box::pin(ZeroReader),
+            prefix: Default::default(),
+        }),
+        write: Some(StreamWrite {
+            writer: Box::pin(tokio::io::empty()),
+        }),
+        close: None,
+        fd: None,
+    };
+
+    let h = s.wrap();
+    h
 }
 
 pub fn register(engine: &mut Engine) {
     engine.register_fn("stdio_socket", stdio_socket);
     engine.register_fn("lookup_host", lookup_host);
     engine.register_fn("random_socket", random_socket);
+    engine.register_fn("zero_socket", zero_socket);
 }

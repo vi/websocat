@@ -368,7 +368,7 @@ pub struct WebsocatArgs {
     #[arg(long, default_value = "4")]
     pub lengthprefixed_nbytes: usize,
 
-    /// Do not reassume message from fragments, stream them as chunks.
+    /// Do not reassemble messages from fragments, stream them as chunks.
     /// Highest bit of the prefix would be set if the message is non-final
     #[arg(long)]
     pub lengthprefixed_continuations: bool,

@@ -409,6 +409,7 @@ impl SpecifierStack {
                 Endpoint::WriteFile(..) => false,
                 Endpoint::AppendFile(..) => false,
                 Endpoint::Random => false,
+                Endpoint::Zero => false,
             };
             if do_insert {
                 // datagram mode may be patched later
@@ -534,6 +535,7 @@ impl Endpoint {
             Endpoint::WriteFile(..) => CopyingType::ByteStream,
             Endpoint::AppendFile(..) => CopyingType::ByteStream,
             Endpoint::Random => CopyingType::ByteStream,
+            Endpoint::Zero => CopyingType::ByteStream,
         }
     }
 }
@@ -613,6 +615,7 @@ impl SpecifierStack {
             Endpoint::WriteFile(..) => false,
             Endpoint::AppendFile(..) => false,
             Endpoint::Random => false,
+            Endpoint::Zero => false,
         };
 
         for x in &self.overlays {
@@ -684,6 +687,7 @@ impl SpecifierStack {
             Endpoint::WriteFile(..) => !opts.write_file_no_overwrite,
             Endpoint::AppendFile(..) => true,
             Endpoint::Random => false,
+            Endpoint::Zero => false,
         };
 
         for x in &self.overlays {

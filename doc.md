@@ -269,7 +269,7 @@ Options:
           [default: 4]
 
       --lengthprefixed-continuations
-          Do not reassume message from fragments, stream them as chunks. Highest bit of the prefix would be set if the message is non-final
+          Do not reassemble messages from fragments, stream them as chunks. Highest bit of the prefix would be set if the message is non-final
 
       --lengthprefixed-max-message-size <LENGTHPREFIXED_MAX_MESSAGE_SIZE>
           Maximum size of `lengthprefixed:` message (that needs to be reassembled from fragments)
@@ -389,6 +389,7 @@ Short list of endpoint prefixes:
   ws-listen:
   ws://
   wss://
+  zero:
 
 Short list of overlay prefixes:
   lengthprefixed:
@@ -887,6 +888,14 @@ Connect to specified WebSocket TLS URL
 Prefixes:
 
 * `wss://`
+
+### Zero
+
+Generate zero ndom bytes
+
+Prefixes:
+
+* `zero:`
 
 
 ## Overlays
@@ -2552,6 +2561,12 @@ Options:
 * shutdown_socket_on_eof (`bool`) - Propagate upstream writer shutdown to downstream
 * no_auto_buffer_wrap (`bool`) - Do not automatically wrap WebSocket frames writer in a write_buffer: overlay when it detects missing vectored writes support
 * max_ping_replies (`Option<usize>`) - Stop replying to WebSocket pings after sending this number of Pong frames.
+
+## zero_socket
+
+Create a StreamSocket that reads zero bytes and ignores writes
+
+Returns `StreamSocket`
 
 
 # Glossary

@@ -7,7 +7,10 @@ use super::{
 };
 
 impl SpecifierStack {
-    pub fn my_from_str(mut x: &OsStr, position: SpecifierPosition) -> anyhow::Result<SpecifierStack> {
+    pub fn my_from_str(
+        mut x: &OsStr,
+        position: SpecifierPosition,
+    ) -> anyhow::Result<SpecifierStack> {
         let innermost;
         let mut overlays = vec![];
 
@@ -443,6 +446,11 @@ impl ParseStrChunkResult<'_> {
                 anyhow::bail!("random: endpoint does not take any argument. Use --random-seed to specify seed");
             }
             Ok(ParseStrChunkResult::Endpoint(Endpoint::Random))
+        } else if let Some(rest) = x.strip_prefix("zero:") {
+            if !rest.is_empty() {
+                anyhow::bail!("zero: endpoint does not take any argument");
+            }
+            Ok(ParseStrChunkResult::Endpoint(Endpoint::Zero))
         } else {
             anyhow::bail!("Unknown specifier: {x:?}")
         }
