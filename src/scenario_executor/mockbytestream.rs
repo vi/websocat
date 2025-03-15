@@ -60,7 +60,8 @@ fn mock_stream_socket(ctx: NativeCallContext, content: String) -> RhResult<Handl
                     builder.read(&buf);
                 }
                 BufferMode::SetName => {
-                    builder.name(String::from_utf8_lossy(&buf[..]).to_string());
+                    tracing::warn!("mock_stream_socket: name support is not compiled in");
+                    //builder.name(String::from_utf8_lossy(&buf[..]).to_string());
                 }
             }
             buf.clear();

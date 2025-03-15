@@ -2,7 +2,7 @@
 name = "websocat"
 version = "4.0.0-alpha2"
 edition = "2021"
-include = ["src","Cargo.toml","doc.md","README.md","DESIGN.md","TODO.md","misc"]
+include = ["src","Cargo.toml","doc.md","README.md","DESIGN.md","TODO.md","misc", "tests"]
 license = "MIT/Apache-2.0"
 repository = "https://github.com/vi/websocat"
 description = "Command-line client for web sockets, like netcat/curl/socat for ws://."
@@ -70,3 +70,7 @@ rustls= ["dep:rustls","dep:webpki-roots","dep:tokio-rustls"]
 [dev-dependencies]
 assert_cmd = "2.0.16"
 tokio = {version = "1.32",features=["test-util"]}
+
+#[patch.crates-io]
+#tokio-test = { path = "/mnt/fluff/vi/src/tokio/tokio-test" }
+#tokio = { path = "/mnt/fluff/vi/src/tokio/tokio" }
