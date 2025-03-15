@@ -1,17 +1,22 @@
-# For second alpha release
+# For beta
 
-* changelog from alpha1 to alpha2
+* TLS server
+* TLS client auth
+* outgoing pings
+* preamble/preamble-reverse
+* Advanced UDP options
+* Advanced TCP options
+* More datagram tools (autoreconnect, foreachmsg, literalreply)
+* base64 mode, text and binary prefixes
+* one message mode
+* broadcast reuser
+* mirror
 
 # Later
 
 * Lints for unused options
-* TLS server
-* outgoing pings
 * one message mode
-* Advanced UDP options
-* Advanced TCP options
-* More datagram tools (reusers, autoreconnect, foreachmsg)
-* More datagram tools (literalreply, combine/fanout, limit)
+* More datagram tools (combine/fanout, limit)
 * Multi-socket listener
 * (non-Websocket) HTTP games
 * HTTP/2 games
@@ -30,15 +35,12 @@
 * max messages
 * speed limit
 * conncap (parallel connections limiter)
-* outgoing ping and pong limiter
-* preamble / preamble-reverse
+* outgoing ping limiter
 * static files / strict URI mode
 * inetd mode
-* readfile/writefile/appendfile
 * clogged
 * socks5 proxy
 * http proxy
-* random
 * Prometheus intergration
 * simple ecnryptor/decryptor
 * waitfordata
