@@ -32,7 +32,7 @@ Abandoned attempts to make arch saner incrementally.
 
 "[Second-system](https://en.wikipedia.org/wiki/Second-system_effect)" edition.
 
-Based on Tokio 1.0 from the beginning, based on `tokion-tungstenite`.
+Based on Tokio 1.0 from the beginning, based on `tokio-tungstenite`.
 Custom CLI framework, custom lisp-esque low-level specifier language (there is even a quasi-quote operator inside).
 Playground for rolling my own proc macros.
 

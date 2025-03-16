@@ -66,7 +66,7 @@ Prefixes:
 
 ## AsyncFd
 
-Use specified inherited file desciptor for reading and writing, assuming it supports `read(2)` and `writev(2)` and can be put in epoll (or analogue).
+Use specified inherited file descriptor for reading and writing, assuming it supports `read(2)` and `writev(2)` and can be put in epoll (or analogue).
 
 Trying to specify unexisting FD, especially low-numbered (e.g from 3 to 20) may lead to undefined behaviour.
 
@@ -203,7 +203,7 @@ Prefixes:
 
 ## SeqpacketListenFd
 
-Listen for incoming TCP connections on one TCP socket that is already ready for accepting incoming conenctions,
+Listen for incoming TCP connections on one TCP socket that is already ready for accepting incoming connections,
 with specified file descriptor (inherited from parent process)
 
 Prefixes:
@@ -217,7 +217,7 @@ Prefixes:
 
 ## SeqpacketListenFdNamed
 
-Listen for incoming TCP connections on one TCP socket that is already ready for accepting incoming conenctions,
+Listen for incoming TCP connections on one TCP socket that is already ready for accepting incoming connections,
 with specified file descriptor (inherited from parent process) based on LISTEN_FDNAMES environment variable (i.e. from SystemD)
 
 Prefixes:
@@ -239,7 +239,7 @@ This endpoint cannot be directly specified as a prefix to a positional CLI argum
 
 Console, terminal: read bytes from stdin, write bytes to stdout.
 
-Uses additional thread, which may cause lower latency and thoughput.
+Uses additional thread, which may cause lower latency and throughput.
 
 Prefixes:
 
@@ -270,7 +270,7 @@ Prefixes:
 
 
 Connect to a TCP socket by hostname.
-Hostname resolution is repeated every time a connection is initated.
+Hostname resolution is repeated every time a connection is initiated.
 If multiple address are resolved, they are tried simultaneously, first connected one wins.
 
 See prefixes for `TcpConnectByIp`
@@ -288,7 +288,7 @@ Prefixes:
 
 ## TcpListenFd
 
-Listen for incoming TCP connections on one TCP socket that is already ready for accepting incoming conenctions,
+Listen for incoming TCP connections on one TCP socket that is already ready for accepting incoming connections,
 with specified file descriptor (inherited from parent process)
 
 Prefixes:
@@ -300,7 +300,7 @@ Prefixes:
 
 ## TcpListenFdNamed
 
-Listen for incoming TCP connections on one TCP socket that is already ready for accepting incoming conenctions,
+Listen for incoming TCP connections on one TCP socket that is already ready for accepting incoming connections,
 with specified file descriptor (inherited from parent process) based on LISTEN_FDNAMES environment variable (i.e. from SystemD)
 
 Prefixes:
@@ -313,7 +313,7 @@ Prefixes:
 ## UdpBind
 
 Bind UDP socket to this address.
-Commmand line options greatly affect behaviour of this endpoint. It can be turned into a flexible `UdpConnect` analogue.
+Command line options greatly affect behaviour of this endpoint. It can be turned into a flexible `UdpConnect` analogue.
 
 Prefixes:
 
@@ -404,7 +404,7 @@ Prefixes:
 
 ## UnixListenFd
 
-Listen for incoming AF_UNIX SOCK_STREAM connections on one socket that is already ready for accepting incoming conenctions,
+Listen for incoming AF_UNIX SOCK_STREAM connections on one socket that is already ready for accepting incoming connections,
 with specified file descriptor (inherited from parent process)
 
 Prefixes:
@@ -416,7 +416,7 @@ Prefixes:
 
 ## UnixListenFdNamed
 
-Listen for incoming AF_UNIX SOCK_STREAM connections on one socket that is already ready for accepting incoming conenctions,
+Listen for incoming AF_UNIX SOCK_STREAM connections on one socket that is already ready for accepting incoming connections,
 with specified file descriptor (inherited from parent process) based on LISTEN_FDNAMES environment variable (i.e. from SystemD)
 
 Prefixes:

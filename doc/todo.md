@@ -34,7 +34,7 @@ Then it will mostly depend on my own needs, inspiration and ongoing Github and o
 * async stdio
 * JSON RPC tool
 * exit of specific byte mode
-* print ping rtts
+* print ping RTTs
 * timestamp overlay
 * expose more TLS options to high-level UI
 * just-generate-accept and just-generate-key
@@ -47,8 +47,8 @@ Then it will mostly depend on my own needs, inspiration and ongoing Github and o
 * clogged
 * socks5 proxy
 * http proxy
-* Prometheus intergration
-* simple ecnryptor/decryptor
+* Prometheus integration
+* simple encryptor/decryptor
 * waitfordata
 * left-to-right features to set envvars based on incoming request
 * Good, helpful `-v` logs

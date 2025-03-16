@@ -9,6 +9,6 @@ If heading begins with `Something::`, it means this is a method to be called on 
 
 Often functions take a Rhai object map (`#{...}`) and Rhai closures `|| { ... }` as parameters. Map elements and closure parameters are also documented.
 
-Note that types here are rendered as Rush types, but it should be straighforward to deduce Rhai things to use using common sense.
+Note that types here are rendered as Rush types, but it should be straightforward to deduce Rhai things to use using common sense.
 
 The following functions and methods are used in scenarios:

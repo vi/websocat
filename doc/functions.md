@@ -10,20 +10,20 @@ Returns `Hangup`
 ## Child::socket
 
 Convert the child process handle to a Stream Socket of its stdin and stdout (but not stderr).
-In case of non-piped (`2`) fds, the resulting socket would be incomplete.
+In case of non-piped (`2`) FDs, the resulting socket would be incomplete.
 
 Returns `StreamSocket`
 
 ## Child::take_stderr
 
 Take stderr handle as a Stream Reader (i.e. half-socket).
-In case of non-piped (`2`) fds, the handle would be null
+In case of non-piped (`2`) FDs, the handle would be null
 
 Returns `StreamRead`
 
 ## Child::wait
 
-Obtain a Hangup handle that resovles when child process terminates.
+Obtain a Hangup handle that resolves when child process terminates.
 `Child` instance cannot be used after this.
 
 Returns `Hangup`
@@ -40,7 +40,7 @@ Returns `()`
 
 ## Command::arg0
 
-Override process's name / zeroeth command line argument on Unix.
+Override process's name / zeroth command line argument on Unix.
 
 Parameters:
 
@@ -50,7 +50,7 @@ Returns `()`
 
 ## Command::arg0_osstr
 
-Override process's name / zeroeth command line argument on Unix.
+Override process's name / zeroth command line argument on Unix.
 
 Parameters:
 
@@ -119,7 +119,7 @@ Returns `()`
 
 ## Command::env
 
-Add or set environtment variable for the subprocess
+Add or set environment variable for the subprocess
 
 Parameters:
 
@@ -136,7 +136,7 @@ Returns `()`
 
 ## Command::env_osstr
 
-Add or set environtment variable for the subprocess (possibly non-UTF8)
+Add or set environment variable for the subprocess (possibly non-UTF8)
 
 Parameters:
 
@@ -147,7 +147,7 @@ Returns `()`
 
 ## Command::env_remove
 
-Add or set environtment variable for the subprocess.
+Add or set environment variable for the subprocess.
 
 Parameters:
 
@@ -157,7 +157,7 @@ Returns `()`
 
 ## Command::env_remove_osstr
 
-Add or set environtment variable for the subprocess.
+Add or set environment variable for the subprocess.
 
 Parameters:
 
@@ -198,7 +198,7 @@ Returns `Task`
 
 ## Command::execve
 
-Substitude Websocat process with the prepared command, abandoning other connections if they exist.
+Substitute Websocat process with the prepared command, abandoning other connections if they exist.
 
 Returns `Child`
 
@@ -298,7 +298,7 @@ Returns `()`
 
 ## async_fd
 
-Use specified file descriptor for input/output, retuning a StreamSocket.
+Use specified file descriptor for input/output, returning a StreamSocket.
 
 If you want it as DatagramSocket, just wrap it in a `chunks` wrapper.
 
@@ -350,7 +350,7 @@ Returns `Task`
 
 Options:
 
-* abstract (`bool`) - On Linux, connect ot an abstract-namespaced socket instead of file-based
+* abstract (`bool`) - On Linux, connect to an abstract-namespaced socket instead of file-based
 * text (`bool`) - Mark received datagrams as text
 * max_send_datagram_size (`usize`) - Default defragmenter buffer limit
 
@@ -446,7 +446,7 @@ Options:
 
 ## display_pkts
 
-Sample sink for packets for demostration purposes
+Sample sink for packets for demonstration purposes
 
 Returns `DatagramWrite`
 
@@ -547,7 +547,7 @@ Does not return anything.
 
 ## file_socket
 
-Open specifid file and read/write it.
+Open specified file and read/write it.
 
 Parameters:
 
@@ -657,8 +657,8 @@ Options:
 * nbytes (`usize`) - Number of bytes in header field
 * max_message_size (`usize`) - Maximum size of a message that can be encoded, unless `continuations` is set to true. Does not affect decoded messages.
 * little_endian (`bool`) - Encode header as a little-endian number instead of big endian
-* skip_read_direction (`bool`) - Inhibit adding header to data transferred in read direction, pass byte chunks unmodifed
-* skip_write_direction (`bool`) - Inhibit adding header to data transferred in read direction, pass byte chunks unmodifed
+* skip_read_direction (`bool`) - Inhibit adding header to data transferred in read direction, pass byte chunks unmodified
+* skip_write_direction (`bool`) - Inhibit adding header to data transferred in read direction, pass byte chunks unmodified
 * continuations (`Option<u64>`) - Do not defragment written messages, write WebSocket frames instead of messages (and bitwise-or specified number into the header).
 * controls (`Option<u64>`) - Also write pings, pongs and CloseFrame messages, setting specified bit (pre-shifted) in header and prepending opcode in content. Length would include this prepended byte.  Affects read direction as well, allowing manually triggering WebSocket control messages.
 * tag_text (`Option<u64>`) - Set specified pre-shifted bit in header when dealing with text WebSocket messages. Note that with continuations, messages can be split into fragments in middle of a UTF-8 characters.
@@ -715,7 +715,7 @@ Options:
 * fd (`Option<i32>`) - Inherited file descriptor to accept connections from
 * named_fd (`Option<String>`) - Inherited file named (`LISTEN_FDNAMES``) descriptor to accept connections from
 * fd_force (`bool`) - Skip socket type check when using `fd`.
-* abstract (`bool`) - On Linux, connect ot an abstract-namespaced socket instead of file-based
+* abstract (`bool`) - On Linux, connect to an abstract-namespaced socket instead of file-based
 * chmod (`Option<u32>`) - Change filesystem mode (permissions) of the file after listening
 * autospawn (`bool`) - Automatically spawn a task for each accepted connection
 * text (`bool`) - Mark received datagrams as text
@@ -736,7 +736,7 @@ Returns `Task`
 
 Options:
 
-* addr (`Option<SocketAddr>`) - Socket address to bind listening socket tp
+* addr (`Option<SocketAddr>`) - Socket address to bind listening socket to
 * fd (`Option<i32>`) - Inherited file descriptor to accept connections from
 * named_fd (`Option<String>`) - Inherited file named (`LISTEN_FDNAMES``) descriptor to accept connections from
 * fd_force (`bool`) - Skip socket type check when using `fd`.
@@ -1245,7 +1245,7 @@ Returns `Hangup`
 
 ## tls_client
 
-Perform TLS handshake using downstream stream-oriented socket, then expose stream-oriented socket interface to upstream that encrypts/decryptes the data.
+Perform TLS handshake using downstream stream-oriented socket, then expose stream-oriented socket interface to upstream that encrypts/decrypts the data.
 
 Parameters:
 
@@ -1284,13 +1284,13 @@ Options:
 
 ## triggerable_event_create
 
-Create new one-time synchromisation object that allows to trigger a hangup event explicitly from Rhai code.
+Create new one-time synchronisation object that allows to trigger a hangup event explicitly from Rhai code.
 
 Returns `TriggerableEvent`
 
 ## trivial_pkts
 
-Sample source of packets for demostration purposes
+Sample source of packets for demonstration purposes
 
 Returns `DatagramRead`
 
@@ -1313,11 +1313,11 @@ Options:
 * fd (`Option<i32>`) - Inherited file descriptor to accept connections from
 * named_fd (`Option<String>`) - Inherited file named (`LISTEN_FDNAMES``) descriptor to accept connections from
 * fd_force (`bool`) - Skip socket type check when using `fd`.
-* timeout_ms (`Option<u64>`) - Mark the conection as closed when this number of milliseconds elapse without a new datagram from associated peer address
+* timeout_ms (`Option<u64>`) - Mark the connection as closed when this number of milliseconds elapse without a new datagram from associated peer address
 * max_clients (`Option<usize>`) - Maximum number of simultaneously connected clients. If exceed, stale clients (based on the last received datagram) will be hung up.
 * buffer_size (`Option<usize>`) - Buffer size for receiving UDP datagrams. Default is 4096 bytes.
 * qlen (`Option<usize>`) - Queue length for distributing received UDP datagrams among spawned DatagramSocekts Defaults to 1.
-* tag_as_text (`bool`) - Tag incoming UDP datagrams to be sent as text WebSocket messages instead of binary. Note that Websocat does not check for UTF-8 correctness and may send non-compiant text WebSocket messages.
+* tag_as_text (`bool`) - Tag incoming UDP datagrams to be sent as text WebSocket messages instead of binary. Note that Websocat does not check for UTF-8 correctness and may send non-compliant text WebSocket messages.
 * backpressure (`bool`) - In case of one slow client handler, delay incoming UDP datagrams instead of dropping them
 * inhibit_send_errors (`bool`) - Do not exit if `sendto` returned an error.
 * max_send_datagram_size (`usize`) - Default defragmenter buffer limit
@@ -1346,7 +1346,7 @@ Options:
 * allow_other_addresses (`bool`) - Do not filter out incoming datagrams from addresses other than `addr`. Useless without `sendto_mode`.
 * redirect_to_last_seen_address (`bool`) - Send datagrams to address of the last seen incoming datagrams, using `addr` only as initial address until more data is received. Useless without `allow_other_addresses`. May have security implications.
 * connect_to_first_seen_address (`bool`) - When using `redirect_to_last_seen_address`, lock the socket to that address, preventing more changes and providing disconnects. Useless without `redirect_to_last_seen_address`.
-* tag_as_text (`bool`) - Tag incoming UDP datagrams to be sent as text WebSocket messages instead of binary. Note that Websocat does not check for UTF-8 correctness and may send non-compiant text WebSocket messages.
+* tag_as_text (`bool`) - Tag incoming UDP datagrams to be sent as text WebSocket messages instead of binary. Note that Websocat does not check for UTF-8 correctness and may send non-compliant text WebSocket messages.
 * inhibit_send_errors (`bool`) - Do not exit if `sendto` returned an error.
 * max_send_datagram_size (`usize`) - Default defragmenter buffer limit
 
@@ -1484,7 +1484,7 @@ Options:
 
 * client (`bool`) - Mask outgoing frames and require unmasked incoming frames
 * ignore_masks (`bool`) - Accept masked (unmasked) frames in client (server) mode.
-* no_flush_after_each_message (`bool`) - Inhibit flushing of underlying stream writer after each compelte message
+* no_flush_after_each_message (`bool`) - Inhibit flushing of underlying stream writer after each complete message
 * no_close_frame (`bool`) - Do not emit ConnectionClose frame when writing part is getting shut down
 * shutdown_socket_on_eof (`bool`) - Propagate upstream writer shutdown to downstream
 * no_auto_buffer_wrap (`bool`) - Do not automatically wrap WebSocket frames writer in a write_buffer: overlay when it detects missing vectored writes support

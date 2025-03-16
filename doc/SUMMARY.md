@@ -3,7 +3,7 @@
 - [Introduction](./intro.md)
 - [Basic examples](./simple_examples.md)
 - [CLI --help message](./clihelp.md)
-- [Autoreference](./reference.md)
+- [Auto-reference](./reference.md)
     - [Specifiers: Endpoints](./endpoints.md)
     - [Specifiers: Overlays](./overlays.md)
     - [Rhai functions](./functions.md)

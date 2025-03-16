@@ -2,7 +2,7 @@
 {{#include overlays_header.md}}
 ## LengthPrefixedChunks
 
-Convert downstream stream-oriended socket to packet-oriended socket by prefixing each message with its length
+Convert downstream stream-oriented socket to packet-oriented socket by prefixing each message with its length
 (and maybe other flags, depending on options).
 
 Prefixes:
@@ -57,7 +57,7 @@ Prefixes:
 
 ## StreamChunks
 
-Converts downstream stream-oriented socket to packet-oriented socket by chunking the stream arbitrarily (i.e. as syscalls happend to deliver the data)
+Converts downstream stream-oriented socket to packet-oriented socket by chunking the stream arbitrarily (i.e. as syscalls happened to deliver the data)
 
 May be automatically inserted in binary (`-b`) mode.
 
@@ -67,7 +67,7 @@ Prefixes:
 
 ## TlsClient
 
-Establishes client-side TLS connection using specified stream-oriended downstream connection
+Establishes client-side TLS connection using specified stream-oriented downstream connection
 
 Prefixes:
 
@@ -114,7 +114,7 @@ Prefixes:
 ## WsClient
 
 Combined WebSocket upgrader and framer, but without TCP or TLS things
-URI is taked from --ws-c-uri CLI argument
+URI is taken from --ws-c-uri CLI argument
 If it is not specified, it defaults to `/`, with a missing `host:` header
 
 Prefixes:

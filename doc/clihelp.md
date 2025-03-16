@@ -27,7 +27,7 @@ Options:
           do not execute this Websocat invocation, print debug representation of specified arguments
 
   -x, --scenario
-          execute specified file as Rhai script (e.g. resutling from --dump-spec option output)
+          execute specified file as Rhai script (e.g. resulting from --dump-spec option output)
 
   -t, --text
           use text mode (one line = one WebSocket text message)
@@ -45,7 +45,7 @@ Options:
           manually specify domain for `tls:` overlay or override domain for `wss://` URLs
 
   -s, --server
-          listen for WebSocket conenctions instead of establishing client WebSocket connection
+          listen for WebSocket connections instead of establishing client WebSocket connection
 
       --log-verbose
           log more data from `log:` overlay
@@ -60,16 +60,16 @@ Options:
           Include relative timestamps in log messages
 
       --log-traffic
-          automatically insert `log:` overlay in an apprioriate place to debug issues by displaying traffic chunks
+          automatically insert `log:` overlay in an appropriate place to debug issues by displaying traffic chunks
 
       --ws-c-uri <WS_C_URI>
           URI for `ws-c:` overlay
 
       --read-buffer-limit <READ_BUFFER_LIMIT>
-          paramemter for read_chunk_limiter: overlay, defaults to 1
+          parameter for read_chunk_limiter: overlay, defaults to 1
 
       --write-buffer-limit <WRITE_BUFFER_LIMIT>
-          paramemter for write_chunk_limiter: overlay, defaults to 1
+          parameter for write_chunk_limiter: overlay, defaults to 1
 
       --separator <SEPARATOR>
           override byte value that separates stdin-supplied text WebSocket messages from each other from default '\n'
@@ -145,7 +145,7 @@ Options:
           When using --exec-dup2, do not set inherited file descriptors to blocking mode
 
       --exec-dup2-execve
-          on Unix, When using `--exec-dup2`, do not return to Websocat, instead substitude Websocat process with the given command
+          on Unix, When using `--exec-dup2`, do not return to Websocat, instead substitute Websocat process with the given command
 
       --dummy-hangup
           Make dummy nodes also immediately signal hangup
@@ -169,7 +169,7 @@ Options:
           Stop transferring data when one of the transfer directions reached EOF
 
   -B, --buffer-size <BUFFER_SIZE>
-          Override buffer size for main data transfer session. Note that some overlays and endpoints may have separate buffers with sepaparately adjustable sizes.
+          Override buffer size for main data transfer session. Note that some overlays and endpoints may have separate buffers with separately adjustable sizes.
           
           Message can span multiple over multiple fragments and exceed this buffer size
 
@@ -183,10 +183,10 @@ Options:
           Shutdown write direction of the underlying socket backing a WebSocket on EOF
 
       --ws-ignore-invalid-masks
-          Do not fail WebSocket connections if maksed frame arrives instead of unmasked or vice versa
+          Do not fail WebSocket connections if masked frame arrives instead of unmasked or vice versa
 
       --ws-dont-check-headers
-          Ignore absense or invalid values of `Sec-Websocket-*` things and just continue connecting
+          Ignore absence or invalid values of `Sec-Websocket-*` things and just continue connecting
 
       --ws-no-auto-buffer
           Do not automatically insert buffering layer after WebSocket if underlying connections does not support `writev`
@@ -255,10 +255,10 @@ Options:
           Use little-endian framing headers instead of big-endian for `lengthprefixed:` overlay
 
       --lengthprefixed-skip-read-direction
-          Only affect one direction of the `lengthprefixed:` overlay, bypass tranformation for the other one
+          Only affect one direction of the `lengthprefixed:` overlay, bypass transformation for the other one
 
       --lengthprefixed-skip-write-direction
-          Only affect one direction of the `lengthprefixed:` overlay, bypass tranformation for the other one
+          Only affect one direction of the `lengthprefixed:` overlay, bypass transformation for the other one
 
       --lengthprefixed-nbytes <LENGTHPREFIXED_NBYTES>
           Use this number of length header bytes for `lengthprefixed:` overlay
@@ -282,7 +282,7 @@ Options:
           
           A bit would be set to signify a control message and opcode will be prepended as the first byte.
           
-          When both continuations and contols are enabled, control messages may appear between continued data message chunks. Control messages can themselves be subject to continuations.
+          When both continuations and controls are enabled, control messages may appear between continued data message chunks. Control messages can themselves be subject to continuations.
 
       --lengthprefixed-tag-text
           Set a bit in the prefix of `lengthprefixed:` frames when the frame denotes a text WebSocket message instead of binary
@@ -297,7 +297,7 @@ Options:
           Force process exit when global timeout is reached
 
       --sleep-ms-before-start <SLEEP_MS_BEFORE_START>
-          Wait for this number of milliseconds before starting endpoints. Mostly indended for testing Websocat, in combination with --compose mode
+          Wait for this number of milliseconds before starting endpoints. Mostly intended for testing Websocat, in combination with --compose mode
 
       --stdout-announce-listening-ports
           Print a line to stdout when a port you requested to be listened is ready to accept connections
@@ -313,7 +313,7 @@ Options:
           Makes listening port "0" practical.
 
       --accept-from-fd
-          Show dedicated error message explaining how to migrate Websocat1's --accpet-from-fd to the new scheme
+          Show dedicated error message explaining how to migrate Websocat1's --accept-from-fd to the new scheme
 
       --reuser-tolerate-torn-msgs
           When using `reuse-raw:` (including automatically inserted), do not abort connections on unrecoverable broken messages
@@ -321,7 +321,7 @@ Options:
       --compose
           Interpret special command line arguments like `&`, `;`, '^', `(` and `)` as separators for composed scenarios mode. This argument must come first.
           
-          This allows to execute multiple subscenarios in one Websocat invocation, sequentially (;), in parallel (&) or in parallel with early exit (^). You can also use parentheses to combine disparate operations.
+          This allows to execute multiple sub-scenarios in one Websocat invocation, sequentially (;), in parallel (&) or in parallel with early exit (^). You can also use parentheses to combine disparate operations.
 
       --write-file-no-overwrite
           For `writefile:` endpoint, do not overwrite existing files

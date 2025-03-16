@@ -19,7 +19,7 @@ in Scenarios.
 * **Chunk** = **Frame** - portion of data read or written to/from stream or datagram socket in one go. Maybe a fragment of a Message or be the whole Message.
 * **Task** - a logical thread of execution. Rhai code is expected to create and combine some tasks. Typically each connection runs in its own task. Corresponds to Tokio tasks.
 * **Hangup** - similar to Task, but used in context of signaling various events, especially abrupt reset of sockets.
-* **Specifier Stack** - Invididual components of a Specifier - Endpoint and a vector of Overlays.
+* **Specifier Stack** - Individual components of a Specifier - Endpoint and a vector of Overlays.
 * **Left side**, **first specifier** - first positional argument you have specified at the left side of the Websocat CLI invocation (maybe after some transformation). Designed to handle both one-time use connectors and multi-use listeners.
 * **Right side**, **second specifier** - second positional argument of the Websocat CLI invocation (may be auto-generated). Designed for single-use things to attach to connections obtained from the Left side.
-* **Listener** - Type of Specifier that waits for incoming connections, swapning a task with a Socket for each incoming connection.
+* **Listener** - Type of Specifier that waits for incoming connections, spawning a task with a Socket for each incoming connection.
