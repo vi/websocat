@@ -1,0 +1,9 @@
+[project]
+version="0.0.0"
+name="websocat-helpgen"
+requires-python = ">=3.11"
+dependencies = [
+  "tree-sitter~=0.22.3",
+  "tree-sitter-rust~=0.21.2",
+  "dataclasses-json~=0.6.7",
+]
