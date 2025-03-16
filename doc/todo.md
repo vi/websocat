@@ -1,3 +1,9 @@
+There are more plans and ideas of what to do next in Websocat4.
+
+Firstly, some important functions from Websocat1 should be [ported](https://github.com/vi/websocat/issues/276) to Websocat4.
+
+Then it will mostly depend on my own needs, inspiration and ongoing Github and other issues and questions.
+
 # For beta
 
 * TLS server

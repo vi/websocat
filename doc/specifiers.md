@@ -1,0 +1,635 @@
+### AbstractConnect
+
+Connect to the specified abstract-namespaced UNIX socket (Linux)
+
+Prefixes:
+
+* `abstract:`
+* `abstract-connect:`
+* `connect-abstract:`
+* `abstract-c:`
+* `c-abstract:`
+* `abs:`
+
+### AbstractListen
+
+Listen UNIX socket on specified abstract path (Linux)
+
+Prefixes:
+
+* `abstract-listen:`
+* `listen-abstract:`
+* `abstract-l:`
+* `l-abstract:`
+* `l-abs:`
+* `abs-l:`
+
+### AbstractSeqpacketConnect
+
+Connect to specified UNIX SOCK_SEQPACKET socket by abstract (Linux) name
+
+Prefixes:
+
+* `seqpacket-abstract:`
+* `seqpacket-abstract-connect:`
+* `seqpacket-abstract-c:`
+* `abstract-seqpacket:`
+* `abstract-seqpacket-connect:`
+* `abstract-seqpacket-c:`
+* `abs-seqp:`
+* `seqp-abs:`
+
+### AbstractSeqpacketListen
+
+Listen specified UNIX SOCK_SEQPACKET socket by abstract (Linux) name
+
+Prefixes:
+
+* `seqpacket-abstract-listen:`
+* `seqpacket-abstract-l:`
+* `abstract-seqpacket-listen:`
+* `abstract-seqpacket-l:`
+* `abs-seqp-l:`
+* `seqp-abs-l:`
+* `l-abs-seqp:`
+* `l-seqp-abs:`
+
+### AppendFile
+
+Append to specified file.
+
+Prefixes:
+
+* `appendfile:`
+
+### AsyncFd
+
+Use specified inherited file desciptor for reading and writing, assuming it supports `read(2)` and `writev(2)` and can be put in epoll (or analogue).
+
+Trying to specify unexisting FD, especially low-numbered (e.g from 3 to 20) may lead to undefined behaviour.
+
+Prefixes:
+
+* `async-fd:`
+* `open-fd:`
+
+### Cmd
+
+Execute given command line and use its stdin/stdout as a socket.
+
+Prefixes:
+
+* `cmd:`
+* `sh-c:`
+
+### DummyDatagrams
+
+Datagram socket that ignores all incoming data and signals EOF immediately
+
+Prefixes:
+
+* `empty:`
+* `null:`
+* `dummy-datagrams:`
+* `dummy:`
+
+### DummyStream
+
+Byte stream socket that ignores all incoming data and immediately EOF-s read attempts
+
+Prefixes:
+
+* `devnull:`
+* `dummy-stream:`
+
+### Exec
+
+Execute given program as a subprocess and use its stdin/stdout as a socket.
+Specify command line arguments using `--exec-args` command line option.
+
+Prefixes:
+
+* `exec:`
+
+### Literal
+
+Byte stream socket that produces specified content and ignores incoming data
+
+Prefixes:
+
+* `literal:`
+
+### LiteralBase64
+
+Byte stream socket that produces specified content (base64-encoded) and ignores incoming data
+
+Prefixes:
+
+* `literal-base64:`
+
+### MockStreamSocket
+
+Byte stream socket for tests that can produce and consume (assert)
+data according to special scenario supplied as an argument
+
+Prefixes:
+
+* `mock_stream_socket:`
+* `mock-stream-socket:`
+
+### Random
+
+Generate random bytes
+
+Prefixes:
+
+* `random:`
+
+### ReadFile
+
+Read specified file. Ignores writes.
+
+Prefixes:
+
+* `readfile:`
+
+### RegistryStreamConnect
+
+Connect to a virtual intra-Websocat address using stream socket
+
+Prefixes:
+
+* `registry-stream-connect:`
+
+### RegistryStreamListen
+
+Listen for virtual intra-Websocat stream connections at specified address
+
+Prefixes:
+
+* `registry-stream-listen:`
+
+### SeqpacketConnect
+
+Connect to specified UNIX SOCK_SEQPACKET socket by path
+
+Unlike Websocat1, @-prefixed addresses do not get converted to Linux abstract namespace
+
+Prefixes:
+
+* `seqpacket:`
+* `seqpacket-connect:`
+* `connect-seqpacket:`
+* `seqpacket-c:`
+* `c-seqpacket:`
+* `seqp:`
+
+### SeqpacketListen
+
+Listen specified UNIX SOCK_SEQPACKET socket
+
+Unlike Websocat1, @-prefixed addresses do not get converted to Linux abstract namespace
+
+Prefixes:
+
+* `seqpacket-listen:`
+* `listen-seqpacket:`
+* `seqpacket-l:`
+* `l-seqpacket:`
+* `l-seqp:`
+* `seqp-l:`
+
+### SeqpacketListenFd
+
+Listen for incoming TCP connections on one TCP socket that is already ready for accepting incoming conenctions,
+with specified file descriptor (inherited from parent process)
+
+Prefixes:
+
+* `seqpacket-listen-fd:`
+* `listen-seqpacket-fd:`
+* `seqpacket-l-fd:`
+* `l-seqpacket-fd:`
+* `l-seqp-fd:`
+* `seqp-l-fd:`
+
+### SeqpacketListenFdNamed
+
+Listen for incoming TCP connections on one TCP socket that is already ready for accepting incoming conenctions,
+with specified file descriptor (inherited from parent process) based on LISTEN_FDNAMES environment variable (i.e. from SystemD)
+
+Prefixes:
+
+* `seqpacket-listen-fdname:`
+* `listen-seqpacket-fdname:`
+* `seqpacket-l-fdname:`
+* `l-seqpacket-fdname:`
+* `l-seqp-fdname:`
+* `seqp-l-fdname:`
+
+### SimpleReuserEndpoint
+
+Implementation detail of `reuse-raw:` overlay
+
+This endpoint cannot be directly specified as a prefix to a positional CLI argument, there may be some other way to access it.
+
+### Stdio
+
+Console, terminal: read bytes from stdin, write bytes to stdout.
+
+Uses additional thread, which may cause lower latency and thoughput.
+
+Prefixes:
+
+* `stdio:`
+
+### TcpConnectByEarlyHostname
+
+
+Connect to a TCP socket by hostname.
+Hostname resolution happens once, on scenario start.
+If multiple address are resolved, they are tried simultaneously, first connected one wins.
+
+See prefixes for `TcpConnectByIp`.
+
+### TcpConnectByIp
+
+Connected to a TCP socket using one explicitly specified IPv4 or IPv6 socket address.
+
+Prefixes:
+
+* `tcp:`
+* `tcp-connect:`
+* `connect-tcp:`
+* `tcp-c:`
+* `c-tcp:`
+
+### TcpConnectByLateHostname
+
+
+Connect to a TCP socket by hostname.
+Hostname resolution is repeated every time a connection is initated.
+If multiple address are resolved, they are tried simultaneously, first connected one wins.
+
+See prefixes for `TcpConnectByIp`
+
+### TcpListen
+
+Listen for incoming TCP connections on one TCP socket, bound to the specified IPv4 or IPv6 address.
+
+Prefixes:
+
+* `tcp-listen:`
+* `listen-tcp:`
+* `tcp-l:`
+* `l-tcp:`
+
+### TcpListenFd
+
+Listen for incoming TCP connections on one TCP socket that is already ready for accepting incoming conenctions,
+with specified file descriptor (inherited from parent process)
+
+Prefixes:
+
+* `tcp-listen-fd:`
+* `listen-tcp-fd:`
+* `tcp-l-fd:`
+* `l-tcp-fd:`
+
+### TcpListenFdNamed
+
+Listen for incoming TCP connections on one TCP socket that is already ready for accepting incoming conenctions,
+with specified file descriptor (inherited from parent process) based on LISTEN_FDNAMES environment variable (i.e. from SystemD)
+
+Prefixes:
+
+* `tcp-listen-fdname:`
+* `listen-tcp-fdname:`
+* `tcp-l-fdname:`
+* `l-tcp-fdname:`
+
+### UdpBind
+
+Bind UDP socket to this address.
+Commmand line options greatly affect behaviour of this endpoint. It can be turned into a flexible `UdpConnect` analogue.
+
+Prefixes:
+
+* `udp-bind:`
+* `bind-udp:`
+* `udp-listen:`
+* `listen-udp:`
+* `udp-l:`
+* `l-udp:`
+
+### UdpConnect
+
+Connect to this UDP socket. Not affected by `--udp-bind-*`` CLI options.
+
+Prefixes:
+
+* `udp:`
+* `udp-connect:`
+* `connect-udp:`
+* `udp-c:`
+* `c-udp:`
+
+### UdpFd
+
+Use inherited pre-bound UDP socket from specified file descriptor.
+
+Prefixes:
+
+* `udp-fd:`
+* `udp-bind-fd:`
+
+### UdpFdNamed
+
+Use inherited pre-bound UDP socket from specified file descriptor (using LISTEN_FDNAMES)
+
+Prefixes:
+
+* `udp-fdname:`
+* `udp-bind-fdname:`
+
+### UdpServer
+
+Bind UDP socket and spawn a separate task for each client.
+Connections get closed when there are too many active clients or by a timeout.
+
+Prefixes:
+
+* `udp-server:`
+
+### UdpServerFd
+
+Use inherited pre-bound UDP socket from specified file descriptor, spawning a task for each client
+
+Prefixes:
+
+* `udp-server-fd:`
+
+### UdpServerFdNamed
+
+Use inherited pre-bound UDP socket from specified file descriptor (using LISTEN_FDNAMES), spawning a task for each client
+
+Prefixes:
+
+* `udp-server-fdname:`
+
+### UnixConnect
+
+Connect to the specified UNIX socket path using stream socket
+
+Prefixes:
+
+* `unix:`
+* `unix-connect:`
+* `connect-unix:`
+* `unix-c:`
+* `c-unix:`
+
+### UnixListen
+
+Listen specified UNIX socket path for SOCK_STREAM connections
+
+Prefixes:
+
+* `unix-listen:`
+* `listen-unix:`
+* `unix-l:`
+* `l-unix:`
+
+### UnixListenFd
+
+Listen for incoming AF_UNIX SOCK_STREAM connections on one socket that is already ready for accepting incoming conenctions,
+with specified file descriptor (inherited from parent process)
+
+Prefixes:
+
+* `unix-listen-fd:`
+* `listen-unix-fd:`
+* `unix-l-fd:`
+* `l-unix-fd:`
+
+### UnixListenFdNamed
+
+Listen for incoming AF_UNIX SOCK_STREAM connections on one socket that is already ready for accepting incoming conenctions,
+with specified file descriptor (inherited from parent process) based on LISTEN_FDNAMES environment variable (i.e. from SystemD)
+
+Prefixes:
+
+* `unix-listen-fdname:`
+* `listen-unix-fdname:`
+* `unix-l-fdname:`
+* `l-unix-fdname:`
+
+### WriteFile
+
+Write specified file.
+
+Prefixes:
+
+* `writefile:`
+
+### WsListen
+
+Listen for incoming WebSocket connections at specified TCP socket address.
+
+Prefixes:
+
+* `ws-listen:`
+* `ws-l:`
+* `l-ws:`
+* `listen-ws:`
+
+### WsUrl
+
+Connect to specified WebSocket plain (insecure) URL
+
+Prefixes:
+
+* `ws://`
+
+### WssUrl
+
+Connect to specified WebSocket TLS URL
+
+Prefixes:
+
+* `wss://`
+
+### Zero
+
+Generate zero bytes
+
+Prefixes:
+
+* `zero:`
+
+
+## Overlays
+
+### LengthPrefixedChunks
+
+Convert downstream stream-oriended socket to packet-oriended socket by prefixing each message with its length
+(and maybe other flags, depending on options).
+
+Prefixes:
+
+* `lengthprefixed:`
+
+### LineChunks
+
+Convert downstream stream-oriented socket to packet-oriented socket by using newline byte as a packet separator.
+Written data get modified to ensure that one line = one message.
+
+May be automatically inserted in text (`-t`) mode.
+
+Prefixes:
+
+* `lines:`
+
+### Log
+
+Print encountered data to stderr for debugging
+
+Prefixes:
+
+* `log:`
+
+### ReadChunkLimiter
+
+Limit this stream's read buffer size to --read-buffer-limit
+By splitting reads to many (e.g. single byte) chunks, we can
+test and debug trickier code paths in various overlays
+
+Prefixes:
+
+* `read_chunk_limiter:`
+
+### SimpleReuser
+
+Share underlying datagram connection between multiple outer users.
+
+All users can write messages to the socket, messages would be interleaved
+(though each individual message should be atomic).
+Messages coming from inner socket will be delivered to some one arbitrary connected user.
+If that users disconnect, they will route to some other user.
+A message can be lost when user disconnects.
+User disconnections while writing a message may abort the whole reuser
+(or result in a broken, trimmed message, depending on settings).
+
+Prefixes:
+
+* `reuse-raw:`
+* `raw-reuse:`
+
+### StreamChunks
+
+Converts downstream stream-oriented socket to packet-oriented socket by chunking the stream arbitrarily (i.e. as syscalls happend to deliver the data)
+
+May be automatically inserted in binary (`-b`) mode.
+
+Prefixes:
+
+* `chunks:`
+
+### TlsClient
+
+Establishes client-side TLS connection using specified stream-oriended downstream connection
+
+Prefixes:
+
+* `tls:`
+* `ssl-connect:`
+* `ssl-c:`
+* `ssl:`
+* `tls-connect:`
+* `tls-c:`
+* `c-ssl:`
+* `connect-ssl:`
+* `c-tls:`
+* `connect-tls:`
+
+### WriteBuffer
+
+Insert write buffering layer that combines multiple write calls to one bigger
+
+Prefixes:
+
+* `write_buffer:`
+
+### WriteChunkLimiter
+
+Limit this stream's write buffer size to --write-buffer-limit
+By enforcing short writes, we can
+test and debug trickier code paths in various overlays
+
+Prefixes:
+
+* `write_chunk_limiter:`
+
+### WsAccept
+
+Expects a HTTP/1 WebSocket upgrade request from downstream stream socket. If valid, replies with Upgrade HTTP reply.
+After than connects (i.e. exchanges bytes) downstream to upstream.
+
+Does not provide WebSocket framing.
+
+Prefixes:
+
+* `ws-accept:`
+
+### WsClient
+
+Combined WebSocket upgrader and framer, but without TCP or TLS things
+URI is taked from --ws-c-uri CLI argument
+If it is not specified, it defaults to `/`, with a missing `host:` header
+
+Prefixes:
+
+* `ws-connect:`
+* `connect-ws:`
+* `ws-c:`
+* `c-ws:`
+
+### WsFramer
+
+Converts downstream stream to upstream packets using WebSocket framing.
+
+Automatically handles WebSocket pings and CloseFrames, but does not fully terminate the connection on CloseFrame, only signaling EOF instead.
+
+Client or server mode is chosen depending on prefix you use.
+
+Prefixes:
+
+* `ws-lowlevel-client:`
+* `ws-ll-client:`
+* `ws-ll-c:`
+* `ws-lowlevel-server:`
+* `ws-ll-server:`
+* `ws-ll-s:`
+
+### WsServer
+
+Combined WebSocket acceptor and framer.
+
+Prefixes:
+
+* `ws-upgrade:`
+* `upgrade-ws:`
+* `ws-u:`
+* `u-ws:`
+
+### WsUpgrade
+
+Send HTTP/1 WebSocket upgrade to specified stream-oriented connection and accept and parse a reply,
+then connects (i.e. exchanges bytes) the downstream connection to upstream.
+
+Does not provide WebSocket framing.
+
+Prefixes:
+
+* `ws-request:`
+* `ws-r:`
