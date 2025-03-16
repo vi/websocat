@@ -9,5 +9,6 @@
     - [Rhai functions](./functions.md)
 - [Glossary](./glossary.md)
 - [Design principles](./principles.md)
+- [How Websocat process CLI arguments](./howcliparsed.md)
 - [History](./history.md)
 - [TODO](./todo.md)
