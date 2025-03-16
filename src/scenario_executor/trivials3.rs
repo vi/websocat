@@ -20,7 +20,7 @@ pub struct TriggerableEvent {
     trigger_part: Option<TriggerableEventTrigger>,
 }
 
-//@ Create new one-time synchromisation object that allows to trigger a hangup event explicitly from Rhai code.
+//@ Create new one-time synchronisation object that allows to trigger a hangup event explicitly from Rhai code.
 fn triggerable_event_create() -> Handle<TriggerableEvent> {
     let (tx, rx) = tokio::sync::oneshot::channel();
     let signal = TriggerableEvent {

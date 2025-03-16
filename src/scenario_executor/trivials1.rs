@@ -318,7 +318,7 @@ fn task2hangup(
     let y = async move {
         let do_hangup = match (x.await, mode) {
             (Ok(()), 0 | 2) => {
-                debug!("task compelted, triggering the hangup handle");
+                debug!("task completed, triggering the hangup handle");
                 true
             }
             (Err(e), 0 | 1) => {

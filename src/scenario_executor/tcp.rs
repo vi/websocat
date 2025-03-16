@@ -207,7 +207,7 @@ fn listen_tcp(
     debug!(parent: &span, "node created");
     #[derive(serde::Deserialize)]
     struct Opts {
-        //@ Socket address to bind listening socket tp
+        //@ Socket address to bind listening socket to
         addr: Option<SocketAddr>,
 
         //@ Inherited file descriptor to accept connections from

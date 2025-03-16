@@ -47,7 +47,7 @@ pub struct WebsocatArgs {
     #[arg(long)]
     pub dump_spec_phase2: bool,
 
-    /// execute specified file as Rhai script (e.g. resutling from --dump-spec option output)
+    /// execute specified file as Rhai script (e.g. resulting from --dump-spec option output)
     #[arg(long, short = 'x')]
     pub scenario: bool,
 
@@ -71,7 +71,7 @@ pub struct WebsocatArgs {
     #[arg(long)]
     pub tls_domain: Option<String>,
 
-    /// listen for WebSocket conenctions instead of establishing client WebSocket connection
+    /// listen for WebSocket connections instead of establishing client WebSocket connection
     #[arg(long, short = 's')]
     pub server: bool,
 
@@ -91,7 +91,7 @@ pub struct WebsocatArgs {
     #[arg(long)]
     pub log_timestamps: bool,
 
-    /// automatically insert `log:` overlay in an apprioriate place to debug issues by displaying traffic chunks
+    /// automatically insert `log:` overlay in an appropriate place to debug issues by displaying traffic chunks
     #[arg(long)]
     pub log_traffic: bool,
 
@@ -99,11 +99,11 @@ pub struct WebsocatArgs {
     #[arg(long)]
     pub ws_c_uri: Option<String>,
 
-    /// paramemter for read_chunk_limiter: overlay, defaults to 1
+    /// parameter for read_chunk_limiter: overlay, defaults to 1
     #[arg(long)]
     pub read_buffer_limit: Option<usize>,
 
-    /// paramemter for write_chunk_limiter: overlay, defaults to 1
+    /// parameter for write_chunk_limiter: overlay, defaults to 1
     #[arg(long)]
     pub write_buffer_limit: Option<usize>,
 
@@ -211,7 +211,7 @@ pub struct WebsocatArgs {
     #[arg(long)]
     pub exec_dup2_keep_nonblocking: bool,
 
-    /// on Unix, When using `--exec-dup2`, do not return to Websocat, instead substitude Websocat process with the given command.
+    /// on Unix, When using `--exec-dup2`, do not return to Websocat, instead substitute Websocat process with the given command.
     #[arg(long)]
     pub exec_dup2_execve: bool,
 
@@ -244,7 +244,7 @@ pub struct WebsocatArgs {
     pub exit_on_eof: bool,
 
     /// Override buffer size for main data transfer session.
-    /// Note that some overlays and endpoints may have separate buffers with sepaparately adjustable sizes.
+    /// Note that some overlays and endpoints may have separate buffers with separately adjustable sizes.
     ///
     /// Message can span multiple over multiple fragments and exceed this buffer size
     #[arg(long, short = 'B')]
@@ -262,11 +262,11 @@ pub struct WebsocatArgs {
     #[arg(long)]
     pub ws_shutdown_socket_on_eof: bool,
 
-    /// Do not fail WebSocket connections if maksed frame arrives instead of unmasked or vice versa.
+    /// Do not fail WebSocket connections if masked frame arrives instead of unmasked or vice versa.
     #[arg(long)]
     pub ws_ignore_invalid_masks: bool,
 
-    /// Ignore absense or invalid values of `Sec-Websocket-*` things and just continue connecting.
+    /// Ignore absence or invalid values of `Sec-Websocket-*` things and just continue connecting.
     #[arg(long)]
     pub ws_dont_check_headers: bool,
 
@@ -356,11 +356,11 @@ pub struct WebsocatArgs {
     #[arg(long)]
     pub lengthprefixed_little_endian: bool,
 
-    /// Only affect one direction of the `lengthprefixed:` overlay, bypass tranformation for the other one.
+    /// Only affect one direction of the `lengthprefixed:` overlay, bypass transformation for the other one.
     #[arg(long)]
     pub lengthprefixed_skip_read_direction: bool,
 
-    /// Only affect one direction of the `lengthprefixed:` overlay, bypass tranformation for the other one.
+    /// Only affect one direction of the `lengthprefixed:` overlay, bypass transformation for the other one.
     #[arg(long)]
     pub lengthprefixed_skip_write_direction: bool,
 
@@ -385,7 +385,7 @@ pub struct WebsocatArgs {
     ///
     /// A bit would be set to signify a control message and opcode will be prepended as the first byte.
     ///
-    /// When both continuations and contols are enabled, control messages may appear between continued data message chunks.
+    /// When both continuations and controls are enabled, control messages may appear between continued data message chunks.
     /// Control messages can themselves be subject to continuations.
     #[arg(long)]
     pub lengthprefixed_include_control: bool,
@@ -407,7 +407,7 @@ pub struct WebsocatArgs {
     pub global_timeout_force_exit: bool,
 
     /// Wait for this number of milliseconds before starting endpoints.
-    /// Mostly indended for testing Websocat, in combination with --compose mode.
+    /// Mostly intended for testing Websocat, in combination with --compose mode.
     #[arg(long)]
     pub sleep_ms_before_start: Option<u64>,
 
@@ -427,7 +427,7 @@ pub struct WebsocatArgs {
     #[arg(long)]
     pub exec_after_listen_append_port: bool,
 
-    /// Show dedicated error message explaining how to migrate Websocat1's --accpet-from-fd to the new scheme
+    /// Show dedicated error message explaining how to migrate Websocat1's --accept-from-fd to the new scheme
     #[arg(long)]
     pub accept_from_fd: bool,
 
@@ -438,7 +438,7 @@ pub struct WebsocatArgs {
     /// Interpret special command line arguments like `&`, `;`, '^', `(` and `)` as separators for composed scenarios mode.
     /// This argument must come first.
     ///
-    /// This allows to execute multiple subscenarios in one Websocat invocation, sequentially (;), in parallel (&)
+    /// This allows to execute multiple sub-scenarios in one Websocat invocation, sequentially (;), in parallel (&)
     /// or in parallel with early exit (^). You can also use parentheses to combine disparate operations.
     #[arg(long)]
     pub compose: bool,
@@ -464,7 +464,7 @@ pub struct WebsocatArgs {
     pub random_fast: bool,
 }
 
-/// Subset of command line arguments that describes the whole Websocat operation even when `--compose` subscenarios are used.
+/// Subset of command line arguments that describes the whole Websocat operation even when `--compose` sub-scenarios are used.
 #[derive(Default)]
 pub struct WebsocatGlobalArgs {
     pub random_seed: Option<u64>,

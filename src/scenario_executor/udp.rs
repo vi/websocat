@@ -259,7 +259,7 @@ fn udp_socket(ctx: NativeCallContext, opts: Dynamic) -> RhResult<Handle<Datagram
         //@ Tag incoming UDP datagrams to be sent as text WebSocket messages
         //@ instead of binary.
         //@ Note that Websocat does not check for UTF-8 correctness and may
-        //@ send non-compiant text WebSocket messages.
+        //@ send non-compliant text WebSocket messages.
         #[serde(default)]
         tag_as_text: bool,
 

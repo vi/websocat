@@ -141,7 +141,7 @@ fn connect_seqpacket(
     debug!(parent: &span, "node created");
     #[derive(serde::Deserialize)]
     struct ConnectSeqpacketOpts {
-        //@ On Linux, connect ot an abstract-namespaced socket instead of file-based
+        //@ On Linux, connect to an abstract-namespaced socket instead of file-based
         #[serde(default)]
         r#abstract: bool,
 
@@ -230,7 +230,7 @@ fn listen_seqpacket(
         #[serde(default)]
         fd_force: bool,
 
-        //@ On Linux, connect ot an abstract-namespaced socket instead of file-based
+        //@ On Linux, connect to an abstract-namespaced socket instead of file-based
         #[serde(default)]
         r#abstract: bool,
 
@@ -513,7 +513,7 @@ impl AsyncWrite for MyAsyncFd {
     }
 }
 
-//@ Use specified file descriptor for input/output, retuning a StreamSocket.
+//@ Use specified file descriptor for input/output, returning a StreamSocket.
 //@
 //@ If you want it as DatagramSocket, just wrap it in a `chunks` wrapper.
 //@

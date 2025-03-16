@@ -104,7 +104,7 @@ fn tls_client_connector(_ctx: NativeCallContext, opts: Dynamic) -> RhResult<Arc<
 }
 
 //@ doc(hidden)
-//@ Perform TLS handshake using downstream stream-oriented socket, then expose stream-oriented socket interface to upstream that encrypts/decryptes the data.
+//@ Perform TLS handshake using downstream stream-oriented socket, then expose stream-oriented socket interface to upstream that encrypts/decrypts the data.
 fn tls_client(
     ctx: NativeCallContext,
     opts: Dynamic,

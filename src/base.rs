@@ -38,7 +38,7 @@ where
     let scenario_file;
     let scenario_built_text;
 
-    let _zeroeth_arg = argv.peek();
+    let _zeroth_arg = argv.peek();
     let first_arg: OsString = argv.peek().map(|x| x.clone().into()).unwrap_or_default();
     let second_arg: OsString = argv.peek().map(|x| x.clone().into()).unwrap_or_default();
     let compose_mode = {

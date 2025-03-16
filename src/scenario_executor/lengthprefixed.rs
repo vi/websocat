@@ -454,11 +454,11 @@ fn length_prefixed_chunks(
         #[serde(default)]
         little_endian: bool,
 
-        //@ Inhibit adding header to data transferred in read direction, pass byte chunks unmodifed
+        //@ Inhibit adding header to data transferred in read direction, pass byte chunks unmodified
         #[serde(default)]
         skip_read_direction: bool,
 
-        //@ Inhibit adding header to data transferred in read direction, pass byte chunks unmodifed
+        //@ Inhibit adding header to data transferred in read direction, pass byte chunks unmodified
         #[serde(default)]
         skip_write_direction: bool,
 

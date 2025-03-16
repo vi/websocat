@@ -17,7 +17,7 @@ pub enum Endpoint {
     },
     //@ @inhibit_prefixes
     //@ Connect to a TCP socket by hostname.
-    //@ Hostname resolution is repeated every time a connection is initated.
+    //@ Hostname resolution is repeated every time a connection is initiated.
     //@ If multiple address are resolved, they are tried simultaneously, first connected one wins.
     //@
     //@ See prefixes for `TcpConnectByIp`
@@ -30,10 +30,10 @@ pub enum Endpoint {
     TcpConnectByIp(SocketAddr),
     //@ Listen for incoming TCP connections on one TCP socket, bound to the specified IPv4 or IPv6 address.
     TcpListen(SocketAddr),
-    //@ Listen for incoming TCP connections on one TCP socket that is already ready for accepting incoming conenctions,
+    //@ Listen for incoming TCP connections on one TCP socket that is already ready for accepting incoming connections,
     //@ with specified file descriptor (inherited from parent process)
     TcpListenFd(i32),
-    //@ Listen for incoming TCP connections on one TCP socket that is already ready for accepting incoming conenctions,
+    //@ Listen for incoming TCP connections on one TCP socket that is already ready for accepting incoming connections,
     //@ with specified file descriptor (inherited from parent process) based on LISTEN_FDNAMES environment variable (i.e. from SystemD)
     TcpListenFdNamed(String),
     //@ Connect to specified WebSocket plain (insecure) URL
@@ -44,12 +44,12 @@ pub enum Endpoint {
     WsListen(SocketAddr),
     //@ Console, terminal: read bytes from stdin, write bytes to stdout.
     //@
-    //@ Uses additional thread, which may cause lower latency and thoughput.
+    //@ Uses additional thread, which may cause lower latency and throughput.
     Stdio,
     //@ Connect to this UDP socket. Not affected by `--udp-bind-*`` CLI options.
     UdpConnect(SocketAddr),
     //@ Bind UDP socket to this address.
-    //@ Commmand line options greatly affect behaviour of this endpoint. It can be turned into a flexible `UdpConnect` analogue.
+    //@ Command line options greatly affect behaviour of this endpoint. It can be turned into a flexible `UdpConnect` analogue.
     UdpBind(SocketAddr),
     //@ Use inherited pre-bound UDP socket from specified file descriptor.
     UdpFd(i32),
@@ -85,14 +85,14 @@ pub enum Endpoint {
     //@ Listen UNIX socket on specified abstract path (Linux)
     AbstractListen(OsString),
 
-    //@ Listen for incoming AF_UNIX SOCK_STREAM connections on one socket that is already ready for accepting incoming conenctions,
+    //@ Listen for incoming AF_UNIX SOCK_STREAM connections on one socket that is already ready for accepting incoming connections,
     //@ with specified file descriptor (inherited from parent process)
     UnixListenFd(i32),
-    //@ Listen for incoming AF_UNIX SOCK_STREAM connections on one socket that is already ready for accepting incoming conenctions,
+    //@ Listen for incoming AF_UNIX SOCK_STREAM connections on one socket that is already ready for accepting incoming connections,
     //@ with specified file descriptor (inherited from parent process) based on LISTEN_FDNAMES environment variable (i.e. from SystemD)
     UnixListenFdNamed(String),
 
-    //@ Use specified inherited file desciptor for reading and writing, assuming it supports `read(2)` and `writev(2)` and can be put in epoll (or analogue).
+    //@ Use specified inherited file descriptor for reading and writing, assuming it supports `read(2)` and `writev(2)` and can be put in epoll (or analogue).
     //@
     //@ Trying to specify unexisting FD, especially low-numbered (e.g from 3 to 20) may lead to undefined behaviour.
     AsyncFd(i32),
@@ -109,10 +109,10 @@ pub enum Endpoint {
     AbstractSeqpacketConnect(OsString),
     //@ Listen specified UNIX SOCK_SEQPACKET socket by abstract (Linux) name
     AbstractSeqpacketListen(OsString),
-    //@ Listen for incoming TCP connections on one TCP socket that is already ready for accepting incoming conenctions,
+    //@ Listen for incoming TCP connections on one TCP socket that is already ready for accepting incoming connections,
     //@ with specified file descriptor (inherited from parent process)
     SeqpacketListenFd(i32),
-    //@ Listen for incoming TCP connections on one TCP socket that is already ready for accepting incoming conenctions,
+    //@ Listen for incoming TCP connections on one TCP socket that is already ready for accepting incoming connections,
     //@ with specified file descriptor (inherited from parent process) based on LISTEN_FDNAMES environment variable (i.e. from SystemD)
     SeqpacketListenFdNamed(String),
     //@ Byte stream socket for tests that can produce and consume (assert)
@@ -166,17 +166,17 @@ pub enum Overlay {
         client_mode: bool,
     },
     //@ Combined WebSocket upgrader and framer, but without TCP or TLS things
-    //@ URI is taked from --ws-c-uri CLI argument
+    //@ URI is taken from --ws-c-uri CLI argument
     //@ If it is not specified, it defaults to `/`, with a missing `host:` header
     WsClient,
     //@ Combined WebSocket acceptor and framer.
     WsServer,
-    //@ Establishes client-side TLS connection using specified stream-oriended downstream connection
+    //@ Establishes client-side TLS connection using specified stream-oriented downstream connection
     TlsClient {
         domain: String,
         varname_for_connector: String,
     },
-    //@ Converts downstream stream-oriented socket to packet-oriented socket by chunking the stream arbitrarily (i.e. as syscalls happend to deliver the data)
+    //@ Converts downstream stream-oriented socket to packet-oriented socket by chunking the stream arbitrarily (i.e. as syscalls happened to deliver the data)
     //@
     //@ May be automatically inserted in binary (`-b`) mode.
     StreamChunks,
@@ -185,7 +185,7 @@ pub enum Overlay {
     //@
     //@ May be automatically inserted in text (`-t`) mode.
     LineChunks,
-    //@ Convert downstream stream-oriended socket to packet-oriended socket by prefixing each message with its length
+    //@ Convert downstream stream-oriented socket to packet-oriented socket by prefixing each message with its length
     //@ (and maybe other flags, depending on options).
     LengthPrefixedChunks,
     //@ Print encountered data to stderr for debugging
@@ -225,7 +225,7 @@ pub enum SpecifierPosition {
 #[derive(Debug)]
 pub struct SpecifierStack {
     pub innermost: Endpoint,
-    /// zeroeth element is the last specified overlay, e.g. `ws-ll:` in `reuse:autoreconnect:ws-ll:tcp:127.0.0.1:1234`.
+    /// zeroth element is the last specified overlay, e.g. `ws-ll:` in `reuse:autoreconnect:ws-ll:tcp:127.0.0.1:1234`.
     pub overlays: Vec<Overlay>,
     pub position: SpecifierPosition,
 }

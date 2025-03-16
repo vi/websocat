@@ -43,7 +43,7 @@ impl PacketRead for TrivialPkts {
     }
 }
 
-//@ Sample source of packets for demostration purposes
+//@ Sample source of packets for demonstration purposes
 fn trivial_pkts() -> Handle<DatagramRead> {
     Some(DatagramRead {
         src: Box::pin(TrivialPkts { n: 3 }),
@@ -81,7 +81,7 @@ impl PacketWrite for DisplayPkts {
     }
 }
 
-//@ Sample sink for packets for demostration purposes
+//@ Sample sink for packets for demonstration purposes
 fn display_pkts() -> Handle<DatagramWrite> {
     let snk = Box::pin(DisplayPkts {});
     Arc::new(Mutex::new(Some(DatagramWrite { snk })))

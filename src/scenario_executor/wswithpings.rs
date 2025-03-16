@@ -156,7 +156,7 @@ fn ws_wrap(
         #[serde(default)]
         ignore_masks: bool,
 
-        //@ Inhibit flushing of underlying stream writer after each compelte message
+        //@ Inhibit flushing of underlying stream writer after each complete message
         #[serde(default)]
         no_flush_after_each_message: bool,
 

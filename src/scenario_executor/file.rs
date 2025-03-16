@@ -22,7 +22,7 @@ use crate::scenario_executor::{
 
 use super::{scenario::ScenarioAccess, types::Task, utils1::RhResult};
 
-//@ Open specifid file and read/write it.
+//@ Open specified file and read/write it.
 fn file_socket(
     ctx: NativeCallContext,
     opts: Dynamic,

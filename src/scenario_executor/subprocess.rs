@@ -212,7 +212,7 @@ impl AsyncWrite for StdinWrapper {
 }
 
 //@ Convert the child process handle to a Stream Socket of its stdin and stdout (but not stderr).
-//@ In case of non-piped (`2`) fds, the resulting socket would be incomplete.
+//@ In case of non-piped (`2`) FDs, the resulting socket would be incomplete.
 fn child_socket(
     ctx: NativeCallContext,
     chld: &mut Handle<Child>,
@@ -236,7 +236,7 @@ fn child_socket(
     Ok(Some(s).wrap())
 }
 
-//@ Obtain a Hangup handle that resovles when child process terminates.
+//@ Obtain a Hangup handle that resolves when child process terminates.
 //@ `Child` instance cannot be used after this.
 fn child_wait(ctx: NativeCallContext, chld: &mut Handle<Child>) -> RhResult<Handle<Hangup>> {
     let mut c = ctx.lutbarm(chld)?;
@@ -314,7 +314,7 @@ fn child_kill(ctx: NativeCallContext, chld: &mut Handle<Child>) -> RhResult<Hand
 }
 
 //@ Take stderr handle as a Stream Reader (i.e. half-socket).
-//@ In case of non-piped (`2`) fds, the handle would be null
+//@ In case of non-piped (`2`) FDs, the handle would be null
 fn child_take_stderr(
     ctx: NativeCallContext,
     chld: &mut Handle<Child>,
@@ -345,7 +345,7 @@ fn subprocess_spawn(ctx: NativeCallContext, cmd: &mut Handle<Command>) -> RhResu
     }
 }
 
-//@ Substitude Websocat process with the prepared command, abandoning other connections if they exist.
+//@ Substitute Websocat process with the prepared command, abandoning other connections if they exist.
 #[cfg(unix)]
 fn subprocess_execve(ctx: NativeCallContext, cmd: &mut Handle<Command>) -> RhResult<Handle<Child>> {
     use std::os::unix::process::CommandExt;
@@ -382,7 +382,7 @@ fn subprocess_raw_windows_arg(
     Ok(())
 }
 
-//@ Add or set environtment variable for the subprocess
+//@ Add or set environment variable for the subprocess
 fn subprocess_env(
     ctx: NativeCallContext,
     cmd: &mut Handle<Command>,
@@ -397,7 +397,7 @@ fn subprocess_env(
     Ok(())
 }
 
-//@ Add or set environtment variable for the subprocess (possibly non-UTF8)
+//@ Add or set environment variable for the subprocess (possibly non-UTF8)
 fn subprocess_env_osstr(
     ctx: NativeCallContext,
     cmd: &mut Handle<Command>,
@@ -412,7 +412,7 @@ fn subprocess_env_osstr(
     Ok(())
 }
 
-//@ Add or set environtment variable for the subprocess.
+//@ Add or set environment variable for the subprocess.
 fn subprocess_env_remove(
     ctx: NativeCallContext,
     cmd: &mut Handle<Command>,
@@ -426,7 +426,7 @@ fn subprocess_env_remove(
     Ok(())
 }
 
-//@ Add or set environtment variable for the subprocess.
+//@ Add or set environment variable for the subprocess.
 fn subprocess_env_remove_osstr(
     ctx: NativeCallContext,
     cmd: &mut Handle<Command>,
@@ -542,7 +542,7 @@ fn subprocess_gid(ctx: NativeCallContext, cmd: &mut Handle<Command>, gid: i64) -
     Ok(())
 }
 
-//@ Override process's name / zeroeth command line argument on Unix.
+//@ Override process's name / zeroth command line argument on Unix.
 #[allow(unused)]
 fn subprocess_arg0(
     ctx: NativeCallContext,
@@ -564,7 +564,7 @@ fn subprocess_arg0(
     Ok(())
 }
 
-//@ Override process's name / zeroeth command line argument on Unix.
+//@ Override process's name / zeroth command line argument on Unix.
 #[allow(unused)]
 fn subprocess_arg0_osstr(
     ctx: NativeCallContext,

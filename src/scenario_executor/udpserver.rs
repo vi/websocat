@@ -252,7 +252,7 @@ fn udp_server(
         #[serde(default)]
         fd_force: bool,
 
-        //@ Mark the conection as closed when this number
+        //@ Mark the connection as closed when this number
         //@ of milliseconds elapse without a new datagram
         //@ from associated peer address
         timeout_ms: Option<u64>,
@@ -272,7 +272,7 @@ fn udp_server(
         //@ Tag incoming UDP datagrams to be sent as text WebSocket messages
         //@ instead of binary.
         //@ Note that Websocat does not check for UTF-8 correctness and may
-        //@ send non-compiant text WebSocket messages.
+        //@ send non-compliant text WebSocket messages.
         #[serde(default)]
         tag_as_text: bool,
 
