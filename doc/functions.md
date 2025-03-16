@@ -1,11 +1,5 @@
-# Scenario functions
-
-Prior to doing any network things, Websocat prepares a Scenario (Websocat Rhai Script) based on you command line options.
-Scenarios are less stable than usual Websocat API, but allow fine tuning Websocat behaviour.
-You can view scenarios using `--dump-spec` option and execute them the with `-x` option.
-
-The following functions and methods are used in scenarios:
-
+<!-- Note: this file is auto-generated -->
+{{#include functions_header.md}}
 ## Child::kill
 
 Terminate a child process.
@@ -1501,3 +1495,4 @@ Options:
 Create a StreamSocket that reads zero bytes and ignores writes
 
 Returns `StreamSocket`
+

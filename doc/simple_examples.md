@@ -33,3 +33,4 @@ WebSocket messages aimed at clients.
 
 It supports multiple simultanously connected clients, though by default
 only one of connected clients would get replies from console.
+

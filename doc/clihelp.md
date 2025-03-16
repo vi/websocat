@@ -1,3 +1,4 @@
+<!-- Note: this file is auto-generated -->
 ## `--help` output
 
 ```

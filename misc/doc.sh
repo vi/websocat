@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 
 if [ ! -f misc/scan_source.py ]; then
    echo "Wrong current directory"
@@ -28,4 +28,34 @@ Use doc.md for reference of all Websocat functions
 EOF
 
 crcargo build # to update the --help message
-python3 misc/doc.py  > doc.md <  outline.json
+
+cat > doc/endpoints.md <<'EOF'
+<!-- Note: this file is auto-generated -->
+{{#include endpoints_header.md}}
+EOF
+
+TODOC=endpoints python misc/doc_specifiers.py < outline.json >> doc/endpoints.md
+
+cat > doc/overlays.md <<'EOF'
+<!-- Note: this file is auto-generated -->
+{{#include overlays_header.md}}
+EOF
+
+TODOC=overlays python misc/doc_specifiers.py < outline.json >> doc/overlays.md
+
+cat > doc/functions.md <<'EOF'
+<!-- Note: this file is auto-generated -->
+{{#include functions_header.md}}
+EOF
+
+python misc/doc_functions.py < outline.json >> doc/functions.md
+
+cat > doc/clihelp.md <<'EOF'
+<!-- Note: this file is auto-generated -->
+## `--help` output
+
+```
+EOF
+./target/mydev/websocat --help >> doc/clihelp.md
+
+echo '```' >> doc/clihelp.md
