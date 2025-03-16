@@ -23,6 +23,12 @@ parser.language = RUST_LANGUAGE  # type: ignore
 DOCCOMMENT_LINE = re.compile(r'^\s*//@\s*(.*)')
 
 
+E_METHOD_SELF = re.compile(r"""
+    ^ \& \s* mut \s* Handle \s* < \s* (.*) \s* > \s* $
+    """, re.VERBOSE)
+
+
+
 ############################################################################################
 
 ############################################################################################
@@ -376,13 +382,65 @@ def get_merged_outline() -> Outline:
 ############################################################################################
 
 
-def main() -> None:
-    executor_functions : List[ExecutorFunc]
-    planner_content: PlannerContent
+def process_outline(o: Outline) -> ThingsToDocument:
+    endpoints : List[PlannerItem] = []
+    overlays : List[PlannerItem] = []
+    funcs : List[ExecutorFunc] = []
 
+    approved_functitons : Dict[str, str] = {}
+    for f in o.functions:
+        if f.name == 'register':
+            for rc in f.reg_calls:
+                approved_functitons[rc.fnname] = rc.rhname
+    for f in o.functions:
+        if f.name in approved_functitons:
+            cbmap : Dict[ExecutorFuncCallback] = {}
+            for (k, v) in f.callbacks.items():
+                cbmap[k] = ExecutorFuncCallback(v[0].argtyps, v[0].rettyp)
+            params = [ NameTypeAndDoc(x.name, x.typ, " ".join(x.doc)) for x in f.args  ]
+            params = [x for x in params if x.nam != "ctx"]
+            displayname = approved_functitons[f.name]
+
+            if params:
+                firstparam = params[0]
+                if mn := E_METHOD_SELF.search(firstparam.typ):
+                    x = mn.group(1)
+                    params.pop(0)
+                    displayname=x + "::" + displayname
+
+            funcs.append(ExecutorFunc(
+                f.name,
+                displayname,
+                "\n".join(f.doc),
+                params,
+                NameTypeAndDoc("ret", f.rettyp, " ".join(f.retdoc)),
+                cbmap,
+                [NameTypeAndDoc(x.name, x.typ, " ".join(x.doc)) for x in f.opts]
+            ))
+
+
+    endpoint_prefixes : Dict[str, List[str]] = defaultdict(list)
+    overlay_prefixes : Dict[str, List[str]] = defaultdict(list)
+    for t in o.endpoint_prefixes:
+        endpoint_prefixes[t.name].extend(t.prefixes)
+    for t in o.overlay_prefixes:
+        overlay_prefixes[t.name].extend(t.prefixes)
+
+    for x in o.endpoints:
+        endpoints.append(PlannerItem(x.ident, endpoint_prefixes.get(x.ident) or [], "\n".join(x.doc)))
+    for x in o.overlays:
+        overlays.append(PlannerItem(x.ident, overlay_prefixes.get(x.ident) or [], "\n".join(x.doc)))
+
+
+    return ThingsToDocument(PlannerContent(endpoints, overlays), funcs)
+
+
+
+def main() -> None:
     outline : Outline = get_merged_outline()
+    things : ThingsToDocument = process_outline(outline)
     
-    print(outline.to_json())
+    print(things.to_json())
 
 if __name__ == '__main__':
     main()

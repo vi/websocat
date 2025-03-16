@@ -11,10 +11,6 @@ from pprint import pprint
 
 from mytypes import *
 
-E_METHOD_SELF = re.compile(r"""
-    ^ \& \s* mut \s* Handle \s* < \s* (.*) \s* > \s* $
-    """, re.VERBOSE)
-
 
 E_FN_COOK_RET1 = re.compile(r"""
     \s* -> \s* (.*)
@@ -33,26 +29,6 @@ E_STRIP_HANDLE = re.compile(r"""
 
 ############################################################################################
 
-@dataclass
-class TypeAndDoc:
-    typ: str
-    doc: str
-
-
-@dataclass
-class ExecutorFuncCallback:
-    params: List[str]
-    rettyp: str
-
-@dataclass
-class ExecutorFunc:
-    rust_function: str
-    rhai_function: str
-    primary_doc: str
-    params: List[Tuple[str, TypeAndDoc]]
-    ret: TypeAndDoc
-    callbacks: Dict[str, ExecutorFuncCallback]
-    options: List[Tuple[str, TypeAndDoc]]
 
 def strip_handle(s : str) -> str:
     if x:=E_STRIP_HANDLE.search(s):
@@ -70,7 +46,8 @@ def document_executor_function(f: ExecutorFunc) -> None:
     if len(f.params) > 0:
         print("Parameters:")
         print()
-        for (nam, x) in f.params:
+        for x in f.params:
+            nam = x.nam
             if nam == "opts" and x.typ == "Dynamic" and not x.doc:
                 x.doc = "object map containing dynamic options to the function"
             nam = nam.removeprefix("r#")
@@ -116,7 +93,8 @@ def document_executor_function(f: ExecutorFunc) -> None:
     if len(f.options) > 0:
         print("Options:")
         print()
-        for (on, od) in f.options:
+        for od in f.options:
+            on = od.nam
             on = on.removeprefix("r#")
             s = "* " + on + " (`" + od.typ + "`)"
             if od.doc:
@@ -132,16 +110,7 @@ def document_executor_function(f: ExecutorFunc) -> None:
 
 ############################################################################################
 
-@dataclass
-class PlannerItem:
-    name: str
-    prefixes: List[str]
-    doc: str
 
-@dataclass
-class PlannerContent:
-    endpoints: List[PlannerItem]
-    overlays: List[PlannerItem]
 
 def document_planner_content(c: PlannerContent) -> None:
 
@@ -222,68 +191,15 @@ def document_planner_content(c: PlannerContent) -> None:
 
 ############################################################################################
 
-def process_outline(o: Outline) -> Tuple[PlannerContent, List[ExecutorFunc]]:
-    endpoints : List[PlannerItem] = []
-    overlays : List[PlannerItem] = []
-    funcs : List[ExecutorFunc] = []
-
-    approved_functitons : Dict[str, str] = {}
-    for f in o.functions:
-        if f.name == 'register':
-            for rc in f.reg_calls:
-                approved_functitons[rc.fnname] = rc.rhname
-    for f in o.functions:
-        if f.name in approved_functitons:
-            cbmap : Dict[ExecutorFuncCallback] = {}
-            for (k, v) in f.callbacks.items():
-                cbmap[k] = ExecutorFuncCallback(v[0].argtyps, v[0].rettyp)
-            params = [ (x.name, TypeAndDoc(x.typ, " ".join(x.doc))) for x in f.args  ]
-            params = [x for x in params if x[0] != "ctx"]
-            displayname = approved_functitons[f.name]
-
-            if params:
-                firstparam = params[0]
-                if mn := E_METHOD_SELF.search(firstparam[1].typ):
-                    x = mn.group(1)
-                    params.pop(0)
-                    displayname=x + "::" + displayname
-
-            funcs.append(ExecutorFunc(
-                f.name,
-                displayname,
-                "\n".join(f.doc),
-                params,
-                TypeAndDoc(f.rettyp, " ".join(f.retdoc)),
-                cbmap,
-                [(x.name, TypeAndDoc(x.typ, " ".join(x.doc))) for x in f.opts]
-            ))
-
-
-    endpoint_prefixes : Dict[str, List[str]] = defaultdict(list)
-    overlay_prefixes : Dict[str, List[str]] = defaultdict(list)
-    for t in o.endpoint_prefixes:
-        endpoint_prefixes[t.name].extend(t.prefixes)
-    for t in o.overlay_prefixes:
-        overlay_prefixes[t.name].extend(t.prefixes)
-
-    for x in o.endpoints:
-        endpoints.append(PlannerItem(x.ident, endpoint_prefixes.get(x.ident) or [], "\n".join(x.doc)))
-    for x in o.overlays:
-        overlays.append(PlannerItem(x.ident, overlay_prefixes.get(x.ident) or [], "\n".join(x.doc)))
-
-
-    return (PlannerContent(endpoints, overlays), funcs)
 
 
 def main() -> None:
-    executor_functions : List[ExecutorFunc]
-    planner_content: PlannerContent
+    c = sys.stdin.read()
+    things  = ThingsToDocument.from_json(c)
+    #pprint(things)
 
-    outline : Outline = Outline.from_json(sys.stdin.read())
-    
-    (planner_content,executor_functions) =  process_outline(outline)
-
-    #pprint(outline)
+    executor_functions : List[ExecutorFunc] = things.executor_functions
+    planner_content: PlannerContent = things.planner_content
 
     executor_functions.sort(key=lambda x: x.rhai_function)
     planner_content.endpoints.sort(key=lambda x:x.name)
