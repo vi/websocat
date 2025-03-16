@@ -4,3 +4,6 @@ language = "en"
 multilingual = false
 src = "."
 title = "Websocat4 documentation"
+
+[output.html]
+git-repository-url = "https://github.com/vi/websocat/tree/websocat4/doc"
