@@ -6,6 +6,7 @@ use std::{
 
 use bytes::BytesMut;
 use futures::Future;
+use rhai::Dynamic;
 use tokio::io::{AsyncRead, AsyncWrite};
 pub type Handle<T> = Arc<Mutex<Option<T>>>;
 
@@ -122,9 +123,14 @@ pub struct DatagramSocket {
     pub fd: Option<SocketFd>,
 }
 
-pub type UniversalChannel = (flume::Sender<rhai::Dynamic>, flume::Receiver<rhai::Dynamic>);
+pub type UniversalChannel = (flume::Sender<Dynamic>, flume::Receiver<Dynamic>);
 
 #[derive(Debug, Clone, Default)]
 pub struct Registry(pub(super) Arc<Mutex<std::collections::HashMap<String, UniversalChannel>>>);
 
 pub type DatagramSocketSlot = tokio::sync::oneshot::Sender<DatagramSocket>;
+
+pub type Slot = tokio::sync::oneshot::Sender<Dynamic>;
+pub type Promise = tokio::sync::oneshot::Receiver<Dynamic>;
+pub type ChannelSender = flume::Sender<Dynamic>;
+pub type ChannelReceiver = flume::Receiver<Dynamic>;

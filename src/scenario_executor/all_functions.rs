@@ -10,7 +10,7 @@ use super::trivials3::{TriggerableEvent, TriggerableEventTrigger};
 use super::types::DatagramSocketSlot;
 use super::types::{
     DatagramRead, DatagramSocket, DatagramWrite, Handle, Hangup, StreamRead, StreamSocket,
-    StreamWrite, Task,
+    StreamWrite, Task, Slot, Promise, ChannelReceiver, ChannelSender
 };
 use std::ffi::OsString;
 use tokio::process::{Child, Command};
@@ -75,6 +75,10 @@ macro_rules! all_types {
         $x!(SimpleReuser);
         $x!(SimpleReuserListener);
         $x!(DatagramSocketSlot);
+        $x!(Slot);
+        $x!(Promise);
+        $x!(ChannelReceiver);
+        $x!(ChannelSender);
     };
 }
 

@@ -277,6 +277,18 @@ Options:
 * connect_again (`bool`) - Do not cache failed connection attempts, retry initialisation if a new client arrive. Note that successful, but closed connections are not considered failed and that regard and will stay cached. (use autoreconnect to handle that case)
 * disconnect_on_broken_message (`bool`) - Drop underlying connection if some client leaves in the middle of writing a message, leaving us with unrecoverably broken message.
 
+## Slot::send
+
+Fulfill a Slot with a value, e.g to complete one of initialisers for `init_in_parallel`.
+
+Acts immediately and returns a dummy task just as a convenience (to make Rhai scripts typecheck).
+
+Parameters:
+
+* x (`Dynamic`)
+
+Returns `Task`
+
 ## TriggerableEvent::take_hangup
 
 Take the waitable part (Hangup) from an object created by `triggerable_event_create`
@@ -635,6 +647,17 @@ Parameters:
 * opts (`Dynamic`) - object map containing dynamic options to the function
 * inner (`StreamSocket`)
 * continuation (`Fn(IncomingRequest, Hangup, i64) -> OutgoingResponse`) - Rhai function that will be called to continue processing
+
+Returns `Task`
+
+## init_in_parallel
+
+Initialize multiple things in parallel using a array of closures, then call final closure with results of the initialisation
+
+Parameters:
+
+* initialisers (`Vec<Dynamic>`) - Array of functions to call to prepare the `Vec<Dynamic>` for `continuation` below. Each function should have signature like `Fn(Slot) -> Task`.
+* continuation (`Fn(Vec<Dynamic>) -> Task`) - Rhai function that will be called to continue processing
 
 Returns `Task`
 
@@ -1024,6 +1047,41 @@ Parameters:
 * x (`StreamRead`)
 
 Returns `DatagramRead`
+
+## registry_recv_all
+
+Receive all objects from a named slot in the registry and call `continuation` for each one
+
+Parameters:
+
+* addr (`&str`)
+* continuation (`Fn(Dynamic) -> Task`) - Rhai function that will be called to continue processing
+
+Returns `Task`
+
+## registry_recv_one
+
+Receive one object from a named slot in the registry and call `continuation` once for it
+
+Parameters:
+
+* addr (`&str`)
+* continuation (`Fn(Dynamic) -> Task`) - Rhai function that will be called to continue processing
+
+Returns `Task`
+
+## registry_send
+
+Send some oject to named slot in the registry.
+Blocks if no receivers yet.
+
+Parameters:
+
+* addr (`&str`)
+* x (`Dynamic`)
+* continuation (`Fn() -> Task`) - Rhai function that will be called to continue processing
+
+Returns `Task`
 
 ## sequential
 
