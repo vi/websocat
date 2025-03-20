@@ -338,6 +338,12 @@ Options:
       --random-fast
           For `random:` endpoint, use smaller and faster RNG instead of secure one
 
+      --write-splitoff <WRITE_SPLITOFF>
+          Specify the write counterpart for `write-splitoff:` overlay. Expects a specifier like `tcp:127.0.0.1:1234`, like a positional argument
+
+      --write-splitoff-omit-shutdown
+          Do not write-shutdown the read part of a `write-splitoff:` overlay
+
   -h, --help
           Print help (see a summary with '-h')
 
@@ -398,6 +404,7 @@ Short list of overlay prefixes:
   tls:
   write_buffer:
   write_chunk_limiter:
+  write-splitoff:
   ws-accept:
   ws-connect:
   ws-lowlevel-client:
@@ -419,5 +426,5 @@ Examples:
   websocat -b ws-l:127.0.0.1:8080 udp:127.0.0.1:1234
     WebSocket-to-UDP converter
 
-Use doc.md for reference of all Websocat functions
+Use https://websocat.net/websocat4/ (or 'doc' directory in the source code) for reference of all Websocat functions
 ```

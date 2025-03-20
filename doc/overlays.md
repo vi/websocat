@@ -100,6 +100,16 @@ Prefixes:
 
 * `write_chunk_limiter:`
 
+## WriteSplitoff
+
+Only read from inner specifier, route writes to other, CLI-speciifed Socket
+
+Prefixes:
+
+* `write-splitoff:`
+* `write-divert:`
+* `wrdvrt:`
+
 ## WsAccept
 
 Expects a HTTP/1 WebSocket upgrade request from downstream stream socket. If valid, replies with Upgrade HTTP reply.

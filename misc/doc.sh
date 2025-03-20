@@ -24,7 +24,7 @@ Examples:
   websocat -b ws-l:127.0.0.1:8080 udp:127.0.0.1:1234
     WebSocket-to-UDP converter
 
-Use doc.md for reference of all Websocat functions
+Use https://websocat.net/websocat4/ (or 'doc' directory in the source code) for reference of all Websocat functions
 EOF
 
 crcargo build # to update the --help message

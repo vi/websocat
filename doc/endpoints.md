@@ -434,6 +434,12 @@ Prefixes:
 
 * `writefile:`
 
+## WriteSplitoff
+
+Implementation detail of `write-splitoff:` overlay
+
+This endpoint cannot be directly specified as a prefix to a positional CLI argument, there may be some other way to access it.
+
 ## WsListen
 
 Listen for incoming WebSocket connections at specified TCP socket address.

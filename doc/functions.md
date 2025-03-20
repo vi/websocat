@@ -332,6 +332,36 @@ Parameters:
 
 Returns `String`
 
+## combine_read_and_write_bytestream
+
+Take reading part s1 and write part of s2 and make a new socket that routes reads to s1 and writes to s2.
+
+Close notifications (hangup tokens) are combined from s1 and s2.
+
+Write part of s1 and read part of s2 remain in the original sockets which become incompelte (but not null).
+
+Parameters:
+
+* s1 (`StreamSocket`)
+* s2 (`StreamSocket`)
+
+Returns `StreamSocket`
+
+## combine_read_and_write_datagram
+
+Take reading part s1 and write part of s2 and make a new socket that routes reads to s1 and writes to s2.
+
+Close notifications (hangup tokens) are combined from s1 and s2.
+
+Write part of s1 and read part of s2 remain in the original sockets which become incompelte (but not null).
+
+Parameters:
+
+* s1 (`DatagramSocket`)
+* s2 (`DatagramSocket`)
+
+Returns `DatagramSocket`
+
 ## connect_registry_stream
 
 Connect to an intra-Websocat stream socket listening on specified virtual address.
@@ -1092,6 +1122,16 @@ Parameters:
 * tasks (`Vec<Dynamic>`)
 
 Returns `Task`
+
+## shutdown_and_drop
+
+Shutdown the writing part of a socket and drop it. If reading part was used extracted and used elswere, it stays active.
+
+Parameters:
+
+* x (`Dynamic`)
+
+Returns `()`
 
 ## simple_reuser
 
