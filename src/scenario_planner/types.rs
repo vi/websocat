@@ -219,7 +219,7 @@ pub enum Overlay {
     //@ (or result in a broken, trimmed message, depending on settings).
     SimpleReuser,
 
-    //@ Only read from inner specifier, route writes to other, CLI-speciifed Socket
+    //@ Only read from inner specifier, route writes to other, CLI-specified Socket
     WriteSplitoff,
 }
 

@@ -102,7 +102,7 @@ Prefixes:
 
 ## WriteSplitoff
 
-Only read from inner specifier, route writes to other, CLI-speciifed Socket
+Only read from inner specifier, route writes to other, CLI-specified Socket
 
 Prefixes:
 

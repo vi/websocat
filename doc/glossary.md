@@ -15,7 +15,7 @@ in Scenarios.
 * **Scenario Planner** - part of Websocat implementation that parses command line arguments and prepares a Scenario
 * **Scenario Executor** - part of Websocat implementation that executes a Scenario.
 * **CLI arguments** - combination of a positional arguments (typically Specifiers) and various flags (e.g. `--binary`) and options (e.g. `--buffer-size 4096`) that affect Scenario Planner. Sometimes, in narrow sense, it may refer to an individual block of `--compose`-ed arguments.
-* **CLI API** - Things in Websocat that are accessile when starting Websocat executable and supplying various command-line arguments (except of `-x` or `--no-fixups`). This is expected to be more stable and easier to use, but less flexible compared to Scenario Functions.
+* **CLI API** - Things in Websocat that are accessible when starting Websocat executable and supplying various command-line arguments (except of `-x` or `--no-fixups`). This is expected to be more stable and easier to use, but less flexible compared to Scenario Functions.
 * **Packet** = **Datagram** = **Message** - A byte buffer with associated flags. Correspond to one WebSocket message. Within WebSocket, packets can be split to chunks, but that should not affect user-visible properties.
 * **Chunk** = **Frame** - portion of data read or written to/from stream or datagram socket in one go. Maybe a fragment of a Message or be the whole Message.
 * **Task** - a logical thread of execution. Rhai code is expected to create and combine some tasks. Typically each connection runs in its own task. Corresponds to Tokio tasks.

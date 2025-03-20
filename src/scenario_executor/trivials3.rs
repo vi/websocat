@@ -106,7 +106,7 @@ fn make_socket_addr(ctx: NativeCallContext, ip: &str, port: i64) -> RhResult<Soc
     }
 }
 
-//@ Send some oject to named slot in the registry.
+//@ Send some object to named slot in the registry.
 //@ Blocks if no receivers yet.
 fn registry_send(
     ctx: NativeCallContext,
@@ -292,7 +292,7 @@ fn slot_send(
 //@
 //@ Close notifications (hangup tokens) are combined from s1 and s2.
 //@
-//@ Write part of s1 and read part of s2 remain in the original sockets which become incompelte (but not null).
+//@ Write part of s1 and read part of s2 remain in the original sockets which become incomplete (but not null).
 fn combine_read_and_write_bytestream(
     ctx: NativeCallContext,
     s1: Handle<StreamSocket>,
@@ -326,7 +326,7 @@ fn combine_read_and_write_bytestream(
 //@
 //@ Close notifications (hangup tokens) are combined from s1 and s2.
 //@
-//@ Write part of s1 and read part of s2 remain in the original sockets which become incompelte (but not null).
+//@ Write part of s1 and read part of s2 remain in the original sockets which become incomplete (but not null).
 fn combine_read_and_write_datagram(
     ctx: NativeCallContext,
     s1: Handle<DatagramSocket>,

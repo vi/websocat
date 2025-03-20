@@ -395,7 +395,7 @@ fn drop_thing(ctx: NativeCallContext, x: Dynamic) -> RhResult<()> {
     Ok(())
 }
 
-//@ Shutdown the writing part of a socket and drop it. If reading part was used extracted and used elswere, it stays active.
+//@ Shutdown the writing part of a socket and drop it. If reading part was used extracted and used elsewhere, it stays active.
 fn shutdown_and_drop(ctx: NativeCallContext, x: Dynamic) -> RhResult<()> {
     use super::utils1::PacketWriteExt;
     if let Some(t) = x.clone().try_cast::<Handle<StreamWrite>>() {

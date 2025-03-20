@@ -338,7 +338,7 @@ Take reading part s1 and write part of s2 and make a new socket that routes read
 
 Close notifications (hangup tokens) are combined from s1 and s2.
 
-Write part of s1 and read part of s2 remain in the original sockets which become incompelte (but not null).
+Write part of s1 and read part of s2 remain in the original sockets which become incomplete (but not null).
 
 Parameters:
 
@@ -353,7 +353,7 @@ Take reading part s1 and write part of s2 and make a new socket that routes read
 
 Close notifications (hangup tokens) are combined from s1 and s2.
 
-Write part of s1 and read part of s2 remain in the original sockets which become incompelte (but not null).
+Write part of s1 and read part of s2 remain in the original sockets which become incomplete (but not null).
 
 Parameters:
 
@@ -1102,7 +1102,7 @@ Returns `Task`
 
 ## registry_send
 
-Send some oject to named slot in the registry.
+Send some object to named slot in the registry.
 Blocks if no receivers yet.
 
 Parameters:
@@ -1125,7 +1125,7 @@ Returns `Task`
 
 ## shutdown_and_drop
 
-Shutdown the writing part of a socket and drop it. If reading part was used extracted and used elswere, it stays active.
+Shutdown the writing part of a socket and drop it. If reading part was used extracted and used elsewhere, it stays active.
 
 Parameters:
 
