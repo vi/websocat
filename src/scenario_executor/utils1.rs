@@ -242,6 +242,15 @@ impl<T: PacketWrite + Send + ?Sized> PacketWriteExt for Pin<&mut T> {
     }
 }
 
+impl<T: PacketWrite + Send + ?Sized> PacketWriteExt for Pin<Box<T>> {
+    fn send_eof(mut self) -> impl std::future::Future<Output = std::io::Result<()>> + Send {
+        std::future::poll_fn(move |cx| {
+            let mut b = [];
+            PacketWrite::poll_write(self.as_mut(), cx, &mut b, BufferFlag::Eof.into())
+        })
+    }
+}
+
 #[derive(Debug, Clone)]
 #[pin_project::pin_project]
 pub struct MyOptionFuture<F> {

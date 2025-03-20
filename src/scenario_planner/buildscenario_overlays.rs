@@ -152,6 +152,9 @@ impl Overlay {
             Overlay::SimpleReuser => {
                 panic!("SimpleReuser is not supposed to emit scenario chunk as an overlay")
             }
+            Overlay::WriteSplitoff => {
+                panic!("WriteSplitoff should be converted into an endpoint");
+            }
         }
     }
     pub(super) fn end_print(&self, env: &mut ScenarioPrintingEnvironment<'_>) {
@@ -174,6 +177,9 @@ impl Overlay {
             Overlay::WriteBuffer => (),
             Overlay::SimpleReuser => {
                 panic!("SimpleReuser is not supposed to emit scenario chunk as an overlay")
+            }
+            Overlay::WriteSplitoff => {
+                panic!("WriteSplitoff should be converted into an endpoint");
             }
         }
     }

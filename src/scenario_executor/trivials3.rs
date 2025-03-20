@@ -1,5 +1,6 @@
 use std::net::SocketAddr;
 
+use futures::FutureExt;
 use rhai::{Dynamic, Engine, FnPtr, NativeCallContext};
 use tracing::{debug, debug_span, Instrument};
 
@@ -11,7 +12,7 @@ use crate::scenario_executor::{
 
 use super::{
     scenario::ScenarioAccess,
-    types::{Hangup, Promise, Task},
+    types::{DatagramSocket, Hangup, Promise, StreamSocket, Task},
     utils1::{ExtractHandleOrFail, RhResult, SimpleErr},
 };
 
@@ -222,9 +223,8 @@ fn init_in_parallel(
     let mut handles: Vec<tokio::task::JoinHandle<()>> = Vec::with_capacity(initialisers.len());
 
     for (i, initialiser) in initialisers.into_iter().enumerate() {
-
-        let Some(initialiser) : Option<FnPtr> = initialiser.try_cast()  else {
-            return Err(ctx.err("Non-closure element in array"))
+        let Some(initialiser): Option<FnPtr> = initialiser.try_cast() else {
+            return Err(ctx.err("Non-closure element in array"));
         };
 
         let the_scenario = the_scenario.clone();
@@ -288,6 +288,74 @@ fn slot_send(
     Ok(super::trivials1::dummytask())
 }
 
+//@ Take reading part s1 and write part of s2 and make a new socket that routes reads to s1 and writes to s2.
+//@
+//@ Close notifications (hangup tokens) are combined from s1 and s2.
+//@
+//@ Write part of s1 and read part of s2 remain in the original sockets which become incompelte (but not null).
+fn combine_read_and_write_bytestream(
+    ctx: NativeCallContext,
+    s1: Handle<StreamSocket>,
+    s2: Handle<StreamSocket>,
+) -> RhResult<Handle<StreamSocket>> {
+    let mut s1 = s1.lock().unwrap();
+    let mut s2 = s2.lock().unwrap();
+
+    let (Some(s1), Some(s2)) = (s1.as_mut(), s2.as_mut()) else {
+        return Err(ctx.err("Null socket handle"));
+    };
+
+    let close: Option<Hangup> = match (s1.close.take(), s2.close.take()) {
+        (None, None) => None,
+        (None, Some(c)) => Some(c),
+        (Some(c), None) => Some(c),
+        (Some(a), Some(b)) => Some(Box::pin(futures::future::select(a, b).map(|_| ()))),
+    };
+
+    let s = StreamSocket {
+        read: s1.read.take(),
+        write: s2.write.take(),
+        close,
+        fd: None,
+    };
+    debug!(?s, "combine_read_and_write_bytestream");
+    Ok(Some(s).wrap())
+}
+
+//@ Take reading part s1 and write part of s2 and make a new socket that routes reads to s1 and writes to s2.
+//@
+//@ Close notifications (hangup tokens) are combined from s1 and s2.
+//@
+//@ Write part of s1 and read part of s2 remain in the original sockets which become incompelte (but not null).
+fn combine_read_and_write_datagram(
+    ctx: NativeCallContext,
+    s1: Handle<DatagramSocket>,
+    s2: Handle<DatagramSocket>,
+) -> RhResult<Handle<DatagramSocket>> {
+    let mut s1 = s1.lock().unwrap();
+    let mut s2 = s2.lock().unwrap();
+
+    let (Some(s1), Some(s2)) = (s1.as_mut(), s2.as_mut()) else {
+        return Err(ctx.err("Null socket handle"));
+    };
+
+    let close: Option<Hangup> = match (s1.close.take(), s2.close.take()) {
+        (None, None) => None,
+        (None, Some(c)) => Some(c),
+        (Some(c), None) => Some(c),
+        (Some(a), Some(b)) => Some(Box::pin(futures::future::select(a, b).map(|_| ()))),
+    };
+
+    let s = DatagramSocket {
+        read: s1.read.take(),
+        write: s2.write.take(),
+        close,
+        fd: None,
+    };
+    debug!(?s, "combine_read_and_write_bytestream");
+    Ok(Some(s).wrap())
+}
+
 pub fn register(engine: &mut Engine) {
     engine.register_fn("triggerable_event_create", triggerable_event_create);
     engine.register_fn("take_hangup", triggerable_event_take_hangup);
@@ -302,4 +370,12 @@ pub fn register(engine: &mut Engine) {
     engine.register_fn("registry_recv_all", registry_recv_all);
     engine.register_fn("init_in_parallel", init_in_parallel);
     engine.register_fn("send", slot_send);
+    engine.register_fn(
+        "combine_read_and_write_bytestream",
+        combine_read_and_write_bytestream,
+    );
+    engine.register_fn(
+        "combine_read_and_write_datagram",
+        combine_read_and_write_datagram,
+    );
 }

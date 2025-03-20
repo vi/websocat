@@ -9,8 +9,8 @@ use super::reuser::{SimpleReuser, SimpleReuserListener};
 use super::trivials3::{TriggerableEvent, TriggerableEventTrigger};
 use super::types::DatagramSocketSlot;
 use super::types::{
-    DatagramRead, DatagramSocket, DatagramWrite, Handle, Hangup, StreamRead, StreamSocket,
-    StreamWrite, Task, Slot, Promise, ChannelReceiver, ChannelSender
+    ChannelReceiver, ChannelSender, DatagramRead, DatagramSocket, DatagramWrite, Handle, Hangup,
+    Promise, Slot, StreamRead, StreamSocket, StreamWrite, Task,
 };
 use std::ffi::OsString;
 use tokio::process::{Child, Command};

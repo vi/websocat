@@ -1,6 +1,8 @@
 use clap_lex::OsStrExt;
 use std::{collections::HashMap, ffi::OsStr};
 
+use super::types::CopyingType;
+
 pub struct IdentifierGenerator {
     pub varnames: HashMap<&'static str, usize>,
 }
@@ -35,5 +37,14 @@ impl StripPrefixMany for OsStr {
             }
         }
         None
+    }
+}
+
+impl CopyingType {
+    pub fn is_bstrm(&self) -> bool {
+        *self == CopyingType::ByteStream
+    }
+    pub fn is_dgrms(&self) -> bool {
+        *self == CopyingType::Datarams
     }
 }

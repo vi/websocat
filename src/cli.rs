@@ -122,7 +122,7 @@ pub struct WebsocatArgs {
     pub separator_inhibit_substitution: bool,
 
     /// Same as setting `--separator` to `0`. Make text mode messages separated by zero byte instead of newline.
-    #[arg(long, short='0')]
+    #[arg(long, short = '0')]
     pub null_terminated: bool,
 
     /// initial target sendto address for `udp-bind:` mode.
@@ -462,6 +462,15 @@ pub struct WebsocatArgs {
     /// For `random:` endpoint, use smaller and faster RNG instead of secure one
     #[arg(long)]
     pub random_fast: bool,
+
+    /// Specify the write counterpart for `write-splitoff:` overlay.
+    /// Expects a specifier like `tcp:127.0.0.1:1234`, like a positional argument.
+    #[arg(long)]
+    pub write_splitoff: Option<OsString>,
+
+    /// Do not write-shutdown the read part of a `write-splitoff:` overlay.
+    #[arg(long)]
+    pub write_splitoff_omit_shutdown: bool,
 }
 
 /// Subset of command line arguments that describes the whole Websocat operation even when `--compose` sub-scenarios are used.

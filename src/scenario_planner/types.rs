@@ -140,6 +140,12 @@ pub enum Endpoint {
 
     //@ Generate zero bytes
     Zero,
+
+    //@ Implementation detail of `write-splitoff:` overlay
+    WriteSplitoff {
+        read: Box<SpecifierStack>,
+        write: Box<SpecifierStack>,
+    },
 }
 
 #[derive(Debug)]
@@ -212,9 +218,12 @@ pub enum Overlay {
     //@ User disconnections while writing a message may abort the whole reuser
     //@ (or result in a broken, trimmed message, depending on settings).
     SimpleReuser,
+
+    //@ Only read from inner specifier, route writes to other, CLI-speciifed Socket
+    WriteSplitoff,
 }
 
-#[derive(Debug,Clone, Copy,PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum SpecifierPosition {
     /// First positional argument of Websocat CLI, for listeners and connectors
     Left,
@@ -248,6 +257,8 @@ pub struct WebsocatInvocation {
     pub left: SpecifierStack,
     pub right: SpecifierStack,
     pub opts: WebsocatArgs,
+
+    pub write_splitoff: Option<SpecifierStack>,
 
     pub beginning: Vec<PreparatoryAction>,
 }

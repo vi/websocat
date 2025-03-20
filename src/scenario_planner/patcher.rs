@@ -38,6 +38,10 @@ impl WebsocatInvocation {
         self.left.fill_in_log_overlay_type();
         self.right.fill_in_log_overlay_type();
         self.maybe_insert_chunker();
+        self.left
+            .maybe_process_writesplitoff(&mut self.write_splitoff)?;
+        self.right
+            .maybe_process_writesplitoff(&mut self.write_splitoff)?;
         self.maybe_insert_reuser();
         self.left.maybe_process_reuser(vars, &mut self.beginning)?;
         self.right.maybe_process_reuser(vars, &mut self.beginning)?;
@@ -46,26 +50,49 @@ impl WebsocatInvocation {
 
     fn maybe_insert_chunker(&mut self) {
         if self.opts.exec_dup2.is_some() {
+            // dup2 mode is speial, it ignores any overlays and directly forwards
+            // file desciptor to process. messages vs bytestreams distinction does not matter in this mode.
             return;
         }
-        match (self.left.get_copying_type(), self.right.get_copying_type()) {
-            (CopyingType::ByteStream, CopyingType::ByteStream) => (),
-            (CopyingType::Datarams, CopyingType::Datarams) => (),
-            (CopyingType::ByteStream, CopyingType::Datarams) => {
-                if self.opts.binary {
-                    self.left.overlays.push(Overlay::StreamChunks);
-                } else {
-                    self.left.overlays.push(Overlay::LineChunks);
-                }
-            }
-            (CopyingType::Datarams, CopyingType::ByteStream) => {
-                if self.opts.binary {
-                    self.right.overlays.push(Overlay::StreamChunks);
-                } else {
-                    self.right.overlays.push(Overlay::LineChunks);
-                }
-            }
+
+        // use Datagrams copying type (and auto-insert appropriate overlays) if at least one of things expects datagrams.
+
+        let mut working_copying_type = self.left.get_copying_type();
+        if self.right.get_copying_type().is_dgrms() {
+            working_copying_type = CopyingType::Datarams;
         }
+
+        /*if let Some(ref spl) = self.write_splitoff {
+            if spl.get_copying_type().is_dgrms() {
+                working_copying_type = CopyingType::Datarams;
+            }
+        }*/
+
+        if working_copying_type == CopyingType::ByteStream {
+            // everything is already ByteStream
+            return;
+        }
+
+        let overlay_to_insert = || {
+            if self.opts.binary {
+                Overlay::StreamChunks
+            } else {
+                Overlay::LineChunks
+            }
+        };
+
+        if self.left.get_copying_type().is_bstrm() {
+            self.left.overlays.push(overlay_to_insert());
+        }
+        if self.right.get_copying_type().is_bstrm() {
+            self.right.overlays.push(overlay_to_insert());
+        }
+
+        /*if let Some(ref mut spl) = self.write_splitoff {
+            if spl.get_copying_type().is_bstrm() {
+                spl.overlays.push(overlay_to_insert());
+            }
+        }*/
         assert_eq!(self.left.get_copying_type(), self.right.get_copying_type());
     }
 
@@ -326,7 +353,11 @@ impl SpecifierStack {
                 Overlay::Log { datagram_mode } => {
                     *datagram_mode = typ == CopyingType::Datarams;
                 }
-                x => typ = x.get_copying_type(),
+                x => {
+                    if let Some(nct) = x.get_copying_type() {
+                        typ = nct
+                    }
+                }
             }
         }
     }
@@ -353,6 +384,7 @@ impl SpecifierStack {
                 Overlay::WriteBuffer => (),
                 Overlay::LengthPrefixedChunks => (),
                 Overlay::SimpleReuser => (),
+                Overlay::WriteSplitoff => (),
             }
         }
         if let Some(i) = index {
@@ -410,6 +442,7 @@ impl SpecifierStack {
                 Endpoint::AppendFile(..) => false,
                 Endpoint::Random => false,
                 Endpoint::Zero => false,
+                Endpoint::WriteSplitoff { .. } => false,
             };
             if do_insert {
                 // datagram mode may be patched later
@@ -464,6 +497,51 @@ impl SpecifierStack {
         }
         Ok(())
     }
+
+    fn maybe_process_writesplitoff(
+        &mut self,
+        write_splitoff: &mut Option<SpecifierStack>,
+    ) -> anyhow::Result<()> {
+        let mut the_index = None;
+        for (i, ovl) in self.overlays.iter().enumerate() {
+            match ovl {
+                Overlay::WriteSplitoff => {
+                    the_index = Some(i);
+                    break;
+                }
+                _ => (),
+            }
+        }
+
+        let Some(the_index) = the_index else {
+            return Ok(());
+        };
+        let Some(write_splitoff_stack) = write_splitoff.take() else {
+            anyhow::bail!("`write-splitoff:` overlay specified without accompanying --write-splitoff option or specified multiple times")
+        };
+
+        let mut switcheroo = Box::new(SpecifierStack {
+            innermost: Endpoint::DummyDatagrams, // temporary
+            overlays: vec![],                    // temporary
+            position: self.position,
+        });
+        std::mem::swap(self, &mut switcheroo);
+
+        // Preserve overlays specified before `reuse:`
+        self.overlays = Vec::from_iter(switcheroo.overlays.drain(the_index + 1..));
+        // Remove `reuse:` overlay itself, now that it has been turned into an endpoint
+        switcheroo.overlays.remove(the_index);
+
+        self.innermost = Endpoint::WriteSplitoff {
+            read: switcheroo,
+            write: Box::new(write_splitoff_stack),
+        };
+
+        // continue processing deeper just to handle possible duplicate errors
+        self.maybe_process_writesplitoff(&mut None)?;
+
+        Ok(())
+    }
 }
 
 impl WebsocatInvocation {
@@ -482,88 +560,100 @@ impl SpecifierStack {
     fn get_copying_type(&self) -> CopyingType {
         let mut typ = self.innermost.get_copying_type();
         for ovl in &self.overlays {
-            typ = ovl.get_copying_type();
+            if let Some(t) = ovl.get_copying_type() {
+                typ = t
+            }
         }
         typ
     }
 }
 
 impl Endpoint {
-    fn get_copying_type(&self) -> CopyingType {
+    pub(super) fn get_copying_type(&self) -> CopyingType {
+        use CopyingType::{ByteStream, Datarams};
         match self {
-            Endpoint::TcpConnectByIp(_) => CopyingType::ByteStream,
-            Endpoint::TcpListen(_) => CopyingType::ByteStream,
-            Endpoint::TcpListenFd(_) => CopyingType::ByteStream,
-            Endpoint::TcpListenFdNamed(_) => CopyingType::ByteStream,
-            Endpoint::TcpConnectByEarlyHostname { .. } => CopyingType::ByteStream,
-            Endpoint::TcpConnectByLateHostname { hostname: _ } => CopyingType::ByteStream,
-            Endpoint::WsUrl(_) => CopyingType::Datarams,
-            Endpoint::WssUrl(_) => CopyingType::Datarams,
-            Endpoint::Stdio => CopyingType::ByteStream,
-            Endpoint::UdpConnect(_) => CopyingType::Datarams,
-            Endpoint::UdpBind(_) => CopyingType::Datarams,
-            Endpoint::UdpFd(_) => CopyingType::Datarams,
-            Endpoint::UdpFdNamed(_) => CopyingType::Datarams,
-            Endpoint::WsListen(_) => CopyingType::Datarams,
-            Endpoint::UdpServer(_) => CopyingType::Datarams,
-            Endpoint::UdpServerFd(_) => CopyingType::Datarams,
-            Endpoint::UdpServerFdNamed(_) => CopyingType::Datarams,
-            Endpoint::Exec(_) => CopyingType::ByteStream,
-            Endpoint::Cmd(_) => CopyingType::ByteStream,
-            Endpoint::DummyStream => CopyingType::ByteStream,
-            Endpoint::DummyDatagrams => CopyingType::Datarams,
-            Endpoint::Literal(_) => CopyingType::ByteStream,
-            Endpoint::LiteralBase64(_) => CopyingType::ByteStream,
-            Endpoint::UnixConnect(_) => CopyingType::ByteStream,
-            Endpoint::UnixListen(_) => CopyingType::ByteStream,
-            Endpoint::AbstractConnect(_) => CopyingType::ByteStream,
-            Endpoint::AbstractListen(_) => CopyingType::ByteStream,
-            Endpoint::UnixListenFd(_) => CopyingType::ByteStream,
-            Endpoint::UnixListenFdNamed(_) => CopyingType::ByteStream,
-            Endpoint::SeqpacketConnect(_) => CopyingType::Datarams,
-            Endpoint::SeqpacketListen(_) => CopyingType::Datarams,
-            Endpoint::AbstractSeqpacketConnect(_) => CopyingType::Datarams,
-            Endpoint::AbstractSeqpacketListen(_) => CopyingType::Datarams,
-            Endpoint::SeqpacketListenFd(_) => CopyingType::Datarams,
-            Endpoint::SeqpacketListenFdNamed(_) => CopyingType::Datarams,
-            Endpoint::MockStreamSocket(_) => CopyingType::ByteStream,
-            Endpoint::RegistryStreamListen(_) => CopyingType::ByteStream,
-            Endpoint::RegistryStreamConnect(_) => CopyingType::ByteStream,
-            Endpoint::AsyncFd(_) => CopyingType::ByteStream,
-            Endpoint::SimpleReuserEndpoint(..) => CopyingType::Datarams,
-            Endpoint::ReadFile(..) => CopyingType::ByteStream,
-            Endpoint::WriteFile(..) => CopyingType::ByteStream,
-            Endpoint::AppendFile(..) => CopyingType::ByteStream,
-            Endpoint::Random => CopyingType::ByteStream,
-            Endpoint::Zero => CopyingType::ByteStream,
+            Endpoint::TcpConnectByIp(_) => ByteStream,
+            Endpoint::TcpListen(_) => ByteStream,
+            Endpoint::TcpListenFd(_) => ByteStream,
+            Endpoint::TcpListenFdNamed(_) => ByteStream,
+            Endpoint::TcpConnectByEarlyHostname { .. } => ByteStream,
+            Endpoint::TcpConnectByLateHostname { hostname: _ } => ByteStream,
+            Endpoint::WsUrl(_) => Datarams,
+            Endpoint::WssUrl(_) => Datarams,
+            Endpoint::Stdio => ByteStream,
+            Endpoint::UdpConnect(_) => Datarams,
+            Endpoint::UdpBind(_) => Datarams,
+            Endpoint::UdpFd(_) => Datarams,
+            Endpoint::UdpFdNamed(_) => Datarams,
+            Endpoint::WsListen(_) => Datarams,
+            Endpoint::UdpServer(_) => Datarams,
+            Endpoint::UdpServerFd(_) => Datarams,
+            Endpoint::UdpServerFdNamed(_) => Datarams,
+            Endpoint::Exec(_) => ByteStream,
+            Endpoint::Cmd(_) => ByteStream,
+            Endpoint::DummyStream => ByteStream,
+            Endpoint::DummyDatagrams => Datarams,
+            Endpoint::Literal(_) => ByteStream,
+            Endpoint::LiteralBase64(_) => ByteStream,
+            Endpoint::UnixConnect(_) => ByteStream,
+            Endpoint::UnixListen(_) => ByteStream,
+            Endpoint::AbstractConnect(_) => ByteStream,
+            Endpoint::AbstractListen(_) => ByteStream,
+            Endpoint::UnixListenFd(_) => ByteStream,
+            Endpoint::UnixListenFdNamed(_) => ByteStream,
+            Endpoint::SeqpacketConnect(_) => Datarams,
+            Endpoint::SeqpacketListen(_) => Datarams,
+            Endpoint::AbstractSeqpacketConnect(_) => Datarams,
+            Endpoint::AbstractSeqpacketListen(_) => Datarams,
+            Endpoint::SeqpacketListenFd(_) => Datarams,
+            Endpoint::SeqpacketListenFdNamed(_) => Datarams,
+            Endpoint::MockStreamSocket(_) => ByteStream,
+            Endpoint::RegistryStreamListen(_) => ByteStream,
+            Endpoint::RegistryStreamConnect(_) => ByteStream,
+            Endpoint::AsyncFd(_) => ByteStream,
+            Endpoint::SimpleReuserEndpoint(..) => Datarams,
+            Endpoint::ReadFile(..) => ByteStream,
+            Endpoint::WriteFile(..) => ByteStream,
+            Endpoint::AppendFile(..) => ByteStream,
+            Endpoint::Random => ByteStream,
+            Endpoint::Zero => ByteStream,
+            Endpoint::WriteSplitoff { read, write } => {
+                match (read.get_copying_type(), write.get_copying_type()) {
+                    (ByteStream, ByteStream) => ByteStream,
+                    (Datarams, Datarams) => Datarams,
+                    _ => panic!("Incompatibe Socket types for WriteSplitoff"),
+                }
+            }
         }
     }
 }
 
 impl Overlay {
-    fn get_copying_type(&self) -> CopyingType {
-        match self {
-            Overlay::WsUpgrade { .. } => CopyingType::ByteStream,
-            Overlay::WsFramer { .. } => CopyingType::Datarams,
-            Overlay::StreamChunks => CopyingType::Datarams,
-            Overlay::LineChunks => CopyingType::Datarams,
-            Overlay::TlsClient { .. } => CopyingType::ByteStream,
-            Overlay::WsAccept {} => CopyingType::ByteStream,
+    fn get_copying_type(&self) -> Option<CopyingType> {
+        use CopyingType::{ByteStream, Datarams};
+        Some(match self {
+            Overlay::WsUpgrade { .. } => ByteStream,
+            Overlay::WsFramer { .. } => Datarams,
+            Overlay::StreamChunks => Datarams,
+            Overlay::LineChunks => Datarams,
+            Overlay::TlsClient { .. } => ByteStream,
+            Overlay::WsAccept {} => ByteStream,
             Overlay::Log { datagram_mode } => {
                 if *datagram_mode {
-                    CopyingType::Datarams
+                    Datarams
                 } else {
-                    CopyingType::ByteStream
+                    ByteStream
                 }
             }
-            Overlay::WsClient => CopyingType::Datarams,
-            Overlay::WsServer => CopyingType::Datarams,
-            Overlay::ReadChunkLimiter => CopyingType::ByteStream,
-            Overlay::WriteChunkLimiter => CopyingType::ByteStream,
-            Overlay::WriteBuffer => CopyingType::ByteStream,
-            Overlay::LengthPrefixedChunks => CopyingType::Datarams,
-            Overlay::SimpleReuser => CopyingType::Datarams,
-        }
+            Overlay::WsClient => Datarams,
+            Overlay::WsServer => Datarams,
+            Overlay::ReadChunkLimiter => ByteStream,
+            Overlay::WriteChunkLimiter => ByteStream,
+            Overlay::WriteBuffer => ByteStream,
+            Overlay::LengthPrefixedChunks => Datarams,
+            Overlay::SimpleReuser => Datarams,
+            Overlay::WriteSplitoff => return None,
+        })
     }
 }
 
@@ -616,6 +706,7 @@ impl SpecifierStack {
             Endpoint::AppendFile(..) => false,
             Endpoint::Random => false,
             Endpoint::Zero => false,
+            Endpoint::WriteSplitoff { .. } => false,
         };
 
         for x in &self.overlays {
@@ -634,6 +725,7 @@ impl SpecifierStack {
                 Overlay::WriteChunkLimiter => {}
                 Overlay::WriteBuffer => {}
                 Overlay::SimpleReuser => multiconn = false,
+                Overlay::WriteSplitoff => multiconn = false,
             }
         }
 
@@ -688,6 +780,10 @@ impl SpecifierStack {
             Endpoint::AppendFile(..) => true,
             Endpoint::Random => false,
             Endpoint::Zero => false,
+            Endpoint::WriteSplitoff {
+                ref read,
+                ref write,
+            } => read.prefers_being_single(opts) || write.prefers_being_single(opts),
         };
 
         for x in &self.overlays {
@@ -706,6 +802,7 @@ impl SpecifierStack {
                 Overlay::WriteChunkLimiter => {}
                 Overlay::WriteBuffer => {}
                 Overlay::SimpleReuser => singler = false,
+                Overlay::WriteSplitoff => {}
             }
         }
 

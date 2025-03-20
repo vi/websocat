@@ -1,8 +1,5 @@
 use std::ffi::OsString;
 
-use super::{cli::{WebsocatArgs, WebsocatGlobalArgs}, composed_cli::ComposedArgument};
-use itertools::Itertools;
-use rand::SeedableRng;
 use super::scenario_executor::{
     scenario::load_scenario,
     types::{Handle, Registry, Task},
@@ -12,11 +9,16 @@ use super::scenario_planner::{
     types::{ScenarioPrinter, WebsocatInvocation},
     utils::IdentifierGenerator,
 };
+use super::{
+    cli::{WebsocatArgs, WebsocatGlobalArgs},
+    composed_cli::ComposedArgument,
+};
+use itertools::Itertools;
+use rand::SeedableRng;
 
 use crate::scenario_planner::types::{SpecifierPosition, SpecifierStack};
 
 use clap::Parser;
-
 
 pub async fn websocat_main<I, T, D>(
     argv: I,
@@ -56,6 +58,7 @@ where
         let args = WebsocatArgs::parse_from(argv);
         if args.dump_spec_phase0 {
             writeln!(diagnostic_output, "{:?}", args)?;
+            return Ok(());
         }
         global_args.hoover(&args)?;
 
@@ -138,10 +141,7 @@ impl WebsocatArgs {
 }
 
 impl WebsocatInvocation {
-    pub fn from_args<D>(
-        mut args: WebsocatArgs,
-        diagnostic_output: &mut D,
-    ) -> anyhow::Result<Self>
+    pub fn from_args<D>(mut args: WebsocatArgs, diagnostic_output: &mut D) -> anyhow::Result<Self>
     where
         D: std::io::Write + Send + 'static,
     {
@@ -167,11 +167,19 @@ impl WebsocatInvocation {
         }
 
         let left_stack = SpecifierStack::my_from_str(&args.spec1, SpecifierPosition::Left)?;
-        let right_stack = SpecifierStack::my_from_str(&args.spec2.take().unwrap(), SpecifierPosition::Right)?;
+        let right_stack =
+            SpecifierStack::my_from_str(&args.spec2.take().unwrap(), SpecifierPosition::Right)?;
+
+        let write_splitoff = args
+            .write_splitoff
+            .as_ref()
+            .map(|x| SpecifierStack::my_from_str(x, SpecifierPosition::Right))
+            .transpose()?;
 
         Ok(WebsocatInvocation {
             left: left_stack,
             right: right_stack,
+            write_splitoff,
             opts: args,
             beginning: vec![],
         })

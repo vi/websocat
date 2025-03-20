@@ -1,5 +1,7 @@
 use super::{
-    buildscenario_exec::format_osstr, scenarioprinter::StrLit, types::{Endpoint, ScenarioPrintingEnvironment}
+    buildscenario_exec::format_osstr,
+    scenarioprinter::StrLit,
+    types::{CopyingType, Endpoint, ScenarioPrintingEnvironment},
 };
 
 impl Endpoint {
@@ -141,10 +143,7 @@ impl Endpoint {
                 env.printer.increase_indent();
                 Ok(conn)
             }
-            Endpoint::ReadFile(p) 
-            | Endpoint::WriteFile(p)
-            | Endpoint::AppendFile(p) =>  {
-
+            Endpoint::ReadFile(p) | Endpoint::WriteFile(p) | Endpoint::AppendFile(p) => {
                 let mut oo = String::with_capacity(32);
 
                 match self {
@@ -169,12 +168,60 @@ impl Endpoint {
                 let pathnam = env.vars.getnewvarname("path");
                 let varnam = env.vars.getnewvarname("file");
 
-                env.printer.print_line(&format!("let {pathnam} = {};", format_osstr(p)));
+                env.printer
+                    .print_line(&format!("let {pathnam} = {};", format_osstr(p)));
 
-                env.printer.print_line(&format!(
-                    "file_socket(#{{{oo}}}, {pathnam}, |{varnam}| {{",
-                ));
+                env.printer
+                    .print_line(&format!("file_socket(#{{{oo}}}, {pathnam}, |{varnam}| {{",));
                 env.printer.increase_indent();
+                Ok(varnam)
+            }
+            Endpoint::WriteSplitoff { read, write } => {
+                let ct = self.get_copying_type();
+
+                let varnam = env.vars.getnewvarname("writesplitoff");
+                let readslot = env.vars.getnewvarname("readslot");
+                let writeslot = env.vars.getnewvarname("writeslot");
+                let twosock = env.vars.getnewvarname("twosock");
+
+                env.printer
+                    .print_line(&format!("init_in_parallel([ |{readslot}| {{"));
+                env.printer.increase_indent();
+
+                let readresult = read.begin_print(env)?;
+                env.printer
+                    .print_line(&format!("{readslot}.send({readresult})"));
+                read.end_print(env)?;
+
+                env.printer.decrease_indent();
+                env.printer.print_line(&format!("}},|{writeslot}| {{"));
+                env.printer.increase_indent();
+
+                let writeresult = write.begin_print(env)?;
+                env.printer
+                    .print_line(&format!("{writeslot}.send({writeresult})"));
+                write.end_print(env)?;
+
+                env.printer.decrease_indent();
+
+                env.printer.print_line(&format!("}}], |{twosock}| {{"));
+                env.printer.increase_indent();
+
+                match ct {
+                    CopyingType::ByteStream => {
+                        env.printer.print_line(&format!("let {varnam} = combine_read_and_write_bytestream({twosock}[0], {twosock}[1]);"));
+                    }
+                    CopyingType::Datarams => {
+                        env.printer.print_line(&format!("let {varnam} = combine_read_and_write_datagram({twosock}[0], {twosock}[1]);"));
+                    }
+                }
+
+                if !env.opts.write_splitoff_omit_shutdown {
+                    env.printer
+                        .print_line(&format!("shutdown_and_drop({twosock}[0]);"));
+                    env.printer.print_line(&format!("drop({twosock}[1]);"));
+                }
+
                 Ok(varnam)
             }
         }
@@ -226,14 +273,16 @@ impl Endpoint {
                 env.printer.decrease_indent();
                 env.printer.print_line("})");
             }
-            Endpoint::ReadFile(..) 
-            | Endpoint::WriteFile(..)
-            | Endpoint::AppendFile(..) => {
+            Endpoint::ReadFile(..) | Endpoint::WriteFile(..) | Endpoint::AppendFile(..) => {
                 env.printer.decrease_indent();
                 env.printer.print_line("})");
             }
             Endpoint::Random => {}
-            Endpoint::Zero => {},
+            Endpoint::Zero => {}
+            Endpoint::WriteSplitoff { .. } => {
+                env.printer.decrease_indent();
+                env.printer.print_line("})");
+            }
         }
     }
 }

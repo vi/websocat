@@ -2,6 +2,7 @@ pub mod scenario_executor {
     pub mod copydata;
 
     pub mod debugfluff;
+    pub mod file;
     pub mod fluff;
     pub mod http1;
     pub mod lengthprefixed;
@@ -11,18 +12,17 @@ pub mod scenario_executor {
     pub mod mockbytestream;
     #[cfg(feature = "ssl")]
     pub mod nativetls;
-    #[cfg(feature = "rustls")]
-    pub mod rustls;
     pub mod osstr;
     pub mod registryconnectors;
     pub mod reuser;
+    #[cfg(feature = "rustls")]
+    pub mod rustls;
     pub mod scenario;
     pub mod subprocess;
     pub mod tcp;
     pub mod trivials1;
     pub mod trivials2;
     pub mod trivials3;
-    pub mod file;
     pub mod types;
     pub mod udp;
     pub mod udpserver;
@@ -58,9 +58,9 @@ pub mod scenario_planner {
     pub mod utils;
 }
 
+pub mod base;
 pub mod cli;
 pub mod composed_cli;
 pub mod test_utils;
-pub mod base;
 
 pub use base::websocat_main;

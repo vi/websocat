@@ -1,7 +1,8 @@
 use super::{
     scenarioprinter::ScenarioPrinter,
     types::{
-        CopyingType, Endpoint, ScenarioPrintingEnvironment, SpecifierPosition, SpecifierStack, WebsocatInvocation
+        CopyingType, Endpoint, ScenarioPrintingEnvironment, SpecifierPosition, SpecifierStack,
+        WebsocatInvocation,
     },
     utils::IdentifierGenerator,
 };

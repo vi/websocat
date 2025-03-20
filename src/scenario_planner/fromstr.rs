@@ -451,6 +451,13 @@ impl ParseStrChunkResult<'_> {
                 anyhow::bail!("zero: endpoint does not take any argument");
             }
             Ok(ParseStrChunkResult::Endpoint(Endpoint::Zero))
+        } else if let Some(rest) =
+            x.strip_prefix_many(&["write-splitoff:", "write-divert:", "wrdvrt:"])
+        {
+            Ok(ParseStrChunkResult::Overlay {
+                ovl: Overlay::WriteSplitoff,
+                rest,
+            })
         } else {
             anyhow::bail!("Unknown specifier: {x:?}")
         }

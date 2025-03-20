@@ -1,6 +1,7 @@
 use std::time::Duration;
 
 use rhai::{Dynamic, Engine, FnPtr, NativeCallContext};
+use tokio::io::AsyncWriteExt;
 use tracing::{debug, debug_span, error, field, warn, Instrument};
 
 use crate::scenario_executor::{
@@ -394,6 +395,55 @@ fn drop_thing(ctx: NativeCallContext, x: Dynamic) -> RhResult<()> {
     Ok(())
 }
 
+//@ Shutdown the writing part of a socket and drop it. If reading part was used extracted and used elswere, it stays active.
+fn shutdown_and_drop(ctx: NativeCallContext, x: Dynamic) -> RhResult<()> {
+    use super::utils1::PacketWriteExt;
+    if let Some(t) = x.clone().try_cast::<Handle<StreamWrite>>() {
+        let mut t = ctx.lutbar(t)?;
+        debug!("Shuttind down and dropping a stream writer");
+        tokio::spawn(async move {
+            match t.writer.shutdown().await {
+                Ok(()) => debug!("shutdown complete"),
+                Err(e) => warn!("failed to shutdown a socket: {e}"),
+            }
+        });
+    } else if let Some(t) = x.clone().try_cast::<Handle<StreamSocket>>() {
+        let t = ctx.lutbar(t)?;
+        debug!("Shuttind down and dropping a stream socket");
+        if let Some(mut t) = t.write {
+            tokio::spawn(async move {
+                match t.writer.shutdown().await {
+                    Ok(()) => debug!("shutdown complete"),
+                    Err(e) => warn!("failed to shutdown a socket: {e}"),
+                }
+            });
+        }
+    } else if let Some(t) = x.clone().try_cast::<Handle<DatagramWrite>>() {
+        let t = ctx.lutbar(t)?;
+        debug!("Shuttind down and dropping a datagram writer");
+        tokio::spawn(async move {
+            match t.snk.send_eof().await {
+                Ok(()) => debug!("shutdown complete"),
+                Err(e) => warn!("failed to shutdown a socket: {e}"),
+            }
+        });
+    } else if let Some(t) = x.clone().try_cast::<Handle<DatagramSocket>>() {
+        let t = ctx.lutbar(t)?;
+        debug!("Shuttind down and dropping a datagram socket");
+        if let Some(t) = t.write {
+            tokio::spawn(async move {
+                match t.snk.send_eof().await {
+                    Ok(()) => debug!("shutdown complete"),
+                    Err(e) => warn!("failed to shutdown a socket: {e}"),
+                }
+            });
+        }
+    } else {
+        return Err(ctx.err("shutdown_and_drop supports only sockets and writers"));
+    }
+    Ok(())
+}
+
 //@ Get underlying file descriptor from a socket, or -1 if is cannot be obtained
 fn get_fd(ctx: NativeCallContext, x: Dynamic) -> RhResult<i64> {
     if let Some(t) = x.clone().try_cast::<Handle<StreamSocket>>() {
@@ -447,5 +497,6 @@ pub fn register(engine: &mut Engine) {
     engine.register_fn("hangup2task", hangup2task);
 
     engine.register_fn("drop", drop_thing);
+    engine.register_fn("shutdown_and_drop", shutdown_and_drop);
     engine.register_fn("get_fd", get_fd);
 }
