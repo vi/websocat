@@ -66,7 +66,6 @@ fn connect_registry_stream(
             fd: None,
         };
 
-        let h1 = s1.wrap();
         let h2 = s2.wrap();
 
         match tx.send_async(rhai::Dynamic::from(h2)).await {
@@ -76,6 +75,10 @@ fn connect_registry_stream(
                 return Err(e.into());
             }
         }
+        
+        debug!(s=?s1, "connected");
+
+        let h1 = s1.wrap();
 
         callback_and_continue::<(Handle<StreamSocket>,)>(the_scenario, continuation, (h1,)).await;
         Ok(())
@@ -152,10 +155,12 @@ fn listen_registry_stream(
                                 writer: Box::pin(sw),
                             });
                         }
+                        debug!(parent: &newspan, ?s, "accepted");
                         h = Some(s).wrap();
+                    } else {
+                        debug!(parent: &newspan, "accepted");
                     }
 
-                    debug!(parent: &newspan, "accepted");
 
                     if !autospawn {
                         callback_and_continue::<(Handle<StreamSocket>,)>(
