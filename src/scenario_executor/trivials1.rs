@@ -170,17 +170,18 @@ fn sleep_ms(ms: i64) -> Handle<Task> {
 //@ Execute specified tasks in order, starting another and previous one finishes.
 fn sequential(tasks: Vec<Dynamic>) -> Handle<Task> {
     async move {
-        for t in tasks {
+        for (i,t) in tasks.into_iter().enumerate() {
+            let span = debug_span!("sequential",i);
             if t.is_unit() {
                 debug!("Ignoring null in sequential task list");
             } else if let Some(t) = t.clone().try_cast::<Handle<Task>>() {
-                run_task(t).await;
+                run_task(t).instrument(span).await;
             } else if let Some(h) = t.try_cast::<Handle<Hangup>>() {
                 let Some(t) = h.lock().unwrap().take() else {
                     error!("Attempt to run a null/taken hangup handle");
                     continue;
                 };
-                t.await;
+                t.instrument(span).await;
             } else {
                 error!("Not a task or hangup in a list of tasks");
                 continue;
@@ -194,12 +195,13 @@ fn sequential(tasks: Vec<Dynamic>) -> Handle<Task> {
 fn parallel(tasks: Vec<Dynamic>) -> Handle<Task> {
     async move {
         let mut waitees = Vec::with_capacity(tasks.len());
-        for t in tasks {
+        for (i, t) in tasks.into_iter().enumerate() {
+            let span = debug_span!("parallel",i);
             let Some(t): Option<Handle<Task>> = t.try_cast() else {
                 error!("Not a task in a list of tasks");
                 continue;
             };
-            waitees.push(tokio::spawn(run_task(t)));
+            waitees.push(tokio::spawn(run_task(t).instrument(span)));
         }
         for w in waitees {
             let _ = w.await;
@@ -213,13 +215,14 @@ fn race(tasks: Vec<Dynamic>) -> Handle<Task> {
     async move {
         let mut waitees = Vec::with_capacity(tasks.len());
         let (tx, mut rx) = tokio::sync::mpsc::channel::<()>(1);
-        for t in tasks {
+        for (i,t) in tasks.into_iter().enumerate() {
+            let span = debug_span!("race",i);
             let tx = tx.clone();
             if t.is_unit() {
                 debug!("Ignoring null in sequential task list");
             } else if let Some(t) = t.clone().try_cast::<Handle<Task>>() {
                 waitees.push(tokio::spawn(async move {
-                    run_task(t).await;
+                    run_task(t).instrument(span).await;
                     let _ = tx.send(()).await;
                 }));
             } else if let Some(h) = t.try_cast::<Handle<Hangup>>() {
@@ -228,7 +231,7 @@ fn race(tasks: Vec<Dynamic>) -> Handle<Task> {
                     continue;
                 };
                 waitees.push(tokio::spawn(async move {
-                    t.await;
+                    t.instrument(span).await;
                     let _ = tx.send(()).await;
                 }));
             } else {
