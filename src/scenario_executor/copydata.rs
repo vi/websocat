@@ -241,7 +241,7 @@ fn exchange_bytes(
         }
 
         if !skip_whole {
-            tokio::select! { biased;
+            tokio::select! {
                 Some(ret) = copier_duplex, if copier_duplex_present  => {
                     match ret {
                         Ok((n1,n2)) => debug!(parent: &span, nbytes1=n1, nbytes2=n2, "finished"),
@@ -514,7 +514,7 @@ fn exchange_packets(
         }
 
         if !skip_whole {
-            tokio::select! { biased;
+            tokio::select! {
                 Some((n1, n2)) = copier_duplex, if copier_duplex_present  => {
                     debug!(parent: &span, npkts1=n1, npkts2=n2, "finished")
                 }
