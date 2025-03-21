@@ -140,6 +140,13 @@ impl AsyncRead for StreamReadLogger {
         }
     }
 }
+impl Drop for StreamReadLogger {
+    fn drop(&mut self) {
+        if self.opts.verbose {
+            self.opts.logln(format_args!("{}drop", self.opts.prefix));
+        }
+    }
+}
 
 struct StreamWriteLogger {
     inner: StreamWrite,
@@ -333,6 +340,13 @@ impl AsyncWrite for StreamWriteLogger {
 
     fn is_write_vectored(&self) -> bool {
         self.inner.writer.is_write_vectored()
+    }
+}
+impl Drop for StreamWriteLogger {
+    fn drop(&mut self) {
+        if self.opts.verbose {
+            self.opts.logln(format_args!("{}drop", self.opts.prefix));
+        }
     }
 }
 
@@ -567,6 +581,13 @@ impl PacketRead for DatagramReadLogger {
         }
     }
 }
+impl Drop for DatagramReadLogger {
+    fn drop(&mut self) {
+        if self.opts.verbose {
+            self.opts.logln(format_args!("{}drop", self.opts.prefix));
+        }
+    }
+}
 
 struct DatagramWriteLogger {
     inner: DatagramWrite,
@@ -627,6 +648,13 @@ impl PacketWrite for DatagramWriteLogger {
                 }
                 Poll::Pending
             }
+        }
+    }
+}
+impl Drop for DatagramWriteLogger {
+    fn drop(&mut self) {
+        if self.opts.verbose {
+            self.opts.logln(format_args!("{}drop", self.opts.prefix));
         }
     }
 }
