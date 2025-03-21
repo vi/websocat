@@ -16,7 +16,7 @@ use super::{
 use itertools::Itertools;
 use rand::SeedableRng;
 
-use crate::scenario_planner::types::{SpecifierPosition, SpecifierStack};
+use crate::scenario_planner::types::{SpecifierPosition, SpecifierStack, WebsocatInvocationStacks};
 
 use clap::Parser;
 
@@ -166,8 +166,8 @@ impl WebsocatInvocation {
             args.spec1 = s.into();
         }
 
-        let left_stack = SpecifierStack::my_from_str(&args.spec1, SpecifierPosition::Left)?;
-        let right_stack =
+        let left = SpecifierStack::my_from_str(&args.spec1, SpecifierPosition::Left)?;
+        let right =
             SpecifierStack::my_from_str(&args.spec2.take().unwrap(), SpecifierPosition::Right)?;
 
         let write_splitoff = args
@@ -176,10 +176,14 @@ impl WebsocatInvocation {
             .map(|x| SpecifierStack::my_from_str(x, SpecifierPosition::Right))
             .transpose()?;
 
-        Ok(WebsocatInvocation {
-            left: left_stack,
-            right: right_stack,
+        let stacks = WebsocatInvocationStacks {
+            left,
+            right,
             write_splitoff,
+        };
+
+        Ok(WebsocatInvocation {
+            stacks,
             opts: args,
             beginning: vec![],
         })
@@ -210,8 +214,9 @@ impl WebsocatInvocation {
         }
 
         if self.opts.dump_spec_phase1 || self.opts.dump_spec_phase2 {
-            writeln!(diagnostic_output, "{:#?}", self.left)?;
-            writeln!(diagnostic_output, "{:#?}", self.right)?;
+            writeln!(diagnostic_output, "{:#?}", self.stacks.left)?;
+            writeln!(diagnostic_output, "{:#?}", self.stacks.right)?;
+            writeln!(diagnostic_output, "{:#?}", self.stacks.write_splitoff)?;
             writeln!(diagnostic_output, "{:#?}", self.opts)?;
             writeln!(diagnostic_output, "{:#?}", self.beginning)?;
             return Ok(true);

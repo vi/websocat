@@ -253,13 +253,15 @@ pub enum PreparatoryAction {
     },
 }
 
-pub struct WebsocatInvocation {
+pub struct WebsocatInvocationStacks {
     pub left: SpecifierStack,
     pub right: SpecifierStack,
-    pub opts: WebsocatArgs,
-
     pub write_splitoff: Option<SpecifierStack>,
+}
 
+pub struct WebsocatInvocation {
+    pub stacks: WebsocatInvocationStacks,
+    pub opts: WebsocatArgs,
     pub beginning: Vec<PreparatoryAction>,
 }
 

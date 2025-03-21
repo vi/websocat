@@ -8,46 +8,68 @@ use crate::cli::WebsocatArgs;
 use super::{
     types::{
         CopyingType, Endpoint, Overlay, PreparatoryAction, SpecifierStack, WebsocatInvocation,
+        WebsocatInvocationStacks,
     },
     utils::IdentifierGenerator,
 };
 
 impl WebsocatInvocation {
     pub fn patches(&mut self, vars: &mut IdentifierGenerator) -> anyhow::Result<()> {
-        self.left.maybe_patch_existing_ws_request(&self.opts)?;
-        self.right.maybe_patch_existing_ws_request(&self.opts)?;
-        self.left.maybe_splitup_client_ws_endpoint()?;
-        self.right.maybe_splitup_client_ws_endpoint()?;
-        self.left.maybe_splitup_ws_c_overlay(&self.opts)?;
-        self.right.maybe_splitup_ws_c_overlay(&self.opts)?;
-        self.left.maybe_splitup_ws_u_overlay(&self.opts)?;
-        self.right.maybe_splitup_ws_u_overlay(&self.opts)?;
-        self.left.maybe_splitup_server_ws_endpoint()?;
-        self.right.maybe_splitup_server_ws_endpoint()?;
+        self.stacks
+            .apply_to_all(|x| x.maybe_patch_existing_ws_request(&self.opts))?;
+        self.stacks
+            .apply_to_all(|x| x.maybe_splitup_client_ws_endpoint())?;
+        self.stacks
+            .apply_to_all(|x| x.maybe_splitup_ws_c_overlay(&self.opts))?;
+        self.stacks
+            .apply_to_all(|x| x.maybe_splitup_ws_u_overlay(&self.opts))?;
+        self.stacks
+            .apply_to_all(|x| x.maybe_splitup_server_ws_endpoint())?;
         if !self.opts.late_resolve {
-            self.left.maybe_early_resolve(&mut self.beginning, vars);
-            self.right.maybe_early_resolve(&mut self.beginning, vars);
+            self.stacks
+                .apply_to_all(|x| x.maybe_early_resolve(&mut self.beginning, vars))?;
         }
         self.maybe_fill_in_tls_details(vars)?;
         if self.opts.log_traffic
-            && !self.right.insert_log_overlay()
-            && !self.left.insert_log_overlay()
+            && !self.stacks.right.insert_log_overlay()
+            && !self.stacks.left.insert_log_overlay()
         {
             warn!("Failed to automaticelly insert log: overlay");
         }
-        self.left.fill_in_log_overlay_type();
-        self.right.fill_in_log_overlay_type();
+        self.stacks.apply_to_all(|x| x.fill_in_log_overlay_type())?;
+
+        self.stacks
+            .left
+            .maybe_process_writesplitoff(&mut self.stacks.write_splitoff, &self.opts)?;
+        self.stacks
+            .right
+            .maybe_process_writesplitoff(&mut self.stacks.write_splitoff, &self.opts)?;
+
         self.maybe_insert_chunker();
-        self.left
-            .maybe_process_writesplitoff(&mut self.write_splitoff)?;
-        self.right
-            .maybe_process_writesplitoff(&mut self.write_splitoff)?;
-        self.maybe_insert_reuser();
-        self.left.maybe_process_reuser(vars, &mut self.beginning)?;
-        self.right.maybe_process_reuser(vars, &mut self.beginning)?;
+
+        if !self.opts.less_fixups {
+            self.maybe_insert_reuser();
+        }
+
+        self.stacks
+            .apply_to_all(|x| x.maybe_process_reuser(vars, &mut self.beginning))?;
         Ok(())
     }
-
+}
+impl WebsocatInvocationStacks {
+    fn apply_to_all(
+        &mut self,
+        mut f: impl FnMut(&mut SpecifierStack) -> anyhow::Result<()>,
+    ) -> anyhow::Result<()> {
+        f(&mut self.left)?;
+        f(&mut self.right)?;
+        if let Some(ref mut splt) = self.write_splitoff {
+            f(splt)?;
+        }
+        Ok(())
+    }
+}
+impl WebsocatInvocation {
     fn maybe_insert_chunker(&mut self) {
         if self.opts.exec_dup2.is_some() {
             // dup2 mode is speial, it ignores any overlays and directly forwards
@@ -57,8 +79,8 @@ impl WebsocatInvocation {
 
         // use Datagrams copying type (and auto-insert appropriate overlays) if at least one of things expects datagrams.
 
-        let mut working_copying_type = self.left.get_copying_type();
-        if self.right.get_copying_type().is_dgrms() {
+        let mut working_copying_type = self.stacks.left.get_copying_type();
+        if self.stacks.right.get_copying_type().is_dgrms() {
             working_copying_type = CopyingType::Datarams;
         }
 
@@ -81,11 +103,11 @@ impl WebsocatInvocation {
             }
         };
 
-        if self.left.get_copying_type().is_bstrm() {
-            self.left.overlays.push(overlay_to_insert());
+        if self.stacks.left.get_copying_type().is_bstrm() {
+            self.stacks.left.overlays.push(overlay_to_insert());
         }
-        if self.right.get_copying_type().is_bstrm() {
-            self.right.overlays.push(overlay_to_insert());
+        if self.stacks.right.get_copying_type().is_bstrm() {
+            self.stacks.right.overlays.push(overlay_to_insert());
         }
 
         /*if let Some(ref mut spl) = self.write_splitoff {
@@ -93,15 +115,18 @@ impl WebsocatInvocation {
                 spl.overlays.push(overlay_to_insert());
             }
         }*/
-        assert_eq!(self.left.get_copying_type(), self.right.get_copying_type());
+        assert_eq!(
+            self.stacks.left.get_copying_type(),
+            self.stacks.right.get_copying_type()
+        );
     }
 
     fn maybe_insert_reuser(&mut self) {
         if self.get_copying_type() == CopyingType::Datarams
-            && self.left.is_multiconn(&self.opts)
-            && self.right.prefers_being_single(&self.opts)
+            && self.stacks.left.is_multiconn(&self.opts)
+            && self.stacks.right.prefers_being_single(&self.opts)
         {
-            self.right.overlays.push(Overlay::SimpleReuser);
+            self.stacks.right.overlays.push(Overlay::SimpleReuser);
         }
     }
 
@@ -109,10 +134,11 @@ impl WebsocatInvocation {
         if let Some(ref d) = self.opts.tls_domain {
             let mut patch_occurred = false;
             for x in self
+                .stacks
                 .left
                 .overlays
                 .iter_mut()
-                .chain(self.right.overlays.iter_mut())
+                .chain(self.stacks.right.overlays.iter_mut())
             {
                 if let Overlay::TlsClient { domain, .. } = x {
                     if domain != d {
@@ -127,7 +153,13 @@ impl WebsocatInvocation {
         }
 
         let mut need_to_insert_context = false;
-        for x in self.left.overlays.iter().chain(self.right.overlays.iter()) {
+        for x in self
+            .stacks
+            .left
+            .overlays
+            .iter()
+            .chain(self.stacks.right.overlays.iter())
+        {
             match x {
                 Overlay::TlsClient {
                     varname_for_connector,
@@ -145,10 +177,11 @@ impl WebsocatInvocation {
             varname_for_connector,
         });
         for x in self
+            .stacks
             .left
             .overlays
             .iter_mut()
-            .chain(self.right.overlays.iter_mut())
+            .chain(self.stacks.right.overlays.iter_mut())
         {
             match x {
                 Overlay::TlsClient {
@@ -335,7 +368,7 @@ impl SpecifierStack {
         &mut self,
         beginning: &mut Vec<PreparatoryAction>,
         vars: &mut IdentifierGenerator,
-    ) {
+    ) -> anyhow::Result<()> {
         if let Endpoint::TcpConnectByLateHostname { hostname } = &self.innermost {
             let varname_for_addrs = vars.getnewvarname("addrs");
             beginning.push(PreparatoryAction::ResolveHostname {
@@ -344,9 +377,10 @@ impl SpecifierStack {
             });
             self.innermost = Endpoint::TcpConnectByEarlyHostname { varname_for_addrs };
         }
+        Ok(())
     }
 
-    fn fill_in_log_overlay_type(&mut self) {
+    fn fill_in_log_overlay_type(&mut self) -> anyhow::Result<()> {
         let mut typ = self.innermost.get_copying_type();
         for ovl in &mut self.overlays {
             match ovl {
@@ -360,6 +394,7 @@ impl SpecifierStack {
                 }
             }
         }
+        Ok(())
     }
 
     /// returns true if it was inserted (or `log:` already present)
@@ -501,6 +536,7 @@ impl SpecifierStack {
     fn maybe_process_writesplitoff(
         &mut self,
         write_splitoff: &mut Option<SpecifierStack>,
+        opts: &WebsocatArgs,
     ) -> anyhow::Result<()> {
         let mut the_index = None;
         for (i, ovl) in self.overlays.iter().enumerate() {
@@ -532,13 +568,32 @@ impl SpecifierStack {
         // Remove `reuse:` overlay itself, now that it has been turned into an endpoint
         switcheroo.overlays.remove(the_index);
 
-        self.innermost = Endpoint::WriteSplitoff {
-            read: switcheroo,
-            write: Box::new(write_splitoff_stack),
+        let mut read = switcheroo;
+        let mut write = Box::new(write_splitoff_stack);
+
+        let overlay_to_insert = || {
+            if opts.binary {
+                Overlay::StreamChunks
+            } else {
+                Overlay::LineChunks
+            }
         };
 
+        match (read.get_copying_type(), write.get_copying_type()) {
+            (CopyingType::ByteStream, CopyingType::ByteStream) => {}
+            (CopyingType::ByteStream, CopyingType::Datarams) => {
+                read.overlays.push(overlay_to_insert())
+            }
+            (CopyingType::Datarams, CopyingType::ByteStream) => {
+                write.overlays.push(overlay_to_insert())
+            }
+            (CopyingType::Datarams, CopyingType::Datarams) => {}
+        }
+
+        self.innermost = Endpoint::WriteSplitoff { read, write };
+
         // continue processing deeper just to handle possible duplicate errors
-        self.maybe_process_writesplitoff(&mut None)?;
+        self.maybe_process_writesplitoff(&mut None, opts)?;
 
         Ok(())
     }
@@ -546,11 +601,15 @@ impl SpecifierStack {
 
 impl WebsocatInvocation {
     pub fn get_copying_type(&self) -> CopyingType {
-        match (self.left.get_copying_type(), self.right.get_copying_type()) {
+        match (
+            self.stacks.left.get_copying_type(),
+            self.stacks.right.get_copying_type(),
+        ) {
             (CopyingType::ByteStream, CopyingType::ByteStream) => CopyingType::ByteStream,
             (CopyingType::Datarams, CopyingType::Datarams) => CopyingType::Datarams,
             _ => {
-                panic!("Incompatible types encountered: bytestream-oriented and datagram-oriented")
+                debug!("Incompatible types encountered: bytestream-oriented and datagram-oriented, falling back to datagrams");
+                CopyingType::Datarams
             }
         }
     }
@@ -621,7 +680,10 @@ impl Endpoint {
                 match (read.get_copying_type(), write.get_copying_type()) {
                     (ByteStream, ByteStream) => ByteStream,
                     (Datarams, Datarams) => Datarams,
-                    _ => panic!("Incompatibe Socket types for WriteSplitoff"),
+                    _ => {
+                        debug!("Incompatible WriteSplitoff socket types: datagram and bytestream");
+                        Datarams
+                    }
                 }
             }
         }
@@ -732,7 +794,7 @@ impl SpecifierStack {
         multiconn
     }
 
-    /// Does not like reentrant usage
+    /// Some specifier or overlay does not like reentrant usage, e.g. stdio: or appendfile: may be chaotic.
     fn prefers_being_single(&self, opts: &WebsocatArgs) -> bool {
         let mut singler = match self.innermost {
             Endpoint::TcpConnectByEarlyHostname { .. } => false,

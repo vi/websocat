@@ -336,6 +336,10 @@ pub struct WebsocatArgs {
     #[arg(long)]
     pub no_fixups: bool,
 
+    /// Inhibit some optional transformations of specifier stacks, such as auto-inserting of a reuser
+    #[arg(long)]
+    pub less_fixups: bool,
+
     /// Maximum size of an outgoing UDP datagram. Incoming datagram size is likely limited by --buffer-size.
     #[arg(long, default_value = "4096")]
     pub udp_max_send_datagram_size: usize,

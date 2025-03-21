@@ -38,9 +38,9 @@ impl WebsocatInvocation {
             prepare_action.begin_print(&mut env)?;
         }
 
-        left = self.left.begin_print(&mut env)?;
+        left = self.stacks.left.begin_print(&mut env)?;
         env.position = SpecifierPosition::Right;
-        right = self.right.begin_print(&mut env)?;
+        right = self.stacks.right.begin_print(&mut env)?;
 
         if self.opts.exit_on_hangup {
             env.printer.print_line(&format!(
@@ -77,10 +77,16 @@ impl WebsocatInvocation {
         if let Some(ref dfd) = self.opts.exec_dup2 {
             // Special flow: direct socket FD to child process
 
-            if matches!(self.left.innermost, Endpoint::Exec(..) | Endpoint::Cmd(..)) {
+            if matches!(
+                self.stacks.left.innermost,
+                Endpoint::Exec(..) | Endpoint::Cmd(..)
+            ) {
                 anyhow::bail!("--exec-dup2 requires exec:/cmd: endpoint at the right side (second positional argument), not at the left side")
             }
-            if !matches!(self.right.innermost, Endpoint::Exec(..) | Endpoint::Cmd(..)) {
+            if !matches!(
+                self.stacks.right.innermost,
+                Endpoint::Exec(..) | Endpoint::Cmd(..)
+            ) {
                 anyhow::bail!(
                     "--exec-dup2 requires right side (second positional argument) to be exec:/cmd:"
                 )
@@ -139,9 +145,9 @@ impl WebsocatInvocation {
             env.printer.decrease_indent();
         }
 
-        self.right.end_print(&mut env)?;
+        self.stacks.right.end_print(&mut env)?;
         env.position = SpecifierPosition::Left;
-        self.left.end_print(&mut env)?;
+        self.stacks.left.end_print(&mut env)?;
 
         for prepare_action in self.beginning.iter().rev() {
             prepare_action.end_print(&mut env);

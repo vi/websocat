@@ -11,8 +11,9 @@ impl WebsocatInvocation {
     pub fn lints(&self) -> Vec<Lint> {
         let mut ret = vec![];
 
-        if (matches!(self.left.innermost, Endpoint::Stdio) && !self.opts.unidirectional_reverse)
-            || (matches!(self.right.innermost, Endpoint::Stdio) && !self.opts.unidirectional)
+        if (matches!(self.stacks.left.innermost, Endpoint::Stdio)
+            && !self.opts.unidirectional_reverse)
+            || (matches!(self.stacks.right.innermost, Endpoint::Stdio) && !self.opts.unidirectional)
         {
             if self.opts.oneshot && !self.opts.exit_after_one_session {
                 ret.push(Lint::StdoutOneshotWithoutExit);
@@ -23,7 +24,8 @@ impl WebsocatInvocation {
             }
         }
 
-        if !self.left.is_multiconn(&self.opts) && self.right.is_multiconn(&self.opts) {
+        if !self.stacks.left.is_multiconn(&self.opts) && self.stacks.right.is_multiconn(&self.opts)
+        {
             ret.push(Lint::ListenerAtTheWrongSide);
         }
 
