@@ -50,12 +50,12 @@ impl WebsocatInvocation {
         if !self.opts.less_fixups {
             self.maybe_insert_reuser();
         }
+        self.stacks
+            .apply_to_all(|x| x.check_required_socket_types(&self.opts))?;
 
         self.stacks
             .apply_to_all(|x| x.maybe_process_reuser(vars, &mut self.beginning))?;
 
-        self.stacks
-            .apply_to_all(|x| x.check_required_socket_types(&self.opts))?;
         Ok(())
     }
 }
