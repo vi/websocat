@@ -188,3 +188,8 @@ t3w_p!(reuser_torn5,r#"-b --global-timeout-ms=5000 --lengthprefixed-nbytes=1 --l
                       lengthprefixed:registry-stream-listen: reuse-raw:lengthprefixed:mock_stream_socket:'W \x83AAA|W \x82CC|W \x00|W \x83BBB\x02DD\x01F'"#,
             r#"-b --global-timeout-ms=2000 -U registry-stream-connect: mock_stream_socket:'R \x83AAA|T5|R \x82CC'"#,
             r#"-b --global-timeout-ms=2000 -U registry-stream-connect: mock_stream_socket:'R \x83BBB|T5|R \x02DD|T5|R \x01F'"#);*/
+
+t!(writesplt1, r#"-b mock_stream_socket:'R ABC|R WWW|W SSS'  write-splitoff:mock_stream_socket:'R SSS' --write-splitoff=mock_stream_socket:'W ABC|W WWW'  "#);
+t!(writesplt2, r#"-b mock_stream_socket:'R ABC|R WWW|W SSS'  write-splitoff:chunks:mock_stream_socket:'R SSS' --write-splitoff=mock_stream_socket:'W ABC|W WWW'  "#);
+t!(writesplt3, r#"-b mock_stream_socket:'R ABC|R WWW|W SSS'  write-splitoff:mock_stream_socket:'R SSS' --write-splitoff=chunks:mock_stream_socket:'W ABC|W WWW'  "#);
+t!(writesplt4, r#"-b chunks:mock_stream_socket:'R ABC|R WWW|W SSS'  write-splitoff:mock_stream_socket:'R SSS' --write-splitoff=mock_stream_socket:'W ABC|W WWW'  "#);
