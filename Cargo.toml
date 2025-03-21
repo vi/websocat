@@ -51,6 +51,7 @@ webpki-roots = { version = "0.26.8", optional = true }
 rustls = { version = "0.23.22", optional = true, default-features=false, features=["logging","std","tls12","ring"] }
 strum = { version = "0.27.1", features = ["derive"] }
 strum_macros = "0.27.1"
+console-subscriber = { version = "0.4.1", optional = true }
 
 [target.'cfg(all(unix,any(target_os = "linux",target_os = "android",target_os = "freebsd")))'.dependencies]
 tokio-seqpacket = "0.8.0"
@@ -68,6 +69,7 @@ less_logs=["tracing/max_level_info"]
 ioful_tests=[]
 online_tests=[]
 rustls= ["dep:rustls","dep:webpki-roots","dep:tokio-rustls"]
+tokioconsole = ["tokio/tracing", "dep:console-subscriber"]
 
 [dev-dependencies]
 assert_cmd = "2.0.16"

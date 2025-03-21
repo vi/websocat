@@ -1,6 +1,11 @@
 #[tokio::main(flavor = "current_thread")]
 async fn main() -> anyhow::Result<()> {
-    tracing_subscriber::fmt::init();
+    #[cfg(feature="tokioconsole")] {
+        console_subscriber::init();
+    }
+    #[cfg(not(feature="tokioconsole"))] {
+        tracing_subscriber::fmt::init();
+    }
     let argv = std::env::args_os();
     let stderr = std::io::stderr();
     let time_base = tokio::time::Instant::now();
