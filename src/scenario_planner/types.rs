@@ -266,7 +266,7 @@ pub struct WebsocatInvocation {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum CopyingType {
+pub enum SocketType {
     ByteStream,
     Datarams,
 }

@@ -1,7 +1,7 @@
 use clap_lex::OsStrExt;
 use std::{collections::HashMap, ffi::OsStr};
 
-use super::types::CopyingType;
+use super::types::SocketType;
 
 pub struct IdentifierGenerator {
     pub varnames: HashMap<&'static str, usize>,
@@ -40,11 +40,11 @@ impl StripPrefixMany for OsStr {
     }
 }
 
-impl CopyingType {
+impl SocketType {
     pub fn is_bstrm(&self) -> bool {
-        *self == CopyingType::ByteStream
+        *self == SocketType::ByteStream
     }
     pub fn is_dgrms(&self) -> bool {
-        *self == CopyingType::Datarams
+        *self == SocketType::Datarams
     }
 }

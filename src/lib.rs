@@ -54,6 +54,7 @@ pub mod scenario_planner {
     pub mod linter;
     pub mod patcher;
     pub mod scenarioprinter;
+    pub mod spec_info;
     pub mod types;
     pub mod utils;
 }

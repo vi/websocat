@@ -1,4 +1,4 @@
-use super::types::{CopyingType, Endpoint, WebsocatInvocation};
+use super::types::{Endpoint, SocketType, WebsocatInvocation};
 
 pub enum Lint {
     StdoutOneshotWithoutExit,
@@ -35,7 +35,7 @@ impl WebsocatInvocation {
     pub fn lints2(&self) -> Vec<Lint> {
         let mut ret = vec![];
 
-        if self.get_copying_type() == CopyingType::ByteStream
+        if self.session_socket_type() == SocketType::ByteStream
             && (self.opts.separator.is_some()
                 || self.opts.separator_n.is_some()
                 || self.opts.null_terminated)

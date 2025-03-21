@@ -1,7 +1,7 @@
 use super::{
     buildscenario_exec::format_osstr,
     scenarioprinter::StrLit,
-    types::{CopyingType, Endpoint, ScenarioPrintingEnvironment},
+    types::{Endpoint, ScenarioPrintingEnvironment, SocketType},
 };
 
 impl Endpoint {
@@ -177,7 +177,7 @@ impl Endpoint {
                 Ok(varnam)
             }
             Endpoint::WriteSplitoff { read, write } => {
-                let ct = self.get_copying_type();
+                let ct = self.provides_socket_type();
 
                 let varnam = env.vars.getnewvarname("writesplitoff");
                 let readslot = env.vars.getnewvarname("readslot");
@@ -208,10 +208,10 @@ impl Endpoint {
                 env.printer.increase_indent();
 
                 match ct {
-                    CopyingType::ByteStream => {
+                    SocketType::ByteStream => {
                         env.printer.print_line(&format!("let {varnam} = combine_read_and_write_bytestream({twosock}[0], {twosock}[1]);"));
                     }
-                    CopyingType::Datarams => {
+                    SocketType::Datarams => {
                         env.printer.print_line(&format!("let {varnam} = combine_read_and_write_datagram({twosock}[0], {twosock}[1]);"));
                     }
                 }

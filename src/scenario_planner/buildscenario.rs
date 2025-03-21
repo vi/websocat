@@ -1,7 +1,7 @@
 use super::{
     scenarioprinter::ScenarioPrinter,
     types::{
-        CopyingType, Endpoint, ScenarioPrintingEnvironment, SpecifierPosition, SpecifierStack,
+        Endpoint, ScenarioPrintingEnvironment, SocketType, SpecifierPosition, SpecifierStack,
         WebsocatInvocation,
     },
     utils::IdentifierGenerator,
@@ -128,12 +128,12 @@ impl WebsocatInvocation {
             env.printer.print_line("}");
         } else {
             // Usual flow: copy bytes streams / packets from left to right and back.
-            match self.get_copying_type() {
-                CopyingType::ByteStream => {
+            match self.session_socket_type() {
+                SocketType::ByteStream => {
                     env.printer
                         .print_line(&format!("exchange_bytes(#{{{opts}}}, {left}, {right})"));
                 }
-                CopyingType::Datarams => {
+                SocketType::Datarams => {
                     env.printer
                         .print_line(&format!("exchange_packets(#{{{opts}}}, {left}, {right})"));
                 }
