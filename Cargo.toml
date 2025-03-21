@@ -49,6 +49,8 @@ itertools = "0.14.0"
 tokio-rustls = { version = "0.26.1", optional = true, default-features=false,features=["logging","tls12","ring"] }
 webpki-roots = { version = "0.26.8", optional = true }
 rustls = { version = "0.23.22", optional = true, default-features=false, features=["logging","std","tls12","ring"] }
+strum = { version = "0.27.1", features = ["derive"] }
+strum_macros = "0.27.1"
 
 [target.'cfg(all(unix,any(target_os = "linux",target_os = "android",target_os = "freebsd")))'.dependencies]
 tokio-seqpacket = "0.8.0"

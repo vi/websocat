@@ -96,6 +96,7 @@ impl Endpoint {
 }
 
 impl Overlay {
+    /// Socket type this overlay outputs. None means it preserves inner type.
     pub(super) fn provides_socket_type(&self) -> Option<SocketType> {
         use SocketType::{ByteStream, Datarams};
         Some(match self {
@@ -118,6 +119,33 @@ impl Overlay {
             Overlay::WriteChunkLimiter => ByteStream,
             Overlay::WriteBuffer => ByteStream,
             Overlay::LengthPrefixedChunks => Datarams,
+            Overlay::SimpleReuser => Datarams,
+            Overlay::WriteSplitoff => return None,
+        })
+    }
+    /// Socket type this overlay needs as an input. None means it handles both types.
+    pub(super) fn requires_socket_type(&self) -> Option<SocketType> {
+        use SocketType::{ByteStream, Datarams};
+        Some(match self {
+            Overlay::WsUpgrade { .. } => ByteStream,
+            Overlay::WsFramer { .. } => ByteStream,
+            Overlay::StreamChunks => ByteStream,
+            Overlay::LineChunks => ByteStream,
+            Overlay::TlsClient { .. } => ByteStream,
+            Overlay::WsAccept {} => ByteStream,
+            Overlay::Log { datagram_mode } => {
+                if *datagram_mode {
+                    Datarams
+                } else {
+                    ByteStream
+                }
+            }
+            Overlay::WsClient => ByteStream,
+            Overlay::WsServer => ByteStream,
+            Overlay::ReadChunkLimiter => ByteStream,
+            Overlay::WriteChunkLimiter => ByteStream,
+            Overlay::WriteBuffer => ByteStream,
+            Overlay::LengthPrefixedChunks => ByteStream,
             Overlay::SimpleReuser => Datarams,
             Overlay::WriteSplitoff => return None,
         })

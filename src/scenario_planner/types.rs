@@ -1,10 +1,11 @@
 use std::{ffi::OsString, net::SocketAddr};
 
 use http::Uri;
+use strum::EnumDiscriminants;
 
 use crate::cli::WebsocatArgs;
 
-#[derive(Debug)]
+#[derive(Debug, EnumDiscriminants)]
 pub enum Endpoint {
     //@ @inhibit_prefixes
     //@ Connect to a TCP socket by hostname.
@@ -148,7 +149,7 @@ pub enum Endpoint {
     },
 }
 
-#[derive(Debug)]
+#[derive(Debug, EnumDiscriminants)]
 pub enum Overlay {
     //@ Send HTTP/1 WebSocket upgrade to specified stream-oriented connection and accept and parse a reply,
     //@ then connects (i.e. exchanges bytes) the downstream connection to upstream.

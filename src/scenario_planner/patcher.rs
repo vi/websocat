@@ -7,8 +7,8 @@ use crate::cli::WebsocatArgs;
 
 use super::{
     types::{
-        Endpoint, Overlay, PreparatoryAction, SocketType, SpecifierStack, WebsocatInvocation,
-        WebsocatInvocationStacks,
+        Endpoint, EndpointDiscriminants, Overlay, OverlayDiscriminants, PreparatoryAction,
+        SocketType, SpecifierStack, WebsocatInvocation, WebsocatInvocationStacks,
     },
     utils::IdentifierGenerator,
 };
@@ -53,6 +53,9 @@ impl WebsocatInvocation {
 
         self.stacks
             .apply_to_all(|x| x.maybe_process_reuser(vars, &mut self.beginning))?;
+
+        self.stacks
+            .apply_to_all(|x| x.check_required_socket_types(&self.opts))?;
         Ok(())
     }
 }
@@ -594,6 +597,39 @@ impl SpecifierStack {
 
         // continue processing deeper just to handle possible duplicate errors
         self.maybe_process_writesplitoff(&mut None, opts)?;
+
+        Ok(())
+    }
+
+    fn check_required_socket_types(&self, _opts: &WebsocatArgs) -> anyhow::Result<()> {
+        enum SocketProvider {
+            Endpoint(EndpointDiscriminants),
+            Overlay(OverlayDiscriminants),
+        }
+        impl std::fmt::Debug for SocketProvider {
+            fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+                match self {
+                    Self::Endpoint(x) => x.fmt(f),
+                    Self::Overlay(x) => x.fmt(f),
+                }
+            }
+        }
+
+        let mut origin = SocketProvider::Endpoint((&self.innermost).into());
+        let mut curtyp = self.innermost.provides_socket_type();
+
+        for ovl in &self.overlays {
+            if let Some(rq) = ovl.requires_socket_type() {
+                if rq != curtyp {
+                    let ovlt: OverlayDiscriminants = ovl.into();
+                    anyhow::bail!("{ovlt:?} requires {rq:?} socket type, but {origin:?} provides a {curtyp:?} socket");
+                }
+            }
+            if let Some(pr) = ovl.provides_socket_type() {
+                curtyp = pr;
+                origin = SocketProvider::Overlay(ovl.into())
+            }
+        }
 
         Ok(())
     }
