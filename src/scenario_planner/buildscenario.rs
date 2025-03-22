@@ -13,6 +13,24 @@ impl WebsocatInvocation {
         vars: &mut IdentifierGenerator,
         printer: &mut ScenarioPrinter,
     ) -> anyhow::Result<()> {
+        // Main flow of printing a scenario:
+        // 1. Print Rhai snippet for left specifier stack's endpoint
+        // 2. Print snippets for each left stack's overlays, if any
+        // 3. Print snippet for right endpoint
+        // 4. Print right overlays
+        // 5. Print bytes of packets copier.
+        // 6. Go back over right overlays, endpoint, left overlays, endpoint and print closing brackets.
+        //
+        // Minor deviations from the main flow, like handling
+        //  --global-timeout-ms or --exit-after-one-session print additional things at the beginning or 
+        // near the byte copier
+        //
+        // Major deviations from the main flow:
+        // * --exec-dup2 option. This changes meaning of `cmd:` specifier, making it return not a socket,
+        //       but a process builder. Overlays are unlikely to work in this case.
+        // * registry-send: or other things that send sockets elsewhere instead of reading or writing to them
+        //       this omits the right side and the copier completely.
+
         let mut env = ScenarioPrintingEnvironment {
             printer,
             opts: &self.opts,
