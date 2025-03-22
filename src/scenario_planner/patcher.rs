@@ -45,7 +45,7 @@ impl WebsocatInvocation {
             .right
             .maybe_process_writesplitoff(&mut self.stacks.write_splitoff, &self.opts)?;
 
-        self.maybe_insert_chunker();
+        self.maybe_insert_chunker()?;
 
         if !self.opts.less_fixups {
             self.maybe_insert_reuser();
@@ -73,29 +73,31 @@ impl WebsocatInvocationStacks {
     }
 }
 impl WebsocatInvocation {
-    fn maybe_insert_chunker(&mut self) {
+    fn maybe_insert_chunker(&mut self) -> anyhow::Result<()> {
         if self.opts.exec_dup2.is_some() {
             // dup2 mode is speial, it ignores any overlays and directly forwards
             // file desciptor to process. messages vs bytestreams distinction does not matter in this mode.
-            return;
+            return Ok(());
         }
 
         // use Datagrams copying type (and auto-insert appropriate overlays) if at least one of things expects datagrams.
 
-        let mut working_copying_type = self.stacks.left.provides_socket_type();
-        if self.stacks.right.provides_socket_type().is_dgrms() {
+        let right_typ = self.stacks.right.provides_socket_type();
+        let left_typ = self.stacks.left.provides_socket_type();
+
+        if right_typ == SocketType::SocketSender {
+            // this type is special; right side will omit SpecifierStack scenario printer completely
+            return Ok(());
+        }
+
+        let mut working_copying_type = left_typ;
+        if right_typ.is_dgrms() {
             working_copying_type = SocketType::Datarams;
         }
 
-        /*if let Some(ref spl) = self.write_splitoff {
-            if spl.get_copying_type().is_dgrms() {
-                working_copying_type = CopyingType::Datarams;
-            }
-        }*/
-
-        if working_copying_type == SocketType::ByteStream {
+        if working_copying_type.is_bstrm() {
             // everything is already ByteStream
-            return;
+            return Ok(());
         }
 
         let overlay_to_insert = || {
@@ -106,22 +108,19 @@ impl WebsocatInvocation {
             }
         };
 
-        if self.stacks.left.provides_socket_type().is_bstrm() {
+        if left_typ.is_bstrm() {
             self.stacks.left.overlays.push(overlay_to_insert());
         }
-        if self.stacks.right.provides_socket_type().is_bstrm() {
+        if right_typ.is_bstrm() {
             self.stacks.right.overlays.push(overlay_to_insert());
         }
 
-        /*if let Some(ref mut spl) = self.write_splitoff {
-            if spl.get_copying_type().is_bstrm() {
-                spl.overlays.push(overlay_to_insert());
-            }
-        }*/
-        assert_eq!(
-            self.stacks.left.provides_socket_type(),
-            self.stacks.right.provides_socket_type()
-        );
+        let final_left_type = self.stacks.left.provides_socket_type();
+        let final_right_type = self.stacks.right.provides_socket_type();
+        if final_left_type != final_right_type {
+            anyhow::bail!("Socket type mismatch; at the left: {final_left_type:?}, at the right: {final_right_type:?}");
+        }
+        Ok(())
     }
 
     fn maybe_insert_reuser(&mut self) {
@@ -482,6 +481,7 @@ impl SpecifierStack {
                 Endpoint::Zero => false,
                 Endpoint::WriteSplitoff { .. } => false,
                 Endpoint::Mirror => false,
+                Endpoint::RegistrySend(_) => false,
             };
             if do_insert {
                 // datagram mode may be patched later
@@ -592,6 +592,9 @@ impl SpecifierStack {
                 write.overlays.push(overlay_to_insert())
             }
             (SocketType::Datarams, SocketType::Datarams) => {}
+            (SocketType::SocketSender, _) | (_, SocketType::SocketSender) => {
+                anyhow::bail!("write-splitoff: does not support socketsender socket type")
+            }
         }
 
         self.innermost = Endpoint::WriteSplitoff { read, write };

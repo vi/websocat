@@ -414,12 +414,12 @@ impl ParseStrChunkResult<'_> {
             Ok(ParseStrChunkResult::Endpoint(Endpoint::MockStreamSocket(
                 s.to_owned(),
             )))
-        } else if let Some(rest) = x.strip_prefix_many(&["registry-stream-listen:"]) {
+        } else if let Some(rest) = x.strip_prefix_many(&["registry-stream-listen:", "regstr-l:"]) {
             let s: &str = rest.try_into()?;
             Ok(ParseStrChunkResult::Endpoint(
                 Endpoint::RegistryStreamListen(s.to_owned()),
             ))
-        } else if let Some(rest) = x.strip_prefix_many(&["registry-stream-connect:"]) {
+        } else if let Some(rest) = x.strip_prefix_many(&["registry-stream-connect:", "regstr-c:"]) {
             let s: &str = rest.try_into()?;
             Ok(ParseStrChunkResult::Endpoint(
                 Endpoint::RegistryStreamConnect(s.to_owned()),
@@ -463,6 +463,11 @@ impl ParseStrChunkResult<'_> {
                 anyhow::bail!("mirror: endpoint does not take any argument.");
             }
             Ok(ParseStrChunkResult::Endpoint(Endpoint::Mirror))
+        } else if let Some(rest) = x.strip_prefix_many(&["registry-send:", "regsend:"]) {
+            let s: &str = rest.try_into()?;
+            Ok(ParseStrChunkResult::Endpoint(Endpoint::RegistrySend(
+                s.to_owned(),
+            )))
         } else {
             anyhow::bail!("Unknown specifier: {x:?}")
         }

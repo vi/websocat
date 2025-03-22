@@ -108,12 +108,7 @@ fn make_socket_addr(ctx: NativeCallContext, ip: &str, port: i64) -> RhResult<Soc
 
 //@ Send some object to named slot in the registry.
 //@ Blocks if no receivers yet.
-fn registry_send(
-    ctx: NativeCallContext,
-    addr: &str,
-    x: Dynamic,
-    continuation: FnPtr,
-) -> RhResult<Handle<Task>> {
+fn registry_send(ctx: NativeCallContext, addr: &str, x: Dynamic) -> RhResult<Handle<Task>> {
     let the_scenario = ctx.get_scenario()?;
 
     let span = debug_span!("registry_send",%addr);
@@ -123,10 +118,9 @@ fn registry_send(
     let t: Task = Box::pin(
         async move {
             debug!("send");
-            match tx.send(x) {
+            match tx.send_async(x).await {
                 Ok(()) => {
                     debug!("sent");
-                    callback_and_continue::<()>(the_scenario, continuation, ()).await;
                 }
                 Err(_) => {
                     debug!("failed");

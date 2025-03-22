@@ -150,6 +150,9 @@ pub enum Endpoint {
 
     //@ Read data that is written to this endpoint.
     Mirror,
+
+    //@ Send the {socket this endpoint is paired with} to a virtual intra-Websocat address
+    RegistrySend(String),
 }
 
 #[derive(Debug, EnumDiscriminants)]
@@ -273,6 +276,7 @@ pub struct WebsocatInvocation {
 pub enum SocketType {
     ByteStream,
     Datarams,
+    SocketSender,
 }
 
 pub use super::scenarioprinter::ScenarioPrinter;

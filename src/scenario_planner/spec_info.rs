@@ -34,7 +34,7 @@ impl SpecifierStack {
 
 impl Endpoint {
     pub(super) fn provides_socket_type(&self) -> SocketType {
-        use SocketType::{ByteStream, Datarams};
+        use SocketType::{ByteStream, Datarams, SocketSender};
         match self {
             Endpoint::TcpConnectByIp(_) => ByteStream,
             Endpoint::TcpListen(_) => ByteStream,
@@ -92,6 +92,7 @@ impl Endpoint {
                 }
             }
             Endpoint::Mirror => ByteStream,
+            Endpoint::RegistrySend(..) => SocketSender,
         }
     }
 }
@@ -204,6 +205,7 @@ impl SpecifierStack {
             Endpoint::Zero => false,
             Endpoint::WriteSplitoff { .. } => false,
             Endpoint::Mirror => false,
+            Endpoint::RegistrySend(..) => false,
         };
 
         for x in &self.overlays {
@@ -282,6 +284,7 @@ impl SpecifierStack {
                 ref write,
             } => read.prefers_being_single(opts) || write.prefers_being_single(opts),
             Endpoint::Mirror => false,
+            Endpoint::RegistrySend(..) => false,
         };
 
         for x in &self.overlays {

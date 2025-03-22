@@ -222,6 +222,9 @@ impl Endpoint {
                     SocketType::Datarams => {
                         env.printer.print_line(&format!("let {varnam} = combine_read_and_write_datagram({twosock}[0], {twosock}[1]);"));
                     }
+                    SocketType::SocketSender => {
+                        anyhow::bail!("Cannot use socketsender socket type with write-splitoff:")
+                    }
                 }
 
                 if !env.opts.write_splitoff_omit_shutdown {
@@ -231,6 +234,9 @@ impl Endpoint {
                 }
 
                 Ok(varnam)
+            }
+            Endpoint::RegistrySend(_) => {
+                panic!("registry-send: endpoint should not be printed like other specifiers")
             }
         }
     }
@@ -292,6 +298,9 @@ impl Endpoint {
                 env.printer.print_line("})");
             }
             Endpoint::Mirror => {}
+            Endpoint::RegistrySend(..) => {
+                panic!("registry-send: endpoint should not be printed like other specifiers")
+            }
         }
     }
 }
