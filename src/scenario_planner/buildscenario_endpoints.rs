@@ -123,6 +123,14 @@ impl Endpoint {
                 env.printer.increase_indent();
                 Ok(varnam)
             }
+            Endpoint::Mirror => {
+                let mbs = env.opts.mirror_bufsize;
+                let varnam = env.vars.getnewvarname("mirror");
+                env.printer.print_line(&format!(
+                    "let {varnam} = bytemirror_socket(#{{max_buf_size: {mbs}}});"
+                ));
+                Ok(varnam)
+            }
             Endpoint::SimpleReuserEndpoint(varname, specifier_stack) => {
                 let slot = env.vars.getnewvarname("slot");
                 let conn = env.vars.getnewvarname("reuseconn");
@@ -283,6 +291,7 @@ impl Endpoint {
                 env.printer.decrease_indent();
                 env.printer.print_line("})");
             }
+            Endpoint::Mirror => {}
         }
     }
 }

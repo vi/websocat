@@ -356,6 +356,10 @@ pub struct WebsocatArgs {
     #[arg(long, default_value = "1024")]
     pub registry_connect_bufsize: usize,
 
+    /// Use specified buffer size for mirror: endpoint
+    #[arg(long, default_value = "1024")]
+    pub mirror_bufsize: usize,
+
     /// Use little-endian framing headers instead of big-endian for `lengthprefixed:` overlay.
     #[arg(long)]
     pub lengthprefixed_little_endian: bool,

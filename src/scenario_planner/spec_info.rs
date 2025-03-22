@@ -91,6 +91,7 @@ impl Endpoint {
                     }
                 }
             }
+            Endpoint::Mirror => ByteStream,
         }
     }
 }
@@ -202,6 +203,7 @@ impl SpecifierStack {
             Endpoint::Random => false,
             Endpoint::Zero => false,
             Endpoint::WriteSplitoff { .. } => false,
+            Endpoint::Mirror => false,
         };
 
         for x in &self.overlays {
@@ -279,6 +281,7 @@ impl SpecifierStack {
                 ref read,
                 ref write,
             } => read.prefers_being_single(opts) || write.prefers_being_single(opts),
+            Endpoint::Mirror => false,
         };
 
         for x in &self.overlays {

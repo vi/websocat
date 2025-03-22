@@ -147,6 +147,9 @@ pub enum Endpoint {
         read: Box<SpecifierStack>,
         write: Box<SpecifierStack>,
     },
+
+    //@ Read data that is written to this endpoint.
+    Mirror,
 }
 
 #[derive(Debug, EnumDiscriminants)]

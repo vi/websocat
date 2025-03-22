@@ -481,6 +481,7 @@ impl SpecifierStack {
                 Endpoint::Random => false,
                 Endpoint::Zero => false,
                 Endpoint::WriteSplitoff { .. } => false,
+                Endpoint::Mirror => false,
             };
             if do_insert {
                 // datagram mode may be patched later

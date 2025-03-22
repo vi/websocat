@@ -8,7 +8,7 @@ use bytes::BytesMut;
 use pin_project::pin_project;
 use rhai::{Dynamic, Engine, NativeCallContext};
 use tokio::io::{AsyncRead, AsyncWrite, ReadBuf};
-use tracing::debug;
+use tracing::{debug, debug_span};
 
 use crate::scenario_executor::{
     logoverlay::render_content,
@@ -431,6 +431,41 @@ fn stream_chunks(
     }
 }
 
+//@ Create a bytestream socket that reads everything written to it.
+fn bytemirror_socket(opts: Dynamic) -> RhResult<Handle<StreamSocket>> {
+    let span = debug_span!("bytemirror_socket");
+    debug!(parent: &span, "node created");
+    #[derive(serde::Deserialize)]
+    struct Opts {
+        //@ Maximum size of buffer for data in flight
+        max_buf_size: usize,
+    }
+    let opts: Opts = rhai::serde::from_dynamic(&opts)?;
+
+    debug!(parent: &span, "options parsed");
+
+    let max_buf_size = opts.max_buf_size;
+
+    drop(opts);
+
+    let (r, w) = tokio::io::simplex(max_buf_size);
+
+    let s = StreamSocket {
+        read: Some(StreamRead {
+            reader: Box::pin(r),
+            prefix: Default::default(),
+        }),
+        write: Some(StreamWrite {
+            writer: Box::pin(w),
+        }),
+        close: None,
+        fd: None,
+    };
+    debug!(parent: &span, ?s, "socket created");
+
+    Ok(Some(s).wrap())
+}
+
 pub fn register(engine: &mut Engine) {
     engine.register_fn("read_chunk_limiter", read_chunk_limiter);
     engine.register_fn("write_chunk_limiter", write_chunk_limiter);
@@ -448,4 +483,5 @@ pub fn register(engine: &mut Engine) {
     engine.register_fn("read_stream_chunks", read_stream_chunks);
     engine.register_fn("write_stream_chunks", write_stream_chunks);
     engine.register_fn("stream_chunks", stream_chunks);
+    engine.register_fn("bytemirror_socket", bytemirror_socket);
 }

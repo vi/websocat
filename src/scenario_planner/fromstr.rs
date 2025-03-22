@@ -458,6 +458,11 @@ impl ParseStrChunkResult<'_> {
                 ovl: Overlay::WriteSplitoff,
                 rest,
             })
+        } else if let Some(rest) = x.strip_prefix("mirror:") {
+            if !rest.is_empty() {
+                anyhow::bail!("mirror: endpoint does not take any argument.");
+            }
+            Ok(ParseStrChunkResult::Endpoint(Endpoint::Mirror))
         } else {
             anyhow::bail!("Unknown specifier: {x:?}")
         }
