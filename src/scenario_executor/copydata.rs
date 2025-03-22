@@ -108,6 +108,18 @@ impl<R, W> ForwardingChoiceOutcome<R, W> {
     }
 }
 
+pub async fn copy_buf_and_shutdown<'a, R, W>(reader: &'a mut R, writer: &'a mut W) -> std::io::Result<u64>
+where
+    R: tokio::io::AsyncBufRead + Unpin + ?Sized,
+    W: tokio::io::AsyncWrite + Unpin + ?Sized,
+
+    {
+        let ret = tokio::io::copy_buf(reader, writer).await;
+        debug!("Data copying phase finished. Shutting down the writer.");
+        writer.shutdown().await?;
+        ret
+    }
+
 //@ Copy bytes between two stream-oriented sockets
 fn exchange_bytes(
     ctx: NativeCallContext,
@@ -225,16 +237,16 @@ fn exchange_bytes(
                     rb2 = tokio::io::BufReader::with_capacity(d2.bufsize, d2.r);
                     w2 = d1.w.writer;
                     w1 = d2.w.writer;
-                    copier1 = Some(tokio::io::copy_buf(&mut rb1, &mut w2)).into();
+                    copier1 = Some(copy_buf_and_shutdown(&mut rb1, &mut w2)).into();
                     copier1_present = true;
-                    copier2 = Some(tokio::io::copy_buf(&mut rb2, &mut w1)).into();
+                    copier2 = Some(copy_buf_and_shutdown(&mut rb2, &mut w1)).into();
                     copier2_present = true;
                 }
             }
             (None, Some(d)) | (Some(d), None) => {
                 rb1 = tokio::io::BufReader::with_capacity(d.bufsize, d.r);
                 w2 = d.w.writer;
-                copier1 = Some(tokio::io::copy_buf(&mut rb1, &mut w2)).into();
+                copier1 = Some(copy_buf_and_shutdown(&mut rb1, &mut w2)).into();
                 copier1_present = true;
             }
             (None, None) => skip_whole = true,
@@ -270,12 +282,16 @@ fn exchange_bytes(
         }
 
         if let Some(mut x) = late_writers_shutdown.0 {
+            debug!(parent: &span, "shutting down writer1");
             let _ = x.writer.shutdown().await;
-            drop(x)
+            drop(x);
+            debug!(parent: &span, "shutdown complete 1");
         }
         if let Some(mut x) = late_writers_shutdown.1 {
+            debug!(parent: &span, "shutting down writer2");
             let _ = x.writer.shutdown().await;
-            drop(x)
+            drop(x);
+            debug!(parent: &span, "shutdown complete 2");
         }
     }
     .wrap_noerr())
