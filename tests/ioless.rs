@@ -1,5 +1,5 @@
 #![cfg_attr(rustfmt, rustfmt::skip)]
-use websocat::{t,t2,t3w_p};
+use websocat::{t,t2,t3w_p,t_p};
 
 t!(dummy, "-b dummy: dummy:");
 t!(mock1, "-bU mock_stream_socket:'w ABC' mock_stream_socket:'r ABC'");
@@ -193,3 +193,13 @@ t!(writesplt1, r#"-b mock_stream_socket:'R ABC|R WWW|W SSS'  write-splitoff:mock
 t!(writesplt2, r#"-b mock_stream_socket:'R ABC|R WWW|W SSS'  write-splitoff:chunks:mock_stream_socket:'R SSS' --write-splitoff=mock_stream_socket:'W ABC|W WWW'  "#);
 t!(writesplt3, r#"-b mock_stream_socket:'R ABC|R WWW|W SSS'  write-splitoff:mock_stream_socket:'R SSS' --write-splitoff=chunks:mock_stream_socket:'W ABC|W WWW'  "#);
 t!(writesplt4, r#"-b chunks:mock_stream_socket:'R ABC|R WWW|W SSS'  write-splitoff:mock_stream_socket:'R SSS' --write-splitoff=mock_stream_socket:'W ABC|W WWW'  "#);
+
+t!(composed1, r#"--compose -bu mock_stream_socket:'R ABC' registry-stream-connect:qqq '&' 
+                           -bu --oneshot registry-stream-listen:qqq mock_stream_socket:'W ABC'"#);
+t_p!(composed2, r#"--compose '('
+        -bu chunks:mock_stream_socket:'R ABC' registry-stream-connect:qqq 
+     ';' 
+        -bu chunks:mock_stream_socket:'R 0123' registry-stream-connect:qqq 
+     ')'
+      '&' 
+     -bu registry-stream-listen:qqq reuse-raw:chunks:mock_stream_socket:'W ABC|W 0123' --global-timeout-ms=500"#);

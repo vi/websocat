@@ -147,6 +147,15 @@ macro_rules! t {
         }
     };
 }
+#[macro_export]
+macro_rules! t_p {
+    ($n:ident, $x:literal $(,)?) => {
+        #[tokio::test(start_paused = true)]
+        async fn $n() {
+            websocat::test_utils::test_websocat($x).await;
+        }
+    };
+}
 
 #[macro_export]
 macro_rules! t2 {
