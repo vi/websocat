@@ -75,7 +75,7 @@ fn connect_registry_stream(
                 return Err(e.into());
             }
         }
-        
+
         debug!(s=?s1, "connected");
 
         let h1 = s1.wrap();

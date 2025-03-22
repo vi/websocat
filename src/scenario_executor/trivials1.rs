@@ -170,8 +170,8 @@ fn sleep_ms(ms: i64) -> Handle<Task> {
 //@ Execute specified tasks in order, starting another and previous one finishes.
 fn sequential(tasks: Vec<Dynamic>) -> Handle<Task> {
     async move {
-        for (i,t) in tasks.into_iter().enumerate() {
-            let span = debug_span!("sequential",i);
+        for (i, t) in tasks.into_iter().enumerate() {
+            let span = debug_span!("sequential", i);
             if t.is_unit() {
                 debug!("Ignoring null in sequential task list");
             } else if let Some(t) = t.clone().try_cast::<Handle<Task>>() {
@@ -196,7 +196,7 @@ fn parallel(tasks: Vec<Dynamic>) -> Handle<Task> {
     async move {
         let mut waitees = Vec::with_capacity(tasks.len());
         for (i, t) in tasks.into_iter().enumerate() {
-            let span = debug_span!("parallel",i);
+            let span = debug_span!("parallel", i);
             let Some(t): Option<Handle<Task>> = t.try_cast() else {
                 error!("Not a task in a list of tasks");
                 continue;
@@ -215,8 +215,8 @@ fn race(tasks: Vec<Dynamic>) -> Handle<Task> {
     async move {
         let mut waitees = Vec::with_capacity(tasks.len());
         let (tx, mut rx) = tokio::sync::mpsc::channel::<()>(1);
-        for (i,t) in tasks.into_iter().enumerate() {
-            let span = debug_span!("race",i);
+        for (i, t) in tasks.into_iter().enumerate() {
+            let span = debug_span!("race", i);
             let tx = tx.clone();
             if t.is_unit() {
                 debug!("Ignoring null in sequential task list");

@@ -1,9 +1,11 @@
 #[tokio::main(flavor = "current_thread")]
 async fn main() -> anyhow::Result<()> {
-    #[cfg(feature="tokioconsole")] {
+    #[cfg(feature = "tokioconsole")]
+    {
         console_subscriber::init();
     }
-    #[cfg(not(feature="tokioconsole"))] {
+    #[cfg(not(feature = "tokioconsole"))]
+    {
         tracing_subscriber::fmt::init();
     }
     let argv = std::env::args_os();
