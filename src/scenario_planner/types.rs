@@ -119,9 +119,13 @@ pub enum Endpoint {
     //@ Byte stream socket for tests that can produce and consume (assert)
     //@ data according to special scenario supplied as an argument
     MockStreamSocket(String),
-    //@ Listen for virtual intra-Websocat stream connections at specified address
+    //@ Listen for virtual intra-Websocat stream connections at specified address.
+    //@
+    //@ Connections can be made with `registry-stream-connect:` and `registry-send:` overlays.
     RegistryStreamListen(String),
     //@ Connect to a virtual intra-Websocat address using stream socket
+    //@
+    //@ This is differnt from `registry-send:` that it creates a temporary buffer and can use overlays. The buffer is like two `mirror:` endpoints.
     RegistryStreamConnect(String),
 
     //@ Implementation detail of `reuse-raw:` overlay

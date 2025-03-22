@@ -131,13 +131,13 @@ fn listen_registry_stream(
                     let newspan = debug_span!("registry_accept");
 
                     let Some(mut h) = d.try_cast::<Handle<StreamSocket>>() else {
-                        error!("Something other than stream socket was sent to a listen_registry_stream: endpoint");
+                        error!(parent: &newspan, "Something other than stream socket was sent to a listen_registry_stream: endpoint");
                         continue;
                     };
 
                     if oneshot {
                         let Some(mut s) = h.lut() else {
-                            error!("Empty handle was sent to a listen_registry_stream: endpoint");
+                            error!(parent: &newspan, "Empty handle was sent to a listen_registry_stream: endpoint");
                             break;
                         };
                         if let Some(x) = s.read.take() {
