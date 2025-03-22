@@ -108,17 +108,19 @@ impl<R, W> ForwardingChoiceOutcome<R, W> {
     }
 }
 
-pub async fn copy_buf_and_shutdown<'a, R, W>(reader: &'a mut R, writer: &'a mut W) -> std::io::Result<u64>
+pub async fn copy_buf_and_shutdown<'a, R, W>(
+    reader: &'a mut R,
+    writer: &'a mut W,
+) -> std::io::Result<u64>
 where
     R: tokio::io::AsyncBufRead + Unpin + ?Sized,
     W: tokio::io::AsyncWrite + Unpin + ?Sized,
-
-    {
-        let ret = tokio::io::copy_buf(reader, writer).await;
-        debug!("Data copying phase finished. Shutting down the writer.");
-        writer.shutdown().await?;
-        ret
-    }
+{
+    let ret = tokio::io::copy_buf(reader, writer).await;
+    debug!("Data copying phase finished. Shutting down the writer.");
+    writer.shutdown().await?;
+    ret
+}
 
 //@ Copy bytes between two stream-oriented sockets
 fn exchange_bytes(
