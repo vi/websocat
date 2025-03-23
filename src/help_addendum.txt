@@ -11,9 +11,13 @@ Short list of endpoint prefixes:
   exec:
   literal:
   literal-base64:
+  mirror:
   mock_stream_socket:
   random:
   readfile:
+  registry-datagram-connect:
+  registry-datagram-listen:
+  registry-send:
   registry-stream-connect:
   registry-stream-listen:
   seqpacket:

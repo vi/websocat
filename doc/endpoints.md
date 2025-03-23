@@ -129,6 +129,14 @@ Prefixes:
 
 * `literal-base64:`
 
+## Mirror
+
+Read data that is written to this endpoint.
+
+Prefixes:
+
+* `mirror:`
+
 ## MockStreamSocket
 
 Byte stream socket for tests that can produce and consume (assert)
@@ -155,21 +163,58 @@ Prefixes:
 
 * `readfile:`
 
+## RegistryDatagramConnect
+
+Connect to a virtual intra-Websocat address using a datagram socket
+
+This is differnt from `registry-send:` that it creates a temporary buffer and can use overlays. The buffer is like two `mirror:` endpoints.
+
+Prefixes:
+
+* `registry-datagram-connect:`
+* `regdg-c:`
+
+## RegistryDatagramListen
+
+Listen for virtual intra-Websocat datagram connections at specified address.
+
+Connections can be made with `registry-datagrams-connect:` or `registry-send:` endpoints.
+
+Prefixes:
+
+* `registry-datagram-listen:`
+* `regdg-l:`
+
+## RegistrySend
+
+Send the {socket this endpoint is paired with} to a virtual intra-Websocat address
+
+Prefixes:
+
+* `registry-send:`
+* `regsend:`
+
 ## RegistryStreamConnect
 
-Connect to a virtual intra-Websocat address using stream socket
+Connect to a virtual intra-Websocat address using a stream socket
+
+This is differnt from `registry-send:` that it creates a temporary buffer and can use overlays. The buffer is like two `mirror:` endpoints.
 
 Prefixes:
 
 * `registry-stream-connect:`
+* `regstr-c:`
 
 ## RegistryStreamListen
 
-Listen for virtual intra-Websocat stream connections at specified address
+Listen for virtual intra-Websocat stream connections at specified address.
+
+Connections can be made with `registry-stream-connect:` and `registry-send:` endpoints.
 
 Prefixes:
 
 * `registry-stream-listen:`
+* `regstr-l:`
 
 ## SeqpacketConnect
 

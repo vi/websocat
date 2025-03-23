@@ -139,7 +139,9 @@ Options:
           On Unix, set first subprocess's argv[0] to this value
 
       --exec-dup2 <EXEC_DUP2>
-          On Unix, use dup2 and forward sockets directly to child processes (ignoring any overlays) instead of piping though stdin/stdout. Argument is comma-separated list of file descriptor slots to duplicate the socket into, e.g. `0,1` for stdin and stdout
+          On Unix, use dup2 and forward sockets directly to child processes (ignoring any overlays) instead of piping though stdin/stdout. Argument is comma-separated list of file descriptor slots to duplicate the socket into, e.g. `0,1` for stdin and stdout.
+          
+          This is a low-level option that is less tested than other things. Expect non-userfriendly error messages if misused.
 
       --exec-dup2-keep-nonblocking
           When using --exec-dup2, do not set inherited file descriptors to blocking mode
@@ -233,6 +235,9 @@ Options:
       --no-fixups
           Do not automatically transform endpoints and overlays to their appropriate low-level form. Many things will fail in this mode
 
+      --less-fixups
+          Inhibit some optional transformations of specifier stacks, such as auto-inserting of a reuser
+
       --udp-max-send-datagram-size <UDP_MAX_SEND_DATAGRAM_SIZE>
           Maximum size of an outgoing UDP datagram. Incoming datagram size is likely limited by --buffer-size
           
@@ -248,6 +253,11 @@ Options:
 
       --registry-connect-bufsize <REGISTRY_CONNECT_BUFSIZE>
           Use specified max buffer size for
+          
+          [default: 1024]
+
+      --mirror-bufsize <MIRROR_BUFSIZE>
+          Use specified buffer size for mirror: endpoint
           
           [default: 1024]
 
@@ -363,9 +373,13 @@ Short list of endpoint prefixes:
   exec:
   literal:
   literal-base64:
+  mirror:
   mock_stream_socket:
   random:
   readfile:
+  registry-datagram-connect:
+  registry-datagram-listen:
+  registry-send:
   registry-stream-connect:
   registry-stream-listen:
   seqpacket:

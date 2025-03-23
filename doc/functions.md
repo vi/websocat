@@ -332,6 +332,20 @@ Parameters:
 
 Returns `String`
 
+## bytemirror_socket
+
+Create a bytestream socket that reads everything written to it.
+
+Parameters:
+
+* opts (`Dynamic`) - object map containing dynamic options to the function
+
+Returns `StreamSocket`
+
+Options:
+
+* max_buf_size (`usize`) - Maximum size of buffer for data in flight
+
 ## combine_read_and_write_bytestream
 
 Take reading part s1 and write part of s2 and make a new socket that routes reads to s1 and writes to s2.
@@ -362,9 +376,28 @@ Parameters:
 
 Returns `DatagramSocket`
 
+## connect_registry_datagrams
+
+Connect to an intra-Websocat stream socket listening on specified virtual address.
+
+Uses intermediate buffer mechanism like in the `mirror:` endpoint.
+
+Parameters:
+
+* opts (`Dynamic`) - object map containing dynamic options to the function
+* continuation (`Fn(DatagramSocket) -> Task`) - Rhai function that will be called to continue processing
+
+Returns `Task`
+
+Options:
+
+* addr (`String`)
+
 ## connect_registry_stream
 
 Connect to an intra-Websocat stream socket listening on specified virtual address.
+
+Uses intermediate buffer mechanism like in the `mirror:` endpoint.
 
 Parameters:
 
@@ -735,6 +768,23 @@ Options:
 * separator_n (`Option<usize>`) - Use this number of repetitions of the specified byte to consider it as a separator. Defaults to 1.
 * substitute (`Option<u8>`) - When framing messages, look for byte sequences within the message that may alias with the separator and substitute last byte of such pseudo-separators with this byte value.  If active, leading and trailing separator bytes are also removed from the datagrams
 
+## listen_registry_datagrams
+
+Listen for intra-Websocat datagram socket connections on a specified virtual address
+
+Parameters:
+
+* opts (`Dynamic`) - object map containing dynamic options to the function
+* continuation (`Fn(DatagramSocket) -> Task`) - Rhai function that will be called to continue processing
+
+Returns `Task`
+
+Options:
+
+* addr (`String`)
+* autospawn (`bool`) - Automatically spawn a task for each accepted connection
+* oneshot (`bool`) - Exit listening loop after processing a single connection
+
 ## listen_registry_stream
 
 Listen for intra-Websocat stream socket connections on a specified virtual address
@@ -942,6 +992,18 @@ Parameters:
 
 Returns `OsString`
 
+## packetmirror_socket
+
+Create a datagram socket that reads everything written to it.
+
+Buffer size is unlimited in theory, but should be be larger that `-B` size in practice.
+
+Parameters:
+
+* opts (`Dynamic`) - object map containing dynamic options to the function
+
+Returns `DatagramSocket`
+
 ## parallel
 
 Execute specified tasks in parallel, waiting them all to finish.
@@ -1109,7 +1171,6 @@ Parameters:
 
 * addr (`&str`)
 * x (`Dynamic`)
-* continuation (`Fn() -> Task`) - Rhai function that will be called to continue processing
 
 Returns `Task`
 
