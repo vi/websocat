@@ -76,7 +76,7 @@ pub struct PacketReadResult {
 /// When `poll_read` returns, subsequent `poll_read` can expect data in `buf`
 /// outside of the range returned in `buffer_subset` to remain the same,
 /// though buffer address in memory may be different.
-/// Bytes references by `buffer_subset` data may be mangled, e.g. by `poll_write`
+/// Bytes referenced by `buffer_subset` data may be mangled, e.g. by `poll_write`
 /// using mutable chunk buffer of the same buffer
 pub trait PacketRead {
     fn poll_read(
@@ -93,8 +93,6 @@ pub trait PacketRead {
 /// Stream/Sink are not used instead to control the allocations.
 ///
 /// Writing (possibly empty) buffer with Eof flag means something like `poll_shutdown()`.
-///
-/// Implementer is supposed to use the `buf.filled()` part as a message to deliver. The buffer may be left uncleared after successful write.
 ///
 /// When `Poll::Pending` is returned, next call to `poll_write` should use the same arguments.
 ///

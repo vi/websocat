@@ -311,7 +311,7 @@ struct CopyPackets {
     span: tracing::Span,
     phase: Phase,
     flags: BufferFlags,
-    b: Box<[u8]>,
+    buffer: Box<[u8]>,
     counter: u64,
 }
 
@@ -329,7 +329,7 @@ impl CopyPackets {
             span,
             phase,
             flags,
-            b,
+            buffer: b,
             counter: 0,
         }
     }
@@ -352,7 +352,7 @@ impl std::future::Future for CopyPackets {
                     match ready!(crate::scenario_executor::types::PacketRead::poll_read(
                         this.r.src.as_mut(),
                         cx,
-                        &mut this.b[..],
+                        &mut this.buffer[..],
                     )) {
                         Ok(f) => {
                             this.flags = f.flags;
@@ -368,7 +368,7 @@ impl std::future::Future for CopyPackets {
                     match ready!(crate::scenario_executor::types::PacketWrite::poll_write(
                         this.w.snk.as_mut(),
                         cx,
-                        &mut this.b[range],
+                        &mut this.buffer[range],
                         this.flags,
                     )) {
                         Ok(()) => {
