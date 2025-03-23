@@ -467,7 +467,10 @@ impl ParseStrChunkResult<'_> {
             if !rest.is_empty() {
                 anyhow::bail!("mirror: endpoint does not take any argument.");
             }
-            Ok(ParseStrChunkResult::Endpoint(Endpoint::Mirror))
+            Ok(ParseStrChunkResult::Endpoint(Endpoint::Mirror {
+                // real value is filled in in the patcher
+                datagram_mode: false,
+            }))
         } else if let Some(rest) = x.strip_prefix_many(&["registry-send:", "regsend:"]) {
             let s: &str = rest.try_into()?;
             Ok(ParseStrChunkResult::Endpoint(Endpoint::RegistrySend(

@@ -157,7 +157,9 @@ pub enum Endpoint {
     },
 
     //@ Read data that is written to this endpoint.
-    Mirror,
+    Mirror {
+        datagram_mode: bool,
+    },
 
     //@ Send the {socket this endpoint is paired with} to a virtual intra-Websocat address
     RegistrySend(String),

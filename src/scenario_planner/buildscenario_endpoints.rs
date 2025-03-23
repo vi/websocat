@@ -133,12 +133,17 @@ impl Endpoint {
                 env.printer.increase_indent();
                 Ok(varnam)
             }
-            Endpoint::Mirror => {
+            Endpoint::Mirror { datagram_mode } => {
                 let mbs = env.opts.mirror_bufsize;
                 let varnam = env.vars.getnewvarname("mirror");
-                env.printer.print_line(&format!(
-                    "let {varnam} = bytemirror_socket(#{{max_buf_size: {mbs}}});"
-                ));
+                if *datagram_mode {
+                    env.printer
+                        .print_line(&format!("let {varnam} = packetmirror_socket(#{{}});"));
+                } else {
+                    env.printer.print_line(&format!(
+                        "let {varnam} = bytemirror_socket(#{{max_buf_size: {mbs}}});"
+                    ));
+                }
                 Ok(varnam)
             }
             Endpoint::SimpleReuserEndpoint(varname, specifier_stack) => {
@@ -309,7 +314,7 @@ impl Endpoint {
                 env.printer.decrease_indent();
                 env.printer.print_line("})");
             }
-            Endpoint::Mirror => {}
+            Endpoint::Mirror { .. } => {}
             Endpoint::RegistrySend(..) => {
                 panic!("registry-send: endpoint should not be printed like other specifiers")
             }

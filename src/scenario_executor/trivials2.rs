@@ -1,5 +1,6 @@
 use std::{
     pin::Pin,
+    sync::{Arc, Mutex},
     task::{ready, Poll},
 };
 
@@ -8,7 +9,7 @@ use bytes::BytesMut;
 use pin_project::pin_project;
 use rhai::{Dynamic, Engine, NativeCallContext};
 use tokio::io::{AsyncRead, AsyncWrite, ReadBuf};
-use tracing::{debug, debug_span};
+use tracing::{debug, debug_span, trace, warn};
 
 use crate::scenario_executor::{
     logoverlay::render_content,
@@ -466,6 +467,114 @@ fn bytemirror_socket(opts: Dynamic) -> RhResult<Handle<StreamSocket>> {
     Ok(Some(s).wrap())
 }
 
+#[derive(Debug, Default)]
+struct PacketMirror {
+    buf: BytesMut,
+    flags: BufferFlags,
+    packet_ready: bool,
+    read_waker: Option<std::task::Waker>,
+    write_waker: Option<std::task::Waker>,
+}
+
+#[derive(Clone)]
+pub struct PacketMirrorHandle(Arc<Mutex<PacketMirror>>);
+
+impl PacketMirrorHandle {
+    pub fn new() -> PacketMirrorHandle {
+        PacketMirrorHandle(Arc::new(Mutex::new(PacketMirror::default())))
+    }
+}
+
+impl PacketRead for PacketMirrorHandle {
+    fn poll_read(
+        self: Pin<&mut Self>,
+        cx: &mut std::task::Context<'_>,
+        buf: &mut [u8],
+    ) -> Poll<std::io::Result<PacketReadResult>> {
+        let mut this = self.get_mut().0.lock().unwrap();
+
+        if this.packet_ready {
+            trace!("packet mirror's packet is ready");
+            let l = this.buf.len();
+
+            if l > buf.len() {
+                warn!("packet fragment is too large for packet mirror's reader buffer");
+                return Poll::Ready(Err(std::io::ErrorKind::InvalidInput.into()));
+            }
+
+            buf[0..l].copy_from_slice(&this.buf);
+            this.buf.clear();
+            this.packet_ready = false;
+            if let Some(w) = this.write_waker.take() {
+                w.wake();
+            }
+
+            Poll::Ready(Ok(PacketReadResult {
+                flags: this.flags,
+                buffer_subset: 0..l,
+            }))
+        } else {
+            trace!("packet mirror's packet is not ready");
+            let w = cx.waker().to_owned();
+            this.read_waker = Some(w);
+            Poll::Pending
+        }
+    }
+}
+
+impl PacketWrite for PacketMirrorHandle {
+    fn poll_write(
+        self: Pin<&mut Self>,
+        cx: &mut std::task::Context<'_>,
+        buf: &mut [u8],
+        flags: BufferFlags,
+    ) -> Poll<std::io::Result<()>> {
+        let mut this = self.get_mut().0.lock().unwrap();
+
+        if this.packet_ready {
+            trace!("packet mirror's packet slot is busy");
+
+            let w = cx.waker().to_owned();
+            this.write_waker = Some(w);
+            Poll::Pending
+        } else {
+            this.buf.extend_from_slice(buf);
+            this.flags = flags;
+            this.packet_ready = true;
+            if let Some(w) = this.read_waker.take() {
+                w.wake();
+            }
+            Poll::Ready(Ok(()))
+        }
+    }
+}
+
+//@ Create a datagram socket that reads everything written to it.
+//@
+//@ Buffer size is unlimited in theory, but should be be larger that `-B` size in practice.
+fn packetmirror_socket(opts: Dynamic) -> RhResult<Handle<DatagramSocket>> {
+    let span = debug_span!("packetmirror_socket");
+    debug!(parent: &span, "node created");
+    #[derive(serde::Deserialize)]
+    struct Opts {}
+    let _opts: Opts = rhai::serde::from_dynamic(&opts)?;
+
+    debug!(parent: &span, "options parsed");
+
+    let r = PacketMirrorHandle::new();
+    let w = r.clone();
+
+    let s = DatagramSocket {
+        read: Some(DatagramRead { src: Box::pin(r) }),
+        write: Some(DatagramWrite { snk: Box::pin(w) }),
+        close: None,
+        fd: None,
+    };
+    debug!(parent: &span, ?s, "socket created");
+
+    Ok(Some(s).wrap())
+}
+
 pub fn register(engine: &mut Engine) {
     engine.register_fn("read_chunk_limiter", read_chunk_limiter);
     engine.register_fn("write_chunk_limiter", write_chunk_limiter);
@@ -484,4 +593,5 @@ pub fn register(engine: &mut Engine) {
     engine.register_fn("write_stream_chunks", write_stream_chunks);
     engine.register_fn("stream_chunks", stream_chunks);
     engine.register_fn("bytemirror_socket", bytemirror_socket);
+    engine.register_fn("packetmirror_socket", packetmirror_socket);
 }

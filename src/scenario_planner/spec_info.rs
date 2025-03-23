@@ -92,7 +92,12 @@ impl Endpoint {
                     }
                 }
             }
-            Endpoint::Mirror => ByteStream,
+            Endpoint::Mirror {
+                datagram_mode: false,
+            } => ByteStream,
+            Endpoint::Mirror {
+                datagram_mode: true,
+            } => Datarams,
             Endpoint::RegistrySend(..) => SocketSender,
         }
     }
@@ -206,7 +211,7 @@ impl SpecifierStack {
             Endpoint::Random => false,
             Endpoint::Zero => false,
             Endpoint::WriteSplitoff { .. } => false,
-            Endpoint::Mirror => false,
+            Endpoint::Mirror { .. } => false,
             Endpoint::RegistrySend(..) => false,
         };
 
@@ -286,7 +291,7 @@ impl SpecifierStack {
                 ref read,
                 ref write,
             } => read.prefers_being_single(opts) || write.prefers_being_single(opts),
-            Endpoint::Mirror => false,
+            Endpoint::Mirror { .. } => false,
             Endpoint::RegistrySend(..) => false,
         };
 

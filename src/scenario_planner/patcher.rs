@@ -45,6 +45,10 @@ impl WebsocatInvocation {
             .right
             .maybe_process_writesplitoff(&mut self.stacks.write_splitoff, &self.opts)?;
 
+        let session_typ_so_far = self.session_socket_type();
+        self.stacks
+            .apply_to_all(|x| x.infer_mirror_type(session_typ_so_far))?;
+
         self.maybe_insert_chunker()?;
 
         if !self.opts.less_fixups {
@@ -398,6 +402,23 @@ impl SpecifierStack {
         }
         Ok(())
     }
+    fn infer_mirror_type(&mut self, outer_socket_type: SocketType) -> anyhow::Result<()> {
+        let mut resulting_type = outer_socket_type;
+        for ovl in self.overlays.iter().rev() {
+            if let Some(t) = ovl.requires_socket_type() {
+                resulting_type = t;
+            }
+        }
+        match &mut self.innermost {
+            Endpoint::Mirror { datagram_mode } => {
+                if resulting_type.is_dgrms() {
+                    *datagram_mode = true;
+                }
+            }
+            _ => (),
+        }
+        Ok(())
+    }
 
     /// returns true if it was inserted (or `log:` already present)
     fn insert_log_overlay(&mut self) -> bool {
@@ -480,7 +501,7 @@ impl SpecifierStack {
                 Endpoint::Random => false,
                 Endpoint::Zero => false,
                 Endpoint::WriteSplitoff { .. } => false,
-                Endpoint::Mirror => false,
+                Endpoint::Mirror { .. } => false,
                 Endpoint::RegistrySend(_) => false,
                 Endpoint::RegistryDatagramListen(_) => false,
             };
