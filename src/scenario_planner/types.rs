@@ -121,12 +121,16 @@ pub enum Endpoint {
     MockStreamSocket(String),
     //@ Listen for virtual intra-Websocat stream connections at specified address.
     //@
-    //@ Connections can be made with `registry-stream-connect:` and `registry-send:` overlays.
+    //@ Connections can be made with `registry-stream-connect:` and `registry-send:` endpoints.
     RegistryStreamListen(String),
     //@ Connect to a virtual intra-Websocat address using stream socket
     //@
     //@ This is differnt from `registry-send:` that it creates a temporary buffer and can use overlays. The buffer is like two `mirror:` endpoints.
     RegistryStreamConnect(String),
+    //@ Listen for virtual intra-Websocat datagram connections at specified address.
+    //@
+    //@ Connections can be made with the `registry-send:` endpoint.
+    RegistryDatagramListen(String),
 
     //@ Implementation detail of `reuse-raw:` overlay
     SimpleReuserEndpoint(String, Box<SpecifierStack>),

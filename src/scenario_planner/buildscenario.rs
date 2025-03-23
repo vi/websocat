@@ -22,7 +22,7 @@ impl WebsocatInvocation {
         // 6. Go back over right overlays, endpoint, left overlays, endpoint and print closing brackets.
         //
         // Minor deviations from the main flow, like handling
-        //  --global-timeout-ms or --exit-after-one-session print additional things at the beginning or 
+        //  --global-timeout-ms or --exit-after-one-session print additional things at the beginning or
         // near the byte copier
         //
         // Major deviations from the main flow:

@@ -1,4 +1,4 @@
-use std::fmt::Display;
+use std::{fmt::Display, ops::DerefMut, pin::Pin};
 
 use bytes::BytesMut;
 use rhai::NativeCallContext;
@@ -7,7 +7,7 @@ use tracing::{debug, Span};
 use crate::scenario_executor::utils1::SimpleErr;
 
 use super::{
-    types::{BufferFlag, BufferFlags, Registry, SocketFd},
+    types::{BufferFlag, BufferFlags, PacketRead, PacketWrite, Registry, SocketFd},
     utils1::{IsControlFrame, RhResult},
 };
 
@@ -282,5 +282,78 @@ impl PollSemaphoreNew2 for tokio_util::sync::PollSemaphore {
         tokio_util::sync::PollSemaphore::new(std::sync::Arc::new(tokio::sync::Semaphore::new(
             permits,
         )))
+    }
+}
+
+impl<T: ?Sized + PacketWrite + Unpin> PacketWrite for Box<T> {
+    fn poll_write(
+        mut self: Pin<&mut Self>,
+        cx: &mut std::task::Context<'_>,
+        buf: &mut [u8],
+        flags: BufferFlags,
+    ) -> std::task::Poll<std::io::Result<()>> {
+        Pin::new(&mut **self).poll_write(cx, buf, flags)
+    }
+}
+
+impl<T: ?Sized + PacketWrite + Unpin> PacketWrite for &mut T {
+    fn poll_write(
+        mut self: Pin<&mut Self>,
+        cx: &mut std::task::Context<'_>,
+        buf: &mut [u8],
+        flags: BufferFlags,
+    ) -> std::task::Poll<std::io::Result<()>> {
+        Pin::new(&mut **self).poll_write(cx, buf, flags)
+    }
+}
+
+impl<P> PacketWrite for Pin<P>
+where
+    P: DerefMut + Unpin,
+
+    P::Target: PacketWrite,
+{
+    fn poll_write(
+        self: Pin<&mut Self>,
+        cx: &mut std::task::Context<'_>,
+        buf: &mut [u8],
+        flags: BufferFlags,
+    ) -> std::task::Poll<std::io::Result<()>> {
+        self.get_mut().as_mut().poll_write(cx, buf, flags)
+    }
+}
+
+impl<T: ?Sized + PacketRead + Unpin> PacketRead for Box<T> {
+    fn poll_read(
+        mut self: Pin<&mut Self>,
+        cx: &mut std::task::Context<'_>,
+        buf: &mut [u8],
+    ) -> std::task::Poll<std::io::Result<super::types::PacketReadResult>> {
+        Pin::new(&mut **self).poll_read(cx, buf)
+    }
+}
+
+impl<T: ?Sized + PacketRead + Unpin> PacketRead for &mut T {
+    fn poll_read(
+        mut self: Pin<&mut Self>,
+        cx: &mut std::task::Context<'_>,
+        buf: &mut [u8],
+    ) -> std::task::Poll<std::io::Result<super::types::PacketReadResult>> {
+        Pin::new(&mut **self).poll_read(cx, buf)
+    }
+}
+
+impl<P> PacketRead for Pin<P>
+where
+    P: DerefMut + Unpin,
+
+    P::Target: PacketRead,
+{
+    fn poll_read(
+        self: Pin<&mut Self>,
+        cx: &mut std::task::Context<'_>,
+        buf: &mut [u8],
+    ) -> std::task::Poll<std::io::Result<super::types::PacketReadResult>> {
+        self.get_mut().as_mut().poll_read(cx, buf)
     }
 }

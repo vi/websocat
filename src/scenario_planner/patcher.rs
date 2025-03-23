@@ -482,6 +482,7 @@ impl SpecifierStack {
                 Endpoint::WriteSplitoff { .. } => false,
                 Endpoint::Mirror => false,
                 Endpoint::RegistrySend(_) => false,
+                Endpoint::RegistryDatagramListen(_) => false,
             };
             if do_insert {
                 // datagram mode may be patched later

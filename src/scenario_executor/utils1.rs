@@ -12,7 +12,8 @@ use std::{
 };
 
 use super::types::{
-    BufferFlag, BufferFlags, DatagramSocket, Hangup, PacketWrite, SocketFd, StreamRead, StreamWrite,
+    BufferFlag, BufferFlags, DatagramSocket, Hangup, PacketRead, PacketWrite, SocketFd, StreamRead,
+    StreamWrite,
 };
 
 pub trait TaskHandleExt {
@@ -314,16 +315,16 @@ impl SignalOnDrop {
 }
 
 #[pin_project::pin_project]
-pub struct StreamSocketWithDropNotification<T> {
+pub struct SocketWithDropNotification<T> {
     #[pin]
     inner: T,
     dropper: SignalOnDrop,
 }
 
-impl<T> StreamSocketWithDropNotification<T> {
+impl<T> SocketWithDropNotification<T> {
     pub fn wrap(inner: T) -> (Self, tokio::sync::oneshot::Receiver<()>) {
         let (dropper, rx) = SignalOnDrop::new();
-        (StreamSocketWithDropNotification { inner, dropper }, rx)
+        (SocketWithDropNotification { inner, dropper }, rx)
     }
 
     pub fn defuse(self: Pin<&mut Self>) {
@@ -332,7 +333,7 @@ impl<T> StreamSocketWithDropNotification<T> {
     }
 }
 
-impl<T: AsyncRead> AsyncRead for StreamSocketWithDropNotification<T> {
+impl<T: AsyncRead> AsyncRead for SocketWithDropNotification<T> {
     fn poll_read(
         self: Pin<&mut Self>,
         cx: &mut Context<'_>,
@@ -343,7 +344,7 @@ impl<T: AsyncRead> AsyncRead for StreamSocketWithDropNotification<T> {
     }
 }
 
-impl<T: AsyncWrite> AsyncWrite for StreamSocketWithDropNotification<T> {
+impl<T: AsyncWrite> AsyncWrite for SocketWithDropNotification<T> {
     fn poll_write_vectored(
         self: Pin<&mut Self>,
         cx: &mut Context<'_>,
@@ -380,6 +381,28 @@ impl<T: AsyncWrite> AsyncWrite for StreamSocketWithDropNotification<T> {
     }
 }
 
+impl<T: PacketRead> PacketRead for SocketWithDropNotification<T> {
+    fn poll_read(
+        self: Pin<&mut Self>,
+        cx: &mut Context<'_>,
+        buf: &mut [u8],
+    ) -> Poll<std::io::Result<super::types::PacketReadResult>> {
+        let this = self.project();
+        this.inner.poll_read(cx, buf)
+    }
+}
+impl<T: PacketWrite> PacketWrite for SocketWithDropNotification<T> {
+    fn poll_write(
+        self: Pin<&mut Self>,
+        cx: &mut Context<'_>,
+        buf: &mut [u8],
+        flags: BufferFlags,
+    ) -> Poll<std::io::Result<()>> {
+        let this = self.project();
+        this.inner.poll_write(cx, buf, flags)
+    }
+}
+
 pub type PairOfDropMonitors = (
     tokio::sync::oneshot::Receiver<()>,
     tokio::sync::oneshot::Receiver<()>,
@@ -408,8 +431,8 @@ pub fn wrap_as_stream_socket<R: AsyncRead + Send + 'static, W: AsyncWrite + Send
             None,
         )
     } else {
-        let (r, dn1) = StreamSocketWithDropNotification::wrap(r);
-        let (w, dn2) = StreamSocketWithDropNotification::wrap(w);
+        let (r, dn1) = SocketWithDropNotification::wrap(r);
+        let (w, dn2) = SocketWithDropNotification::wrap(w);
 
         let (r, w) = (Box::pin(r), Box::pin(w));
 
