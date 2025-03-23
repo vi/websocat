@@ -205,7 +205,7 @@ pub struct WebsocatArgs {
     /// On Unix, use dup2 and forward sockets directly to child processes (ignoring any overlays) instead of piping though stdin/stdout.
     /// Argument is comma-separated list of file descriptor slots to duplicate the socket into, e.g. `0,1` for stdin and stdout.
     ///
-    /// This is a low-level option that is less tested than other things. Expect non-userfriendly error messages if misused.
+    /// This is a low-level option that is less tested than other things. Expect non-user-friendly error messages if misused.
     #[arg(long, value_delimiter = ',')]
     pub exec_dup2: Option<Vec<i64>>,
 
