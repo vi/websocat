@@ -38,6 +38,8 @@ impl WebsocatInvocation {
         }
         self.stacks.apply_to_all(|x| x.fill_in_log_overlay_type())?;
 
+        self.maybe_auto_insert_write_splitoff_overlay()?;
+
         self.stacks
             .left
             .maybe_process_writesplitoff(&mut self.stacks.write_splitoff, &self.opts)?;
@@ -75,8 +77,30 @@ impl WebsocatInvocationStacks {
         }
         Ok(())
     }
+
+    fn check_if_any_stack(&self, mut f: impl FnMut(&SpecifierStack) -> bool) -> bool {
+        f(&self.left)
+            || f(&self.right)
+            || if let Some(ref splt) = self.write_splitoff {
+                f(splt)
+            } else {
+                false
+            }
+    }
 }
 impl WebsocatInvocation {
+    fn maybe_auto_insert_write_splitoff_overlay(&mut self) -> anyhow::Result<()> {
+        if self.opts.write_splitoff.is_some()
+            && !self
+                .stacks
+                .check_if_any_stack(|s| s.contains_overlay(OverlayDiscriminants::WriteSplitoff))
+        {
+            debug!("Auto-inserting write-splitoff: overlay");
+            self.stacks.right.overlays.push(Overlay::WriteSplitoff);
+        }
+        Ok(())
+    }
+
     fn maybe_insert_chunker(&mut self) -> anyhow::Result<()> {
         if self.opts.exec_dup2.is_some() {
             // dup2 mode is speial, it ignores any overlays and directly forwards

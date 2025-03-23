@@ -2,7 +2,10 @@ use tracing::debug;
 
 use crate::cli::WebsocatArgs;
 
-use super::types::{Endpoint, Overlay, SocketType, SpecifierStack, WebsocatInvocation};
+use super::types::{
+    Endpoint, EndpointDiscriminants, Overlay, OverlayDiscriminants, SocketType, SpecifierStack,
+    WebsocatInvocation,
+};
 
 impl WebsocatInvocation {
     pub fn session_socket_type(&self) -> SocketType {
@@ -29,6 +32,28 @@ impl SpecifierStack {
             }
         }
         typ
+    }
+
+    pub fn contains_overlay(&self, x: OverlayDiscriminants) -> bool {
+        for ovl in &self.overlays {
+            if x == ovl.into() {
+                return true;
+            }
+        }
+        false
+    }
+    pub fn contains_endpoint(&self, x: EndpointDiscriminants) -> bool {
+        let innermost_type: EndpointDiscriminants = (&self.innermost).into();
+        if innermost_type == x {
+            return true;
+        }
+        match self.innermost {
+            Endpoint::WriteSplitoff {
+                ref read,
+                ref write,
+            } => read.contains_endpoint(x) || write.contains_endpoint(x),
+            _ => false,
+        }
     }
 }
 
