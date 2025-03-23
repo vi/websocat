@@ -123,14 +123,18 @@ pub enum Endpoint {
     //@
     //@ Connections can be made with `registry-stream-connect:` and `registry-send:` endpoints.
     RegistryStreamListen(String),
-    //@ Connect to a virtual intra-Websocat address using stream socket
+    //@ Connect to a virtual intra-Websocat address using a stream socket
     //@
     //@ This is differnt from `registry-send:` that it creates a temporary buffer and can use overlays. The buffer is like two `mirror:` endpoints.
     RegistryStreamConnect(String),
     //@ Listen for virtual intra-Websocat datagram connections at specified address.
     //@
-    //@ Connections can be made with the `registry-send:` endpoint.
+    //@ Connections can be made with `registry-datagrams-connect:` or `registry-send:` endpoints.
     RegistryDatagramListen(String),
+    //@ Connect to a virtual intra-Websocat address using a datagram socket
+    //@
+    //@ This is differnt from `registry-send:` that it creates a temporary buffer and can use overlays. The buffer is like two `mirror:` endpoints.
+    RegistryDatagramConnect(String),
 
     //@ Implementation detail of `reuse-raw:` overlay
     SimpleReuserEndpoint(String, Box<SpecifierStack>),

@@ -504,6 +504,7 @@ impl SpecifierStack {
                 Endpoint::Mirror { .. } => false,
                 Endpoint::RegistrySend(_) => false,
                 Endpoint::RegistryDatagramListen(_) => false,
+                Endpoint::RegistryDatagramConnect(_) => false,
             };
             if do_insert {
                 // datagram mode may be patched later

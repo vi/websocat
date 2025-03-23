@@ -12,6 +12,8 @@ use crate::scenario_executor::{
 use super::{scenario::ScenarioAccess, types::Task, utils1::RhResult};
 
 //@ Connect to an intra-Websocat stream socket listening on specified virtual address.
+//@
+//@ Uses intermediate buffer mechanism like in the `mirror:` endpoint.
 fn connect_registry_stream(
     ctx: NativeCallContext,
     opts: Dynamic,
@@ -209,6 +211,72 @@ fn listen_registry_stream(
     .wrap())
 }
 
+//@ Connect to an intra-Websocat stream socket listening on specified virtual address.
+//@
+//@ Uses intermediate buffer mechanism like in the `mirror:` endpoint.
+fn connect_registry_datagrams(
+    ctx: NativeCallContext,
+    opts: Dynamic,
+    continuation: FnPtr,
+) -> RhResult<Handle<Task>> {
+    let original_span = tracing::Span::current();
+    let span = debug_span!(parent: original_span, "connect_registry_datagrams");
+    let the_scenario = ctx.get_scenario()?;
+    debug!(parent: &span, "node created");
+    #[derive(serde::Deserialize)]
+    struct Opts {
+        addr: String,
+    }
+    let opts: Opts = rhai::serde::from_dynamic(&opts)?;
+
+    let tx = the_scenario.registry.get_sender(&opts.addr);
+
+    debug!(parent: &span, addr=%opts.addr, "options parsed");
+    drop(opts);
+
+    Ok(async move {
+        debug!("node started");
+
+        let r1 = super::trivials2::PacketMirrorHandle::new();
+        let w1 = r1.clone();
+        let r2 = super::trivials2::PacketMirrorHandle::new();
+        let w2 = r2.clone();
+
+        let s1 = DatagramSocket {
+            read: Some(DatagramRead { src: Box::pin(r1) }),
+            write: Some(DatagramWrite { snk: Box::pin(w2) }),
+            close: None,
+            fd: None,
+        };
+
+        let s2 = DatagramSocket {
+            read: Some(DatagramRead { src: Box::pin(r2) }),
+            write: Some(DatagramWrite { snk: Box::pin(w1) }),
+            close: None,
+            fd: None,
+        };
+
+        let h2 = s2.wrap();
+
+        match tx.send_async(rhai::Dynamic::from(h2)).await {
+            Ok(()) => {}
+            Err(e) => {
+                error!("Failed to connect to a registry datagrams socket");
+                return Err(e.into());
+            }
+        }
+
+        debug!(s=?s1, "connected");
+
+        let h1 = s1.wrap();
+
+        callback_and_continue::<(Handle<DatagramSocket>,)>(the_scenario, continuation, (h1,)).await;
+        Ok(())
+    }
+    .instrument(span)
+    .wrap())
+}
+
 //@ Listen for intra-Websocat datagram socket connections on a specified virtual address
 fn listen_registry_datagrams(
     ctx: NativeCallContext,
@@ -332,4 +400,5 @@ pub fn register(engine: &mut Engine) {
     engine.register_fn("listen_registry_stream", listen_registry_stream);
     engine.register_fn("connect_registry_stream", connect_registry_stream);
     engine.register_fn("listen_registry_datagrams", listen_registry_datagrams);
+    engine.register_fn("connect_registry_datagrams", connect_registry_datagrams);
 }

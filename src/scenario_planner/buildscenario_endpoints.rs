@@ -133,6 +133,15 @@ impl Endpoint {
                 env.printer.increase_indent();
                 Ok(varnam)
             }
+            Endpoint::RegistryDatagramConnect(addr) => {
+                let varnam = env.vars.getnewvarname("reg");
+                env.printer.print_line(&format!(
+                    "connect_registry_datagrams(#{{addr: {a}}}, |{varnam}| {{",
+                    a = StrLit(addr)
+                ));
+                env.printer.increase_indent();
+                Ok(varnam)
+            }
             Endpoint::Mirror { datagram_mode } => {
                 let mbs = env.opts.mirror_bufsize;
                 let varnam = env.vars.getnewvarname("mirror");
@@ -296,7 +305,8 @@ impl Endpoint {
             Endpoint::MockStreamSocket(_) => {}
             Endpoint::RegistryStreamListen(_)
             | Endpoint::RegistryStreamConnect(_)
-            | Endpoint::RegistryDatagramListen(..) => {
+            | Endpoint::RegistryDatagramListen(..)
+            | Endpoint::RegistryDatagramConnect(..) => {
                 env.printer.decrease_indent();
                 env.printer.print_line("})");
             }

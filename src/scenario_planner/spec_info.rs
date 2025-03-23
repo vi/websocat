@@ -75,6 +75,7 @@ impl Endpoint {
             Endpoint::RegistryStreamListen(_) => ByteStream,
             Endpoint::RegistryStreamConnect(_) => ByteStream,
             Endpoint::RegistryDatagramListen(_) => Datarams,
+            Endpoint::RegistryDatagramConnect(_) => Datarams,
             Endpoint::AsyncFd(_) => ByteStream,
             Endpoint::SimpleReuserEndpoint(..) => Datarams,
             Endpoint::ReadFile(..) => ByteStream,
@@ -204,6 +205,7 @@ impl SpecifierStack {
             Endpoint::RegistryStreamListen(..) => !opts.oneshot,
             Endpoint::RegistryStreamConnect(..) => false,
             Endpoint::RegistryDatagramListen(_) => !opts.oneshot,
+            Endpoint::RegistryDatagramConnect(_) => false,
             Endpoint::SimpleReuserEndpoint(..) => false,
             Endpoint::ReadFile(..) => false,
             Endpoint::WriteFile(..) => false,
@@ -293,6 +295,7 @@ impl SpecifierStack {
             } => read.prefers_being_single(opts) || write.prefers_being_single(opts),
             Endpoint::Mirror { .. } => false,
             Endpoint::RegistrySend(..) => false,
+            Endpoint::RegistryDatagramConnect(_) => false,
         };
 
         for x in &self.overlays {

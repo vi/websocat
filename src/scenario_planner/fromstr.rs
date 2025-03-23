@@ -429,6 +429,12 @@ impl ParseStrChunkResult<'_> {
             Ok(ParseStrChunkResult::Endpoint(
                 Endpoint::RegistryDatagramListen(s.to_owned()),
             ))
+        } else if let Some(rest) = x.strip_prefix_many(&["registry-datagram-connect:", "regdg-c:"])
+        {
+            let s: &str = rest.try_into()?;
+            Ok(ParseStrChunkResult::Endpoint(
+                Endpoint::RegistryDatagramConnect(s.to_owned()),
+            ))
         } else if let Some(rest) = x.strip_prefix_many(&["reuse-raw:", "raw-reuse:"]) {
             Ok(ParseStrChunkResult::Overlay {
                 ovl: Overlay::SimpleReuser,
