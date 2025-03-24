@@ -79,24 +79,6 @@ impl WebsocatInvocation {
             );
             }
 
-            let mut opts = String::with_capacity(64);
-            if self.opts.unidirectional {
-                opts.push_str("unidirectional: true,");
-            }
-            if self.opts.unidirectional_reverse {
-                opts.push_str("unidirectional_reverse: true,");
-            }
-            if self.opts.exit_on_eof {
-                opts.push_str("exit_on_eof: true,");
-            }
-            if self.opts.unidirectional_late_drop {
-                opts.push_str("unidirectional_late_drop: true,");
-            }
-            if let Some(ref bs) = self.opts.buffer_size {
-                opts.push_str(&format!("buffer_size_forward: {bs},"));
-                opts.push_str(&format!("buffer_size_reverse: {bs},"));
-            }
-
             if self.opts.exit_after_one_session {
                 env.printer.print_line("sequential([");
                 env.printer.increase_indent();
@@ -156,19 +138,7 @@ impl WebsocatInvocation {
                 env.printer.print_line("}");
             } else {
                 // Usual flow: copy bytes streams / packets from left to right and back.
-                match self.session_socket_type() {
-                    SocketType::ByteStream => {
-                        env.printer
-                            .print_line(&format!("exchange_bytes(#{{{opts}}}, {left}, {right})"));
-                    }
-                    SocketType::Datarams => {
-                        env.printer
-                            .print_line(&format!("exchange_packets(#{{{opts}}}, {left}, {right})"));
-                    }
-                    SocketType::SocketSender => {
-                        anyhow::bail!("Cannot use socketsender socket type here. It must be specified at the right side, without any overlays.")
-                    }
-                }
+                self.print_copier(&mut env, &left, &right)?;
             }
 
             if self.opts.exit_after_one_session {
@@ -201,6 +171,46 @@ impl WebsocatInvocation {
             printer.print_line("}])");
         }
 
+        Ok(())
+    }
+
+    fn print_copier(
+        &self,
+        env: &mut ScenarioPrintingEnvironment<'_>,
+        left: &str,
+        right: &str,
+    ) -> anyhow::Result<()> {
+        let mut opts = String::with_capacity(64);
+        if self.opts.unidirectional {
+            opts.push_str("unidirectional: true,");
+        }
+        if self.opts.unidirectional_reverse {
+            opts.push_str("unidirectional_reverse: true,");
+        }
+        if self.opts.exit_on_eof {
+            opts.push_str("exit_on_eof: true,");
+        }
+        if self.opts.unidirectional_late_drop {
+            opts.push_str("unidirectional_late_drop: true,");
+        }
+        if let Some(ref bs) = self.opts.buffer_size {
+            opts.push_str(&format!("buffer_size_forward: {bs},"));
+            opts.push_str(&format!("buffer_size_reverse: {bs},"));
+        }
+
+        match self.session_socket_type() {
+            SocketType::ByteStream => {
+                env.printer
+                    .print_line(&format!("exchange_bytes(#{{{opts}}}, {left}, {right})"));
+            }
+            SocketType::Datarams => {
+                env.printer
+                    .print_line(&format!("exchange_packets(#{{{opts}}}, {left}, {right})"));
+            }
+            SocketType::SocketSender => {
+                anyhow::bail!("Cannot use socketsender socket type here. It must be specified at the right side, without any overlays.")
+            }
+        }
         Ok(())
     }
 }
