@@ -203,3 +203,11 @@ t_p!(composed2, r#"--compose '('
      ')'
       '&' 
      -bu registry-stream-listen:qqq reuse-raw:chunks:mock_stream_socket:'W ABC|W 0123' --global-timeout-ms=500"#);
+
+t!(filter1, r#"-bu mock_stream_socket:'R ABC' mock_stream_socket:'W DEF' --filter=mock_stream_socket:'W ABC|R DEF' "#);
+t!(filter2, r#"-bu mock_stream_socket:'R ABC' mock_stream_socket:'W ABC' --filter-reverse=mock_stream_socket:'' "#);
+t!(filter3, r#"-bU mock_stream_socket:'W DEF' mock_stream_socket:'R ABC' --filter-reverse=mock_stream_socket:'W ABC|R DEF' "#);
+t!(filter4, r#"-bU mock_stream_socket:'W GHI' mock_stream_socket:'R ABC' --filter-reverse=mock_stream_socket:'W ABC|R DEF' --filter-reverse=mock_stream_socket:'W DEF|R GHI' "#);
+t!(filter5, r#"-b mock_stream_socket:'R X0|W X3' mock_stream_socket:'W X1|R X2' --filter=mock_stream_socket:'W X0|R X1' --filter-reverse=mock_stream_socket:'W X2|R X3' "#);
+t!(filter6, r#"-bE mock_stream_socket:'R X0|W X3' mock_stream_socket:'W X1|R X2' --filter=mock_stream_socket:'W X0|R X1' --filter-reverse=mock_stream_socket:'W X2|R X3' "#);
+t!(filter7, r#"-b chunks:mock_stream_socket:'R X0|W X4' mock_stream_socket:'W X1|R X2' --filter=mock_stream_socket:'W X0|R X1' --filter-reverse=mock_stream_socket:'W X2|R X3' --filter-reverse=mock_stream_socket:'W X3|R X4' "#);
