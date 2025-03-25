@@ -354,6 +354,14 @@ Options:
       --write-splitoff-omit-shutdown
           Do not write-shutdown the read part of a `write-splitoff:` overlay
 
+      --filter <FILTER>
+          Pass traffic through this socket prior to transfer data from left to right specifiers.
+          
+          The filter itself can be any specifier (including with overlays), e.g. `--filter=lines:tcp:127.0.0.1:1234`
+
+      --filter-reverse <FILTER_REVERSE>
+          Pass traffic through this socket prior to transfer data from right to left specifiers
+
   -h, --help
           Print help (see a summary with '-h')
 

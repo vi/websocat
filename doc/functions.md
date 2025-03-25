@@ -474,6 +474,7 @@ Forward unframed bytes from source to sink
 
 Parameters:
 
+* bufsize (`i64`) - buffer size to use for copying
 * from (`StreamRead`) - stream source to read from
 * to (`StreamWrite`) - stream sink to write to
 
@@ -485,6 +486,7 @@ Copy packets from one datagram stream (half-socket) to a datagram sink.
 
 Parameters:
 
+* bufsize (`i64`)
 * from (`DatagramRead`)
 * to (`DatagramWrite`)
 
@@ -1310,6 +1312,28 @@ Parameters:
 * program_name (`OsString`)
 
 Returns `Command`
+
+## swap_readers
+
+Exchange read or source parts of two stream or two datagram sockets.
+
+Parameters:
+
+* a (`Dynamic`)
+* b (`Dynamic`)
+
+Returns `()`
+
+## swap_writers
+
+Exchange write or sink parts of two stream or two datagram sockets.
+
+Parameters:
+
+* a (`Dynamic`)
+* b (`Dynamic`)
+
+Returns `()`
 
 ## system
 
