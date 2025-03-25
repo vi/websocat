@@ -21,6 +21,8 @@ use super::{types::DatagramSocket, utils1::RhResult};
 
 //@ Forward unframed bytes from source to sink
 fn copy_bytes(
+    //@ buffer size to use for copying
+    bufsize: i64,
     //@ stream source to read from
     from: Handle<StreamRead>,
     //@ stream sink to write to
@@ -57,7 +59,9 @@ fn copy_bytes(
                 }
             }
 
-            let fut = tokio::io::copy(&mut r.reader, &mut w.writer);
+            let mut rb = tokio::io::BufReader::with_capacity(bufsize as usize, r.reader);
+            let fut = copy_buf_and_shutdown(&mut rb, &mut w.writer);
+
             let fut = fut.instrument(span.clone());
 
             match fut.await {
@@ -391,7 +395,11 @@ impl std::future::Future for CopyPackets {
 }
 
 //@ Copy packets from one datagram stream (half-socket) to a datagram sink.
-fn copy_packets(from: Handle<DatagramRead>, to: Handle<DatagramWrite>) -> Handle<Task> {
+fn copy_packets(
+    bufsize: i64,
+    from: Handle<DatagramRead>,
+    to: Handle<DatagramWrite>,
+) -> Handle<Task> {
     let span = debug_span!("copy_packets");
     debug!(parent: &span, "node created");
     let (f, t) = (from.lut(), to.lut());
@@ -401,7 +409,7 @@ fn copy_packets(from: Handle<DatagramRead>, to: Handle<DatagramWrite>) -> Handle
     }
 
     if let (Some(r), Some(w)) = (f, t) {
-        CopyPackets::new(r, w, span, 65536)
+        CopyPackets::new(r, w, span, bufsize as usize)
             .map(|npkts| debug!(npkts, "finished copying packets"))
             .wrap_noerr()
     } else {

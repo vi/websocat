@@ -57,7 +57,17 @@ impl WebsocatInvocation {
         }
 
         left = self.stacks.left.begin_print(&mut env)?;
-        if self.stacks.right.provides_socket_type() == SocketType::SocketSender {
+
+        let socketsender_mode =
+            self.stacks.right.provides_socket_type() == SocketType::SocketSender;
+        let with_filters =
+            !(self.stacks.filter.is_empty() && self.stacks.filter_reverse.is_empty());
+
+        if socketsender_mode && with_filters {
+            anyhow::bail!("--filter/--filter-reverse or overlays are not comatible with socket senders like `registry-send:`");
+        }
+
+        if socketsender_mode {
             // Special mode: skip most of the things and just send this socket to other Websocat session
             match self.stacks.right.innermost {
                 Endpoint::RegistrySend(addr) => {
@@ -68,7 +78,113 @@ impl WebsocatInvocation {
             }
         } else {
             env.position = SpecifierPosition::Right;
-            right = self.stacks.right.begin_print(&mut env)?;
+            if with_filters {
+                let rightslotvar = env.vars.getnewvarname("rightslot");
+                let multisock = env.vars.getnewvarname("multisock");
+                env.printer
+                    .print_line(&format!("init_in_parallel([ |{rightslotvar}| {{"));
+                env.printer.increase_indent();
+                let rightsock = self.stacks.right.begin_print(&mut env)?;
+
+                env.printer
+                    .print_line(&format!("{rightslotvar}.send({rightsock})"));
+
+                self.stacks.right.end_print(&mut env)?;
+                env.printer.decrease_indent();
+
+                struct FilterStatus<'a> {
+                    reverse: bool,
+                    stack: &'a SpecifierStack,
+                    index: usize,
+                    slotvar: String,
+                }
+
+                let mut filters: Vec<FilterStatus> =
+                    Vec::with_capacity(self.stacks.filter.len() + self.stacks.filter_reverse.len());
+
+                let mut index = 1;
+                for filt in &self.stacks.filter {
+                    let filterslot = env.vars.getnewvarname("filterslot");
+                    filters.push(FilterStatus {
+                        reverse: false,
+                        stack: filt,
+                        index,
+                        slotvar: filterslot,
+                    });
+                    index += 1;
+                }
+                for filt in &self.stacks.filter_reverse {
+                    let filterslot = env.vars.getnewvarname("rfilterslot");
+                    filters.push(FilterStatus {
+                        reverse: true,
+                        stack: filt,
+                        index,
+                        slotvar: filterslot,
+                    });
+                    index += 1;
+                }
+
+                for fi in &filters {
+                    let filterslot = &fi.slotvar;
+                    env.printer.print_line(&format!("}},|{filterslot}| {{"));
+                    env.printer.increase_indent();
+
+                    let filtervar = fi.stack.begin_print(&mut env)?;
+                    env.printer
+                        .print_line(&format!("{filterslot}.send({filtervar})"));
+
+                    fi.stack.end_print(&mut env)?;
+
+                    env.printer.decrease_indent();
+                }
+
+                env.printer.print_line(&format!("}}], |{multisock}| {{"));
+                env.printer.increase_indent();
+
+                for fi in filters.iter().rev() {
+                    let index = fi.index;
+                    if !fi.reverse {
+                        env.printer.print_line(&format!(
+                            "swap_writers({multisock}[0], {multisock}[{index}]);"
+                        ));
+                    }
+                }
+                for fi in filters.iter() {
+                    let index = fi.index;
+                    if fi.reverse {
+                        env.printer.print_line(&format!(
+                            "swap_readers({multisock}[0], {multisock}[{index}]);"
+                        ));
+                    }
+                }
+
+                if env.opts.exit_on_eof {
+                    env.printer.print_line(&format!("race(["));
+                } else {
+                    env.printer.print_line(&format!("parallel(["));
+                }
+                env.printer.increase_indent();
+
+                let bufsize = env.opts.buffer_size.unwrap_or(8192);
+                for fi in &filters {
+                    let index = fi.index;
+                    match fi.stack.provides_socket_type() {
+                        SocketType::ByteStream => {
+                            env.printer.print_line(&format!("copy_bytes({bufsize}, take_read_part({multisock}[{index}]), take_write_part({multisock}[{index}])),"));
+                        }
+                        SocketType::Datarams => {
+                            env.printer.print_line(&format!("copy_packets({bufsize}, take_source_part({multisock}[{index}]), take_sink_part({multisock}[{index}])),"));
+                        }
+                        SocketType::SocketSender => {
+                            anyhow::bail!("--filter does not support socket consumers")
+                        }
+                    }
+                }
+
+                right = format!("{multisock}[0]")
+            } else {
+                right = self.stacks.right.begin_print(&mut env)?;
+            }
 
             if self.opts.exit_on_hangup {
                 env.printer.print_line(&format!(
@@ -146,7 +262,15 @@ impl WebsocatInvocation {
                 env.printer.decrease_indent();
             }
 
-            self.stacks.right.end_print(&mut env)?;
+            if with_filters {
+                env.printer.decrease_indent();
+                env.printer.print_line(&format!("])"));
+
+                env.printer.decrease_indent();
+                env.printer.print_line("})");
+            } else {
+                self.stacks.right.end_print(&mut env)?;
+            }
             env.position = SpecifierPosition::Left;
         }
         self.stacks.left.end_print(&mut env)?;

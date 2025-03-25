@@ -75,10 +75,16 @@ impl WebsocatInvocationStacks {
         if let Some(ref mut splt) = self.write_splitoff {
             f(splt)?;
         }
+        for flt in &mut self.filter {
+            f(flt)?;
+        }
+        for flt in &mut self.filter_reverse {
+            f(flt)?;
+        }
         Ok(())
     }
 
-    fn check_if_any_stack(&self, mut f: impl FnMut(&SpecifierStack) -> bool) -> bool {
+    fn check_if_any_stack(&self, f: fn(&SpecifierStack) -> bool) -> bool {
         f(&self.left)
             || f(&self.right)
             || if let Some(ref splt) = self.write_splitoff {
@@ -86,6 +92,8 @@ impl WebsocatInvocationStacks {
             } else {
                 false
             }
+            || self.filter.iter().any(f)
+            || self.filter_reverse.iter().any(f)
     }
 }
 impl WebsocatInvocation {
@@ -123,6 +131,17 @@ impl WebsocatInvocation {
             working_copying_type = SocketType::Datarams;
         }
 
+        for x in &self.stacks.filter {
+            if x.provides_socket_type().is_dgrms() {
+                working_copying_type = SocketType::Datarams;
+            }
+        }
+        for x in &self.stacks.filter_reverse {
+            if x.provides_socket_type().is_dgrms() {
+                working_copying_type = SocketType::Datarams;
+            }
+        }
+
         if working_copying_type.is_bstrm() {
             // everything is already ByteStream
             return Ok(());
@@ -141,6 +160,17 @@ impl WebsocatInvocation {
         }
         if right_typ.is_bstrm() {
             self.stacks.right.overlays.push(overlay_to_insert());
+        }
+
+        for x in &mut self.stacks.filter {
+            if x.provides_socket_type().is_bstrm() {
+                x.overlays.push(overlay_to_insert());
+            }
+        }
+        for x in &mut self.stacks.filter_reverse {
+            if x.provides_socket_type().is_bstrm() {
+                x.overlays.push(overlay_to_insert());
+            }
         }
 
         let final_left_type = self.stacks.left.provides_socket_type();

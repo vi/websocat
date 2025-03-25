@@ -248,7 +248,7 @@ pub enum Overlay {
 pub enum SpecifierPosition {
     /// First positional argument of Websocat CLI, for listeners and connectors
     Left,
-    /// First positional argument of Websocat CLI, for connectors
+    /// First positional argument of Websocat CLI, for connectors; also for other misc uses
     Right,
 }
 
@@ -278,6 +278,8 @@ pub struct WebsocatInvocationStacks {
     pub left: SpecifierStack,
     pub right: SpecifierStack,
     pub write_splitoff: Option<SpecifierStack>,
+    pub filter: Vec<SpecifierStack>,
+    pub filter_reverse: Vec<SpecifierStack>,
 }
 
 pub struct WebsocatInvocation {

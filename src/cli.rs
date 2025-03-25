@@ -481,6 +481,16 @@ pub struct WebsocatArgs {
     /// Do not write-shutdown the read part of a `write-splitoff:` overlay.
     #[arg(long)]
     pub write_splitoff_omit_shutdown: bool,
+
+    /// Pass traffic through this socket prior to transfer data from left to right specifiers.
+    ///
+    /// The filter itself can be any specifier (including with overlays), e.g. `--filter=lines:tcp:127.0.0.1:1234`
+    #[arg(long)]
+    pub filter: Vec<OsString>,
+
+    /// Pass traffic through this socket prior to transfer data from right to left specifiers
+    #[arg(long)]
+    pub filter_reverse: Vec<OsString>,
 }
 
 /// Subset of command line arguments that describes the whole Websocat operation even when `--compose` sub-scenarios are used.

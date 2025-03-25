@@ -153,6 +153,61 @@ fn put_hangup_part(ctx: NativeCallContext, h: Dynamic, x: Handle<Hangup>) -> RhR
     Err(ctx.err("take_hangup_part expects StreamSocket or DatagramSocket as argument"))
 }
 
+//@ Exchange read or source parts of two stream or two datagram sockets.
+fn swap_readers(ctx: NativeCallContext, a: Dynamic, b: Dynamic) -> RhResult<()> {
+    if let (Some(a), Some(b)) = (
+        a.clone().try_cast::<Handle<StreamSocket>>(),
+        b.clone().try_cast::<Handle<StreamSocket>>(),
+    ) {
+        let (mut a, aa) = ctx.lutbar2(a)?;
+        let (mut b, bb) = ctx.lutbar2(b)?;
+        std::mem::swap(&mut a.read, &mut b.read);
+        aa.put(a);
+        bb.put(b);
+    } else if let (Some(a), Some(b)) = (
+        a.clone().try_cast::<Handle<DatagramSocket>>(),
+        b.clone().try_cast::<Handle<DatagramSocket>>(),
+    ) {
+        let (mut a, aa) = ctx.lutbar2(a)?;
+        let (mut b, bb) = ctx.lutbar2(b)?;
+        std::mem::swap(&mut a.read, &mut b.read);
+        aa.put(a);
+        bb.put(b);
+    } else {
+        return Err(ctx.err(
+            "swap_readers's arguments must be either two stream sockets or two datagram sockets",
+        ));
+    }
+    Ok(())
+}
+//@ Exchange write or sink parts of two stream or two datagram sockets.
+fn swap_writers(ctx: NativeCallContext, a: Dynamic, b: Dynamic) -> RhResult<()> {
+    if let (Some(a), Some(b)) = (
+        a.clone().try_cast::<Handle<StreamSocket>>(),
+        b.clone().try_cast::<Handle<StreamSocket>>(),
+    ) {
+        let (mut a, aa) = ctx.lutbar2(a)?;
+        let (mut b, bb) = ctx.lutbar2(b)?;
+        std::mem::swap(&mut a.write, &mut b.write);
+        aa.put(a);
+        bb.put(b);
+    } else if let (Some(a), Some(b)) = (
+        a.clone().try_cast::<Handle<DatagramSocket>>(),
+        b.clone().try_cast::<Handle<DatagramSocket>>(),
+    ) {
+        let (mut a, aa) = ctx.lutbar2(a)?;
+        let (mut b, bb) = ctx.lutbar2(b)?;
+        std::mem::swap(&mut a.write, &mut b.write);
+        aa.put(a);
+        bb.put(b);
+    } else {
+        return Err(ctx.err(
+            "swap_writers's arguments must be either two stream sockets or two datagram sockets",
+        ));
+    }
+    Ok(())
+}
+
 //@ A task that immediately finishes
 pub fn dummytask() -> Handle<Task> {
     async move {}.wrap_noerr()
@@ -481,6 +536,9 @@ pub fn register(engine: &mut Engine) {
     engine.register_fn("put_source_part", put_source_part);
     engine.register_fn("put_sink_part", put_sink_part);
     engine.register_fn("put_hangup_part", put_hangup_part);
+
+    engine.register_fn("swap_readers", swap_readers);
+    engine.register_fn("swap_writers", swap_writers);
 
     engine.register_fn("dummy_task", dummytask);
     engine.register_fn("sleep_ms", sleep_ms);

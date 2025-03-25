@@ -20,7 +20,9 @@ impl ScenarioPrinter {
     }
 
     pub fn print_line(&mut self, s: &str) {
-        for _ in 0..self.indent {
+        // 1000 to prevent excessible printing (i.e. memory consumption) in case
+        // of a bug where excessible `decrease_indent` overflowed the usize.
+        for _ in 0..(self.indent.min(1000)) {
             self.out.push_str("  ");
         }
         self.out.push_str(s);
