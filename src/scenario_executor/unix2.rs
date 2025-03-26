@@ -151,7 +151,7 @@ fn connect_seqpacket(
         #[serde(default)]
         text: bool,
 
-        //@ Default defragmenter buffer limit
+        //@ Defragmenter buffer limit
         #[serde(default = "default_max_send_datagram_size")]
         max_send_datagram_size: usize,
     }
@@ -252,7 +252,7 @@ fn listen_seqpacket(
         #[serde(default)]
         oneshot: bool,
 
-        //@ Default defragmenter buffer limit
+        //@ Defragmenter buffer limit
         #[serde(default = "default_max_send_datagram_size")]
         max_send_datagram_size: usize,
     }

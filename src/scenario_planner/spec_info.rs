@@ -155,6 +155,7 @@ impl Overlay {
             Overlay::LengthPrefixedChunks => Datarams,
             Overlay::SimpleReuser => Datarams,
             Overlay::WriteSplitoff => return None,
+            Overlay::Defragment => Datarams,
         })
     }
     /// Socket type this overlay needs as an input. None means it handles both types.
@@ -182,6 +183,7 @@ impl Overlay {
             Overlay::LengthPrefixedChunks => ByteStream,
             Overlay::SimpleReuser => Datarams,
             Overlay::WriteSplitoff => return None,
+            Overlay::Defragment => Datarams,
         })
     }
 }
@@ -259,6 +261,7 @@ impl SpecifierStack {
                 Overlay::WriteBuffer => {}
                 Overlay::SimpleReuser => multiconn = false,
                 Overlay::WriteSplitoff => multiconn = false,
+                Overlay::Defragment => {}
             }
         }
 
@@ -340,6 +343,7 @@ impl SpecifierStack {
                 Overlay::WriteBuffer => {}
                 Overlay::SimpleReuser => singler = false,
                 Overlay::WriteSplitoff => {}
+                Overlay::Defragment => {}
             }
         }
 

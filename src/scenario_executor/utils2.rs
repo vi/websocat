@@ -25,7 +25,7 @@ pub struct Defragmenter {
 pub enum DefragmenterAddChunkResult<'a> {
     DontSendYet,
     /// Refers either to `add_chunk`'s input or to internal buffer.
-    Continunous(&'a [u8]),
+    Continunous(&'a mut [u8]),
     /// Attempted to exceede the max_size limit.
     /// Returned buffer is remembered data (not including new content supplied to `add_chunk`)
     SizeLimitExceeded(&'a [u8]),
@@ -62,12 +62,12 @@ impl Defragmenter {
             internal_buffer.extend_from_slice(buf);
             return DefragmenterAddChunkResult::DontSendYet;
         }
-        let data: &[u8] = if let Some(ref mut x) = this.incomplete_outgoing_datagram_buffer {
+        let data: &mut [u8] = if let Some(ref mut x) = this.incomplete_outgoing_datagram_buffer {
             if !this.incomplete_outgoing_datagram_buffer_complete {
                 x.extend_from_slice(buf);
                 this.incomplete_outgoing_datagram_buffer_complete = true;
             }
-            &x[..]
+            &mut x[..]
         } else {
             if buf.len() > this.max_size {
                 return DefragmenterAddChunkResult::SizeLimitExceeded(b"");

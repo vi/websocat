@@ -497,6 +497,7 @@ impl SpecifierStack {
                 Overlay::LengthPrefixedChunks => (),
                 Overlay::SimpleReuser => (),
                 Overlay::WriteSplitoff => (),
+                Overlay::Defragment => (),
             }
         }
         if let Some(i) = index {

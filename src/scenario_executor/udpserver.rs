@@ -285,7 +285,7 @@ fn udp_server(
         #[serde(default)]
         inhibit_send_errors: bool,
 
-        //@ Default defragmenter buffer limit
+        //@ Defragmenter buffer limit
         #[serde(default = "default_max_send_datagram_size")]
         max_send_datagram_size: usize,
     }

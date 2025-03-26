@@ -155,6 +155,20 @@ impl Overlay {
             Overlay::WriteSplitoff => {
                 panic!("WriteSplitoff should be converted into an endpoint");
             }
+            Overlay::Defragment => {
+                let varnam = env.vars.getnewvarname("defragment");
+                let mut oo = String::with_capacity(48);
+
+                oo.push_str(&format!(
+                    "max_send_datagram_size: {},",
+                    env.opts.defragment_max_size
+                ));
+
+                env.printer.print_line(&format!(
+                    "let {varnam} = defragment_writes(#{{{oo}}}, {inner_var});"
+                ));
+                Ok(varnam)
+            }
         }
     }
     pub(super) fn end_print(&self, env: &mut ScenarioPrintingEnvironment<'_>) {
@@ -181,6 +195,7 @@ impl Overlay {
             Overlay::WriteSplitoff => {
                 panic!("WriteSplitoff should be converted into an endpoint");
             }
+            Overlay::Defragment => (),
         }
     }
 }

@@ -96,6 +96,8 @@ pub enum Endpoint {
     //@ Use specified inherited file descriptor for reading and writing, assuming it supports `read(2)` and `writev(2)` and can be put in epoll (or analogue).
     //@
     //@ Trying to specify unexisting FD, especially low-numbered (e.g from 3 to 20) may lead to undefined behaviour.
+    //@
+    //@ Gives a StreamSocket. If you want a packet-oriented socket, use `defragment:chunks:async-fd:X` overlay chain.
     AsyncFd(i32),
 
     //@ Connect to specified UNIX SOCK_SEQPACKET socket by path
@@ -242,6 +244,9 @@ pub enum Overlay {
 
     //@ Only read from inner specifier, route writes to other, CLI-specified Socket
     WriteSplitoff,
+
+    //@ Defragment potential partial messages into complete messages.
+    Defragment,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

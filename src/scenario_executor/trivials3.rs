@@ -1,19 +1,23 @@
-use std::net::SocketAddr;
+use std::{
+    net::SocketAddr,
+    task::{ready, Poll},
+};
 
 use futures::FutureExt;
 use rhai::{Dynamic, Engine, FnPtr, NativeCallContext};
-use tracing::{debug, debug_span, Instrument};
+use tracing::{debug, debug_span, warn, Instrument};
 
 use crate::scenario_executor::{
     scenario::callback_and_continue,
-    types::{Handle, Slot},
+    types::{BufferFlag, Handle, Slot},
     utils1::HandleExt,
 };
 
 use super::{
     scenario::ScenarioAccess,
-    types::{DatagramSocket, Hangup, Promise, StreamSocket, Task},
+    types::{DatagramSocket, DatagramWrite, Hangup, PacketWrite, Promise, StreamSocket, Task},
     utils1::{ExtractHandleOrFail, RhResult, SimpleErr},
+    utils2::{Defragmenter, DefragmenterAddChunkResult},
 };
 
 pub struct TriggerableEventTrigger {
@@ -350,6 +354,73 @@ fn combine_read_and_write_datagram(
     Ok(Some(s).wrap())
 }
 
+struct DefragmentWrites {
+    inner: DatagramWrite,
+    defragmenter: Defragmenter,
+}
+
+impl PacketWrite for DefragmentWrites {
+    fn poll_write(
+        self: std::pin::Pin<&mut Self>,
+        cx: &mut std::task::Context<'_>,
+        buf: &mut [u8],
+        flags: super::types::BufferFlags,
+    ) -> Poll<std::io::Result<()>> {
+        let this = self.get_mut();
+
+        match this.defragmenter.add_chunk(buf, flags) {
+            DefragmenterAddChunkResult::DontSendYet => return Poll::Ready(Ok(())),
+            DefragmenterAddChunkResult::Continunous(newbuf) => {
+                let ret = ready!(this.inner.snk.as_mut().poll_write(
+                    cx,
+                    newbuf,
+                    flags - BufferFlag::NonFinalChunk
+                ));
+                this.defragmenter.clear();
+                return Poll::Ready(ret);
+            }
+            DefragmenterAddChunkResult::SizeLimitExceeded(_) => {
+                warn!("Too large datagram");
+                return Poll::Ready(Err(std::io::ErrorKind::InvalidData.into()));
+            }
+        }
+    }
+}
+
+const fn default_max_send_datagram_size() -> usize {
+    655360
+}
+
+//@ Buffer up fragmets of messages written to this overlay and only issue complete writes to inner socket.
+fn defragment_writes(
+    ctx: NativeCallContext,
+    opts: Dynamic,
+    inner: Handle<DatagramSocket>,
+) -> RhResult<Handle<DatagramSocket>> {
+    #[derive(serde::Deserialize)]
+    struct Opts {
+        //@ Defragmenter buffer limit
+        #[serde(default = "default_max_send_datagram_size")]
+        max_send_datagram_size: usize,
+    }
+    let opts: Opts = rhai::serde::from_dynamic(&opts)?;
+    let mut s = ctx.lutbar(inner)?;
+
+    if let Some(w) = s.write.take() {
+        s.write = Some(DatagramWrite {
+            snk: Box::pin(DefragmentWrites {
+                inner: w,
+                defragmenter: Defragmenter::new(opts.max_send_datagram_size),
+            }),
+        });
+    } else {
+        warn!("defragment_writers is used on an incomplete socket without a writing part");
+    }
+    debug!(?s, "defragment_writes");
+    let h = Some(s).wrap();
+    Ok(h)
+}
+
 pub fn register(engine: &mut Engine) {
     engine.register_fn("triggerable_event_create", triggerable_event_create);
     engine.register_fn("take_hangup", triggerable_event_take_hangup);
@@ -372,4 +443,5 @@ pub fn register(engine: &mut Engine) {
         "combine_read_and_write_datagram",
         combine_read_and_write_datagram,
     );
+    engine.register_fn("defragment_writes", defragment_writes);
 }

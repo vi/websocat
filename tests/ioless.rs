@@ -211,3 +211,5 @@ t!(filter4, r#"-bU mock_stream_socket:'W GHI' mock_stream_socket:'R ABC' --filte
 t!(filter5, r#"-b mock_stream_socket:'R X0|W X3' mock_stream_socket:'W X1|R X2' --filter=mock_stream_socket:'W X0|R X1' --filter-reverse=mock_stream_socket:'W X2|R X3' "#);
 t!(filter6, r#"-bE mock_stream_socket:'R X0|W X3' mock_stream_socket:'W X1|R X2' --filter=mock_stream_socket:'W X0|R X1' --filter-reverse=mock_stream_socket:'W X2|R X3' "#);
 t!(filter7, r#"-b chunks:mock_stream_socket:'R X0|W X4' mock_stream_socket:'W X1|R X2' --filter=mock_stream_socket:'W X0|R X1' --filter-reverse=mock_stream_socket:'W X2|R X3' --filter-reverse=mock_stream_socket:'W X3|R X4' "#);
+
+t!(defragment1, r#"-bu --lengthprefixed-nbytes=1 --lengthprefixed-continuations lengthprefixed:mss:'R \x83ABC|R \x02DE' defragment:lengthprefixed:mss:'W \x05ABCDE'"#);

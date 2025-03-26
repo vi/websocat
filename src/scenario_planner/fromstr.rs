@@ -408,7 +408,7 @@ impl ParseStrChunkResult<'_> {
                 rest,
             })
         } else if let Some(rest) =
-            x.strip_prefix_many(&["mock_stream_socket:", "mock-stream-socket:"])
+            x.strip_prefix_many(&["mock_stream_socket:", "mock-stream-socket:", "mss:"])
         {
             let s: &str = rest.try_into()?;
             Ok(ParseStrChunkResult::Endpoint(Endpoint::MockStreamSocket(
@@ -482,6 +482,11 @@ impl ParseStrChunkResult<'_> {
             Ok(ParseStrChunkResult::Endpoint(Endpoint::RegistrySend(
                 s.to_owned(),
             )))
+        } else if let Some(rest) = x.strip_prefix_many(&["defragment:"]) {
+            Ok(ParseStrChunkResult::Overlay {
+                ovl: Overlay::Defragment,
+                rest,
+            })
         } else {
             anyhow::bail!("Unknown specifier: {x:?}")
         }
