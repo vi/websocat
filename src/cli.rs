@@ -491,6 +491,14 @@ pub struct WebsocatArgs {
     /// Pass traffic through this socket prior to transfer data from right to left specifiers
     #[arg(long)]
     pub filter_reverse: Vec<OsString>,
+
+    /// Force using a file descriptor for `async-fd:` even when it cannot be registered for events.
+    /// 
+    /// In case of EWOULDBLOCK Websocat would wait for some short time in a loop.
+    /// 
+    /// In some cases the whole Websocat process may be blocked.
+    #[arg(long)]
+    pub async_fd_force: bool,
 }
 
 /// Subset of command line arguments that describes the whole Websocat operation even when `--compose` sub-scenarios are used.

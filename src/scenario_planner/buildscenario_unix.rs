@@ -290,8 +290,10 @@ impl Endpoint {
             Endpoint::AsyncFd(fd) => {
                 let asyncfd = env.vars.getnewvarname("asyncfd");
 
+                let force = env.opts.async_fd_force;
+
                 env.printer
-                    .print_line(&format!("let {asyncfd} = async_fd({fd});"));
+                    .print_line(&format!("let {asyncfd} = async_fd({fd}, {force});"));
                 Ok(asyncfd)
             }
             _ => panic!(),

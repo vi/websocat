@@ -1,7 +1,9 @@
 use std::{
     ffi::{c_void, OsString},
-    io::IoSlice,
-    os::fd::RawFd,
+    future::Future,
+    io::{ErrorKind, IoSlice},
+    os::fd::{AsRawFd, OwnedFd, RawFd},
+    pin::Pin,
     sync::Arc,
     task::{ready, Poll},
     time::Duration,
@@ -98,7 +100,7 @@ impl PacketWrite for SeqpacketRecvAdapter {
             DefragmenterAddChunkResult::Continunous(x) => x,
             DefragmenterAddChunkResult::SizeLimitExceeded(_x) => {
                 warn!("Exceeded maximum allowed outgoing datagram size. Closing this session.");
-                return Poll::Ready(Err(std::io::ErrorKind::InvalidData.into()));
+                return Poll::Ready(Err(ErrorKind::InvalidData.into()));
             }
         };
 
@@ -377,15 +379,26 @@ fn listen_seqpacket(
     .wrap())
 }
 
+enum MyAsyncFdWay {
+    Proper(AsyncFd<FileDesc>),
+    Hacky {
+        fd: OwnedFd,
+        read_sleeper: Option<Pin<Box<tokio::time::Sleep>>>,
+        write_sleeper: Option<Pin<Box<tokio::time::Sleep>>>,
+    },
+}
 struct MyAsyncFd {
-    f: AsyncFd<FileDesc>,
+    inner: MyAsyncFdWay,
     need_to_restore_blocking_mode: bool,
 }
 
 impl Drop for MyAsyncFd {
     fn drop(&mut self) {
         if self.need_to_restore_blocking_mode {
-            let x = self.f.get_ref().as_raw_fd();
+            let x = match &self.inner {
+                MyAsyncFdWay::Proper(async_fd) => async_fd.get_ref().as_raw_fd(),
+                MyAsyncFdWay::Hacky { fd, .. } => fd.as_raw_fd(),
+            };
 
             unsafe {
                 let mut flags = fcntl(x, F_GETFL, 0);
@@ -405,12 +418,12 @@ impl MyAsyncFd {
     /// # Safety
     ///
     /// Do not supply file descriptors that are not inherited from parent process, received from UNIX socket or exposed as raw FDs.
-    unsafe fn new(fd: RawFd) -> std::io::Result<Self> {
+    unsafe fn new(fd: RawFd, force: bool) -> std::io::Result<Self> {
         let need_to_restore_blocking_mode = unsafe {
             let mut flags = fcntl(fd, F_GETFL, 0);
             if flags == -1 {
                 error!("Failed to get flags of a user-specified file descriptor");
-                return Err(std::io::ErrorKind::Other.into());
+                return Err(ErrorKind::Other.into());
             }
             if flags & O_NONBLOCK != 0 {
                 false
@@ -418,17 +431,37 @@ impl MyAsyncFd {
                 flags |= O_NONBLOCK;
                 if -1 == fcntl(fd, F_SETFL, flags) {
                     error!("Failed to set flags of a user-specified file descriptor");
-                    return Err(std::io::ErrorKind::Other.into());
+                    return Err(ErrorKind::Other.into());
                 }
                 true
             }
         };
+        let inner = match AsyncFd::try_new(FileDesc::from_raw_fd(fd)) {
+            Ok(x) => MyAsyncFdWay::Proper(x),
+            Err(e) => {
+                if force {
+                    let (fdesc, e) = e.into_parts();
+                    debug!("Failed to register FD {fd:?} for async events: {e}");
+
+                    MyAsyncFdWay::Hacky {
+                        fd: fdesc.into_fd(),
+                        read_sleeper: None,
+                        write_sleeper: None,
+                    }
+                } else {
+                    warn!("Failed to register FD {fd:?} for async events");
+                    return Err(e.into_parts().1);
+                }
+            }
+        };
         Ok(MyAsyncFd {
-            f: AsyncFd::new(FileDesc::from_raw_fd(fd))?,
+            inner,
             need_to_restore_blocking_mode,
         })
     }
 }
+
+const FORCED_ASYNC_FD_SLEEP_POLLING: Duration = Duration::from_millis(77);
 
 impl AsyncRead for MyAsyncFd {
     fn poll_read(
@@ -436,30 +469,71 @@ impl AsyncRead for MyAsyncFd {
         cx: &mut std::task::Context<'_>,
         buf: &mut tokio::io::ReadBuf<'_>,
     ) -> Poll<std::io::Result<()>> {
+        let this = self.get_mut();
         trace!("custom async fd: read");
-        let f = &mut self.get_mut().f;
-        loop {
-            let mut ready_guard = ready!(f.poll_read_ready(cx)?);
 
-            match ready_guard.try_io(|inner| {
+        let finish_reading = |buf: &mut tokio::io::ReadBuf<'_>, mut n: usize| {
+            if n > buf.capacity() {
+                warn!("read syscall for async-fd: returned unrealistacally large number of bytes");
+                n = buf.capacity();
+            }
+            unsafe {
+                buf.assume_init(n);
+            }
+            buf.advance(n);
+        };
+
+        match this.inner {
+            MyAsyncFdWay::Proper(ref mut f) => loop {
+                let mut ready_guard = ready!(f.poll_read_ready(cx)?);
+
+                match ready_guard.try_io(|inner| {
+                    let ptr = unsafe { buf.unfilled_mut() }.as_ptr() as *mut c_void;
+                    let len = buf.capacity();
+                    match unsafe { read(inner.get_ref().as_raw_fd(), ptr, len) } {
+                        x if x < 0 => Err(std::io::Error::last_os_error()),
+                        x => Ok(x as usize),
+                    }
+                }) {
+                    Ok(Ok(n)) => {
+                        finish_reading(buf, n);
+
+                        return Poll::Ready(Ok(()));
+                    }
+                    Ok(Err(e)) => return Poll::Ready(Err(e)),
+                    Err(_would_block) => continue,
+                }
+            },
+            MyAsyncFdWay::Hacky {
+                ref mut fd,
+                ref mut read_sleeper,
+                ..
+            } => loop {
+                if let Some(sl) = read_sleeper.as_mut() {
+                    ready!(sl.as_mut().poll(cx));
+                    *read_sleeper = None;
+                }
+
                 let ptr = unsafe { buf.unfilled_mut() }.as_ptr() as *mut c_void;
                 let len = buf.capacity();
-                match unsafe { read(inner.get_ref().as_raw_fd(), ptr, len) } {
-                    x if x < 0 => Err(std::io::Error::last_os_error()),
-                    x => Ok(x as usize),
-                }
-            }) {
-                Ok(Ok(n)) => {
-                    unsafe {
-                        buf.assume_init(n);
-                    }
-                    buf.advance(n);
 
-                    return Poll::Ready(Ok(()));
+                match unsafe { read(fd.as_raw_fd(), ptr, len) } {
+                    x if x < 0 => {
+                        let e = std::io::Error::last_os_error();
+                        if e.kind() == ErrorKind::WouldBlock {
+                            *read_sleeper =
+                                Some(Box::pin(tokio::time::sleep(FORCED_ASYNC_FD_SLEEP_POLLING)));
+                            continue;
+                        }
+                        return Poll::Ready(Err(e));
+                    }
+                    n => {
+                        let n = n as usize;
+                        finish_reading(buf, n);
+                        return Poll::Ready(Ok(()));
+                    }
                 }
-                Ok(Err(e)) => return Poll::Ready(Err(e)),
-                Err(_would_block) => continue,
-            }
+            },
         }
     }
 }
@@ -495,16 +569,37 @@ impl AsyncWrite for MyAsyncFd {
         bufs: &[IoSlice<'_>],
     ) -> Poll<Result<usize, std::io::Error>> {
         trace!("custom async fd: write");
-        let f = &mut self.get_mut().f;
-        loop {
-            let mut ready_guard = ready!(f.poll_write_ready(cx)?);
 
-            match ready_guard
-                .try_io(|inner| writev(inner, bufs).map_err(|x| std::io::Error::from(x)))
-            {
-                Ok(result) => return Poll::Ready(result),
-                Err(_would_block) => continue,
-            }
+        let this = self.get_mut();
+        match this.inner {
+            MyAsyncFdWay::Proper(ref mut f) => loop {
+                let mut ready_guard = ready!(f.poll_write_ready(cx)?);
+
+                match ready_guard
+                    .try_io(|inner| writev(inner, bufs).map_err(|x| std::io::Error::from(x)))
+                {
+                    Ok(result) => return Poll::Ready(result),
+                    Err(_would_block) => continue,
+                }
+            },
+            MyAsyncFdWay::Hacky {
+                ref mut fd,
+                ref mut write_sleeper,
+                ..
+            } => loop {
+                if let Some(sl) = write_sleeper.as_mut() {
+                    ready!(sl.as_mut().poll(cx));
+                    *write_sleeper = None;
+                }
+                match writev(&fd, bufs).map_err(|x| std::io::Error::from(x)) {
+                    Ok(n) => return Poll::Ready(Ok(n)),
+                    Err(e) if e.kind() == ErrorKind::WouldBlock => {
+                        *write_sleeper =
+                            Some(Box::pin(tokio::time::sleep(FORCED_ASYNC_FD_SLEEP_POLLING)));
+                    }
+                    Err(e) => return Poll::Ready(Err(e)),
+                }
+            },
         }
     }
 
@@ -515,12 +610,12 @@ impl AsyncWrite for MyAsyncFd {
 
 //@ Use specified file descriptor for input/output, returning a StreamSocket.
 //@
-//@ If you want it as DatagramSocket, just wrap it in a `chunks` wrapper.
+//@ If you want it as a DatagramSocket, just wrap it in a `chunks` wrapper.
 //@
 //@ May cause unsound behaviour if misused.
-fn async_fd(ctx: NativeCallContext, fd: i64) -> RhResult<Handle<StreamSocket>> {
+fn async_fd(ctx: NativeCallContext, fd: i64, force: bool) -> RhResult<Handle<StreamSocket>> {
     let ff = fd as RawFd;
-    let Ok(f) = (unsafe { MyAsyncFd::new(ff) }) else {
+    let Ok(f) = (unsafe { MyAsyncFd::new(ff, force) }) else {
         return Err(ctx.err("Failed to wrap a fd using async_fd"));
     };
 
