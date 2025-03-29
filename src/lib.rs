@@ -20,6 +20,7 @@ pub mod scenario_executor {
     pub mod scenario;
     pub mod subprocess;
     pub mod tcp;
+    pub mod tee;
     pub mod trivials1;
     pub mod trivials2;
     pub mod trivials3;

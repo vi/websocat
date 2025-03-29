@@ -169,6 +169,9 @@ impl Overlay {
                 ));
                 Ok(varnam)
             }
+            Overlay::Tee => {
+                panic!("Tee is not supposed to emit scenario chunk as an overlay")
+            }
         }
     }
     pub(super) fn end_print(&self, env: &mut ScenarioPrintingEnvironment<'_>) {
@@ -196,6 +199,9 @@ impl Overlay {
                 panic!("WriteSplitoff should be converted into an endpoint");
             }
             Overlay::Defragment => (),
+            Overlay::Tee => {
+                panic!("Tee is not supposed to emit scenario chunk as an overlay")
+            }
         }
     }
 }

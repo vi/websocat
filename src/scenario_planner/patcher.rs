@@ -30,6 +30,7 @@ impl WebsocatInvocation {
                 .apply_to_all(|x| x.maybe_early_resolve(&mut self.beginning, vars))?;
         }
         self.maybe_fill_in_tls_details(vars)?;
+
         if self.opts.log_traffic
             && !self.stacks.right.insert_log_overlay()
             && !self.stacks.left.insert_log_overlay()
@@ -38,24 +39,35 @@ impl WebsocatInvocation {
         }
         self.stacks.apply_to_all(|x| x.fill_in_log_overlay_type())?;
 
-        self.maybe_auto_insert_write_splitoff_overlay()?;
+        if !self.opts.less_fixups {
+            self.maybe_auto_insert_write_splitoff_overlay()?;
+        }
 
+        let mut write_splitoff = std::mem::take(&mut self.stacks.write_splitoff);
         self.stacks
-            .left
-            .maybe_process_writesplitoff(&mut self.stacks.write_splitoff, &self.opts)?;
-        self.stacks
-            .right
-            .maybe_process_writesplitoff(&mut self.stacks.write_splitoff, &self.opts)?;
+            .apply_to_all(|x| x.maybe_process_writesplitoff(&mut write_splitoff, &self.opts))?;
 
         let session_typ_so_far = self.session_socket_type();
         self.stacks
             .apply_to_all(|x| x.infer_mirror_type(session_typ_so_far))?;
+
+        if !self.opts.less_fixups {
+            self.check_tee_overlay_count()?;
+        }
+        if !self.opts.less_fixups {
+            self.maybe_auto_insert_tee()?;
+        }
+
+        let mut tee = std::mem::take(&mut self.stacks.tee);
+        self.stacks
+            .apply_to_all(|x| x.maybe_process_tee(&mut tee, &self.opts))?;
 
         self.maybe_insert_chunker()?;
 
         if !self.opts.less_fixups {
             self.maybe_insert_reuser();
         }
+
         self.stacks
             .apply_to_all(|x| x.check_required_socket_types(&self.opts))?;
 
@@ -81,19 +93,19 @@ impl WebsocatInvocationStacks {
         for flt in &mut self.filter_reverse {
             f(flt)?;
         }
+        for flt in &mut self.tee {
+            f(flt)?;
+        }
         Ok(())
     }
 
     fn check_if_any_stack(&self, f: fn(&SpecifierStack) -> bool) -> bool {
         f(&self.left)
             || f(&self.right)
-            || if let Some(ref splt) = self.write_splitoff {
-                f(splt)
-            } else {
-                false
-            }
+            || self.write_splitoff.iter().any(f)
             || self.filter.iter().any(f)
             || self.filter_reverse.iter().any(f)
+            || self.tee.iter().any(f)
     }
 }
 impl WebsocatInvocation {
@@ -105,6 +117,47 @@ impl WebsocatInvocation {
         {
             debug!("Auto-inserting write-splitoff: overlay");
             self.stacks.right.overlays.push(Overlay::WriteSplitoff);
+        }
+        Ok(())
+    }
+
+    fn check_tee_overlay_count(&mut self) -> anyhow::Result<()> {
+        let mut count = 0usize;
+        self.stacks.apply_to_all(|x| {
+            for ovl in &x.overlays {
+                if matches!(ovl, Overlay::Tee { .. }) {
+                    count += 1;
+                }
+            }
+            Ok(())
+        })?;
+        if count > 1 {
+            anyhow::bail!("Too many tee: overlays specified in the stack. Only one is supported");
+        }
+        if self
+            .stacks
+            .tee
+            .iter()
+            .any(|x| x.contains_overlay(OverlayDiscriminants::Tee))
+        {
+            anyhow::bail!("--tee specifier cannot itself contain `tee:` overlays");
+        }
+        Ok(())
+    }
+
+    fn maybe_auto_insert_tee(&mut self) -> anyhow::Result<()> {
+        let mut count = 0usize;
+        self.stacks.apply_to_all(|x| {
+            for ovl in &x.overlays {
+                if matches!(ovl, Overlay::Tee { .. }) {
+                    count += 1;
+                }
+            }
+            Ok(())
+        })?;
+        if count == 0 && !self.opts.tee.is_empty() {
+            debug!("Auto-inserting tee: overlay");
+            self.stacks.right.overlays.push(Overlay::Tee);
         }
         Ok(())
     }
@@ -498,6 +551,7 @@ impl SpecifierStack {
                 Overlay::SimpleReuser => (),
                 Overlay::WriteSplitoff => (),
                 Overlay::Defragment => (),
+                Overlay::Tee => (),
             }
         }
         if let Some(i) = index {
@@ -560,6 +614,7 @@ impl SpecifierStack {
                 Endpoint::RegistrySend(_) => false,
                 Endpoint::RegistryDatagramListen(_) => false,
                 Endpoint::RegistryDatagramConnect(_) => false,
+                Endpoint::Tee { .. } => false,
             };
             if do_insert {
                 // datagram mode may be patched later
@@ -572,6 +627,21 @@ impl SpecifierStack {
             }
             do_insert
         }
+    }
+
+    fn replace_overlay_with_endpoint(&mut self, index: usize) -> Box<SpecifierStack> {
+        let mut switcheroo = Box::new(SpecifierStack {
+            innermost: Endpoint::DummyDatagrams, // temporary
+            overlays: vec![],                    // temporary
+            position: self.position,
+        });
+        std::mem::swap(self, &mut switcheroo);
+
+        // Preserve overlays specified the one we are replacing
+        self.overlays = Vec::from_iter(switcheroo.overlays.drain(index + 1..));
+        // Remove the overlay being replaced
+        switcheroo.overlays.remove(index);
+        switcheroo
     }
 
     fn maybe_process_reuser(
@@ -591,23 +661,13 @@ impl SpecifierStack {
         }
 
         if let Some(i) = the_index {
-            let mut switcheroo = Box::new(SpecifierStack {
-                innermost: Endpoint::DummyDatagrams, // temporary
-                overlays: vec![],                    // temporary
-                position: self.position,
-            });
-            std::mem::swap(self, &mut switcheroo);
-
-            // Preserve overlays specified before `reuse:`
-            self.overlays = Vec::from_iter(switcheroo.overlays.drain(i + 1..));
-            // Remove `reuse:` overlay itself, now that it has been turned into an endpoint
-            switcheroo.overlays.remove(i);
+            let stack_after_reuser = self.replace_overlay_with_endpoint(i);
 
             let varname = vars.getnewvarname("reuser");
             beginnings.push(PreparatoryAction::CreateSimpleReuserListener {
                 varname_for_reuser: varname.clone(),
             });
-            self.innermost = Endpoint::SimpleReuserEndpoint(varname, switcheroo);
+            self.innermost = Endpoint::SimpleReuserEndpoint(varname, stack_after_reuser);
 
             // continue substituting other, nested reusers, if any
             self.maybe_process_reuser(vars, beginnings)?;
@@ -638,22 +698,12 @@ impl SpecifierStack {
             anyhow::bail!("`write-splitoff:` overlay specified without accompanying --write-splitoff option or specified multiple times")
         };
 
-        let mut switcheroo = Box::new(SpecifierStack {
-            innermost: Endpoint::DummyDatagrams, // temporary
-            overlays: vec![],                    // temporary
-            position: self.position,
-        });
-        std::mem::swap(self, &mut switcheroo);
+        let stack_after_the_splitoff = self.replace_overlay_with_endpoint(the_index);
 
-        // Preserve overlays specified before `reuse:`
-        self.overlays = Vec::from_iter(switcheroo.overlays.drain(the_index + 1..));
-        // Remove `reuse:` overlay itself, now that it has been turned into an endpoint
-        switcheroo.overlays.remove(the_index);
-
-        let mut read = switcheroo;
+        let mut read = stack_after_the_splitoff;
         let mut write = Box::new(write_splitoff_stack);
 
-        let overlay_to_insert = || {
+        let chunker_overlay_to_insert = || {
             if opts.binary {
                 Overlay::StreamChunks
             } else {
@@ -664,10 +714,10 @@ impl SpecifierStack {
         match (read.provides_socket_type(), write.provides_socket_type()) {
             (SocketType::ByteStream, SocketType::ByteStream) => {}
             (SocketType::ByteStream, SocketType::Datarams) => {
-                read.overlays.push(overlay_to_insert())
+                read.overlays.push(chunker_overlay_to_insert())
             }
             (SocketType::Datarams, SocketType::ByteStream) => {
-                write.overlays.push(overlay_to_insert())
+                write.overlays.push(chunker_overlay_to_insert())
             }
             (SocketType::Datarams, SocketType::Datarams) => {}
             (SocketType::SocketSender, _) | (_, SocketType::SocketSender) => {
@@ -679,6 +729,57 @@ impl SpecifierStack {
 
         // continue processing deeper just to handle possible duplicate errors
         self.maybe_process_writesplitoff(&mut None, opts)?;
+
+        Ok(())
+    }
+
+    fn maybe_process_tee(
+        &mut self,
+        tee: &mut Vec<SpecifierStack>,
+        opts: &WebsocatArgs,
+    ) -> anyhow::Result<()> {
+        let mut the_index = None;
+        for (i, ovl) in self.overlays.iter().enumerate() {
+            match ovl {
+                Overlay::Tee => {
+                    the_index = Some(i);
+                    break;
+                }
+                _ => (),
+            }
+        }
+
+        let Some(the_index) = the_index else {
+            return Ok(());
+        };
+        if tee.is_empty() {
+            warn!("`tee:` overlay specified without accompanying --tee option");
+        }
+
+        let stack_after_the_splitoff = self.replace_overlay_with_endpoint(the_index);
+
+        let mut nodes = Vec::with_capacity(tee.len() + 1);
+
+        nodes.push(*stack_after_the_splitoff);
+        nodes.extend(tee.drain(..));
+
+        let chunker_overlay_to_insert = || {
+            if opts.binary {
+                Overlay::StreamChunks
+            } else {
+                Overlay::LineChunks
+            }
+        };
+
+        for n in &mut nodes {
+            if n.provides_socket_type().is_bstrm() {
+                n.overlays.push(chunker_overlay_to_insert());
+            }
+        }
+
+        self.innermost = Endpoint::Tee { nodes };
+
+        // no need to check for inner `tee:`s, as only one must exist.
 
         Ok(())
     }

@@ -169,6 +169,11 @@ pub enum Endpoint {
 
     //@ Send the {socket this endpoint is paired with} to a virtual intra-Websocat address
     RegistrySend(String),
+
+    //@ Implementation detail of `tee:` overlay
+    Tee {
+        nodes: Vec<SpecifierStack>,
+    },
 }
 
 #[derive(Debug, EnumDiscriminants)]
@@ -247,6 +252,11 @@ pub enum Overlay {
 
     //@ Defragment potential partial messages into complete messages.
     Defragment,
+
+    //@ Use both this underlying datagram specifier and also additional ones specified by `--tee` command line option.
+    //@
+    //@ Each write is copied to all of the nodes, each node can also produce a message.
+    Tee,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -285,6 +295,7 @@ pub struct WebsocatInvocationStacks {
     pub write_splitoff: Option<SpecifierStack>,
     pub filter: Vec<SpecifierStack>,
     pub filter_reverse: Vec<SpecifierStack>,
+    pub tee: Vec<SpecifierStack>,
 }
 
 pub struct WebsocatInvocation {

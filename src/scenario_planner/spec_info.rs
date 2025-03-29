@@ -125,6 +125,7 @@ impl Endpoint {
                 datagram_mode: true,
             } => Datarams,
             Endpoint::RegistrySend(..) => SocketSender,
+            Endpoint::Tee { .. } => Datarams,
         }
     }
 }
@@ -156,6 +157,7 @@ impl Overlay {
             Overlay::SimpleReuser => Datarams,
             Overlay::WriteSplitoff => return None,
             Overlay::Defragment => Datarams,
+            Overlay::Tee => Datarams,
         })
     }
     /// Socket type this overlay needs as an input. None means it handles both types.
@@ -184,6 +186,7 @@ impl Overlay {
             Overlay::SimpleReuser => Datarams,
             Overlay::WriteSplitoff => return None,
             Overlay::Defragment => Datarams,
+            Overlay::Tee => Datarams,
         })
     }
 }
@@ -242,6 +245,7 @@ impl SpecifierStack {
             Endpoint::WriteSplitoff { .. } => false,
             Endpoint::Mirror { .. } => false,
             Endpoint::RegistrySend(..) => false,
+            Endpoint::Tee { .. } => false,
         };
 
         for x in &self.overlays {
@@ -262,6 +266,7 @@ impl SpecifierStack {
                 Overlay::SimpleReuser => multiconn = false,
                 Overlay::WriteSplitoff => multiconn = false,
                 Overlay::Defragment => {}
+                Overlay::Tee => {}
             }
         }
 
@@ -324,6 +329,7 @@ impl SpecifierStack {
             Endpoint::Mirror { .. } => false,
             Endpoint::RegistrySend(..) => false,
             Endpoint::RegistryDatagramConnect(_) => false,
+            Endpoint::Tee { ref nodes } => nodes.iter().any(|x| x.prefers_being_single(opts)),
         };
 
         for x in &self.overlays {
@@ -344,6 +350,7 @@ impl SpecifierStack {
                 Overlay::SimpleReuser => singler = false,
                 Overlay::WriteSplitoff => {}
                 Overlay::Defragment => {}
+                Overlay::Tee => {}
             }
         }
 

@@ -1,7 +1,7 @@
 use super::{
     buildscenario_exec::format_osstr,
     scenarioprinter::StrLit,
-    types::{Endpoint, ScenarioPrintingEnvironment, SocketType},
+    types::{Endpoint, ScenarioPrintingEnvironment, SocketType, SpecifierPosition},
 };
 
 impl Endpoint {
@@ -262,6 +262,58 @@ impl Endpoint {
             Endpoint::RegistrySend(_) => {
                 panic!("registry-send: endpoint should not be printed like other specifiers")
             }
+            Endpoint::Tee { nodes } => {
+                let varnam = env.vars.getnewvarname("tee");
+                let teeresults = env.vars.getnewvarname("teeresults");
+
+                env.printer.print_line(&format!("init_in_parallel(["));
+                env.printer.increase_indent();
+
+                for n in nodes {
+                    let teeslot = env.vars.getnewvarname("teeslot");
+                    env.printer.print_line(&format!("|{teeslot}|{{"));
+                    env.printer.increase_indent();
+
+                    let backup_position = env.position;
+                    env.position = SpecifierPosition::Right;
+                    let res = n.begin_print(env)?;
+                    env.printer.print_line(&format!("{teeslot}.send({res})"));
+                    n.end_print(env)?;
+
+                    env.position = backup_position;
+                    env.printer.decrease_indent();
+                    env.printer.print_line(&format!("}},"));
+                }
+
+                env.printer.decrease_indent();
+                env.printer.print_line(&format!("], |{teeresults}| {{"));
+                env.printer.increase_indent();
+
+                let mut oo = String::with_capacity(32);
+
+                if env.opts.tee_propagate_failures {
+                    oo.push_str("write_fail_all_if_one_fails: true,");
+                    oo.push_str("read_fail_all_if_one_fails: true,");
+                }
+
+                if env.opts.tee_propagate_eof {
+                    oo.push_str("propagate_eofs: true,");
+                }
+                if env.opts.tee_tolerate_torn_msgs {
+                    oo.push_str("tolerate_torn_msgs: true,");
+                }
+                if env.opts.tee_use_hangups {
+                    oo.push_str("use_hangups: true,");
+                }
+                if env.opts.tee_use_first_hangup {
+                    oo.push_str("use_first_hangup: true,");
+                }
+
+                env.printer
+                    .print_line(&format!("let {varnam} = tee(#{{{oo}}}, {teeresults});"));
+
+                Ok(varnam)
+            }
         }
     }
 
@@ -327,6 +379,10 @@ impl Endpoint {
             Endpoint::Mirror { .. } => {}
             Endpoint::RegistrySend(..) => {
                 panic!("registry-send: endpoint should not be printed like other specifiers")
+            }
+            Endpoint::Tee { .. } => {
+                env.printer.decrease_indent();
+                env.printer.print_line("})");
             }
         }
     }

@@ -213,3 +213,30 @@ t!(filter6, r#"-bE mock_stream_socket:'R X0|W X3' mock_stream_socket:'W X1|R X2'
 t!(filter7, r#"-b chunks:mock_stream_socket:'R X0|W X4' mock_stream_socket:'W X1|R X2' --filter=mock_stream_socket:'W X0|R X1' --filter-reverse=mock_stream_socket:'W X2|R X3' --filter-reverse=mock_stream_socket:'W X3|R X4' "#);
 
 t!(defragment1, r#"-bu --lengthprefixed-nbytes=1 --lengthprefixed-continuations lengthprefixed:mss:'R \x83ABC|R \x02DE' defragment:lengthprefixed:mss:'W \x05ABCDE'"#);
+
+t!(tee1, r#"-bu chunks:mss:'R 1234' tee:chunks:mss:'W 1234' "#);
+t!(tee2, r#"-bu chunks:mss:'R 1234|R 3456|R QQQ' tee:chunks:mss:'W 1234|W 3456|W QQQ' "#);
+t!(tee3, r#"-bu chunks:mss:'R 1234' tee:chunks:mss:'W 1234' --tee=chunks:mss:'W 1234'"#);
+t!(tee4, r#"-bu chunks:mss:'R 1234|R 3456|R QQQ' tee:chunks:mss:'W 1234|W 3456|W QQQ' --tee=chunks:mss:'W 1234|W 3456|W QQQ'"#);
+t!(tee5, r#"-bu chunks:mss:'R 1234|R 3456|R QQQ' tee:chunks:mss:'W 1234|EW' --tee=chunks:mss:'W 1234|W 3456|W QQQ'"#);
+t!(tee6, r#"-bu chunks:mss:'R 1234|R 3456' tee:chunks:mss:'W 1234|EW' --tee=chunks:mss:'W 1234' --tee-propagate-failures"#);
+t_p!(tee7, r#"-bu chunks:mss:'R 1|R 2|R 3' tee:chunks:mss:'W 1|T4|W 2|T6|W 3' --tee=chunks:mss:'W 1|W 2|T5|W 3'"#);
+
+t!(teee10, r#"-bU chunks:mss:'W 1|W 2|W 3' tee:chunks:mss:'R 1|R 2|R 3'"#);
+t_p!(teee11, r#"-bU chunks:mss:'W 1|W 2|W 3' tee:chunks:mss:'R 1|T3|R 3' --tee=chunks:mss:'T2|R 2'"#);
+t_p!(teee12, r#"-bU chunks:mss:'W 1|W 3|W 2' tee:chunks:mss:'R 1|T2|R 3' --tee=chunks:mss:'T3|R 2'"#);
+t_p!(teee13, r#" --lengthprefixed-nbytes=1 --lengthprefixed-continuations -bU defragment:chunks:mss:'W 11|W 22|W 33' 
+   tee:lengthprefixed:mss:'R \x811||R \x011|R \x812|R \x012|R \x813|R \x013' "#);
+t_p!(teee14, r#" --lengthprefixed-nbytes=1 --lengthprefixed-continuations -bU defragment:chunks:mss:'W 11|W 22|W 33' 
+   tee:lengthprefixed:mss:'R \x811||R \x011|T4|R \x813|R \x013' 
+   --tee=lengthprefixed:mss:'T2|R \x812|R \x012'"#);
+t_p!(teee15, r#" --lengthprefixed-nbytes=1 --lengthprefixed-continuations -bU defragment:chunks:mss:'W 11|W 22|W 33' 
+   tee:lengthprefixed:mss:'R \x811||T3|R \x011|T3|R \x813|T3|R \x013' 
+   --tee=lengthprefixed:mss:'T1|R \x812|T4|R \x012'"#);
+t_p!(teee16, r#" --lengthprefixed-nbytes=1 --lengthprefixed-continuations -bU defragment:chunks:mss:'W 11' 
+   tee:lengthprefixed:mss:'R \x811||T3|R \x011|T3' 
+   --tee=lengthprefixed:mss:'T1|R \x812'"#);
+t_p!(teee17, r#" --lengthprefixed-nbytes=1 --lengthprefixed-continuations -bU defragment:chunks:mss:'W 11|W 2|W 33' 
+   tee:lengthprefixed:mss:'R \x811||T3|R \x011|T3|R \x813|T3|R \x013' 
+   --tee=lengthprefixed:mss:'T1|R \x812'
+   --tee-tolerate-torn-msgs"#);

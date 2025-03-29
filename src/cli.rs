@@ -441,7 +441,7 @@ pub struct WebsocatArgs {
     #[arg(long)]
     pub accept_from_fd: bool,
 
-    /// When using `reuse-raw:` (including automatically inserted), do not abort connections on unrecoverable broken messages
+    /// When using `reuse-raw:` (including automatically inserted), do not abort connections on unrecoverable broken messages, instead produce a trimmed message and continue.
     #[arg(long)]
     pub reuser_tolerate_torn_msgs: bool,
 
@@ -503,6 +503,32 @@ pub struct WebsocatArgs {
     /// Maximum buffered message size for `defragment:` overlay
     #[arg(long, default_value = "1048576")]
     pub defragment_max_size: usize,
+
+    /// Copy output datagrams also to this specifier; also merge in incoming datagrams from this specifier
+    ///
+    /// May insert a `tee:` overlay automatically if not specified.
+    #[arg(long)]
+    pub tee: Vec<OsString>,
+
+    /// Cause `tee:` overlay to fail datagram read or write if any (instead of all) nodes failed the operation.
+    #[arg(long)]
+    pub tee_propagate_failures: bool,
+
+    /// Cause `tee:` overlay's reading direction to propagate EOF when any of the nodes signaled EOF instead of all of them
+    #[arg(long)]
+    pub tee_propagate_eof: bool,
+
+    /// When using `tee:`, do not abort reading side of the connections on unrecoverable broken messages, instead produce a trimmed message and continue.
+    #[arg(long)]
+    pub tee_tolerate_torn_msgs: bool,
+
+    /// Terminate `tee:` specifier when any of the tee nodes signal hangup.
+    #[arg(long)]
+    pub tee_use_hangups: bool,
+
+    /// Terminate `tee:` specifier when main tee node (the one after `tee:` instead of `--tee`) signals hangup.
+    #[arg(long)]
+    pub tee_use_first_hangup: bool,
 }
 
 /// Subset of command line arguments that describes the whole Websocat operation even when `--compose` sub-scenarios are used.

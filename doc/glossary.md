@@ -17,7 +17,8 @@ in Scenarios.
 * **CLI arguments** - combination of a positional arguments (typically Specifiers) and various flags (e.g. `--binary`) and options (e.g. `--buffer-size 4096`) that affect Scenario Planner. Sometimes, in narrow sense, it may refer to an individual block of `--compose`-ed arguments.
 * **CLI API** - Things in Websocat that are accessible when starting Websocat executable and supplying various command-line arguments (except of `-x` or `--no-fixups`). This is expected to be more stable and easier to use, but less flexible compared to Scenario Functions.
 * **Packet** = **Datagram** = **Message** - A byte buffer with associated flags. Correspond to one WebSocket message. Within WebSocket, packets can be split to chunks, but that should not affect user-visible properties.
-* **Chunk** = **Frame** - portion of data read or written to/from stream or datagram socket in one go. Maybe a fragment of a Message or be the whole Message.
+* **Chunk** = **Frame** = **Fragment** - portion of data read or written to/from stream or datagram socket in one go. Maybe a fragment of a Message or be the whole Message.
+* **Orphaned fragment** - fragment of a larger message produced by a datagram socket that is gone. For tools that combines multiple data streams into one without buffering (`reuse-raw:`, `tee:`), this either aborts the connection or produces artificially trimmed datagram.
 * **Task** - a logical thread of execution. Rhai code is expected to create and combine some tasks. Typically each connection runs in its own task. Corresponds to Tokio tasks.
 * **Hangup** - similar to Task, but used in context of signaling various events, especially abrupt reset of sockets.
 * **Specifier Stack** - Individual components of a Specifier - Endpoint and a vector of Overlays.

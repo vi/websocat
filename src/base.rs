@@ -178,12 +178,16 @@ impl WebsocatInvocation {
 
         let mut filter = Vec::with_capacity(args.filter.len());
         let mut filter_reverse = Vec::with_capacity(args.filter.len());
+        let mut tee = Vec::with_capacity(args.tee.len());
 
         for x in &args.filter {
             filter.push(SpecifierStack::my_from_str(x, SpecifierPosition::Right)?);
         }
         for x in &args.filter_reverse {
             filter_reverse.push(SpecifierStack::my_from_str(x, SpecifierPosition::Right)?);
+        }
+        for x in &args.tee {
+            tee.push(SpecifierStack::my_from_str(x, SpecifierPosition::Right)?);
         }
 
         let stacks = WebsocatInvocationStacks {
@@ -192,6 +196,7 @@ impl WebsocatInvocation {
             write_splitoff,
             filter,
             filter_reverse,
+            tee,
         };
 
         Ok(WebsocatInvocation {

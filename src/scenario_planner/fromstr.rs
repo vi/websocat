@@ -487,6 +487,11 @@ impl ParseStrChunkResult<'_> {
                 ovl: Overlay::Defragment,
                 rest,
             })
+        } else if let Some(rest) = x.strip_prefix_many(&["tee:"]) {
+            Ok(ParseStrChunkResult::Overlay {
+                ovl: Overlay::Tee,
+                rest,
+            })
         } else {
             anyhow::bail!("Unknown specifier: {x:?}")
         }
