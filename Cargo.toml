@@ -36,7 +36,6 @@ sha1 = "0.10.6"
 tinyvec = "1.6.0"
 tokio = { version = "1.32", features = ["sync", "net", "rt", "macros", "io-util", "io-std", "time", "process", "fs"] }
 tokio-native-tls = {version="0.3.1", optional=true}
-tokio-test = "0.4.4"
 tokio-util = "0.7.11"
 tracing = "0.1.37"
 tracing-subscriber = { version = "0.3.17", default-features = false, features = ["fmt","json"] }
@@ -52,6 +51,7 @@ rustls = { version = "0.23.22", optional = true, default-features=false, feature
 strum = { version = "0.27.1", features = ["derive"] }
 strum_macros = "0.27.1"
 console-subscriber = { version = "0.4.1", optional = true }
+tokio-io-mock-fork = { version = "0.1.0", features=["text-scenarios"]}
 
 [target.'cfg(all(unix,any(target_os = "linux",target_os = "android",target_os = "freebsd")))'.dependencies]
 tokio-seqpacket = "0.8.0"

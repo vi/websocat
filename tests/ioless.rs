@@ -148,7 +148,7 @@ t2!(reuser3,r#"-b --oneshot chunks:registry-stream-listen: reuse-raw:chunks:mock
 t2!(reuser4,r#"-b --oneshot chunks:registry-stream-listen: reuse-raw:chunks:mock_stream_socket:'R abc|W def|R 123|R 456|W qwerty'"#,
             r#"-b chunks:registry-stream-connect: chunks:mock_stream_socket:'W abc|R def|W 123|W 456|R qwerty'"#);
 t3w_p!(reuser5,r#"-b --global-timeout-ms=5000 chunks:registry-stream-listen: reuse-raw:chunks:mock_stream_socket:'W 123|W QWE|W 456'"#,
-            r#"-b chunks:registry-stream-connect: chunks:mock_stream_socket:'R 123|T5|R 456'"#,
+            r#"-b chunks:registry-stream-connect: chunks:mock_stream_socket:'R 123|T333|R 456'"#,
             r#"-b chunks:registry-stream-connect: chunks:mock_stream_socket:'R QWE'"#);
 t3w_p!(reuser6,r#"-b --global-timeout-ms=5000 -E chunks:registry-stream-listen: reuse-raw:chunks:mock_stream_socket:'T6|R 123'"#,
             r#"-b --global-timeout-ms=2000 chunks:registry-stream-connect: chunks:mock_stream_socket:'W 123'"#,
@@ -157,37 +157,37 @@ t3w_p!(reuser7,r#"-b --global-timeout-ms=5000 -E chunks:registry-stream-listen: 
             r#"-b --global-timeout-ms=50 chunks:registry-stream-connect: chunks:mock_stream_socket:''"#,
             r#"-b --global-timeout-ms=2000 chunks:registry-stream-connect: chunks:mock_stream_socket:'W 123'"#);
 t3w_p!(reuser_torn1,r#"-b --global-timeout-ms=5000 --lengthprefixed-nbytes=1 --lengthprefixed-continuations -E 
-                      chunks:registry-stream-listen: reuse-raw:lengthprefixed:mock_stream_socket:'R \x03AAA|T6|R \x03BBB|R \x03CCC'"#,
+                      chunks:registry-stream-listen: reuse-raw:lengthprefixed:mock_stream_socket:'R \x03AAA|T900|R \x03BBB|R \x03CCC'"#,
             r#"-b --global-timeout-ms=50 chunks:registry-stream-connect: chunks:mock_stream_socket:'W AAA'"#,
             r#"-b --global-timeout-ms=2000 chunks:registry-stream-connect: chunks:mock_stream_socket:'W BBB|W CCC'"#);
 t3w_p!(reuser_torn2,r#"-b --global-timeout-ms=5000 --lengthprefixed-nbytes=1 --lengthprefixed-continuations -E 
-                      chunks:registry-stream-listen: reuse-raw:lengthprefixed:mock_stream_socket:'R \x83AAA|T6|R \x03BBB|R \x03CCC'"#,
+                      chunks:registry-stream-listen: reuse-raw:lengthprefixed:mock_stream_socket:'R \x83AAA|T900|R \x03BBB|R \x03CCC'"#,
             r#"-b --global-timeout-ms=50 chunks:registry-stream-connect: chunks:mock_stream_socket:'W AAA'"#,
             r#"-b --global-timeout-ms=2000 chunks:registry-stream-connect: chunks:mock_stream_socket:'W CCC'"#);
 t3w_p!(reuser_torn3,r#"-b --global-timeout-ms=5000 --lengthprefixed-nbytes=1 --lengthprefixed-continuations -u
                       lengthprefixed:registry-stream-listen: reuse-raw:lengthprefixed:mock_stream_socket:'W \x03AAA|W \x03BBB|W \x02CC|W \x02DD|W \x01E|W \x01F'"#,
-            r#"-b --global-timeout-ms=2000 -U registry-stream-connect: mock_stream_socket:'R \x03AAA|T5|R \x02CC|T5|R \x01E'"#,
-            r#"-b --global-timeout-ms=2000 -U registry-stream-connect: mock_stream_socket:'R \x03BBB|T5|R \x02DD|T5|R \x01F'"#);
+            r#"-b --global-timeout-ms=2000 -U registry-stream-connect: mock_stream_socket:'R \x03AAA|T333|R \x02CC|T333|R \x01E'"#,
+            r#"-b --global-timeout-ms=2000 -U registry-stream-connect: mock_stream_socket:'R \x03BBB|T333|R \x02DD|T333|R \x01F'"#);
 t3w_p!(reuser_torn4,r#"-b --global-timeout-ms=5000 --lengthprefixed-nbytes=1 --lengthprefixed-continuations -u
                       lengthprefixed:registry-stream-listen: reuse-raw:lengthprefixed:mock_stream_socket:'W \x83AAA|W \x02CC|W \x83BBB|W \x02DD|W \x01E|W \x01F'"#,
-            r#"-b --global-timeout-ms=2000 -U registry-stream-connect: mock_stream_socket:'R \x83AAA|T5|R \x02CC|T5|R \x01E'"#,
-            r#"-b --global-timeout-ms=2000 -U registry-stream-connect: mock_stream_socket:'R \x83BBB|T5|R \x02DD|T5|R \x01F'"#);
+            r#"-b --global-timeout-ms=2000 -U registry-stream-connect: mock_stream_socket:'R \x83AAA|T333|R \x02CC|T333|R \x01E'"#,
+            r#"-b --global-timeout-ms=2000 -U registry-stream-connect: mock_stream_socket:'R \x83BBB|T333|R \x02DD|T333|R \x01F'"#);
 t3w_p!(reuser_torn5,r#"-b --global-timeout-ms=5000 --lengthprefixed-nbytes=1 --lengthprefixed-continuations -u
                       lengthprefixed:registry-stream-listen: reuse-raw:lengthprefixed:mock_stream_socket:'W \x83AAA|W \x82CC|W \x01E|W \x83BBB|W \x02DD|W \x01F'"#,
-            r#"-b --global-timeout-ms=2000 -U registry-stream-connect: mock_stream_socket:'R \x83AAA|T5|R \x82CC|T5|R \x01E'"#,
-            r#"-b --global-timeout-ms=2000 -U registry-stream-connect: mock_stream_socket:'R \x83BBB|T5|R \x02DD|T5|R \x01F'"#);
+            r#"-b --global-timeout-ms=2000 -U registry-stream-connect: mock_stream_socket:'R \x83AAA|T333|R \x82CC|T333|R \x01E'"#,
+            r#"-b --global-timeout-ms=2000 -U registry-stream-connect: mock_stream_socket:'R \x83BBB|T333|R \x02DD|T333|R \x01F'"#);
 // t3w_p!(reuser_torn6,r#"-b --global-timeout-ms=5000 --lengthprefixed-nbytes=2 --lengthprefixed-include-control --lengthprefixed-continuations -E
 //                       lengthprefixed:registry-stream-listen: reuse-raw:lengthprefixed:mock_stream_socket:'W \x80\x03AAA|W \x80\x02CC'"#,
-//             r#"-b --global-timeout-ms=2000 registry-stream-connect: mock_stream_socket:'R \x80\x03AAA|T5|R \x80\x02CC'"#,
-//             r#"-b --global-timeout-ms=3000 registry-stream-connect: mock_stream_socket:'R \x80\x03BBB|T5|R \x00\x02DD|T5|R \x00\x01F'"#);
+//             r#"-b --global-timeout-ms=2000 registry-stream-connect: mock_stream_socket:'R \x80\x03AAA|T333|R \x80\x02CC'"#,
+//             r#"-b --global-timeout-ms=3000 registry-stream-connect: mock_stream_socket:'R \x80\x03BBB|T333|R \x00\x02DD|T333|R \x00\x01F'"#);
 // t3w_p!(reuser_torn6,r#"-b --global-timeout-ms=5000 --lengthprefixed-nbytes=2 --lengthprefixed-include-control --lengthprefixed-continuations
 //                        lengthprefixed:registry-stream-listen: reuse-raw:lengthprefixed:mock_stream_socket:'N sink|W \x80\x03AAA|W \x80\x02CC|W \x40\x62\x08Partially written message to Websocat\x27s `reuse-raw:` prevents further messages in this connection|W \x80\x03BBB'"#,
-//              r#"-b --global-timeout-ms=2000 registry-stream-connect: mock_stream_socket:'N first|R \x80\x03AAA|T5|R \x80\x02CC|ER'"#,
-//              r#"-b --global-timeout-ms=3000 registry-stream-connect: mock_stream_socket:'N second|R \x80\x03BBB|T5|R \x00\x02DD|T5|R \x00\x01F'"#);
+//              r#"-b --global-timeout-ms=2000 registry-stream-connect: mock_stream_socket:'N first|R \x80\x03AAA|T333|R \x80\x02CC|ER'"#,
+//              r#"-b --global-timeout-ms=3000 registry-stream-connect: mock_stream_socket:'N second|R \x80\x03BBB|T333|R \x00\x02DD|T333|R \x00\x01F'"#);
 /*t3w_p!(reuser_torn7,r#"-b --global-timeout-ms=5000 --lengthprefixed-nbytes=1 --lengthprefixed-continuations -u --reuser-tolerate-torn-msgs
                       lengthprefixed:registry-stream-listen: reuse-raw:lengthprefixed:mock_stream_socket:'W \x83AAA|W \x82CC|W \x00|W \x83BBB\x02DD\x01F'"#,
-            r#"-b --global-timeout-ms=2000 -U registry-stream-connect: mock_stream_socket:'R \x83AAA|T5|R \x82CC'"#,
-            r#"-b --global-timeout-ms=2000 -U registry-stream-connect: mock_stream_socket:'R \x83BBB|T5|R \x02DD|T5|R \x01F'"#);*/
+            r#"-b --global-timeout-ms=2000 -U registry-stream-connect: mock_stream_socket:'R \x83AAA|T333|R \x82CC'"#,
+            r#"-b --global-timeout-ms=2000 -U registry-stream-connect: mock_stream_socket:'R \x83BBB|T333|R \x02DD|T333|R \x01F'"#);*/
 
 t!(writesplt1, r#"-b mock_stream_socket:'R ABC|R WWW|W SSS'  write-splitoff:mock_stream_socket:'R SSS' --write-splitoff=mock_stream_socket:'W ABC|W WWW'  "#);
 t!(writesplt2, r#"-b mock_stream_socket:'R ABC|R WWW|W SSS'  write-splitoff:chunks:mock_stream_socket:'R SSS' --write-splitoff=mock_stream_socket:'W ABC|W WWW'  "#);
@@ -220,23 +220,24 @@ t!(tee3, r#"-bu chunks:mss:'R 1234' tee:chunks:mss:'W 1234' --tee=chunks:mss:'W 
 t!(tee4, r#"-bu chunks:mss:'R 1234|R 3456|R QQQ' tee:chunks:mss:'W 1234|W 3456|W QQQ' --tee=chunks:mss:'W 1234|W 3456|W QQQ'"#);
 t!(tee5, r#"-bu chunks:mss:'R 1234|R 3456|R QQQ' tee:chunks:mss:'W 1234|EW' --tee=chunks:mss:'W 1234|W 3456|W QQQ'"#);
 t!(tee6, r#"-bu chunks:mss:'R 1234|R 3456' tee:chunks:mss:'W 1234|EW' --tee=chunks:mss:'W 1234' --tee-propagate-failures"#);
-t_p!(tee7, r#"-bu chunks:mss:'R 1|R 2|R 3' tee:chunks:mss:'W 1|T4|W 2|T6|W 3' --tee=chunks:mss:'W 1|W 2|T5|W 3'"#);
+t_p!(tee7, r#"-bu chunks:mss:'R 1|R 2|R 3' tee:chunks:mss:'W 1|T100|W 2|T900|W 3' --tee=chunks:mss:'W 1|W 2|T333|W 3'"#);
 
-t!(teee10, r#"-bU chunks:mss:'W 1|W 2|W 3' tee:chunks:mss:'R 1|R 2|R 3'"#);
-t_p!(teee11, r#"-bU chunks:mss:'W 1|W 2|W 3' tee:chunks:mss:'R 1|T3|R 3' --tee=chunks:mss:'T2|R 2'"#);
-t_p!(teee12, r#"-bU chunks:mss:'W 1|W 3|W 2' tee:chunks:mss:'R 1|T2|R 3' --tee=chunks:mss:'T3|R 2'"#);
+t!(teee10, r#"-bU chunks:mss:'W 1|W 2|W 3' tee:chunks:mss:'D|R 1|R 2|R 3'"#);
+t_p!(teee11, r#"-bU chunks:mss:'W 1|W 2|W 3' tee:chunks:mss:'R 1|T30|R 3' --tee=chunks:mss:'D|T10|R 2'"#);
+t_p!(teee12, r#"-bU chunks:mss:'W 1|W 3|W 2' tee:chunks:mss:'R 1|T10|R 3' --tee=chunks:mss:'D|T30|R 2'"#);
+t_p!(teee12b, r#"-bU chunks:mss:'W 1|W 3|W 2' tee:chunks:mss:'R 1|T10|R 3' --tee=chunks:mss:'T30|R 2' --unidirectional-late-drop"#);
 t_p!(teee13, r#" --lengthprefixed-nbytes=1 --lengthprefixed-continuations -bU defragment:chunks:mss:'W 11|W 22|W 33' 
    tee:lengthprefixed:mss:'R \x811||R \x011|R \x812|R \x012|R \x813|R \x013' "#);
 t_p!(teee14, r#" --lengthprefixed-nbytes=1 --lengthprefixed-continuations -bU defragment:chunks:mss:'W 11|W 22|W 33' 
-   tee:lengthprefixed:mss:'R \x811||R \x011|T4|R \x813|R \x013' 
+   tee:lengthprefixed:mss:'R \x811||R \x011|T100|R \x813|R \x013' 
    --tee=lengthprefixed:mss:'T2|R \x812|R \x012'"#);
 t_p!(teee15, r#" --lengthprefixed-nbytes=1 --lengthprefixed-continuations -bU defragment:chunks:mss:'W 11|W 22|W 33' 
-   tee:lengthprefixed:mss:'R \x811||T3|R \x011|T3|R \x813|T3|R \x013' 
-   --tee=lengthprefixed:mss:'T1|R \x812|T4|R \x012'"#);
+   tee:lengthprefixed:mss:'R \x811||T30|R \x011|T30|R \x813|T30|R \x013' 
+   --tee=lengthprefixed:mss:'T1|R \x812|T100|R \x012'"#);
 t_p!(teee16, r#" --lengthprefixed-nbytes=1 --lengthprefixed-continuations -bU defragment:chunks:mss:'W 11' 
-   tee:lengthprefixed:mss:'R \x811||T3|R \x011|T3' 
+   tee:lengthprefixed:mss:'R \x811||T30|R \x011|T30' 
    --tee=lengthprefixed:mss:'T1|R \x812'"#);
 t_p!(teee17, r#" --lengthprefixed-nbytes=1 --lengthprefixed-continuations -bU defragment:chunks:mss:'W 11|W 2|W 33' 
-   tee:lengthprefixed:mss:'R \x811||T3|R \x011|T3|R \x813|T3|R \x013' 
+   tee:lengthprefixed:mss:'R \x811||T30|R \x011|T30|R \x813|T30|R \x013' 
    --tee=lengthprefixed:mss:'T1|R \x812'
    --tee-tolerate-torn-msgs"#);

@@ -1769,6 +1769,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "tokio-io-mock-fork"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "bb9cda779beff276c73daedbdef252a87bafcc2286335f65889b5a08909e75df"
+dependencies = [
+ "futures-core",
+ "hex",
+ "tokio",
+ "tokio-stream",
+]
+
+[[package]]
 name = "tokio-macros"
 version = "2.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1819,19 +1831,6 @@ dependencies = [
  "futures-core",
  "pin-project-lite",
  "tokio",
-]
-
-[[package]]
-name = "tokio-test"
-version = "0.4.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2468baabc3311435b55dd935f702f42cd1b8abb7e754fb7dfb16bd36aa88f9f7"
-dependencies = [
- "async-stream",
- "bytes",
- "futures-core",
- "tokio",
- "tokio-stream",
 ]
 
 [[package]]
@@ -2163,10 +2162,10 @@ dependencies = [
  "strum_macros",
  "tinyvec",
  "tokio",
+ "tokio-io-mock-fork",
  "tokio-native-tls",
  "tokio-rustls",
  "tokio-seqpacket",
- "tokio-test",
  "tokio-util",
  "tracing",
  "tracing-subscriber",
