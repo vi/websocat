@@ -24,15 +24,19 @@ impl PreparatoryAction {
             PreparatoryAction::CreateTlsConnector {
                 varname_for_connector,
             } => {
+                let mut oo = String::new();
+
                 if env.opts.insecure {
-                    env.printer.print_line(&format!(
-                        "let {varname_for_connector} = tls_client_connector(#{{danger_accept_invalid_certs: true, danger_accept_invalid_hostnames: true}});"
-                    ));
-                } else {
-                    env.printer.print_line(&format!(
-                        "let {varname_for_connector} = tls_client_connector(#{{}});"
-                    ));
+                    oo.push_str("danger_accept_invalid_certs: true, danger_accept_invalid_hostnames: true,");
                 }
+
+                if env.opts.enable_sslkeylog {
+                    oo.push_str("enable_sslkeylog: true,");
+                }
+
+                env.printer.print_line(&format!(
+                    "let {varname_for_connector} = tls_client_connector(#{{ {oo} }});"
+                ));
             }
             PreparatoryAction::CreateSimpleReuserListener { varname_for_reuser } => {
                 env.printer.print_line(&format!(

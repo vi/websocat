@@ -529,6 +529,11 @@ pub struct WebsocatArgs {
     /// Terminate `tee:` specifier when main tee node (the one after `tee:` instead of `--tee`) signals hangup.
     #[arg(long)]
     pub tee_use_first_hangup: bool,
+
+    /// When built with rustls, write encryption infromation to a files based on
+    /// `SSLKEYLOGFILE`  envionrment variable to assist decrypting traffic for analysis.
+    #[arg(long)]
+    pub enable_sslkeylog: bool,
 }
 
 /// Subset of command line arguments that describes the whole Websocat operation even when `--compose` sub-scenarios are used.

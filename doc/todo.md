@@ -17,6 +17,7 @@ Then it will mostly depend on my own needs, inspiration and ongoing Github and o
 * one message mode
 * broadcast reuser
 * mirror
+* inhibit `Host:` header when explicit one specified / http proxy option
 
 # Later
 

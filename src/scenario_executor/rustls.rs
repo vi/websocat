@@ -80,6 +80,10 @@ fn tls_client_connector(_ctx: NativeCallContext, opts: Dynamic) -> RhResult<Arc<
         danger_accept_invalid_certs: bool,
         #[serde(default)]
         danger_accept_invalid_hostnames: bool,
+
+        //@ Honour `SSLKEYLOGFILE` environment variable
+        #[serde(default)]
+        enable_sslkeylog: bool,
     }
     let opts: Opts = rhai::serde::from_dynamic(&opts)?;
     debug!("options parsed");
@@ -87,7 +91,7 @@ fn tls_client_connector(_ctx: NativeCallContext, opts: Dynamic) -> RhResult<Arc<
     let mut root_cert_store = rustls::RootCertStore::empty();
     root_cert_store.extend(webpki_roots::TLS_SERVER_ROOTS.iter().cloned());
 
-    let config = if opts.danger_accept_invalid_certs && opts.danger_accept_invalid_hostnames {
+    let mut config = if opts.danger_accept_invalid_certs && opts.danger_accept_invalid_hostnames {
         rustls::ClientConfig::builder()
             .dangerous()
             .with_custom_certificate_verifier(Arc::new(DummyVerifier))
@@ -97,6 +101,9 @@ fn tls_client_connector(_ctx: NativeCallContext, opts: Dynamic) -> RhResult<Arc<
             .with_root_certificates(root_cert_store)
             .with_no_client_auth()
     };
+    if opts.enable_sslkeylog {
+        config.key_log = Arc::new(rustls::KeyLogFile::new());
+    }
 
     let connector = TlsConnector::from(Arc::new(config));
 
