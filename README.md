@@ -88,10 +88,6 @@ See [moreexamples.md](./moreexamples.md) for further examples.
 
 There are multiple options for installing WebSocat. From easy to hard:
 
-## Fedora
-
-[Copr](https://copr.fedorainfracloud.org/coprs/atim/websocat/): `sudo dnf copr enable atim/websocat -y && sudo dnf install websocat`
-
 ## FreeBSD
 
 `pkg install websocat`
