@@ -48,10 +48,7 @@ impl Read for TimestampWrapper {
     fn read(&mut self, b: &mut [u8]) -> Result<usize, IoError> {
         let l = b.len();
         assert!(l > 1);
-        let n = match self.0.read(&mut b[..l]) {
-            Ok(x) => x,
-            Err(e) => return Err(e),
-        };
+        let n = self.0.read(&mut b[..l])?;
         if n == 0 {
             return Ok(0);
         }
@@ -69,11 +66,11 @@ impl Read for TimestampWrapper {
             let _ = vv.write_all(&b[..n]);
         }
         
-        if v.len() as usize > l {
+        if v.len() > l {
             warn!("Buffer too small, timstamp-prepended message may be truncated.");
         }
         let ll = v.len().min(l);
-        (&mut b[..ll]).copy_from_slice(&v[..ll]);
+        b[..ll].copy_from_slice(&v[..ll]);
         Ok(ll)
     }
 }

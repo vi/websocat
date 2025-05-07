@@ -21,7 +21,7 @@ use std::process::Stdio;
 
 fn needenv(p: &ConstructParams) -> Option<&LeftSpecToRightSpec> {
     match (p.program_options.exec_set_env, &p.left_to_right) {
-        (true, &L2rUser::ReadFrom(ref x)) => Some(&**x),
+        (true, L2rUser::ReadFrom(ref x)) => Some(&**x),
         _ => None,
     }
 }

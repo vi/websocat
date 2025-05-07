@@ -95,10 +95,7 @@ impl Read for Packet2LineWrapper {
     fn read(&mut self, b: &mut [u8]) -> Result<usize, IoError> {
         let l = b.len();
         assert!(l > 1);
-        let mut n = match self.0.read(&mut b[..(l - 1)]) {
-            Ok(x) => x,
-            Err(e) => return Err(e),
-        };
+        let mut n = self.0.read(&mut b[..(l - 1)])?;
         if n == 0 {
             return Ok(n);
         }
@@ -169,7 +166,7 @@ struct Line2PacketWrapper {
 }
 
 impl Line2PacketWrapper {
-    #[cfg_attr(feature = "cargo-clippy", allow(collapsible_if))]
+    #[allow(clippy::collapsible_if)]
     fn deliver_the_line(&mut self, buf: &mut [u8], mut n: usize) -> Option<usize> {
         if n > buf.len() {
             if self.drop_too_long_lines {
@@ -203,7 +200,7 @@ impl Line2PacketWrapper {
 }
 
 impl Read for Line2PacketWrapper {
-    #[cfg_attr(feature = "cargo-clippy", allow(collapsible_if))]
+    #[allow(clippy::collapsible_if)]
     fn read(&mut self, buf: &mut [u8]) -> Result<usize, IoError> {
         //eprint!("ql={} ", self.queue.len());
         if self.eof {
@@ -229,10 +226,7 @@ impl Read for Line2PacketWrapper {
                 self.read(buf)
             }
         } else {
-            let mut n = match self.inner.read(buf) {
-                Ok(x) => x,
-                Err(e) => return Err(e),
-            };
+            let mut n = self.inner.read(buf)?;
 
             if n == 0 {
                 self.eof = true;

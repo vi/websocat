@@ -68,7 +68,7 @@ pub fn lengthprefixed_peer(
     lengthprefixed_skip_read_direction: bool,
     lengthprefixed_skip_write_direction: bool,
 ) -> BoxedNewPeerFuture {
-    if num_bytes_in_length_prefix < 1 || num_bytes_in_length_prefix > 8 {
+    if !(1..=8).contains(&num_bytes_in_length_prefix) {
         return peer_strerr("Number of header bytes for lengthprefixed overlay should be from 1 to 8");
     }
 
@@ -82,7 +82,7 @@ pub fn lengthprefixed_peer(
         length_buffer: [0; 8],
         length_starting_pos,
         length_pos: length_starting_pos,
-        length_ending_pos: length_ending_pos,
+        length_ending_pos,
         little_endian,
         data_read_so_far: 0,
     };
@@ -91,7 +91,7 @@ pub fn lengthprefixed_peer(
         length_buffer: [0; 8],
         length_starting_pos,
         length_pos: length_starting_pos,
-        length_ending_pos: length_ending_pos,
+        length_ending_pos,
         little_endian,
         data_written_so_far: 0,
     };

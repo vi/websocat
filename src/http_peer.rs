@@ -1,6 +1,6 @@
 
 #![allow(unused)]
-#![cfg_attr(feature="cargo-clippy",allow(needless_pass_by_value,cast_lossless,identity_op))]
+#![allow(clippy::needless_pass_by_value,clippy::cast_lossless,clippy::identity_op)]
 use futures::future::{err, ok, Future};
 
 use std::rc::Rc;
@@ -233,7 +233,7 @@ pub fn http_request_peer(
     inner_peer: Peer,
     _l2r: L2rUser,
 ) -> BoxedNewPeerFuture {
-    let request = ::http_bytes::request_header_to_vec(&request);
+    let request = ::http_bytes::request_header_to_vec(request);
 
     let (r, w, hup) = (inner_peer.0, inner_peer.1, inner_peer.2);
 
@@ -252,7 +252,7 @@ pub fn http_request_peer(
                             Err("Something wrong with response HTTP head")?;
                         }
                         let p = p.unwrap();
-                        if p.1.len() > 0 {
+                        if !p.1.is_empty() {
                             Err("Something wrong with parsing HTTP")?;
                         }
                         let response = p.0;
@@ -349,7 +349,7 @@ pub fn http_response_post_sse_peer(
                     Err("Something wrong with request HTTP head")?;
                 }
                 let p = p.unwrap();
-                if p.1.len() > 0 {
+                if !p.1.is_empty() {
                     Err("Something wrong with parsing HTTP request")?;
                 }
                 request = p.0;

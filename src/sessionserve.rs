@@ -19,7 +19,7 @@ impl Session {
             skip: false,
             max_ops: self.opts.max_messages,
         };
-        let mut co2 = co1.clone();
+        let mut co2 = co1;
         co2.max_ops = self.opts.max_messages_rev;
         if self.opts.unidirectional {
             co2.skip=true;
@@ -112,12 +112,12 @@ pub fn serve<OE>(
     onerror: std::rc::Rc<OE>,
 ) -> impl Future<Item = (), Error = ()>
 where
-    OE: Fn(Box<dyn std::error::Error>) -> () + 'static,
+    OE: Fn(Box<dyn std::error::Error>) + 'static,
 {
     futures::future::ok(()).and_then(|()| serve_impl(s1, s2, opts, onerror))
 }
 
-#[cfg_attr(feature = "cargo-clippy", allow(needless_pass_by_value))]
+#[allow(clippy::needless_pass_by_value)]
 fn serve_impl<OE>(
     s1: Rc<dyn Specifier>,
     s2: Rc<dyn Specifier>,
@@ -125,7 +125,7 @@ fn serve_impl<OE>(
     onerror: std::rc::Rc<OE>,
 ) -> Box<dyn Future<Item = (), Error = ()>>
 where
-    OE: Fn(Box<dyn std::error::Error>) -> () + 'static,
+    OE: Fn(Box<dyn std::error::Error>) + 'static,
 {
     debug!("Serving {:?} to {:?} with {:?}", s1, s2, opts);
     let ps = Rc::new(RefCell::new(ProgramState::default()));

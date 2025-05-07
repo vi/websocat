@@ -23,7 +23,7 @@ fn spechelp(sc: &dyn SpecifierClass, overlays: bool, advanced: bool) {
 }
 
 // https://github.com/rust-lang/rust/issues/51942
-#[cfg_attr(feature = "cargo-clippy", allow(nonminimal_bool))]
+#[allow(clippy::nonminimal_bool)]
 pub fn shorthelp() {
     //use std::io::Write;
     use std::io::{BufRead, BufReader};
@@ -33,8 +33,7 @@ pub fn shorthelp() {
     }
     let mut lines_to_display = vec![];
     let mut do_display = true;
-    #[allow(non_snake_case)]
-    for l in BufReader::new(&b[..]).lines() {
+    BufReader::new(&b[..]).lines().for_each(|l| {
         if let Ok(l) = l {
             {
                 let lt = l.trim();
@@ -70,7 +69,7 @@ pub fn shorthelp() {
                 }
             };
         }
-    }
+    });
     for l in lines_to_display {
         println!("{}", l);
     }

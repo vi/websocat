@@ -228,10 +228,7 @@ pub fn ws_upgrade_peer(
                 
                 
                 if let Some(ref restrict_uri) = *restrict_uri {
-                    let check_passed = match x.request.subject.1 {
-                        AbsolutePath(ref x) if x == restrict_uri => true,
-                        _ => false,
-                    };
+                    let check_passed = matches!(x.request.subject.1, AbsolutePath(ref x) if x == restrict_uri);
                     if !check_passed {
                         return Box::new(
                             x.reject()
@@ -251,7 +248,7 @@ pub fn ws_upgrade_peer(
                     debug!("{:?}", headers);
                     info!("Upgraded");
                     let close_on_shutdown =  !opts.websocket_dont_close;
-                    super::ws_peer::finish_building_ws_peer(&*opts, y, close_on_shutdown, None)
+                    super::ws_peer::finish_building_ws_peer(&opts, y, close_on_shutdown, None)
                 })) as Box<dyn Future<Item = Peer, Error = websocket::WebSocketError>>
             },
         );

@@ -14,11 +14,11 @@ pub fn io_other_error<E: std::error::Error + Send + Sync + 'static>(e: E) -> std
     std::io::Error::new(std::io::ErrorKind::Other, e)
 }
 
-#[cfg_attr(feature = "cargo-clippy", allow(redundant_closure))]
+#[allow(clippy::redundant_closure)]
 impl PeerConstructor {
-    pub fn map<F: 'static>(self, func: F) -> Self
+    pub fn map<F>(self, func: F) -> Self
     where
-        F: Fn(Peer, L2rUser) -> BoxedNewPeerFuture,
+        F: Fn(Peer, L2rUser) -> BoxedNewPeerFuture + 'static,
     {
         let f = Rc::new(func);
         use crate::PeerConstructor::*;

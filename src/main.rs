@@ -1,6 +1,6 @@
 #![allow(renamed_and_removed_lints)]
 #![allow(unknown_lints)]
-#![cfg_attr(feature = "cargo-clippy", allow(deprecated_cfg_attr))]
+#![allow(clippy::deprecated_cfg_attr)]
 
 #[macro_use]
 extern crate websocat;
@@ -769,7 +769,7 @@ fn run() -> Result<()> {
         help::longhelp();
         return Ok(());
     }
-    if vec!["-?", "-h", "--help"].contains(&std::env::args().nth(1).unwrap_or_default().as_str()) {
+    if ["-?", "-h", "--help"].contains(&std::env::args().nth(1).unwrap_or_default().as_str()) {
         help::shorthelp();
         return Ok(());
     }
@@ -822,10 +822,8 @@ fn run() -> Result<()> {
         Err("--no-async-stdio and --async-stdio are not meaningful together")?;
     }
 
-    if ! cmd.noasyncstdio {
-        if atty::isnt(atty::Stream::Stdin) && atty::isnt(atty::Stream::Stdout) {
-            cmd.asyncstdio = true;
-        }
+    if !cmd.noasyncstdio && atty::isnt(atty::Stream::Stdin) && atty::isnt(atty::Stream::Stdout) {
+        cmd.asyncstdio = true;
     }
 
     //if !cmd.serve_static_files.is_empty() && cmd.restrict_uri.is_none() {
@@ -972,15 +970,15 @@ fn run() -> Result<()> {
     }
     if let Ok(ba) = std::env::var("WEBSOCAT_BASIC_AUTH") {
         if basic_auth_content.is_some() {
-            return Err("Multiple request basic auth options specified simultaneously")?;
+            return Err("Multiple request basic auth options specified simultaneously".into());
         }
         basic_auth_content = Some(ba);
     }
     if let Some(baf) = cmd.basic_auth_file {
         if basic_auth_content.is_some() {
-            return Err("Multiple request basic auth options specified simultaneously")?;
+            return Err("Multiple request basic auth options specified simultaneously".into());
         }
-        let x = std::fs::read_to_string(&baf).map_err(|e|{error!("Failed to read `{:?}`", baf); e})?;
+        let x = std::fs::read_to_string(&baf).inspect_err(|_|{error!("Failed to read `{:?}`", baf);})?;
         basic_auth_content = Some(x.trim().to_owned());
     }
 

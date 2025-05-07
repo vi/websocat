@@ -218,7 +218,7 @@ pub fn ssl_accept(inner_peer: Peer, _l2r: L2rUser, progopt: Rc<Options>) -> Boxe
     let squashed_peer = readwrite::ReadWriteAsync::new(inner_peer.0, inner_peer.1);
 
     fn gettlsa(cert: &[u8], passwd: &str) -> native_tls::Result<TlsAcceptorExt> {
-        let pkcs12 = Pkcs12::from_pkcs12(&cert[..], passwd)?;
+        let pkcs12 = Pkcs12::from_pkcs12(cert, passwd)?;
         Ok(TlsAcceptorExt::from(TlsAcceptor::builder(pkcs12).build()?))
     }
 
@@ -227,9 +227,7 @@ pub fn ssl_accept(inner_peer: Peer, _l2r: L2rUser, progopt: Rc<Options>) -> Boxe
         .as_ref()
         .expect("lint should have caught the missing pkcs12_der option");
     let passwd = progopt
-        .pkcs12_passwd
-        .as_ref()
-        .map(|x| x.as_str())
+        .pkcs12_passwd.as_deref()
         .unwrap_or("");
     let tls = match gettlsa(der, passwd) {
         Ok(x) => x,
