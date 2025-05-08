@@ -1,4 +1,4 @@
-#![cfg_attr(feature="cargo-clippy",allow(needless_pass_by_value,cast_lossless,identity_op))]
+#![allow(clippy::needless_pass_by_value,clippy::cast_lossless,clippy::identity_op)]
 use futures::future::{err, ok, Future};
 
 use std::rc::Rc;
@@ -126,8 +126,8 @@ fn read_socks_reply(p: Peer) -> RSRRet {
                     };
                     return myerr(msg);
                 }
-                let ret: RSRRet;
-                ret = match reply[3] {
+                
+                let ret: RSRRet = match reply[3] {
                     b'\x01' => {
                         // ipv4
                         let addrport = [0; 4 + 2];

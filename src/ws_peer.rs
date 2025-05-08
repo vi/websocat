@@ -282,7 +282,7 @@ impl<T: WsStream + 'static> Read for WsReadWrapper<T> {
                 Ready(Some(OwnedMessage::Text(x))) => {
                     debug!("incoming text");
                     let mut qbuf : Vec<u8> = vec![];
-                    let mut q : &[u8] = x.as_str().as_bytes();
+                    let mut q : &[u8] = x.as_bytes();
                     process_prefixes_and_base64(&mut qbuf, &mut q, &self.text_prefix, self.text_base64);
                     match self.debt.process_message(buf, q) {
                         ProcessMessageResult::Return(x) => x,

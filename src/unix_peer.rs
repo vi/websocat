@@ -332,7 +332,7 @@ impl Drop for MyUnixStream {
 pub fn unix_connect_peer(addr: &Path) -> BoxedNewPeerFuture {
     use futures::Future;
     Box::new(
-        UnixStream::connect(&addr)
+        UnixStream::connect(addr)
             .map(|x| {
                 info!("Connected to a unix socket");
                 let x = Rc::new(x);
@@ -359,14 +359,13 @@ pub fn unix_listen_peer(addr: &Path, opts: &Rc<Options>) -> BoxedNewPeerStream {
         use std::os::unix::io::FromRawFd;
         let l = unsafe { std::os::unix::net::UnixListener::from_raw_fd(fdnum) } ;
         let _ = l.set_nonblocking(true);
-        let bound =
-        UnixListener::from_std(l, &tokio_reactor::Handle::default());
-        bound
+
+        UnixListener::from_std(l, &tokio_reactor::Handle::default())
     } else {
         if opts.unlink_unix_socket {
             let _ = ::std::fs::remove_file(addr);
         };
-        let bound = UnixListener::bind(&addr);
+        let bound = UnixListener::bind(addr);
         if opts.announce_listens {
             let poss = addr.as_os_str();
             use std::os::unix::ffi::OsStrExt;

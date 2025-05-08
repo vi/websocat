@@ -201,7 +201,7 @@ pub fn tcp_race(addrs: &[SocketAddr]) -> Box<dyn Future<Item = TcpStream, Error 
     use futures::stream::futures_unordered::FuturesUnordered;
     let mut fu = FuturesUnordered::new();
     for addr in addrs {
-        let addr = addr.clone();
+        let addr = *addr;
         fu.push(
             TcpStream::connect(&addr)
             .map(move |x| {
@@ -250,7 +250,7 @@ pub fn tcp_connect_peer(addrs: &[SocketAddr]) -> BoxedNewPeerFuture {
 }
 
 pub fn tcp_listen_peer(addr: &SocketAddr, l2r: L2rUser, announce: bool) -> BoxedNewPeerStream {
-    let bound = match TcpListener::bind(&addr) {
+    let bound = match TcpListener::bind(addr) {
         Ok(x) => x,
         Err(e) => return peer_err_s(e),
     };
@@ -435,9 +435,8 @@ impl Read for UdpPeerHandle {
                         p.state = Some(UdpPeerState::HasAddress(addr));
                         ret
                     })
-                    .map_err(|e| {
+                    .inspect_err(|_| {
                         p.state = Some(UdpPeerState::HasAddress(oldaddr));
-                        e
                     })
             }
             UdpPeerState::WaitingForAddress((cmpl, pollster)) => match p.s.recv_from2(buf) {

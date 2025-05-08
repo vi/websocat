@@ -84,7 +84,7 @@ pub fn get_ws_lowlevel_peer(mode: WsLlContext, mut inner: Peer, opts: Rc<Options
     let duplex = c.framed(PeerForWs(inner));
 
     let close_on_shutdown =  !opts.websocket_dont_close;
-    let p = super::ws_peer::finish_building_ws_peer(&*opts, duplex, close_on_shutdown, hup);
+    let p = super::ws_peer::finish_building_ws_peer(&opts, duplex, close_on_shutdown, hup);
 
     Box::new(
         ::futures::future::ok(p)

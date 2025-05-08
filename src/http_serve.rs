@@ -38,7 +38,7 @@ pub fn get_static_file_reply(len: Option<u64>, ct: &str) -> Vec<u8> {
     q
 }
 
-#[cfg_attr(feature = "cargo-clippy", allow(needless_pass_by_value))]
+#[allow(clippy::needless_pass_by_value)]
 pub fn http_serve(
     p: Peer,
     incoming: Option<Incoming<(Method, RequestUri)>>,

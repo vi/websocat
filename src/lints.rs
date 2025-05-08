@@ -1,4 +1,4 @@
-#![cfg_attr(feature="cargo-clippy", allow(collapsible_if,needless_pass_by_value))]
+#![allow(clippy::collapsible_if,clippy::needless_pass_by_value)]
 
 use super::{Options, Result, SpecifierClass, SpecifierStack, WebsocatConfiguration2};
 use super::specifier::SpecifierNode;
@@ -30,9 +30,9 @@ trait ClassExt {
     fn is_reuser(&self) -> bool;
 }
 
-pub type OnWarning = Box<dyn for<'a> Fn(&'a str) -> () + 'static>;
+pub type OnWarning = Box<dyn for<'a> Fn(&'a str) + 'static>;
 
-#[cfg_attr(rustfmt, rustfmt_skip)]
+#[rustfmt::skip]
 impl ClassExt for Rc<dyn SpecifierClass> {
     fn is_stdio(&self) -> bool {
         [
@@ -159,8 +159,8 @@ impl WebsocatConfiguration2 {
         self.contains_class("InetdClass")
     }
 
-    #[cfg_attr(rustfmt, rustfmt_skip)]
-    #[cfg_attr(feature="cargo-clippy", allow(nonminimal_bool))]
+    #[rustfmt::skip]
+    #[allow(clippy::nonminimal_bool)]
     pub fn websocket_used(&self) -> bool {
         false 
         || self.contains_class("WsConnectClass")
@@ -169,8 +169,8 @@ impl WebsocatConfiguration2 {
         || self.contains_class("WsServerClass")
     }
 
-    #[cfg_attr(rustfmt, rustfmt_skip)]
-    #[cfg_attr(feature="cargo-clippy", allow(nonminimal_bool))]
+    #[rustfmt::skip]
+    #[allow(clippy::nonminimal_bool)]
     pub fn exec_used(&self) -> bool {
         false 
         || self.contains_class("ExecClass")
@@ -540,13 +540,10 @@ impl WebsocatConfiguration2 {
 
     fn l_proto(&mut self, _on_warning: &OnWarning) -> Result<()> {
         if self.opts.websocket_protocol.is_some() {
-            if false
-                || self.contains_class("WsConnectClass")
+            if !(self.contains_class("WsConnectClass")
                 || self.contains_class("WsClientClass")
-                || self.contains_class("WsClientSecureClass")
+                || self.contains_class("WsClientSecureClass"))
             {
-                // OK
-            } else {
                 if self.contains_class("WsServerClass") {
                     _on_warning("--protocol option is unused. Maybe you want --server-protocol?")
                 } else {
@@ -594,10 +591,8 @@ impl WebsocatConfiguration2 {
                     return Err("--udp-multicast-iface-v6 option mush be specified the same number of times as IPv6 addresses for --udp-multicast (alternatively --udp-multicast-iface-* options should be not specified at all)")?;
                 }
             }
-        } else {
-            if self.opts.udp_multicast_loop {
-                return Err("--udp-multicast-loop is not applicable without --udp-multicast")?;
-            }
+        } else  if self.opts.udp_multicast_loop {
+            return Err("--udp-multicast-loop is not applicable without --udp-multicast")?;
         }
         Ok(())
     }
@@ -616,10 +611,8 @@ impl WebsocatConfiguration2 {
             if !self.contains_class("PrometheusClass") {
                 self.s2.overlays.insert(0, SpecifierNode { cls: Rc::new(crate::prometheus_peer::PrometheusClass) });
             }
-        } else {
-            if self.contains_class("PrometheusClass") {
-                _on_warning("Using `prometheus:` overlay without `--prometheus` option is meaningless");
-            }
+        } else if self.contains_class("PrometheusClass") {
+            _on_warning("Using `prometheus:` overlay without `--prometheus` option is meaningless");
         }
         Ok(())
     }

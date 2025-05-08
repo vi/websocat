@@ -48,10 +48,7 @@ impl Read for JsonRpcWrapper {
     fn read(&mut self, b: &mut [u8]) -> Result<usize, IoError> {
         let l = b.len();
         assert!(l > 1);
-        let n = match self.0.read(&mut b[..l]) {
-            Ok(x) => x,
-            Err(e) => return Err(e),
-        };
+        let n = self.0.read(&mut b[..l])?;
         if n == 0 {
             return Ok(0);
         }

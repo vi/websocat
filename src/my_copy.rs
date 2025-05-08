@@ -86,7 +86,7 @@ where
             // First ensure that preamble messages got drained
             if self.preamble_index < self.preamble.len() {
                 let writer = self.writer.as_mut().unwrap();
-                let i = try_nb!(writer.write(&self.preamble[self.preamble_index].as_bytes()));
+                let i = try_nb!(writer.write(self.preamble[self.preamble_index].as_bytes()));
                 if i == 0 {
                     return Err(io::Error::new(
                         io::ErrorKind::WriteZero,

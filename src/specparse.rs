@@ -23,7 +23,7 @@ fn some_checks(s: &str) -> Result<()> {
     }
 
     if s.starts_with("open:") {
-        return Err("There is no `open:` address type. Consider `open-async:` or `readfile:` or `writefile:` or `appendfile:`")?;
+        return Err("There is no `open:` address type. Consider `open-async:` or `readfile:` or `writefile:` or `appendfile:`".into());
     }
 
     #[cfg(not(unix))]
@@ -61,7 +61,7 @@ fn some_checks(s: &str) -> Result<()> {
 
 impl FromStr for SpecifierStack {
     type Err = Box<dyn (::std::error::Error)>;
-    #[cfg_attr(feature = "cargo-clippy", allow(cyclomatic_complexity))]
+    #[allow(clippy::cyclomatic_complexity)]
     fn from_str(s: &str) -> Result<SpecifierStack> {
         some_checks(s)?;
 

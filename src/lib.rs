@@ -10,8 +10,6 @@
 //! 6. `Session` with two `Transfer`s - forward and reverse.
 
 #![allow(renamed_and_removed_lints)]
-#![allow(unknown_lints)]
-#![cfg_attr(feature = "cargo-clippy", allow(deprecated_cfg_attr))]
 
 extern crate futures;
 #[macro_use]
@@ -106,7 +104,7 @@ pub struct WebsocatConfiguration3 {
 impl WebsocatConfiguration3 {
     pub fn serve<OE>(self, onerror: std::rc::Rc<OE>) -> impl Future<Item = (), Error = ()>
     where
-        OE: Fn(Box<dyn std::error::Error>) -> () + 'static,
+        OE: Fn(Box<dyn std::error::Error>) + 'static,
     {
         serve(self.s1, self.s2, self.opts, onerror)
     }

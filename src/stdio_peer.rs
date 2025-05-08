@@ -28,8 +28,7 @@ use super::{once, spawn_hack, ConstructParams, PeerConstructor, Specifier};
 pub struct AsyncStdio;
 impl Specifier for AsyncStdio {
     fn construct(&self, p: ConstructParams) -> PeerConstructor {
-        let ret;
-        ret = get_stdio_peer(&mut p.global(GlobalState::default));
+        let ret = get_stdio_peer(&mut p.global(GlobalState::default));
         once(ret)
     }
     specifier_boilerplate!(globalstate singleconnect no_subspec);
@@ -86,8 +85,7 @@ connections on port 1234 and redirect the data to local SSH server.
 pub struct OpenAsync(pub PathBuf);
 impl Specifier for OpenAsync {
     fn construct(&self, _: ConstructParams) -> PeerConstructor {
-        let ret;
-        ret = get_file_peer(&self.0);
+        let ret = get_file_peer(&self.0);
         once(ret)
     }
     specifier_boilerplate!(noglobalstate singleconnect no_subspec);
@@ -115,8 +113,7 @@ Example: Serve big blobs of random data to clients
 pub struct OpenFdAsync(pub i32);
 impl Specifier for OpenFdAsync {
     fn construct(&self, _: ConstructParams) -> PeerConstructor {
-        let ret;
-        ret = get_fd_peer(self.0);
+        let ret = get_fd_peer(self.0);
         once(ret)
     }
     specifier_boilerplate!(noglobalstate singleconnect no_subspec);

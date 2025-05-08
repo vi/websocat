@@ -154,7 +154,6 @@ impl Drop for MirrorWrite {
     }
 }
 
-////
 struct LiteralReplyHandle(mpsc::Sender<()>);
 struct LiteralReplyRead {
     debt: ReadDebt,
