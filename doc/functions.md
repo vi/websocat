@@ -323,26 +323,6 @@ Parameters:
 
 Returns `StreamSocket`
 
-## autoreconnect
-
-Combine multiple datagram sockets into one that writes to all specified inner sockets and reads from any of them.
-
-Parameters:
-
-* opts (`Dynamic`) - object map containing dynamic options to the function
-* sockets (`Vec<Dynamic>`) - Array of `DatagramSocket`s
-
-Returns `DatagramSocket`
-
-Options:
-
-* write_fail_all_if_one_fails (`bool`) - Disconnect all the inner socket writers if one hangs up or fails a write
-* read_fail_all_if_one_fails (`bool`) - Disconnect all the inner socket writers if one hangs up or fails a write
-* propagate_eofs (`bool`) - If one of `tee:`'s branches signed EOF, propagate it to user
-* tolerate_torn_msgs (`bool`) - If a node starts emitting a datagram, then goes away; do not abort the reading side of the connection, instead just make a trimmed, corrupted message and continue.
-* use_hangups (`bool`) - Cause hangup if any of the branches signals a hangup
-* use_first_hangup (`bool`) - Use hangup token specifically from the first of specified sockets
-
 ## b64str
 
 Decode base64 string to another string
