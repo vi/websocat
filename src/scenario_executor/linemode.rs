@@ -22,6 +22,7 @@ struct ReadLineChunks {
     inner: StreamRead,
     separator: u8,
     separator_n: usize,
+    inline: bool,
 
     /// Bytes read from the inner stream, but not yet scanned
     unprocessed_bytes: usize,
@@ -32,11 +33,12 @@ struct ReadLineChunks {
 }
 
 impl ReadLineChunks {
-    pub fn new(inner: StreamRead, separator: u8, separator_n: usize) -> Self {
+    pub fn new(inner: StreamRead, separator: u8, separator_n: usize, inline: bool) -> Self {
         Self {
             inner,
             separator,
             separator_n,
+            inline,
             unprocessed_bytes: 0,
             separator_bytes_in_a_row: 0,
             offset: 0,
@@ -89,6 +91,9 @@ impl PacketRead for ReadLineChunks {
             if b == this.separator {
                 this.separator_bytes_in_a_row += 1;
                 if this.separator_bytes_in_a_row == this.separator_n {
+                    if this.inline {
+                        chunk_end += this.separator_n;
+                    }
                     let ret = Poll::Ready(Ok(PacketReadResult {
                         flags: BufferFlag::Text.into(),
                         buffer_subset: chunk_start..chunk_end,
@@ -295,6 +300,10 @@ fn line_chunks(
         //@
         //@ If active, leading and trailing separator bytes are also removed from the datagrams
         substitute: Option<u8>,
+
+        //@ When framing messages, preserve separators as a part of the content at the end of each message.
+        #[serde(default)]
+        inline: bool,
     }
     let opts: LineChunksOpts = rhai::serde::from_dynamic(&opts)?;
 
@@ -315,7 +324,7 @@ fn line_chunks(
 
     if let Some(r) = x.read {
         wrapped.read = Some(DatagramRead {
-            src: Box::pin(ReadLineChunks::new(r, separator, separator_n)),
+            src: Box::pin(ReadLineChunks::new(r, separator, separator_n, opts.inline)),
         })
     }
 

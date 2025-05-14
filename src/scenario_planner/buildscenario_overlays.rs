@@ -36,6 +36,9 @@ impl Overlay {
                 if !env.opts.separator_inhibit_substitution {
                     oo.push_str("substitute: 32,");
                 }
+                if env.opts.separator_inline {
+                    oo.push_str("inline: true,");
+                }
                 env.printer.print_line(&format!(
                     "let {varnam} = line_chunks(#{{{oo}}}, {inner_var});"
                 ));

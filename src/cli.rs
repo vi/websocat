@@ -121,6 +121,11 @@ pub struct WebsocatArgs {
     #[arg(long)]
     pub separator_inhibit_substitution: bool,
 
+    /// make separator (such as trailing \n) a part text WebSocket messages, do not 
+    /// remove it when splitting messages
+    #[arg(long)]
+    pub separator_inline: bool,
+
     /// Same as setting `--separator` to `0`. Make text mode messages separated by zero byte instead of newline.
     #[arg(long, short = '0')]
     pub null_terminated: bool,
