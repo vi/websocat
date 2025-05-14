@@ -47,12 +47,14 @@ Short list of endpoint prefixes:
   zero:
 
 Short list of overlay prefixes:
+  defragment:
   lengthprefixed:
   lines:
   log:
   read_chunk_limiter:
   reuse-raw:
   chunks:
+  tee:
   tls:
   write_buffer:
   write_chunk_limiter:

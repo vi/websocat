@@ -70,6 +70,8 @@ Use specified inherited file descriptor for reading and writing, assuming it sup
 
 Trying to specify unexisting FD, especially low-numbered (e.g from 3 to 20) may lead to undefined behaviour.
 
+Gives a StreamSocket. If you want a packet-oriented socket, use `defragment:chunks:async-fd:X` overlay chain.
+
 Prefixes:
 
 * `async-fd:`
@@ -146,6 +148,7 @@ Prefixes:
 
 * `mock_stream_socket:`
 * `mock-stream-socket:`
+* `mss:`
 
 ## Random
 
@@ -354,6 +357,12 @@ Prefixes:
 * `listen-tcp-fdname:`
 * `tcp-l-fdname:`
 * `l-tcp-fdname:`
+
+## Tee
+
+Implementation detail of `tee:` overlay
+
+This endpoint cannot be directly specified as a prefix to a positional CLI argument, there may be some other way to access it.
 
 ## UdpBind
 

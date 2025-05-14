@@ -1,5 +1,13 @@
 <!-- Note: this file is auto-generated -->
 {{#include overlays_header.md}}
+## Defragment
+
+Defragment potential partial messages into complete messages.
+
+Prefixes:
+
+* `defragment:`
+
 ## LengthPrefixedChunks
 
 Convert downstream stream-oriented socket to packet-oriented socket by prefixing each message with its length
@@ -64,6 +72,16 @@ May be automatically inserted in binary (`-b`) mode.
 Prefixes:
 
 * `chunks:`
+
+## Tee
+
+Use both this underlying datagram specifier and also additional ones specified by `--tee` command line option.
+
+Each write is copied to all of the nodes, each node can also produce a message.
+
+Prefixes:
+
+* `tee:`
 
 ## TlsClient
 

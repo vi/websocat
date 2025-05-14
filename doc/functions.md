@@ -312,15 +312,36 @@ Returns `()`
 
 Use specified file descriptor for input/output, returning a StreamSocket.
 
-If you want it as DatagramSocket, just wrap it in a `chunks` wrapper.
+If you want it as a DatagramSocket, just wrap it in a `chunks` wrapper.
 
 May cause unsound behaviour if misused.
 
 Parameters:
 
 * fd (`i64`)
+* force (`bool`)
 
 Returns `StreamSocket`
+
+## autoreconnect
+
+Combine multiple datagram sockets into one that writes to all specified inner sockets and reads from any of them.
+
+Parameters:
+
+* opts (`Dynamic`) - object map containing dynamic options to the function
+* sockets (`Vec<Dynamic>`) - Array of `DatagramSocket`s
+
+Returns `DatagramSocket`
+
+Options:
+
+* write_fail_all_if_one_fails (`bool`) - Disconnect all the inner socket writers if one hangs up or fails a write
+* read_fail_all_if_one_fails (`bool`) - Disconnect all the inner socket writers if one hangs up or fails a write
+* propagate_eofs (`bool`) - If one of `tee:`'s branches signed EOF, propagate it to user
+* tolerate_torn_msgs (`bool`) - If a node starts emitting a datagram, then goes away; do not abort the reading side of the connection, instead just make a trimmed, corrupted message and continue.
+* use_hangups (`bool`) - Cause hangup if any of the branches signals a hangup
+* use_first_hangup (`bool`) - Use hangup token specifically from the first of specified sockets
 
 ## b64str
 
@@ -427,7 +448,7 @@ Options:
 
 * abstract (`bool`) - On Linux, connect to an abstract-namespaced socket instead of file-based
 * text (`bool`) - Mark received datagrams as text
-* max_send_datagram_size (`usize`) - Default defragmenter buffer limit
+* max_send_datagram_size (`usize`) - Defragmenter buffer limit
 
 ## connect_tcp
 
@@ -520,6 +541,21 @@ Options:
 * omit_content (`bool`) - Do not log full content of the stream, just the chunk lengths.
 * hex (`bool`) - Use hex lines instead of string literals with espaces
 * include_timestamps (`bool`) - Also print relative timestamps for each log message
+
+## defragment_writes
+
+Buffer up fragmets of messages written to this overlay and only issue complete writes to inner socket.
+
+Parameters:
+
+* opts (`Dynamic`) - object map containing dynamic options to the function
+* inner (`DatagramSocket`)
+
+Returns `DatagramSocket`
+
+Options:
+
+* max_send_datagram_size (`usize`) - Defragmenter buffer limit
 
 ## display_pkts
 
@@ -769,6 +805,7 @@ Options:
 * separator (`Option<u8>`) - Use this byte as a separator. Defaults to 10 (\n).
 * separator_n (`Option<usize>`) - Use this number of repetitions of the specified byte to consider it as a separator. Defaults to 1.
 * substitute (`Option<u8>`) - When framing messages, look for byte sequences within the message that may alias with the separator and substitute last byte of such pseudo-separators with this byte value.  If active, leading and trailing separator bytes are also removed from the datagrams
+* inline (`bool`) - When framing messages, preserve separators as a part of the content at the end of each message.
 
 ## listen_registry_datagrams
 
@@ -825,7 +862,7 @@ Options:
 * autospawn (`bool`) - Automatically spawn a task for each accepted connection
 * text (`bool`) - Mark received datagrams as text
 * oneshot (`bool`) - Exit listening loop after processing a single connection
-* max_send_datagram_size (`usize`) - Default defragmenter buffer limit
+* max_send_datagram_size (`usize`) - Defragmenter buffer limit
 
 ## listen_tcp
 
@@ -930,6 +967,7 @@ Operations:
 * `W` - make the socket wait for incoming data and check if it matches the sample
 * `ER` / `EW` - inject read or write error
 * `T0` ... `T9` - sleep for some time interval, from small to large.
+* `N` - set name of the mock object
 
 Example: `R hello|R world|W ping |R pong|T5|R zero byte \0 other escapes \| \xff \r\n\t|EW`
 
@@ -1416,6 +1454,26 @@ Parameters:
 
 Returns `Task`
 
+## tee
+
+Combine multiple datagram sockets into one that writes to all specified inner sockets and reads from any of them.
+
+Parameters:
+
+* opts (`Dynamic`) - object map containing dynamic options to the function
+* sockets (`Vec<Dynamic>`) - Array of `DatagramSocket`s
+
+Returns `DatagramSocket`
+
+Options:
+
+* write_fail_all_if_one_fails (`bool`) - Disconnect all the inner socket writers if one hangs up or fails a write
+* read_fail_all_if_one_fails (`bool`) - Disconnect all the inner socket writers if one hangs up or fails a write
+* propagate_eofs (`bool`) - If one of `tee:`'s branches signed EOF, propagate it to user
+* tolerate_torn_msgs (`bool`) - If a node starts emitting a datagram, then goes away; do not abort the reading side of the connection, instead just make a trimmed, corrupted message and continue.
+* use_hangups (`bool`) - Cause hangup if any of the branches signals a hangup
+* use_first_hangup (`bool`) - Use hangup token specifically from the first of specified sockets
+
 ## timeout_ms_hangup_handle
 
 Create a Hangup handle that resolves after specific number of milliseconds
@@ -1503,7 +1561,7 @@ Options:
 * tag_as_text (`bool`) - Tag incoming UDP datagrams to be sent as text WebSocket messages instead of binary. Note that Websocat does not check for UTF-8 correctness and may send non-compliant text WebSocket messages.
 * backpressure (`bool`) - In case of one slow client handler, delay incoming UDP datagrams instead of dropping them
 * inhibit_send_errors (`bool`) - Do not exit if `sendto` returned an error.
-* max_send_datagram_size (`usize`) - Default defragmenter buffer limit
+* max_send_datagram_size (`usize`) - Defragmenter buffer limit
 
 ## udp_socket
 
@@ -1531,7 +1589,7 @@ Options:
 * connect_to_first_seen_address (`bool`) - When using `redirect_to_last_seen_address`, lock the socket to that address, preventing more changes and providing disconnects. Useless without `redirect_to_last_seen_address`.
 * tag_as_text (`bool`) - Tag incoming UDP datagrams to be sent as text WebSocket messages instead of binary. Note that Websocat does not check for UTF-8 correctness and may send non-compliant text WebSocket messages.
 * inhibit_send_errors (`bool`) - Do not exit if `sendto` returned an error.
-* max_send_datagram_size (`usize`) - Default defragmenter buffer limit
+* max_send_datagram_size (`usize`) - Defragmenter buffer limit
 
 ## unlink_file
 

@@ -80,6 +80,9 @@ Options:
       --separator-inhibit-substitution
           prevent mangling incoming text WebSocket by replacing `\n`  (or other separator sequence) with spaces (and trimming leading and trailing separator bytes)
 
+      --separator-inline
+          make separator (such as trailing \n) a part text WebSocket messages, do not remove it when splitting messages
+
   -0, --null-terminated
           Same as setting `--separator` to `0`. Make text mode messages separated by zero byte instead of newline
 
@@ -326,7 +329,7 @@ Options:
           Show dedicated error message explaining how to migrate Websocat1's --accept-from-fd to the new scheme
 
       --reuser-tolerate-torn-msgs
-          When using `reuse-raw:` (including automatically inserted), do not abort connections on unrecoverable broken messages
+          When using `reuse-raw:` (including automatically inserted), do not abort connections on unrecoverable broken messages, instead produce a trimmed message and continue
 
       --compose
           Interpret special command line arguments like `&`, `;`, '^', `(` and `)` as separators for composed scenarios mode. This argument must come first.
@@ -361,6 +364,41 @@ Options:
 
       --filter-reverse <FILTER_REVERSE>
           Pass traffic through this socket prior to transfer data from right to left specifiers
+
+      --async-fd-force
+          Force using a file descriptor for `async-fd:` even when it cannot be registered for events.
+          
+          In case of EWOULDBLOCK Websocat would wait for some short time in a loop.
+          
+          In some cases the whole Websocat process may be blocked.
+
+      --defragment-max-size <DEFRAGMENT_MAX_SIZE>
+          Maximum buffered message size for `defragment:` overlay
+          
+          [default: 1048576]
+
+      --tee <TEE>
+          Copy output datagrams also to this specifier; also merge in incoming datagrams from this specifier
+          
+          May insert a `tee:` overlay automatically if not specified.
+
+      --tee-propagate-failures
+          Cause `tee:` overlay to fail datagram read or write if any (instead of all) nodes failed the operation
+
+      --tee-propagate-eof
+          Cause `tee:` overlay's reading direction to propagate EOF when any of the nodes signaled EOF instead of all of them
+
+      --tee-tolerate-torn-msgs
+          When using `tee:`, do not abort reading side of the connections on unrecoverable broken messages, instead produce a trimmed message and continue
+
+      --tee-use-hangups
+          Terminate `tee:` specifier when any of the tee nodes signal hangup
+
+      --tee-use-first-hangup
+          Terminate `tee:` specifier when main tee node (the one after `tee:` instead of `--tee`) signals hangup
+
+      --enable-sslkeylog
+          When built with rustls, write encryption infromation to a files based on `SSLKEYLOGFILE`  envionrment variable to assist decrypting traffic for analysis
 
   -h, --help
           Print help (see a summary with '-h')
@@ -417,12 +455,14 @@ Short list of endpoint prefixes:
   zero:
 
 Short list of overlay prefixes:
+  defragment:
   lengthprefixed:
   lines:
   log:
   read_chunk_limiter:
   reuse-raw:
   chunks:
+  tee:
   tls:
   write_buffer:
   write_chunk_limiter:
