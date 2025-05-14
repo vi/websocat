@@ -535,8 +535,8 @@ pub struct WebsocatArgs {
     #[arg(long)]
     pub tee_use_first_hangup: bool,
 
-    /// When built with rustls, write encryption infromation to a files based on
-    /// `SSLKEYLOGFILE`  envionrment variable to assist decrypting traffic for analysis.
+    /// When built with rustls, write encryption information to a files based on
+    /// `SSLKEYLOGFILE` environment variable to assist decrypting traffic for analysis.
     #[arg(long)]
     pub enable_sslkeylog: bool,
 }

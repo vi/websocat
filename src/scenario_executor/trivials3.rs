@@ -391,7 +391,7 @@ const fn default_max_send_datagram_size() -> usize {
     655360
 }
 
-//@ Buffer up fragmets of messages written to this overlay and only issue complete writes to inner socket.
+//@ Buffer up fragments of messages written to this overlay and only issue complete writes to inner socket.
 fn defragment_writes(
     ctx: NativeCallContext,
     opts: Dynamic,

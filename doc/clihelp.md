@@ -398,7 +398,7 @@ Options:
           Terminate `tee:` specifier when main tee node (the one after `tee:` instead of `--tee`) signals hangup
 
       --enable-sslkeylog
-          When built with rustls, write encryption infromation to a files based on `SSLKEYLOGFILE`  envionrment variable to assist decrypting traffic for analysis
+          When built with rustls, write encryption information to a files based on `SSLKEYLOGFILE` environment variable to assist decrypting traffic for analysis
 
   -h, --help
           Print help (see a summary with '-h')

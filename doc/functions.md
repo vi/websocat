@@ -544,7 +544,7 @@ Options:
 
 ## defragment_writes
 
-Buffer up fragmets of messages written to this overlay and only issue complete writes to inner socket.
+Buffer up fragments of messages written to this overlay and only issue complete writes to inner socket.
 
 Parameters:
 
