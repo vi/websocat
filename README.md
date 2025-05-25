@@ -537,6 +537,11 @@ Limitations
 * Build process of current version of Websocat is not properly automated and is fragile.
 * Main version (v1) is based on obsolete dependency versions that trigger security warnings and may become tricky to build. There is [new version (v4)](https://github.com/vi/websocat/tree/websocat4), but is not yet considered stable and [has many missing features](https://github.com/vi/websocat/issues/276).
 
+Bindings
+---
+
+* Node.js: [`seamapi/node-websocat`](https://github.com/seamapi/node-websocat)
+
 See also
 ---
 
