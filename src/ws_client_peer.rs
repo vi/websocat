@@ -171,8 +171,8 @@ where
     };
     Box::new(
         after_connect
-            .map(move |(duplex, _)| {
-                info!("Connected to ws",);
+            .map(move |(duplex, headers)| {
+                info!("Connected to ws, response headers: {:?}", headers);
                 let close_on_shutdown = !opts.websocket_dont_close;
                 super::ws_peer::finish_building_ws_peer(&opts, duplex, close_on_shutdown, None)
             })
