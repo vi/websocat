@@ -29,7 +29,11 @@ impl ExitCodeTracker {
             .0
             .fetch_update(Relaxed, Relaxed, |old| Some(old.max(code)))
         {
-            debug!("Setting pending exit code to {code} (was {old})");
+            if code<old {
+                debug!("Leaving exit code on {old} despite of attempt to set it to {code}");
+            } else {
+                debug!("Setting pending exit code to {code} (was {old})");
+            }
         }
     }
 }
