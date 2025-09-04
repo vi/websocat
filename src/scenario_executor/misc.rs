@@ -6,7 +6,8 @@ use tokio::io::AsyncRead;
 use tracing::{debug, debug_span, Instrument};
 
 use crate::scenario_executor::{
-    scenario::{callback_and_continue, ScenarioAccess},
+    exit_code::{EXIT_CODE_HOSTNAME_LOOKUP_FAIL, EXIT_CODE_HOSTNAME_LOOKUP_NO_IPS},
+    scenario::{ScenarioAccess, callback_and_continue},
     types::{Handle, StreamRead, StreamSocket, StreamWrite},
     utils1::TaskHandleExt2,
 };
@@ -43,7 +44,14 @@ fn lookup_host(
 
     Ok(async move {
         debug!("node started");
-        let ips: Vec<SocketAddr> = tokio::net::lookup_host(addr).await?.collect();
+        let ips: Vec<SocketAddr> = tokio::net::lookup_host(addr)
+            .await
+            .inspect_err(|_| the_scenario.exit_code.set(EXIT_CODE_HOSTNAME_LOOKUP_FAIL))?
+            .collect();
+
+        if ips.is_empty() {
+            the_scenario.exit_code.set(EXIT_CODE_HOSTNAME_LOOKUP_NO_IPS);            
+        }
 
         callback_and_continue::<(Vec<SocketAddr>,)>(the_scenario, continuation, (ips,)).await;
         Ok(())

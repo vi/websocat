@@ -8,6 +8,7 @@ use tokio_rustls::TlsConnector;
 use tracing::{debug, debug_span, Instrument};
 
 use crate::scenario_executor::{
+    exit_code::EXIT_CODE_TLS_CLIENT_FAIL,
     scenario::{callback_and_continue, ScenarioAccess},
     types::{StreamRead, StreamWrite},
     utils1::{ExtractHandleOrFail, TaskHandleExt2},
@@ -139,6 +140,7 @@ fn tls_client(
             fd,
         } = inner
         else {
+            the_scenario.exit_code.set(EXIT_CODE_TLS_CLIENT_FAIL);
             bail!("Incomplete underlying socket specified")
         };
 
@@ -149,7 +151,10 @@ fn tls_client(
             domain = "nodomain".to_owned();
         }
         let domain = ServerName::try_from(domain.as_str())?.to_owned();
-        let stream = connector.connect(domain, io).await?;
+        let stream = connector
+            .connect(domain, io)
+            .await
+            .inspect_err(|_| the_scenario.exit_code.set(EXIT_CODE_TLS_CLIENT_FAIL))?;
 
         let (r, w) = tokio::io::split(stream);
 

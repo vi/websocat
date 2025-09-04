@@ -16,7 +16,7 @@ use websocket_sans_io::{
 };
 
 use crate::scenario_executor::{
-    scenario::ScenarioAccess, utils1::ExtractHandleOrFail, MAX_CONTROL_MESSAGE_LEN,
+    MAX_CONTROL_MESSAGE_LEN, exit_code::{EXIT_CODE_WEBSOCKET_FRAMING, ExitCodeTracker}, scenario::ScenarioAccess, utils1::ExtractHandleOrFail
 };
 
 use super::{
@@ -306,6 +306,7 @@ pub struct WsDecoder {
     /// reused by next `poll_read` invocation instead of reading from `inner` again.
     unprocessed_bytes: usize,
     offset: usize,
+    exit_code: ExitCodeTracker,
 }
 
 impl PacketRead for WsDecoder {
@@ -319,7 +320,10 @@ impl PacketRead for WsDecoder {
 
         macro_rules! invdata {
             () => {
-                return Poll::Ready(Err(std::io::ErrorKind::InvalidData.into()))
+                {
+                    this.exit_code.set(EXIT_CODE_WEBSOCKET_FRAMING);
+                    return Poll::Ready(Err(std::io::ErrorKind::InvalidData.into()))
+                }
             };
         }
 
@@ -453,6 +457,7 @@ impl WsDecoder {
         inner: StreamRead,
         require_masked: bool,
         require_unmasked: bool,
+        exit_code: ExitCodeTracker,
     ) -> WsDecoder {
         WsDecoder {
             span,
@@ -462,6 +467,7 @@ impl WsDecoder {
             wd: WebsocketFrameDecoder::new(),
             unprocessed_bytes: 0,
             offset: 0,
+            exit_code,
         }
     }
 }
@@ -491,6 +497,7 @@ fn ws_decoder(
         inner,
         opts.require_masked,
         opts.require_unmasked,
+        ctx.get_scenario()?.exit_code.clone(),
     );
     let x = DatagramRead { src: Box::pin(x) };
     debug!(parent: &span, w=?x, "wrapped");

@@ -7,6 +7,7 @@ use tokio_native_tls::native_tls::{Certificate, Protocol, TlsConnector};
 use tracing::{debug, debug_span, warn, Instrument};
 
 use crate::scenario_executor::{
+    exit_code::EXIT_CODE_TLS_CLIENT_FAIL,
     scenario::{callback_and_continue, ScenarioAccess},
     types::{StreamRead, StreamWrite},
     utils1::{ExtractHandleOrFail, SimpleErr, TaskHandleExt2},
@@ -163,7 +164,10 @@ fn tls_client(
         if domain.is_empty() {
             domain = "nodomain".to_owned();
         }
-        let socket = connector.connect(&domain, io).await?;
+        let socket = connector
+            .connect(&domain, io)
+            .await
+            .inspect_err(|_| the_scenario.exit_code.set(EXIT_CODE_TLS_CLIENT_FAIL))?;
         let (r, w) = tokio::io::split(socket);
 
         let s = StreamSocket {

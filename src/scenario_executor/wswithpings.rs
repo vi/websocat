@@ -223,7 +223,13 @@ fn ws_wrap(
         !opts.no_close_frame,
         opts.shutdown_socket_on_eof,
     );
-    let usuad_decoder = WsDecoder::new(span.clone(), inner_read, require_masked, require_unmasked);
+    let usuad_decoder = WsDecoder::new(
+        span.clone(),
+        inner_read,
+        require_masked,
+        require_unmasked,
+        ctx.get_scenario()?.exit_code.clone(),
+    );
 
     let x = if opts.max_ping_replies == Some(0) {
         DatagramSocket {

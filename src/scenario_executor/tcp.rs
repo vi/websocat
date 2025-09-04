@@ -1,8 +1,7 @@
 use std::{net::SocketAddr, pin::Pin, time::Duration};
 
 use crate::scenario_executor::{
-    utils1::{wrap_as_stream_socket, TaskHandleExt2, NEUTRAL_SOCKADDR4},
-    utils2::AddressOrFd,
+    exit_code::EXIT_CODE_TCP_CONNECT_FAIL, utils1::{NEUTRAL_SOCKADDR4, TaskHandleExt2, wrap_as_stream_socket}, utils2::AddressOrFd
 };
 use futures::{stream::FuturesUnordered, FutureExt, StreamExt};
 use rhai::{Dynamic, Engine, FnPtr, NativeCallContext};
@@ -85,7 +84,8 @@ fn connect_tcp(
 
     Ok(async move {
         debug!("node started");
-        let t = TcpStream::connect(opts.addr).await?;
+        let t = TcpStream::connect(opts.addr).await
+            .inspect_err(|_| the_scenario.exit_code.set(EXIT_CODE_TCP_CONNECT_FAIL))?;
         #[allow(unused_assignments)]
         let mut fd = None;
         #[cfg(unix)]
@@ -154,6 +154,7 @@ fn connect_tcp_race(
                     debug!(%addr, %e, "failed to connect");
                 }
                 None => {
+                    the_scenario.exit_code.set(EXIT_CODE_TCP_CONNECT_FAIL);
                     anyhow::bail!("failed to connect to any of the candidates")
                 }
             }

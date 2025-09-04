@@ -2,11 +2,15 @@ use std::sync::{
     atomic::{AtomicI32, Ordering::Relaxed},
     Arc,
 };
-use tracing::info;
+use tracing::debug;
 
-pub const EXIT_CODE_WEBSOCKET_UPGRADE_ERROR_NONWS: i32 = 3;
-pub const EXIT_CODE_WEBSOCKET_UPGRADE_ERROR_BROKEN: i32 = 4;
-pub const EXIT_CODE_TLS_CLIENT_FAIL: i32 = 5;
+pub const EXIT_CODE_WEBSOCKET_FRAMING: i32 = 3;
+pub const EXIT_CODE_WEBSOCKET_UPGRADE_ERROR_NONWS: i32 = 5;
+pub const EXIT_CODE_WEBSOCKET_UPGRADE_ERROR_BROKEN: i32 = 6;
+pub const EXIT_CODE_TLS_CLIENT_FAIL: i32 = 8;
+pub const EXIT_CODE_TCP_CONNECT_FAIL: i32 = 14;
+pub const EXIT_CODE_HOSTNAME_LOOKUP_NO_IPS: i32 = 20;
+pub const EXIT_CODE_HOSTNAME_LOOKUP_FAIL: i32 = 21;
 
 
 #[derive(Debug,Clone)]
@@ -25,7 +29,7 @@ impl ExitCodeTracker {
             .0
             .fetch_update(Relaxed, Relaxed, |old| Some(old.max(code)))
         {
-            info!("Setting pending exit code to {code} (was {old})");
+            debug!("Setting pending exit code to {code} (was {old})");
         }
     }
 }
