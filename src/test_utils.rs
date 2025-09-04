@@ -5,6 +5,10 @@ use std::{
     time::Duration,
 };
 
+use crate::scenario_executor::exit_code::ExitCodeTracker;
+
+
+
 #[derive(Clone)]
 pub struct SharedCursor(Arc<Mutex<Cursor<Vec<u8>>>>);
 impl std::io::Write for SharedCursor {
@@ -38,8 +42,9 @@ pub async fn test_websocat(s: &str) {
     let time_base = tokio::time::Instant::now();
     let stderr = SharedCursor::new();
     let registry = super::scenario_executor::types::Registry::default();
+    let exit_code = ExitCodeTracker::new();
 
-    let ret = crate::websocat_main(argv, stderr.clone(), time_base, false, registry).await;
+    let ret = crate::websocat_main(argv, stderr.clone(), time_base, false, registry, exit_code).await;
 
     if let Err(ref e) = ret {
         std::io::stderr().write_all(&stderr.content()).unwrap();
@@ -59,12 +64,13 @@ pub async fn test_two_websocats(s1: &str, s2: &str, wait_ms: u64) {
     let stderr1 = SharedCursor::new();
     let stderr2 = SharedCursor::new();
     let registry = super::scenario_executor::types::Registry::default();
+    let exit_code = ExitCodeTracker::new();
 
     //dbg!(&argv1, &argv2);
 
     // Websocat instances can communicate using e.g. `registry-stream-listen:` and `registry-stream-connect:` specifiers.
-    let wsc1 = crate::websocat_main(argv1, stderr1.clone(), time_base, false, registry.clone());
-    let wsc2 = crate::websocat_main(argv2, stderr2.clone(), time_base, false, registry.clone());
+    let wsc1 = crate::websocat_main(argv1, stderr1.clone(), time_base, false, registry.clone(), exit_code.clone());
+    let wsc2 = crate::websocat_main(argv2, stderr2.clone(), time_base, false, registry.clone(), exit_code.clone());
 
     let h1 = tokio::spawn(wsc1);
 
@@ -100,13 +106,14 @@ pub async fn test_three_websocats(s1: &str, s2: &str, s3: &str, wait1_ms: u64, w
     let stderr2 = SharedCursor::new();
     let stderr3 = SharedCursor::new();
     let registry = super::scenario_executor::types::Registry::default();
+    let exit_code = ExitCodeTracker::new();
 
     //dbg!(&argv1, &argv2);
 
     // Websocat instances can communicate using e.g. `registry-stream-listen:` and `registry-stream-connect:` specifiers.
-    let wsc1 = crate::websocat_main(argv1, stderr1.clone(), time_base, false, registry.clone());
-    let wsc2 = crate::websocat_main(argv2, stderr2.clone(), time_base, false, registry.clone());
-    let wsc3 = crate::websocat_main(argv3, stderr3.clone(), time_base, false, registry.clone());
+    let wsc1 = crate::websocat_main(argv1, stderr1.clone(), time_base, false, registry.clone(), exit_code.clone());
+    let wsc2 = crate::websocat_main(argv2, stderr2.clone(), time_base, false, registry.clone(), exit_code.clone());
+    let wsc3 = crate::websocat_main(argv3, stderr3.clone(), time_base, false, registry.clone(), exit_code.clone());
 
     let h1 = tokio::spawn(wsc1);
 

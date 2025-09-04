@@ -1,11 +1,12 @@
 use rhai::{Engine, EvalAltResult, FnPtr, FuncArgs, NativeCallContext, Variant, AST};
-use std::sync::{Arc, Mutex, Weak};
+use std::sync::{
+    Arc, Mutex, Weak,
+};
 use tokio::time::Instant;
-use tracing::error;
+use tracing::{error};
 
 use crate::scenario_executor::{
-    types::{Handle, Task},
-    utils1::run_task,
+    exit_code::ExitCodeTracker, types::{Handle, Task}, utils1::run_task
 };
 
 use super::{
@@ -20,6 +21,7 @@ pub struct Scenario {
     pub time_base: Instant,
     pub prng: Mutex<RandomnessSource>,
     pub registry: Registry,
+    pub exit_code: ExitCodeTracker,
 }
 
 pub trait ScenarioAccess {
@@ -33,6 +35,7 @@ pub fn load_scenario(
     time_base: Instant,
     prng: RandomnessSource,
     registry: Registry,
+    exit_code: ExitCodeTracker,
 ) -> anyhow::Result<Arc<Scenario>> {
     let mut engine = Engine::RAW;
 
@@ -49,6 +52,7 @@ pub fn load_scenario(
         time_base,
         prng: Mutex::new(prng),
         registry,
+        exit_code,
     };
 
     let scenario_arc: Arc<Scenario> = Arc::new_cyclic(move |weak_scenario_arc| {
