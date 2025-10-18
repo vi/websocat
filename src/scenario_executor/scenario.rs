@@ -1,12 +1,12 @@
 use rhai::{Engine, EvalAltResult, FnPtr, FuncArgs, NativeCallContext, Variant, AST};
-use std::sync::{
-    Arc, Mutex, Weak,
-};
+use std::sync::{Arc, Mutex, Weak};
 use tokio::time::Instant;
-use tracing::{error};
+use tracing::error;
 
 use crate::scenario_executor::{
-    exit_code::ExitCodeTracker, types::{Handle, Task}, utils1::run_task
+    exit_code::ExitCodeTracker,
+    types::{Handle, Task},
+    utils1::run_task,
 };
 
 use super::{

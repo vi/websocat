@@ -13,7 +13,13 @@ use tokio::io::AsyncWrite;
 use tracing::{debug, debug_span, error, warn, Instrument};
 
 use crate::scenario_executor::{
-    exit_code::{EXIT_CODE_WEBSOCKET_UPGRADE_ERROR_BROKEN, EXIT_CODE_WEBSOCKET_UPGRADE_ERROR_NONWS}, scenario::{ScenarioAccess, callback_and_continue}, types::{Handle, Hangup, StreamRead, StreamSocket, StreamWrite, Task}, utils1::{HandleExt, HandleExt2, RhResult, SimpleErr, TaskHandleExt2}, utils2::SocketFdI64
+    exit_code::{
+        EXIT_CODE_WEBSOCKET_UPGRADE_ERROR_BROKEN, EXIT_CODE_WEBSOCKET_UPGRADE_ERROR_NONWS,
+    },
+    scenario::{callback_and_continue, ScenarioAccess},
+    types::{Handle, Hangup, StreamRead, StreamSocket, StreamWrite, Task},
+    utils1::{HandleExt, HandleExt2, RhResult, SimpleErr, TaskHandleExt2},
+    utils2::SocketFdI64,
 };
 
 use super::types::SocketFd;
@@ -155,22 +161,30 @@ fn ws_upgrade(
 
         if !opts.lax {
             if resp.status() != StatusCode::SWITCHING_PROTOCOLS {
-                the_scenario.exit_code.set(EXIT_CODE_WEBSOCKET_UPGRADE_ERROR_NONWS);
+                the_scenario
+                    .exit_code
+                    .set(EXIT_CODE_WEBSOCKET_UPGRADE_ERROR_NONWS);
                 bail!(
                     "Upstream server returned status code other than `switching protocols`: {}",
                     resp.status()
                 );
             }
             let Some(upgrval) = resp.headers().get(header::UPGRADE) else {
-                the_scenario.exit_code.set(EXIT_CODE_WEBSOCKET_UPGRADE_ERROR_BROKEN);
+                the_scenario
+                    .exit_code
+                    .set(EXIT_CODE_WEBSOCKET_UPGRADE_ERROR_BROKEN);
                 bail!("Upstream server failed to return an `Upgrade` header");
             };
             if upgrval != "websocket" {
-                the_scenario.exit_code.set(EXIT_CODE_WEBSOCKET_UPGRADE_ERROR_BROKEN);
+                the_scenario
+                    .exit_code
+                    .set(EXIT_CODE_WEBSOCKET_UPGRADE_ERROR_BROKEN);
                 bail!("Upstream server's Upgrade: header is not `websocket`");
             }
             let Some(upstream_accept) = resp.headers().get(header::SEC_WEBSOCKET_ACCEPT) else {
-                the_scenario.exit_code.set(EXIT_CODE_WEBSOCKET_UPGRADE_ERROR_BROKEN);
+                the_scenario
+                    .exit_code
+                    .set(EXIT_CODE_WEBSOCKET_UPGRADE_ERROR_BROKEN);
                 bail!("Upstream server failed to return an `Sec-Websocket-Accept` header");
             };
 
@@ -181,7 +195,9 @@ fn ws_upgrade(
             let expected_accept = base64::prelude::BASE64_STANDARD.encode(hash);
 
             if upstream_accept != expected_accept.as_bytes() {
-                the_scenario.exit_code.set(EXIT_CODE_WEBSOCKET_UPGRADE_ERROR_BROKEN);
+                the_scenario
+                    .exit_code
+                    .set(EXIT_CODE_WEBSOCKET_UPGRADE_ERROR_BROKEN);
                 bail!(
                     "Upstream server failed to return invalid `Sec-Websocket-Accept` header value"
                 );

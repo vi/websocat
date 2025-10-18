@@ -27,7 +27,9 @@ impl PreparatoryAction {
                 let mut oo = String::new();
 
                 if env.opts.insecure {
-                    oo.push_str("danger_accept_invalid_certs: true, danger_accept_invalid_hostnames: true,");
+                    oo.push_str(
+                        "danger_accept_invalid_certs: true, danger_accept_invalid_hostnames: true,",
+                    );
                 }
 
                 if env.opts.enable_sslkeylog {

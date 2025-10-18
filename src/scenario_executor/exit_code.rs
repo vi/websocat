@@ -12,8 +12,7 @@ pub const EXIT_CODE_TCP_CONNECT_FAIL: i32 = 14;
 pub const EXIT_CODE_HOSTNAME_LOOKUP_NO_IPS: i32 = 20;
 pub const EXIT_CODE_HOSTNAME_LOOKUP_FAIL: i32 = 21;
 
-
-#[derive(Debug,Clone)]
+#[derive(Debug, Clone)]
 pub struct ExitCodeTracker(Arc<AtomicI32>);
 
 impl ExitCodeTracker {
@@ -29,7 +28,7 @@ impl ExitCodeTracker {
             .0
             .fetch_update(Relaxed, Relaxed, |old| Some(old.max(code)))
         {
-            if code<old {
+            if code < old {
                 debug!("Leaving exit code on {old} despite of attempt to set it to {code}");
             } else {
                 debug!("Setting pending exit code to {code} (was {old})");

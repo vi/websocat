@@ -16,7 +16,10 @@ use super::{
 use itertools::Itertools;
 use rand::SeedableRng;
 
-use crate::{scenario_executor::exit_code::ExitCodeTracker, scenario_planner::types::{SpecifierPosition, SpecifierStack, WebsocatInvocationStacks}};
+use crate::{
+    scenario_executor::exit_code::ExitCodeTracker,
+    scenario_planner::types::{SpecifierPosition, SpecifierStack, WebsocatInvocationStacks},
+};
 
 use clap::Parser;
 

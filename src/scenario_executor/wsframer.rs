@@ -16,7 +16,10 @@ use websocket_sans_io::{
 };
 
 use crate::scenario_executor::{
-    MAX_CONTROL_MESSAGE_LEN, exit_code::{EXIT_CODE_WEBSOCKET_FRAMING, ExitCodeTracker}, scenario::ScenarioAccess, utils1::ExtractHandleOrFail
+    exit_code::{ExitCodeTracker, EXIT_CODE_WEBSOCKET_FRAMING},
+    scenario::ScenarioAccess,
+    utils1::ExtractHandleOrFail,
+    MAX_CONTROL_MESSAGE_LEN,
 };
 
 use super::{
@@ -319,12 +322,10 @@ impl PacketRead for WsDecoder {
         let _sg = this.span.enter();
 
         macro_rules! invdata {
-            () => {
-                {
-                    this.exit_code.set(EXIT_CODE_WEBSOCKET_FRAMING);
-                    return Poll::Ready(Err(std::io::ErrorKind::InvalidData.into()))
-                }
-            };
+            () => {{
+                this.exit_code.set(EXIT_CODE_WEBSOCKET_FRAMING);
+                return Poll::Ready(Err(std::io::ErrorKind::InvalidData.into()));
+            }};
         }
 
         let mut outflags: BufferFlags = BufferFlag::NonFinalChunk.into();

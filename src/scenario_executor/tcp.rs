@@ -1,7 +1,9 @@
 use std::{net::SocketAddr, pin::Pin, time::Duration};
 
 use crate::scenario_executor::{
-    exit_code::EXIT_CODE_TCP_CONNECT_FAIL, utils1::{NEUTRAL_SOCKADDR4, TaskHandleExt2, wrap_as_stream_socket}, utils2::AddressOrFd
+    exit_code::EXIT_CODE_TCP_CONNECT_FAIL,
+    utils1::{wrap_as_stream_socket, TaskHandleExt2, NEUTRAL_SOCKADDR4},
+    utils2::AddressOrFd,
 };
 use futures::{stream::FuturesUnordered, FutureExt, StreamExt};
 use rhai::{Dynamic, Engine, FnPtr, NativeCallContext};
