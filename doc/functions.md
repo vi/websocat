@@ -442,6 +442,7 @@ Returns `Task`
 Options:
 
 * addr (`SocketAddr`)
+* bind (`Option<SocketAddr>`) - Bind TCP socket to this address and/or port before issuing `connect`
 
 ## connect_tcp_race
 
@@ -452,6 +453,10 @@ Parameters:
 * continuation (`Fn(StreamSocket) -> Task`) - Rhai function that will be called to continue processing
 
 Returns `Task`
+
+Options:
+
+* bind (`Option<SocketAddr>`) - Bind TCP socket to this address and/or port before issuing `connect`
 
 ## connect_unix
 

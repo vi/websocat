@@ -400,6 +400,9 @@ Options:
       --enable-sslkeylog
           When built with rustls, write encryption information to a files based on `SSLKEYLOGFILE` environment variable to assist decrypting traffic for analysis
 
+      --bind-before-connect <BIND_BEFORE_CONNECT>
+          Bind outgoing TCP socket to this address and/or port prior to connecting to the destination
+
   -h, --help
           Print help (see a summary with '-h')
 
