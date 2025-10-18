@@ -11,17 +11,31 @@ impl Endpoint {
         match self {
             Endpoint::TcpConnectByIp(addr) => {
                 let varnam = env.vars.getnewvarname("tcp");
-                env.printer.print_line(&format!(
-                    "connect_tcp(#{{addr: {a}}}, |{varnam}| {{",
-                    a = StrLit(addr)
-                ));
+
+                let mut o = String::with_capacity(32);
+                o.push_str("addr: ");
+                o.push_str(&format!("{},", StrLit(addr)));
+
+                if let Some(bbc) = env.opts.bind_before_connect {
+                    o.push_str(&format!("bind: {},", StrLit(bbc)));
+                }
+
+                env.printer
+                    .print_line(&format!("connect_tcp(#{{{o}}}, |{varnam}| {{"));
                 env.printer.increase_indent();
                 Ok(varnam)
             }
             Endpoint::TcpConnectByEarlyHostname { varname_for_addrs } => {
+
+                let mut o = String::with_capacity(0);
+
+                if let Some(bbc) = env.opts.bind_before_connect {
+                    o.push_str(&format!("bind: {},", StrLit(bbc)));
+                }
+
                 let varnam = env.vars.getnewvarname("tcp");
                 env.printer.print_line(&format!(
-                    "connect_tcp_race(#{{}}, {varname_for_addrs}, |{varnam}| {{"
+                    "connect_tcp_race(#{{{o}}}, {varname_for_addrs}, |{varnam}| {{"
                 ));
                 env.printer.increase_indent();
                 Ok(varnam)
@@ -35,8 +49,13 @@ impl Endpoint {
                 env.printer.increase_indent();
 
                 let varnam = env.vars.getnewvarname("tcp");
+                let mut o = String::with_capacity(0);
+                if let Some(bbc) = env.opts.bind_before_connect {
+                    o.push_str(&format!("bind: {},", StrLit(bbc)));
+                }
+
                 env.printer
-                    .print_line(&format!("connect_tcp_race(#{{}}, {addrs}, |{varnam}| {{"));
+                    .print_line(&format!("connect_tcp_race(#{{{o}}}, {addrs}, |{varnam}| {{"));
                 env.printer.increase_indent();
                 Ok(varnam)
             }

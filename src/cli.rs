@@ -539,6 +539,10 @@ pub struct WebsocatArgs {
     /// `SSLKEYLOGFILE` environment variable to assist decrypting traffic for analysis.
     #[arg(long)]
     pub enable_sslkeylog: bool,
+
+    /// Bind outgoing TCP socket to this address and/or port prior to connecting to the destination.
+    #[arg(long)]
+    pub bind_before_connect: Option<SocketAddr>,
 }
 
 /// Subset of command line arguments that describes the whole Websocat operation even when `--compose` sub-scenarios are used.

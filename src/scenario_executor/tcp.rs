@@ -7,7 +7,7 @@ use crate::scenario_executor::{
 };
 use futures::{stream::FuturesUnordered, FutureExt, StreamExt};
 use rhai::{Dynamic, Engine, FnPtr, NativeCallContext};
-use tokio::net::TcpStream;
+use tokio::net::{TcpListener, TcpSocket, TcpStream};
 use tracing::{debug, debug_span, error, warn, Instrument};
 
 use crate::scenario_executor::{
@@ -67,11 +67,54 @@ impl TcpOwnedWriteHalfWithoutAutoShutdown {
     }
 }
 
+struct TcpSocketOptions {
+    bind_before_connecting: Option<SocketAddr>,
+}
+
+impl TcpSocketOptions {
+    fn new() -> TcpSocketOptions {
+        Self {
+            bind_before_connecting: None,
+        }
+    }
+
+    fn gs4a(addr: SocketAddr) -> std::io::Result<TcpSocket> {
+        if addr.is_ipv4() {
+            TcpSocket::new_v4()
+        } else if addr.is_ipv6() {
+            TcpSocket::new_v6()
+        } else {
+            panic!("Non IPv4 or IPv6 address is specified for a TCP socket");
+        }
+    }
+
+    async fn connect(&self, addr: SocketAddr) -> std::io::Result<TcpStream> {
+        let s = Self::gs4a(addr)?;
+        if let Some(bbc) = self.bind_before_connecting {
+            s.bind(bbc)?;
+        }
+        s.connect(addr).await
+        //TcpStream::connect(addr).await
+    }
+
+
+    async fn bind(&self, addr: SocketAddr) -> std::io::Result<TcpListener> {
+        let s = Self::gs4a(addr)?;
+        
+        #[cfg(not(windows))]
+        s.set_reuseaddr(true)?;
+
+        s.bind(addr)?;
+        s.listen(1024)
+        //TcpListener::bind(addr).await
+    }
+}
+
 fn connect_tcp(
     ctx: NativeCallContext,
     opts: Dynamic,
     continuation: FnPtr,
-) -> RhResult<Handle<Task>> {
+) -> RhResult<Handle<Task>> {   
     let original_span = tracing::Span::current();
     let span = debug_span!(parent: original_span, "connect_tcp");
     let the_scenario = ctx.get_scenario()?;
@@ -79,14 +122,22 @@ fn connect_tcp(
     #[derive(serde::Deserialize)]
     struct TcpOpts {
         addr: SocketAddr,
+
+        //@ Bind TCP socket to this address and/or port before issuing `connect`
+        bind: Option<SocketAddr>,
     }
     let opts: TcpOpts = rhai::serde::from_dynamic(&opts)?;
     //span.record("addr", field::display(opts.addr));
     debug!(parent: &span, addr=%opts.addr, "options parsed");
 
+    let mut tcpopts = TcpSocketOptions::new();
+    tcpopts.bind_before_connecting = opts.bind;
+
     Ok(async move {
         debug!("node started");
-        let t = TcpStream::connect(opts.addr).await
+        let t = tcpopts
+            .connect(opts.addr)
+            .await
             .inspect_err(|_| the_scenario.exit_code.set(EXIT_CODE_TCP_CONNECT_FAIL))?;
         #[allow(unused_assignments)]
         let mut fd = None;
@@ -132,10 +183,17 @@ fn connect_tcp_race(
     let the_scenario = ctx.get_scenario()?;
     debug!(parent: &span, "node created");
     #[derive(serde::Deserialize)]
-    struct TcpOpts {}
-    let _opts: TcpOpts = rhai::serde::from_dynamic(&opts)?;
+    struct TcpOpts {
+
+        //@ Bind TCP socket to this address and/or port before issuing `connect`
+        bind: Option<SocketAddr>,
+    }
+    let opts: TcpOpts = rhai::serde::from_dynamic(&opts)?;
     //span.record("addr", field::display(opts.addr));
     debug!(parent: &span, addrs=?addrs, "options parsed");
+
+    let mut tcpopts = TcpSocketOptions::new();
+    tcpopts.bind_before_connecting = opts.bind;
 
     Ok(async move {
         debug!("node started");
@@ -143,7 +201,7 @@ fn connect_tcp_race(
         let mut fu = FuturesUnordered::new();
 
         for addr in addrs {
-            fu.push(TcpStream::connect(addr).map(move |x| (x, addr)));
+            fu.push(tcpopts.connect(addr).map(move |x| (x, addr)));
         }
 
         let t: TcpStream = loop {
@@ -237,13 +295,15 @@ fn listen_tcp(
 
     let autospawn = opts.autospawn;
 
+    let tcpopts = TcpSocketOptions::new();
+
     Ok(async move {
         debug!("node started");
         
         let mut address_to_report = *a.addr().unwrap_or(&NEUTRAL_SOCKADDR4);
 
         let l = match a {
-            AddressOrFd::Addr(a) => tokio::net::TcpListener::bind(a).await?,
+            AddressOrFd::Addr(a) => tcpopts.bind(a).await?,
             #[cfg(not(unix))]
             AddressOrFd::Fd(..) | AddressOrFd::NamedFd(..) => {
                 error!("Inheriting listeners from parent processes is not supported outside UNIX platforms");
