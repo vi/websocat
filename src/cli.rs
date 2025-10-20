@@ -543,6 +543,23 @@ pub struct WebsocatArgs {
     /// Bind outgoing TCP socket to this address and/or port prior to connecting to the destination.
     #[arg(long)]
     pub bind_before_connect: Option<SocketAddr>,
+
+    /// Explicitly force SO_REUSEADDR on or off.
+    #[arg(long)]
+    pub reuseaddr: Option<bool>,
+
+    /// Set SO_REUSEPORT (fails if unsupported by platform)
+    #[arg(long)]
+    pub reuseport: bool,
+
+    /// Set SO_BINDTODEVICE (fails if unsupported by platform)
+    #[arg(long)]
+    pub bind_to_device: Option<String>,
+
+    /// Use this backlog argument for `listen(2)` syscall. Maximum number of queued connections pending for accept(2).
+    #[arg(long)]
+    pub listen_backlog: Option<u32>,
+    
 }
 
 /// Subset of command line arguments that describes the whole Websocat operation even when `--compose` sub-scenarios are used.

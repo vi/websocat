@@ -443,6 +443,9 @@ Options:
 
 * addr (`SocketAddr`)
 * bind (`Option<SocketAddr>`) - Bind TCP socket to this address and/or port before issuing `connect`
+* reuseaddr (`Option<bool>`) - Set SO_REUSEADDR for the socket
+* reuseport (`bool`) - Set SO_REUSEPORT for the socket
+* bind_device (`Option<String>`) - Set SO_BINDTODEVICE for the socket
 
 ## connect_tcp_race
 
@@ -457,6 +460,9 @@ Returns `Task`
 Options:
 
 * bind (`Option<SocketAddr>`) - Bind TCP socket to this address and/or port before issuing `connect`
+* reuseaddr (`Option<bool>`) - Set SO_REUSEADDR for the socket
+* reuseport (`bool`) - Set SO_REUSEPORT for the socket
+* bind_device (`Option<String>`) - Set SO_BINDTODEVICE for the socket
 
 ## connect_unix
 
@@ -869,6 +875,10 @@ Options:
 * fd_force (`bool`) - Skip socket type check when using `fd`.
 * autospawn (`bool`) - Automatically spawn a task for each accepted connection
 * oneshot (`bool`) - Exit listening loop after processing a single connection
+* reuseaddr (`Option<bool>`) - Set SO_REUSEADDR for the socket
+* reuseport (`bool`) - Set SO_REUSEPORT for the socket
+* bind_device (`Option<String>`) - Set SO_BINDTODEVICE for the socket
+* backlog (`Option<u32>`) - Set size of the queue of unaccepted pending connections for this socket.
 
 ## listen_unix
 

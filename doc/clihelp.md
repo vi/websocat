@@ -403,6 +403,20 @@ Options:
       --bind-before-connect <BIND_BEFORE_CONNECT>
           Bind outgoing TCP socket to this address and/or port prior to connecting to the destination
 
+      --reuseaddr <REUSEADDR>
+          Explicitly force SO_REUSEADDR on or off
+          
+          [possible values: true, false]
+
+      --reuseport
+          Set SO_REUSEPORT (fails if unsupported by platform)
+
+      --bind-to-device <BIND_TO_DEVICE>
+          Set SO_BINDTODEVICE (fails if unsupported by platform)
+
+      --listen-backlog <LISTEN_BACKLOG>
+          Use this backlog argument for `listen(2)` syscall. Maximum number of queued connections pending for accept(2)
+
   -h, --help
           Print help (see a summary with '-h')
 

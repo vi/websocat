@@ -67,14 +67,43 @@ impl TcpOwnedWriteHalfWithoutAutoShutdown {
     }
 }
 
-struct TcpSocketOptions {
+struct TcpBindOptions {
     bind_before_connecting: Option<SocketAddr>,
+    reuseaddr: Option<bool>,
+    reuseport: bool,
+    bind_device: Option<String>,
+    listen_backlog: u32,
 }
 
-impl TcpSocketOptions {
-    fn new() -> TcpSocketOptions {
+macro_rules! cfg_gated_block_or_err {
+    ($feature:literal, #[cfg($($c:tt)*)], $b:block$ (,)?) => {
+        'a: { 
+            #[cfg($($c)*)] {
+                $b;
+                break 'a;
+            }
+            #[allow(unreachable_code)]
+            return Err(std::io::Error::new(std::io::ErrorKind::Other, concat!("Not supported on this platform: `",$feature,"`")))
+        }
+    };
+}
+
+macro_rules! copy_common_tcp_bind_options {
+    ($target:ident, $source:ident) => {
+        $target.reuseaddr = $source.reuseaddr;
+        $target.reuseport = $source.reuseport;
+        $target.bind_device = $source.bind_device;
+    };
+}
+
+impl TcpBindOptions {
+    fn new() -> TcpBindOptions {
         Self {
             bind_before_connecting: None,
+            reuseaddr: None,
+            reuseport: false,
+            bind_device: None,
+            listen_backlog: 1024,
         }
     }
 
@@ -88,8 +117,44 @@ impl TcpSocketOptions {
         }
     }
 
+    fn setopts(&self, s: &TcpSocket, pending_listen: bool) -> std::io::Result<()> {
+        if let Some(v) = self.reuseaddr {
+            s.set_reuseaddr(v)?;
+        } else {
+            if pending_listen {
+                #[cfg(not(windows))]
+                s.set_reuseaddr(true)?;
+            }
+        }
+        if self.reuseport {
+            cfg_gated_block_or_err!(
+                "reuseport",
+                #[cfg(all(
+                    unix,
+                    not(target_os = "solaris"),
+                    not(target_os = "illumos"),
+                    not(target_os = "cygwin"),
+                ))],
+                {
+                    s.set_reuseport(true)?;
+                },
+            );
+        }
+        if let Some(ref v) = self.bind_device {
+            cfg_gated_block_or_err!(
+                "bind_device",
+                #[cfg(any(target_os = "android", target_os = "fuchsia", target_os = "linux"))],
+                {
+                    s.bind_device(Some(v[..].as_bytes()))?;
+                },
+            );
+        }
+        Ok(())
+    }
+
     async fn connect(&self, addr: SocketAddr) -> std::io::Result<TcpStream> {
         let s = Self::gs4a(addr)?;
+        self.setopts(&s, false)?;
         if let Some(bbc) = self.bind_before_connecting {
             s.bind(bbc)?;
         }
@@ -100,12 +165,9 @@ impl TcpSocketOptions {
 
     async fn bind(&self, addr: SocketAddr) -> std::io::Result<TcpListener> {
         let s = Self::gs4a(addr)?;
-        
-        #[cfg(not(windows))]
-        s.set_reuseaddr(true)?;
-
+        self.setopts(&s, true)?;
         s.bind(addr)?;
-        s.listen(1024)
+        s.listen(self.listen_backlog)
         //TcpListener::bind(addr).await
     }
 }
@@ -125,13 +187,24 @@ fn connect_tcp(
 
         //@ Bind TCP socket to this address and/or port before issuing `connect`
         bind: Option<SocketAddr>,
+
+        //@ Set SO_REUSEADDR for the socket
+        reuseaddr: Option<bool>,
+
+        //@ Set SO_REUSEPORT for the socket
+        #[serde(default)]
+        reuseport: bool,
+
+        //@ Set SO_BINDTODEVICE for the socket
+        bind_device: Option<String>,
     }
     let opts: TcpOpts = rhai::serde::from_dynamic(&opts)?;
     //span.record("addr", field::display(opts.addr));
     debug!(parent: &span, addr=%opts.addr, "options parsed");
 
-    let mut tcpopts = TcpSocketOptions::new();
+    let mut tcpopts = TcpBindOptions::new();
     tcpopts.bind_before_connecting = opts.bind;
+    copy_common_tcp_bind_options!(tcpopts, opts);
 
     Ok(async move {
         debug!("node started");
@@ -187,13 +260,24 @@ fn connect_tcp_race(
 
         //@ Bind TCP socket to this address and/or port before issuing `connect`
         bind: Option<SocketAddr>,
+
+        //@ Set SO_REUSEADDR for the socket
+        reuseaddr: Option<bool>,
+
+        //@ Set SO_REUSEPORT for the socket
+        #[serde(default)]
+        reuseport: bool,
+
+        //@ Set SO_BINDTODEVICE for the socket
+        bind_device: Option<String>,
     }
     let opts: TcpOpts = rhai::serde::from_dynamic(&opts)?;
     //span.record("addr", field::display(opts.addr));
     debug!(parent: &span, addrs=?addrs, "options parsed");
 
-    let mut tcpopts = TcpSocketOptions::new();
+    let mut tcpopts = TcpBindOptions::new();
     tcpopts.bind_before_connecting = opts.bind;
+    copy_common_tcp_bind_options!(tcpopts, opts);
 
     Ok(async move {
         debug!("node started");
@@ -288,6 +372,19 @@ fn listen_tcp(
         //@ Exit listening loop after processing a single connection
         #[serde(default)]
         oneshot: bool,
+
+        //@ Set SO_REUSEADDR for the socket
+        reuseaddr: Option<bool>,
+
+        //@ Set SO_REUSEPORT for the socket
+        #[serde(default)]
+        reuseport: bool,
+
+        //@ Set SO_BINDTODEVICE for the socket
+        bind_device: Option<String>,
+
+        //@ Set size of the queue of unaccepted pending connections for this socket.
+        backlog: Option<u32>,
     }
     let opts: Opts = rhai::serde::from_dynamic(&opts)?;
 
@@ -295,7 +392,17 @@ fn listen_tcp(
 
     let autospawn = opts.autospawn;
 
-    let tcpopts = TcpSocketOptions::new();
+    let mut tcpopts = TcpBindOptions::new();
+    copy_common_tcp_bind_options!(tcpopts, opts);
+    if let Some(bklg) = opts.backlog {
+        tcpopts.listen_backlog = bklg;
+    } else {
+        if opts.oneshot {
+            tcpopts.listen_backlog = 1;
+        } else {
+            tcpopts.listen_backlog = 1024;
+        }
+    }
 
     Ok(async move {
         debug!("node started");
