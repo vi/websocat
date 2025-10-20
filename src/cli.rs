@@ -559,7 +559,6 @@ pub struct WebsocatArgs {
     /// Use this backlog argument for `listen(2)` syscall. Maximum number of queued connections pending for accept(2).
     #[arg(long)]
     pub listen_backlog: Option<u32>,
-    
 }
 
 /// Subset of command line arguments that describes the whole Websocat operation even when `--compose` sub-scenarios are used.

@@ -16,7 +16,6 @@ fn tcp_common_bind_options(o: &mut String, env: &ScenarioPrintingEnvironment<'_>
 }
 
 impl Endpoint {
-
     pub(super) fn begin_print_tcp(
         &self,
         env: &mut ScenarioPrintingEnvironment<'_>,
@@ -40,7 +39,6 @@ impl Endpoint {
                 Ok(varnam)
             }
             Endpoint::TcpConnectByEarlyHostname { varname_for_addrs } => {
-
                 let mut o = String::with_capacity(0);
 
                 if let Some(bbc) = env.opts.bind_before_connect {
@@ -70,8 +68,9 @@ impl Endpoint {
                 }
                 tcp_common_bind_options(&mut o, env);
 
-                env.printer
-                    .print_line(&format!("connect_tcp_race(#{{{o}}}, {addrs}, |{varnam}| {{"));
+                env.printer.print_line(&format!(
+                    "connect_tcp_race(#{{{o}}}, {addrs}, |{varnam}| {{"
+                ));
                 env.printer.increase_indent();
                 Ok(varnam)
             }
