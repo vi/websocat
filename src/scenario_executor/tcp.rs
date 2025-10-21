@@ -1,13 +1,17 @@
 use std::{net::SocketAddr, pin::Pin, time::Duration};
 
-use crate::scenario_executor::{
-    exit_code::EXIT_CODE_TCP_CONNECT_FAIL,
-    utils1::{wrap_as_stream_socket, TaskHandleExt2, NEUTRAL_SOCKADDR4},
-    utils2::AddressOrFd,
+use crate::{
+    copy_common_tcp_bind_options,
+    scenario_executor::{
+        exit_code::EXIT_CODE_TCP_CONNECT_FAIL,
+        socketopts::TcpBindOptions,
+        utils1::{wrap_as_stream_socket, TaskHandleExt2, NEUTRAL_SOCKADDR4},
+        utils2::AddressOrFd,
+    },
 };
 use futures::{stream::FuturesUnordered, FutureExt, StreamExt};
 use rhai::{Dynamic, Engine, FnPtr, NativeCallContext};
-use tokio::net::{TcpListener, TcpSocket, TcpStream};
+use tokio::net::TcpStream;
 use tracing::{debug, debug_span, error, warn, Instrument};
 
 use crate::scenario_executor::{
@@ -67,116 +71,11 @@ impl TcpOwnedWriteHalfWithoutAutoShutdown {
     }
 }
 
-struct TcpBindOptions {
-    bind_before_connecting: Option<SocketAddr>,
-    reuseaddr: Option<bool>,
-    reuseport: bool,
-    bind_device: Option<String>,
-    listen_backlog: u32,
-}
-
-macro_rules! cfg_gated_block_or_err {
-    ($feature:literal, #[cfg($($c:tt)*)], $b:block$ (,)?) => {
-        'a: { 
-            #[cfg($($c)*)] {
-                $b;
-                break 'a;
-            }
-            #[allow(unreachable_code)]
-            return Err(std::io::Error::new(std::io::ErrorKind::Other, concat!("Not supported on this platform: `",$feature,"`")))
-        }
-    };
-}
-
-macro_rules! copy_common_tcp_bind_options {
-    ($target:ident, $source:ident) => {
-        $target.reuseaddr = $source.reuseaddr;
-        $target.reuseport = $source.reuseport;
-        $target.bind_device = $source.bind_device;
-    };
-}
-
-impl TcpBindOptions {
-    fn new() -> TcpBindOptions {
-        Self {
-            bind_before_connecting: None,
-            reuseaddr: None,
-            reuseport: false,
-            bind_device: None,
-            listen_backlog: 1024,
-        }
-    }
-
-    fn gs4a(addr: SocketAddr) -> std::io::Result<TcpSocket> {
-        if addr.is_ipv4() {
-            TcpSocket::new_v4()
-        } else if addr.is_ipv6() {
-            TcpSocket::new_v6()
-        } else {
-            panic!("Non IPv4 or IPv6 address is specified for a TCP socket");
-        }
-    }
-
-    fn setopts(&self, s: &TcpSocket, pending_listen: bool) -> std::io::Result<()> {
-        if let Some(v) = self.reuseaddr {
-            s.set_reuseaddr(v)?;
-        } else {
-            if pending_listen {
-                #[cfg(not(windows))]
-                s.set_reuseaddr(true)?;
-            }
-        }
-        if self.reuseport {
-            cfg_gated_block_or_err!(
-                "reuseport",
-                #[cfg(all(
-                    unix,
-                    not(target_os = "solaris"),
-                    not(target_os = "illumos"),
-                    not(target_os = "cygwin"),
-                ))],
-                {
-                    s.set_reuseport(true)?;
-                },
-            );
-        }
-        if let Some(ref v) = self.bind_device {
-            cfg_gated_block_or_err!(
-                "bind_device",
-                #[cfg(any(target_os = "android", target_os = "fuchsia", target_os = "linux"))],
-                {
-                    s.bind_device(Some(v[..].as_bytes()))?;
-                },
-            );
-        }
-        Ok(())
-    }
-
-    async fn connect(&self, addr: SocketAddr) -> std::io::Result<TcpStream> {
-        let s = Self::gs4a(addr)?;
-        self.setopts(&s, false)?;
-        if let Some(bbc) = self.bind_before_connecting {
-            s.bind(bbc)?;
-        }
-        s.connect(addr).await
-        //TcpStream::connect(addr).await
-    }
-
-
-    async fn bind(&self, addr: SocketAddr) -> std::io::Result<TcpListener> {
-        let s = Self::gs4a(addr)?;
-        self.setopts(&s, true)?;
-        s.bind(addr)?;
-        s.listen(self.listen_backlog)
-        //TcpListener::bind(addr).await
-    }
-}
-
 fn connect_tcp(
     ctx: NativeCallContext,
     opts: Dynamic,
     continuation: FnPtr,
-) -> RhResult<Handle<Task>> {   
+) -> RhResult<Handle<Task>> {
     let original_span = tracing::Span::current();
     let span = debug_span!(parent: original_span, "connect_tcp");
     let the_scenario = ctx.get_scenario()?;
@@ -197,6 +96,14 @@ fn connect_tcp(
 
         //@ Set SO_BINDTODEVICE for the socket
         bind_device: Option<String>,
+
+        //@ Set IP_TRANSPARENT for the socket
+        #[serde(default)]
+        transparent: bool,
+
+        //@ Set IP_FREEBIND for the socket
+        #[serde(default)]
+        freebind: bool,
     }
     let opts: TcpOpts = rhai::serde::from_dynamic(&opts)?;
     //span.record("addr", field::display(opts.addr));
@@ -257,7 +164,6 @@ fn connect_tcp_race(
     debug!(parent: &span, "node created");
     #[derive(serde::Deserialize)]
     struct TcpOpts {
-
         //@ Bind TCP socket to this address and/or port before issuing `connect`
         bind: Option<SocketAddr>,
 
@@ -270,6 +176,14 @@ fn connect_tcp_race(
 
         //@ Set SO_BINDTODEVICE for the socket
         bind_device: Option<String>,
+
+        //@ Set IP_TRANSPARENT for the socket
+        #[serde(default)]
+        transparent: bool,
+
+        //@ Set IP_FREEBIND for the socket
+        #[serde(default)]
+        freebind: bool,
     }
     let opts: TcpOpts = rhai::serde::from_dynamic(&opts)?;
     //span.record("addr", field::display(opts.addr));
@@ -385,6 +299,14 @@ fn listen_tcp(
 
         //@ Set size of the queue of unaccepted pending connections for this socket.
         backlog: Option<u32>,
+            
+        //@ Set IP_TRANSPARENT for the socket
+        #[serde(default)]
+        transparent: bool,
+
+        //@ Set IP_FREEBIND for the socket
+        #[serde(default)]
+        freebind: bool,
     }
     let opts: Opts = rhai::serde::from_dynamic(&opts)?;
 

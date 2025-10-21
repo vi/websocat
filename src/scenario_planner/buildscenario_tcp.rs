@@ -13,6 +13,12 @@ fn tcp_common_bind_options(o: &mut String, env: &ScenarioPrintingEnvironment<'_>
     if let Some(ref v) = env.opts.bind_to_device {
         o.push_str(&format!("bind_device: {},", StrLit(v)));
     }
+    if env.opts.socket_freebind {
+        o.push_str(&format!("freebind: true,"));
+    }
+    if env.opts.socket_transparent {
+        o.push_str(&format!("transparent: true,"));
+    }
 }
 
 impl Endpoint {

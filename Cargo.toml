@@ -42,7 +42,7 @@ tracing-subscriber = { version = "0.3.17", default-features = false, features = 
 websocket-sans-io = "0.1.0"
 shlex = "1.3.0"
 flume = "0.11.1"
-socket2 = "0.5.8"
+socket2 = { version = "0.5.8", features = ["all"] }
 libc = "0.2.169"
 itertools = "0.14.0"
 tokio-rustls = { version = "0.26.1", optional = true, default-features=false,features=["logging","tls12","ring"] }

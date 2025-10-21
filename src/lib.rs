@@ -18,6 +18,7 @@ pub mod scenario_executor {
     #[cfg(feature = "rustls")]
     pub mod rustls;
     pub mod scenario;
+    pub mod socketopts;
     pub mod subprocess;
     pub mod tcp;
     pub mod tee;
