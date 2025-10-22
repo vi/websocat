@@ -440,7 +440,7 @@ impl TcpStreamOptions {
             debug!("Setting TCP_MAXSEG");
             cfg_gated_block_or_err!(
                 "mss",
-                #[cfg(not(target_os = "redox"))],
+                #[cfg(all(unix, not(target_os = "redox")))],
                 {
                     ss.set_tcp_mss(v)?;
                 },
