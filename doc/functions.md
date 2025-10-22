@@ -446,6 +446,29 @@ Options:
 * reuseaddr (`Option<bool>`) - Set SO_REUSEADDR for the socket
 * reuseport (`bool`) - Set SO_REUSEPORT for the socket
 * bind_device (`Option<String>`) - Set SO_BINDTODEVICE for the socket
+* transparent (`bool`) - Set IP_TRANSPARENT for the socket
+* freebind (`bool`) - Set IP_FREEBIND for the socket
+* tclass_v6 (`Option<u32>`) - Set IPV6_TCLASS for the socket, in case when it is IPv6.
+* tos_v4 (`Option<u32>`) - Set IP_TOS for the socket, in case when it is IPv4.
+* ttl (`Option<u32>`) - Set IP_TTL for a IPv4 socket or IPV6_UNICAST_HOPS for an IPv6 socket
+* linger_s (`Option<u32>`) - Set SO_LINGER for the socket
+* out_of_band_inline (`bool`) - Set SO_OOBINLINE for the socket
+* only_v6 (`Option<bool>`) - Set IPV6_V6ONLY for the socket in case when it is IPv6
+* nodelay (`Option<bool>`) - Set TCP_NODELAY (no Nagle) for the socket
+* tcp_congestion (`Option<String>`) - Set TCP_CONGESTION for the socket
+* cpu_affinity (`Option<usize>`) - Set SO_INCOMING_CPU for the socket
+* user_timeout_s (`Option<u32>`) - Set TCP_USER_TIMEOUT for the socket
+* priority (`Option<u32>`) - Set SO_PRIORITY for the socket
+* recv_buffer_size (`Option<usize>`) - Set SO_RCVBUF for the socket
+* send_buffer_size (`Option<usize>`) - Set SO_SNDBUF for the socket
+* mss (`Option<u32>`) - Set TCP_MAXSEG for the socket
+* mark (`Option<u32>`) - Set SO_MARK for the socket
+* thin_linear_timeouts (`Option<bool>`) - Set TCP_THIN_LINEAR_TIMEOUTS for the socket
+* notsent_lowat (`Option<u32>`) - Set TCP_NOTSENT_LOWAT for the socket
+* keepalive (`Option<bool>`) - Set SO_KEEPALIVE for the socket
+* keepalive_retries (`Option<u32>`) - Set TCP_KEEPCNT for the socket
+* keepalive_interval_s (`Option<u32>`) - Set TCP_KEEPINTVL for the socket
+* keepalive_idletime_s (`Option<u32>`) - Set TCP_KEEPALIVE for the socket
 
 ## connect_tcp_race
 
@@ -460,9 +483,32 @@ Returns `Task`
 Options:
 
 * bind (`Option<SocketAddr>`) - Bind TCP socket to this address and/or port before issuing `connect`
-* reuseaddr (`Option<bool>`) - Set SO_REUSEADDR for the socket
-* reuseport (`bool`) - Set SO_REUSEPORT for the socket
-* bind_device (`Option<String>`) - Set SO_BINDTODEVICE for the socket
+* reuseaddr (`Option<bool>`) - Set SO_REUSEADDR for the listening socket
+* reuseport (`bool`) - Set SO_REUSEPORT for the listening socket
+* bind_device (`Option<String>`) - Set SO_BINDTODEVICE for the listening socket
+* transparent (`bool`) - Set IP_TRANSPARENT for the listening socket
+* freebind (`bool`) - Set IP_FREEBIND for the listening socket
+* only_v6 (`Option<bool>`) - Set IPV6_V6ONLY for the socket in case when it is IPv6
+* tclass_v6 (`Option<u32>`) - Set IPV6_TCLASS for the socket, in case when it is IPv6.
+* tos_v4 (`Option<u32>`) - Set IP_TOS for the socket, in case when it is IPv4.
+* ttl (`Option<u32>`) - Set IP_TTL for a IPv4 socket or IPV6_UNICAST_HOPS for an IPv6 socket
+* linger_s (`Option<u32>`) - Set SO_LINGER for the socket
+* out_of_band_inline (`bool`) - Set SO_OOBINLINE for the socket
+* nodelay (`Option<bool>`) - Set TCP_NODELAY (no Nagle) for the socket
+* tcp_congestion (`Option<String>`) - Set TCP_CONGESTION for the socket
+* cpu_affinity (`Option<usize>`) - Set SO_INCOMING_CPU for the socket
+* user_timeout_s (`Option<u32>`) - Set TCP_USER_TIMEOUT for the socket
+* priority (`Option<u32>`) - Set SO_PRIORITY for the socket
+* recv_buffer_size (`Option<usize>`) - Set SO_RCVBUF for the socket
+* send_buffer_size (`Option<usize>`) - Set SO_SNDBUF for the socket
+* mss (`Option<u32>`) - Set TCP_MAXSEG for the socket
+* mark (`Option<u32>`) - Set SO_MARK for the socket
+* thin_linear_timeouts (`Option<bool>`) - Set TCP_THIN_LINEAR_TIMEOUTS for the socket
+* notsent_lowat (`Option<u32>`) - Set TCP_NOTSENT_LOWAT for the socket
+* keepalive (`Option<bool>`) - Set SO_KEEPALIVE for the socket
+* keepalive_retries (`Option<u32>`) - Set TCP_KEEPCNT for the socket
+* keepalive_interval_s (`Option<u32>`) - Set TCP_KEEPINTVL for the socket
+* keepalive_idletime_s (`Option<u32>`) - Set TCP_KEEPALIVE for the socket
 
 ## connect_unix
 
@@ -875,10 +921,33 @@ Options:
 * fd_force (`bool`) - Skip socket type check when using `fd`.
 * autospawn (`bool`) - Automatically spawn a task for each accepted connection
 * oneshot (`bool`) - Exit listening loop after processing a single connection
-* reuseaddr (`Option<bool>`) - Set SO_REUSEADDR for the socket
-* reuseport (`bool`) - Set SO_REUSEPORT for the socket
-* bind_device (`Option<String>`) - Set SO_BINDTODEVICE for the socket
-* backlog (`Option<u32>`) - Set size of the queue of unaccepted pending connections for this socket.
+* reuseaddr (`Option<bool>`) - Set SO_REUSEADDR for the listening socket
+* reuseport (`bool`) - Set SO_REUSEPORT for the listening socket
+* bind_device (`Option<String>`) - Set SO_BINDTODEVICE for the listening socket
+* backlog (`Option<u32>`) - Set size of the queue of unaccepted pending connections for this socket. Default is 1024 when `oneshot` is off and 1 and `oneshot` is on.
+* transparent (`bool`) - Set IP_TRANSPARENT for the listening socket
+* freebind (`bool`) - Set IP_FREEBIND for the listening socket
+* only_v6 (`Option<bool>`) - Set IPV6_V6ONLY for the listening socket
+* tclass_v6 (`Option<u32>`) - Set IPV6_TCLASS for accepted IPv6 sockets
+* tos_v4 (`Option<u32>`) - Set IP_TOS for accepted IPv4 sockets
+* ttl (`Option<u32>`) - Set IP_TTL accepted IPv4 sockets and or IPV6_UNICAST_HOPS for an IPv6
+* linger_s (`Option<u32>`) - Set SO_LINGER for accepted sockets
+* out_of_band_inline (`bool`) - Set SO_OOBINLINE for accepted sockets
+* nodelay (`Option<bool>`) - Set TCP_NODELAY (no Nagle) for accepted sockets
+* tcp_congestion (`Option<String>`) - Set TCP_CONGESTION for accepted sockets
+* cpu_affinity (`Option<usize>`) - Set SO_INCOMING_CPU for accepted sockets
+* user_timeout_s (`Option<u32>`) - Set TCP_USER_TIMEOUT for accepted sockets
+* priority (`Option<u32>`) - Set SO_PRIORITY for accepted sockets
+* recv_buffer_size (`Option<usize>`) - Set SO_RCVBUF for accepted sockets
+* send_buffer_size (`Option<usize>`) - Set SO_SNDBUF for accepted sockets
+* mss (`Option<u32>`) - Set TCP_MAXSEG for accepted sockets
+* mark (`Option<u32>`) - Set SO_MARK for accepted sockets
+* thin_linear_timeouts (`Option<bool>`) - Set TCP_THIN_LINEAR_TIMEOUTS for accepted sockets
+* notsent_lowat (`Option<u32>`) - Set TCP_NOTSENT_LOWAT for accepted sockets
+* keepalive (`Option<bool>`) - Set SO_KEEPALIVE for accepted sockets
+* keepalive_retries (`Option<u32>`) - Set TCP_KEEPCNT for accepted sockets
+* keepalive_interval_s (`Option<u32>`) - Set TCP_KEEPINTVL for accepted sockets
+* keepalive_idletime_s (`Option<u32>`) - Set TCP_KEEPALIVE for accepted sockets
 
 ## listen_unix
 

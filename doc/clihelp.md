@@ -404,18 +404,95 @@ Options:
           Bind outgoing TCP socket to this address and/or port prior to connecting to the destination
 
       --reuseaddr <REUSEADDR>
-          Explicitly force SO_REUSEADDR on or off
+          Explicitly force SO_REUSEADDR on or off on the socket
           
           [possible values: true, false]
 
       --reuseport
           Set SO_REUSEPORT (fails if unsupported by platform)
 
-      --bind-to-device <BIND_TO_DEVICE>
+      --socket-bind-to-device <SOCKET_BIND_TO_DEVICE>
           Set SO_BINDTODEVICE (fails if unsupported by platform)
 
-      --listen-backlog <LISTEN_BACKLOG>
+      --socket-listen-backlog <SOCKET_LISTEN_BACKLOG>
           Use this backlog argument for `listen(2)` syscall. Maximum number of queued connections pending for accept(2)
+
+      --socket-transparent
+          Set IP_TRANSPARENT for the socket
+
+      --socket-freebind
+          Set IP_FREEBIND for the socket
+
+      --socket-tclass-v6 <SOCKET_TCLASS_V6>
+          Set IPV6_TCLASS for the socket, in case when it is IPv6
+
+      --socket-tos-v4 <SOCKET_TOS_V4>
+          Set IP_TOS for the socket, in case when it is IPv4
+
+      --socket-ttl <SOCKET_TTL>
+          Set IP_TTL for a IPv4 socket or IPV6_UNICAST_HOPS for an IPv6 socket
+
+      --socket-linger-s <SOCKET_LINGER_S>
+          Set SO_LINGER for the socket
+
+      --socket-out-of-band-inline
+          Set SO_OOBINLINE for the socket
+
+      --socket-only-v6 <SOCKET_ONLY_V6>
+          Set IPV6_V6ONLY for the socket in case when it is IPv6
+          
+          [possible values: true, false]
+
+      --socket-nodelay <SOCKET_NODELAY>
+          Set TCP_NODELAY (no Nagle) for the socket
+          
+          [possible values: true, false]
+
+      --socket-tcp-congestion <SOCKET_TCP_CONGESTION>
+          Set TCP_CONGESTION for the socket
+
+      --socket-cpu-affinity <SOCKET_CPU_AFFINITY>
+          Set SO_INCOMING_CPU for the socket
+
+      --socket-user-timeout-s <SOCKET_USER_TIMEOUT_S>
+          Set TCP_USER_TIMEOUT for the socket
+
+      --socket-priority <SOCKET_PRIORITY>
+          Set SO_PRIORITY for the socket
+
+      --socket-recv-buffer-size <SOCKET_RECV_BUFFER_SIZE>
+          Set SO_RCVBUF for the socket
+
+      --socket-send-buffer-size <SOCKET_SEND_BUFFER_SIZE>
+          Set SO_SNDBUF for the socket
+
+      --socket-mss <SOCKET_MSS>
+          Set TCP_MAXSEG for the socket
+
+      --socket-mark <SOCKET_MARK>
+          Set SO_MARK for the socket
+
+      --socket-thin-linear-timeouts <SOCKET_THIN_LINEAR_TIMEOUTS>
+          Set TCP_THIN_LINEAR_TIMEOUTS for the socket
+          
+          [possible values: true, false]
+
+      --socket-notsent-lowat <SOCKET_NOTSENT_LOWAT>
+          Set TCP_NOTSENT_LOWAT for the socket
+
+      --socket-keepalive <SOCKET_KEEPALIVE>
+          Set SO_KEEPALIVE for the socket
+          
+          [possible values: true, false]
+
+      --socket-keepalive-retries <SOCKET_KEEPALIVE_RETRIES>
+          Set TCP_KEEPCNT for the socket
+
+      --socket-keepalive-interval-s <SOCKET_KEEPALIVE_INTERVAL_S>
+          Set TCP_KEEPINTVL for the socket
+
+      --socket-keepalive-idletime-s <SOCKET_KEEPALIVE_IDLETIME_S>
+          Set TCP_KEEPALIVE for the socket
 
   -h, --help
           Print help (see a summary with '-h')

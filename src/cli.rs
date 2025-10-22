@@ -544,7 +544,7 @@ pub struct WebsocatArgs {
     #[arg(long)]
     pub bind_before_connect: Option<SocketAddr>,
 
-    /// Explicitly force SO_REUSEADDR on or off.
+    /// Explicitly force SO_REUSEADDR on or off on the socket
     #[arg(long)]
     pub reuseaddr: Option<bool>,
 
@@ -554,11 +554,11 @@ pub struct WebsocatArgs {
 
     /// Set SO_BINDTODEVICE (fails if unsupported by platform)
     #[arg(long)]
-    pub bind_to_device: Option<String>,
+    pub socket_bind_to_device: Option<String>,
 
     /// Use this backlog argument for `listen(2)` syscall. Maximum number of queued connections pending for accept(2).
     #[arg(long)]
-    pub listen_backlog: Option<u32>,
+    pub socket_listen_backlog: Option<u32>,
 
     /// Set IP_TRANSPARENT for the socket
     #[arg(long)]
@@ -567,6 +567,90 @@ pub struct WebsocatArgs {
     /// Set IP_FREEBIND for the socket
     #[arg(long)]
     pub socket_freebind: bool,
+
+    /// Set IPV6_TCLASS for the socket, in case when it is IPv6.
+    #[arg(long)]
+    pub socket_tclass_v6: Option<u32>,
+
+    /// Set IP_TOS for the socket, in case when it is IPv4.
+    #[arg(long)]
+    pub socket_tos_v4: Option<u32>,
+
+    /// Set IP_TTL for a IPv4 socket or IPV6_UNICAST_HOPS for an IPv6 socket
+    #[arg(long)]
+    pub socket_ttl: Option<u32>,
+
+    /// Set SO_LINGER for the socket
+    #[arg(long)]
+    pub socket_linger_s: Option<u32>,
+
+    /// Set SO_OOBINLINE for the socket
+    #[arg(long)]
+    pub socket_out_of_band_inline: bool,
+
+    /// Set IPV6_V6ONLY for the socket in case when it is IPv6
+    #[arg(long)]
+    pub socket_only_v6: Option<bool>,
+
+    /// Set TCP_NODELAY (no Nagle) for the socket
+    #[arg(long)]
+    pub socket_nodelay: Option<bool>,
+
+    /// Set TCP_CONGESTION for the socket
+    #[arg(long)]
+    pub socket_tcp_congestion: Option<String>,
+
+    /// Set SO_INCOMING_CPU for the socket
+    #[arg(long)]
+    pub socket_cpu_affinity: Option<usize>,
+
+    /// Set TCP_USER_TIMEOUT for the socket
+    #[arg(long)]
+    pub socket_user_timeout_s: Option<u32>,
+
+    /// Set SO_PRIORITY for the socket
+    #[arg(long)]
+    pub socket_priority: Option<u32>,
+
+    /// Set SO_RCVBUF for the socket
+    #[arg(long)]
+    pub socket_recv_buffer_size: Option<usize>,
+
+    /// Set SO_SNDBUF for the socket
+    #[arg(long)]
+    pub socket_send_buffer_size: Option<usize>,
+
+    /// Set TCP_MAXSEG for the socket
+    #[arg(long)]
+    pub socket_mss: Option<u32>,
+
+    /// Set SO_MARK for the socket
+    #[arg(long)]
+    pub socket_mark: Option<u32>,
+
+    /// Set TCP_THIN_LINEAR_TIMEOUTS for the socket
+    #[arg(long)]
+    pub socket_thin_linear_timeouts: Option<bool>,
+
+    /// Set TCP_NOTSENT_LOWAT for the socket
+    #[arg(long)]
+    pub socket_notsent_lowat: Option<u32>,
+
+    /// Set SO_KEEPALIVE for the socket
+    #[arg(long)]
+    pub socket_keepalive: Option<bool>,
+
+    /// Set TCP_KEEPCNT for the socket
+    #[arg(long)]
+    pub socket_keepalive_retries: Option<u32>,
+
+    /// Set TCP_KEEPINTVL for the socket
+    #[arg(long)]
+    pub socket_keepalive_interval_s: Option<u32>,
+
+    /// Set TCP_KEEPALIVE for the socket
+    #[arg(long)]
+    pub socket_keepalive_idletime_s: Option<u32>,
 }
 
 /// Subset of command line arguments that describes the whole Websocat operation even when `--compose` sub-scenarios are used.

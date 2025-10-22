@@ -10,7 +10,7 @@ fn tcp_common_bind_options(o: &mut String, env: &ScenarioPrintingEnvironment<'_>
     if env.opts.reuseport {
         o.push_str(&format!("reuseport: true,"));
     }
-    if let Some(ref v) = env.opts.bind_to_device {
+    if let Some(ref v) = env.opts.socket_bind_to_device {
         o.push_str(&format!("bind_device: {},", StrLit(v)));
     }
     if env.opts.socket_freebind {
@@ -18,6 +18,72 @@ fn tcp_common_bind_options(o: &mut String, env: &ScenarioPrintingEnvironment<'_>
     }
     if env.opts.socket_transparent {
         o.push_str(&format!("transparent: true,"));
+    }
+    if let Some(v) = env.opts.socket_only_v6 {
+        o.push_str(&format!("only_v6: {v},"));
+    }
+}
+
+fn tcp_common_stream_options(o: &mut String, env: &ScenarioPrintingEnvironment<'_>) {
+    if let Some(v) = env.opts.socket_tclass_v6 {
+        o.push_str(&format!("tclass_v6: {v},"));
+    }
+    if let Some(v) = env.opts.socket_tos_v4 {
+        o.push_str(&format!("tos_v4: {v},"));
+    }
+    if let Some(v) = env.opts.socket_ttl {
+        o.push_str(&format!("ttl: {v},"));
+    }
+    if let Some(v) = env.opts.socket_linger_s {
+        o.push_str(&format!("linger_s: {v},"));
+    }
+    if env.opts.socket_out_of_band_inline {
+        o.push_str(&format!("out_of_band_inline: true,"));
+    }
+    if let Some(v) = env.opts.socket_nodelay {
+        o.push_str(&format!("nodelay: {v},"));
+    }
+    if let Some(ref v) = env.opts.socket_tcp_congestion {
+        o.push_str(&format!("tcp_congestion: {},", StrLit(v)));
+    }
+    if let Some(v) = env.opts.socket_cpu_affinity {
+        o.push_str(&format!("cpu_affinity: {v},"));
+    }
+    if let Some(v) = env.opts.socket_user_timeout_s {
+        o.push_str(&format!("user_timeout_s: {v},"));
+    }
+    if let Some(v) = env.opts.socket_priority {
+        o.push_str(&format!("priority: {v},"));
+    }
+    if let Some(v) = env.opts.socket_recv_buffer_size {
+        o.push_str(&format!("recv_buffer_size: {v},"));
+    }
+    if let Some(v) = env.opts.socket_send_buffer_size {
+        o.push_str(&format!("send_buffer_size: {v},"));
+    }
+    if let Some(v) = env.opts.socket_mss {
+        o.push_str(&format!("mss: {v},"));
+    }
+    if let Some(v) = env.opts.socket_mark {
+        o.push_str(&format!("mark: {v},"));
+    }
+    if let Some(v) = env.opts.socket_thin_linear_timeouts {
+        o.push_str(&format!("thin_linear_timeouts: {v},"));
+    }
+    if let Some(v) = env.opts.socket_notsent_lowat {
+        o.push_str(&format!("notsent_lowat: {v},"));
+    }
+    if let Some(v) = env.opts.socket_keepalive {
+        o.push_str(&format!("keepalive: {v},"));
+    }
+    if let Some(v) = env.opts.socket_keepalive_retries {
+        o.push_str(&format!("keepalive_retries: {v},"));
+    }
+    if let Some(v) = env.opts.socket_keepalive_interval_s {
+        o.push_str(&format!("keepalive_interval_s: {v},"));
+    }
+    if let Some(v) = env.opts.socket_keepalive_idletime_s {
+        o.push_str(&format!("keepalive_idletime_s: {v},"));
     }
 }
 
@@ -38,6 +104,7 @@ impl Endpoint {
                     o.push_str(&format!("bind: {},", StrLit(bbc)));
                 }
                 tcp_common_bind_options(&mut o, env);
+                tcp_common_stream_options(&mut o, env);
 
                 env.printer
                     .print_line(&format!("connect_tcp(#{{{o}}}, |{varnam}| {{"));
@@ -51,6 +118,7 @@ impl Endpoint {
                     o.push_str(&format!("bind: {},", StrLit(bbc)));
                 }
                 tcp_common_bind_options(&mut o, env);
+                tcp_common_stream_options(&mut o, env);
 
                 let varnam = env.vars.getnewvarname("tcp");
                 env.printer.print_line(&format!(
@@ -73,6 +141,7 @@ impl Endpoint {
                     o.push_str(&format!("bind: {},", StrLit(bbc)));
                 }
                 tcp_common_bind_options(&mut o, env);
+                tcp_common_stream_options(&mut o, env);
 
                 env.printer.print_line(&format!(
                     "connect_tcp_race(#{{{o}}}, {addrs}, |{varnam}| {{"
@@ -103,7 +172,7 @@ impl Endpoint {
                 let mut o = String::with_capacity(0);
                 if matches!(self, Endpoint::TcpListen(..)) {
                     tcp_common_bind_options(&mut o, env);
-                    if let Some(v) = env.opts.listen_backlog {
+                    if let Some(v) = env.opts.socket_listen_backlog {
                         o.push_str(&format!("backlog: {},", v));
                     }
                 }

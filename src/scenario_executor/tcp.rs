@@ -1,13 +1,12 @@
 use std::{net::SocketAddr, pin::Pin, time::Duration};
 
 use crate::{
-    copy_common_tcp_bind_options,
-    scenario_executor::{
+    copy_common_tcp_bind_options, copy_common_tcp_stream_options, scenario_executor::{
         exit_code::EXIT_CODE_TCP_CONNECT_FAIL,
-        socketopts::TcpBindOptions,
-        utils1::{wrap_as_stream_socket, TaskHandleExt2, NEUTRAL_SOCKADDR4},
+        socketopts::{TcpBindOptions, TcpStreamOptions},
+        utils1::{NEUTRAL_SOCKADDR4, TaskHandleExt2, wrap_as_stream_socket},
         utils2::AddressOrFd,
-    },
+    }
 };
 use futures::{stream::FuturesUnordered, FutureExt, StreamExt};
 use rhai::{Dynamic, Engine, FnPtr, NativeCallContext};
@@ -104,19 +103,86 @@ fn connect_tcp(
         //@ Set IP_FREEBIND for the socket
         #[serde(default)]
         freebind: bool,
+
+        //@ Set IPV6_TCLASS for the socket, in case when it is IPv6.
+        tclass_v6: Option<u32>,
+
+        //@ Set IP_TOS for the socket, in case when it is IPv4.
+        tos_v4: Option<u32>,
+
+        //@ Set IP_TTL for a IPv4 socket or IPV6_UNICAST_HOPS for an IPv6 socket
+        ttl: Option<u32>,
+
+        //@ Set SO_LINGER for the socket
+        linger_s: Option<u32>,
+
+        //@ Set SO_OOBINLINE for the socket
+        #[serde(default)]
+        out_of_band_inline: bool,
+
+        //@ Set IPV6_V6ONLY for the socket in case when it is IPv6
+        only_v6: Option<bool>,
+
+        //@ Set TCP_NODELAY (no Nagle) for the socket
+        nodelay: Option<bool>,
+
+        //@ Set TCP_CONGESTION for the socket
+        tcp_congestion: Option<String>,
+
+        //@ Set SO_INCOMING_CPU for the socket
+        cpu_affinity: Option<usize>,
+
+        //@ Set TCP_USER_TIMEOUT for the socket
+        user_timeout_s: Option<u32>,
+
+        //@ Set SO_PRIORITY for the socket
+        priority: Option<u32>,
+
+        //@ Set SO_RCVBUF for the socket
+        recv_buffer_size: Option<usize>,
+
+        //@ Set SO_SNDBUF for the socket
+        send_buffer_size: Option<usize>,
+
+        //@ Set TCP_MAXSEG for the socket
+        mss: Option<u32>,
+
+        //@ Set SO_MARK for the socket
+        mark: Option<u32>,
+
+        //@ Set TCP_THIN_LINEAR_TIMEOUTS for the socket
+        thin_linear_timeouts: Option<bool>,
+
+        //@ Set TCP_NOTSENT_LOWAT for the socket
+        notsent_lowat: Option<u32>,
+
+        //@ Set SO_KEEPALIVE for the socket
+        keepalive: Option<bool>,
+
+        //@ Set TCP_KEEPCNT for the socket
+        keepalive_retries: Option<u32>,
+
+        //@ Set TCP_KEEPINTVL for the socket
+        keepalive_interval_s: Option<u32>,
+
+        //@ Set TCP_KEEPALIVE for the socket
+        keepalive_idletime_s: Option<u32>,
+
     }
     let opts: TcpOpts = rhai::serde::from_dynamic(&opts)?;
     //span.record("addr", field::display(opts.addr));
     debug!(parent: &span, addr=%opts.addr, "options parsed");
 
-    let mut tcpopts = TcpBindOptions::new();
-    tcpopts.bind_before_connecting = opts.bind;
-    copy_common_tcp_bind_options!(tcpopts, opts);
+    let mut tcpbindopts = TcpBindOptions::new();
+    let mut tcpstreamopts = TcpStreamOptions::new();
+    tcpbindopts.bind_before_connecting = opts.bind;
+    copy_common_tcp_bind_options!(tcpbindopts, opts);
+    copy_common_tcp_stream_options!(tcpstreamopts, opts);
 
     Ok(async move {
         debug!("node started");
-        let t = tcpopts
-            .connect(opts.addr)
+        let t = tcpbindopts
+            .connect(opts.addr, &tcpstreamopts)
             .await
             .inspect_err(|_| the_scenario.exit_code.set(EXIT_CODE_TCP_CONNECT_FAIL))?;
         #[allow(unused_assignments)]
@@ -167,31 +233,97 @@ fn connect_tcp_race(
         //@ Bind TCP socket to this address and/or port before issuing `connect`
         bind: Option<SocketAddr>,
 
-        //@ Set SO_REUSEADDR for the socket
+        //@ Set SO_REUSEADDR for the listening socket
         reuseaddr: Option<bool>,
 
-        //@ Set SO_REUSEPORT for the socket
+        //@ Set SO_REUSEPORT for the listening socket
         #[serde(default)]
         reuseport: bool,
 
-        //@ Set SO_BINDTODEVICE for the socket
+        //@ Set SO_BINDTODEVICE for the listening socket
         bind_device: Option<String>,
 
-        //@ Set IP_TRANSPARENT for the socket
+        //@ Set IP_TRANSPARENT for the listening socket
         #[serde(default)]
         transparent: bool,
 
-        //@ Set IP_FREEBIND for the socket
+        //@ Set IP_FREEBIND for the listening socket
         #[serde(default)]
         freebind: bool,
+        
+        //@ Set IPV6_V6ONLY for the socket in case when it is IPv6
+        only_v6: Option<bool>,
+
+        //@ Set IPV6_TCLASS for the socket, in case when it is IPv6.
+        tclass_v6: Option<u32>,
+
+        //@ Set IP_TOS for the socket, in case when it is IPv4.
+        tos_v4: Option<u32>,
+
+        //@ Set IP_TTL for a IPv4 socket or IPV6_UNICAST_HOPS for an IPv6 socket
+        ttl: Option<u32>,
+
+        //@ Set SO_LINGER for the socket
+        linger_s: Option<u32>,
+
+        //@ Set SO_OOBINLINE for the socket
+        #[serde(default)]
+        out_of_band_inline: bool,
+
+        //@ Set TCP_NODELAY (no Nagle) for the socket
+        nodelay: Option<bool>,
+
+        //@ Set TCP_CONGESTION for the socket
+        tcp_congestion: Option<String>,
+
+        //@ Set SO_INCOMING_CPU for the socket
+        cpu_affinity: Option<usize>,
+
+        //@ Set TCP_USER_TIMEOUT for the socket
+        user_timeout_s: Option<u32>,
+
+        //@ Set SO_PRIORITY for the socket
+        priority: Option<u32>,
+
+        //@ Set SO_RCVBUF for the socket
+        recv_buffer_size: Option<usize>,
+
+        //@ Set SO_SNDBUF for the socket
+        send_buffer_size: Option<usize>,
+
+        //@ Set TCP_MAXSEG for the socket
+        mss: Option<u32>,
+
+        //@ Set SO_MARK for the socket
+        mark: Option<u32>,
+
+        //@ Set TCP_THIN_LINEAR_TIMEOUTS for the socket
+        thin_linear_timeouts: Option<bool>,
+
+        //@ Set TCP_NOTSENT_LOWAT for the socket
+        notsent_lowat: Option<u32>,
+
+        //@ Set SO_KEEPALIVE for the socket
+        keepalive: Option<bool>,
+
+        //@ Set TCP_KEEPCNT for the socket
+        keepalive_retries: Option<u32>,
+
+        //@ Set TCP_KEEPINTVL for the socket
+        keepalive_interval_s: Option<u32>,
+
+        //@ Set TCP_KEEPALIVE for the socket
+        keepalive_idletime_s: Option<u32>,
     }
     let opts: TcpOpts = rhai::serde::from_dynamic(&opts)?;
     //span.record("addr", field::display(opts.addr));
     debug!(parent: &span, addrs=?addrs, "options parsed");
 
-    let mut tcpopts = TcpBindOptions::new();
-    tcpopts.bind_before_connecting = opts.bind;
-    copy_common_tcp_bind_options!(tcpopts, opts);
+    let mut tcpbindopts = TcpBindOptions::new();
+    let mut tcpstreamopts = TcpStreamOptions::new();
+    tcpbindopts.bind_before_connecting = opts.bind;
+    copy_common_tcp_bind_options!(tcpbindopts, opts);
+    copy_common_tcp_stream_options!(tcpstreamopts, opts);
 
     Ok(async move {
         debug!("node started");
@@ -199,7 +331,7 @@ fn connect_tcp_race(
         let mut fu = FuturesUnordered::new();
 
         for addr in addrs {
-            fu.push(tcpopts.connect(addr).map(move |x| (x, addr)));
+            fu.push(tcpbindopts.connect(addr, &tcpstreamopts).map(move |x| (x, addr)));
         }
 
         let t: TcpStream = loop {
@@ -287,26 +419,92 @@ fn listen_tcp(
         #[serde(default)]
         oneshot: bool,
 
-        //@ Set SO_REUSEADDR for the socket
+        //@ Set SO_REUSEADDR for the listening socket
         reuseaddr: Option<bool>,
 
-        //@ Set SO_REUSEPORT for the socket
+        //@ Set SO_REUSEPORT for the listening socket
         #[serde(default)]
         reuseport: bool,
 
-        //@ Set SO_BINDTODEVICE for the socket
+        //@ Set SO_BINDTODEVICE for the listening socket
         bind_device: Option<String>,
 
         //@ Set size of the queue of unaccepted pending connections for this socket.
+        //@ Default is 1024 when `oneshot` is off and 1 and `oneshot` is on.
         backlog: Option<u32>,
-            
-        //@ Set IP_TRANSPARENT for the socket
+
+        //@ Set IP_TRANSPARENT for the listening socket
         #[serde(default)]
         transparent: bool,
 
-        //@ Set IP_FREEBIND for the socket
+        //@ Set IP_FREEBIND for the listening socket
         #[serde(default)]
         freebind: bool,
+
+        //@ Set IPV6_V6ONLY for the listening socket
+        only_v6: Option<bool>,
+
+
+        //@ Set IPV6_TCLASS for accepted IPv6 sockets
+        tclass_v6: Option<u32>,
+
+        //@ Set IP_TOS for accepted IPv4 sockets
+        tos_v4: Option<u32>,
+
+        //@ Set IP_TTL accepted IPv4 sockets and or IPV6_UNICAST_HOPS for an IPv6
+        ttl: Option<u32>,
+
+        //@ Set SO_LINGER for accepted sockets
+        linger_s: Option<u32>,
+
+        //@ Set SO_OOBINLINE for accepted sockets
+        #[serde(default)]
+        out_of_band_inline: bool,
+
+        //@ Set TCP_NODELAY (no Nagle) for accepted sockets
+        nodelay: Option<bool>,
+
+        //@ Set TCP_CONGESTION for accepted sockets
+        tcp_congestion: Option<String>,
+
+        //@ Set SO_INCOMING_CPU for accepted sockets
+        cpu_affinity: Option<usize>,
+
+        //@ Set TCP_USER_TIMEOUT for accepted sockets
+        user_timeout_s: Option<u32>,
+
+        //@ Set SO_PRIORITY for accepted sockets
+        priority: Option<u32>,
+
+        //@ Set SO_RCVBUF for accepted sockets
+        recv_buffer_size: Option<usize>,
+
+        //@ Set SO_SNDBUF for accepted sockets
+        send_buffer_size: Option<usize>,
+
+        //@ Set TCP_MAXSEG for accepted sockets
+        mss: Option<u32>,
+
+        //@ Set SO_MARK for accepted sockets
+        mark: Option<u32>,
+
+        //@ Set TCP_THIN_LINEAR_TIMEOUTS for accepted sockets
+        thin_linear_timeouts: Option<bool>,
+
+        //@ Set TCP_NOTSENT_LOWAT for accepted sockets
+        notsent_lowat: Option<u32>,
+
+        //@ Set SO_KEEPALIVE for accepted sockets
+        keepalive: Option<bool>,
+
+        //@ Set TCP_KEEPCNT for accepted sockets
+        keepalive_retries: Option<u32>,
+
+        //@ Set TCP_KEEPINTVL for accepted sockets
+        keepalive_interval_s: Option<u32>,
+
+        //@ Set TCP_KEEPALIVE for accepted sockets
+        keepalive_idletime_s: Option<u32>,
     }
     let opts: Opts = rhai::serde::from_dynamic(&opts)?;
 
@@ -314,15 +512,17 @@ fn listen_tcp(
 
     let autospawn = opts.autospawn;
 
-    let mut tcpopts = TcpBindOptions::new();
-    copy_common_tcp_bind_options!(tcpopts, opts);
+    let mut tcpbindopts = TcpBindOptions::new();
+    let mut tcpstreamopts = TcpStreamOptions::new();
+    copy_common_tcp_bind_options!(tcpbindopts, opts);
+    copy_common_tcp_stream_options!(tcpstreamopts, opts);
     if let Some(bklg) = opts.backlog {
-        tcpopts.listen_backlog = bklg;
+        tcpbindopts.listen_backlog = bklg;
     } else {
         if opts.oneshot {
-            tcpopts.listen_backlog = 1;
+            tcpbindopts.listen_backlog = 1;
         } else {
-            tcpopts.listen_backlog = 1024;
+            tcpbindopts.listen_backlog = 1024;
         }
     }
 
@@ -332,7 +532,7 @@ fn listen_tcp(
         let mut address_to_report = *a.addr().unwrap_or(&NEUTRAL_SOCKADDR4);
 
         let l = match a {
-            AddressOrFd::Addr(a) => tcpopts.bind(a).await?,
+            AddressOrFd::Addr(a) => tcpbindopts.bind(a).await?,
             #[cfg(not(unix))]
             AddressOrFd::Fd(..) | AddressOrFd::NamedFd(..) => {
                 error!("Inheriting listeners from parent processes is not supported outside UNIX platforms");
@@ -373,6 +573,8 @@ fn listen_tcp(
             match l.accept().await {
                 Ok((t, from)) => {
                     let newspan = debug_span!("tcp_accept", from=%from);
+
+                    debug!(parent: &newspan, "begin accept");
                     
                     #[allow(unused_assignments)]
                     let mut fd = None;
@@ -384,6 +586,8 @@ fn listen_tcp(
                             unsafe{super::types::SocketFd::new(t.as_raw_fd())});
                     }
 
+                    tcpstreamopts.apply_socket_opts(&t, from.is_ipv6())?;
+
                     let (r, w) = t.into_split();
                     let w = TcpOwnedWriteHalfWithoutAutoShutdown::new(w);
 
@@ -391,6 +595,7 @@ fn listen_tcp(
                     drop_nofity = dn;
 
                     debug!(parent: &newspan, s=?s,"accepted");
+
 
                     let h = s.wrap();
 
