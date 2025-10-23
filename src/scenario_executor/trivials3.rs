@@ -369,7 +369,7 @@ impl PacketWrite for DefragmentWrites {
         let this = self.get_mut();
 
         match this.defragmenter.add_chunk(buf, flags) {
-            DefragmenterAddChunkResult::DontSendYet => return Poll::Ready(Ok(())),
+            DefragmenterAddChunkResult::DontSendYet => Poll::Ready(Ok(())),
             DefragmenterAddChunkResult::Continunous(newbuf) => {
                 let ret = ready!(this.inner.snk.as_mut().poll_write(
                     cx,
@@ -377,11 +377,11 @@ impl PacketWrite for DefragmentWrites {
                     flags - BufferFlag::NonFinalChunk
                 ));
                 this.defragmenter.clear();
-                return Poll::Ready(ret);
+                Poll::Ready(ret)
             }
             DefragmenterAddChunkResult::SizeLimitExceeded(_) => {
                 warn!("Too large datagram");
-                return Poll::Ready(Err(std::io::ErrorKind::InvalidData.into()));
+                Poll::Ready(Err(std::io::ErrorKind::InvalidData.into()))
             }
         }
     }

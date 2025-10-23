@@ -150,7 +150,7 @@ fn ws_upgrade(
             if chv.is_blob() {
                 rqb = rqb.header(chn.as_str(), chv.into_blob().unwrap());
             } else {
-                rqb = rqb.header(chn.as_str(), format!("{}", chv));
+                rqb = rqb.header(chn.as_str(), format!("{chv}"));
             }
         }
         let rq = rqb.body(http_body_util::Empty::<Bytes>::new())?;
@@ -453,7 +453,7 @@ fn ws_accept(
         if chv.is_blob() {
             response_builder = response_builder.header(chn.as_str(), chv.into_blob().unwrap());
         } else {
-            response_builder = response_builder.header(chn.as_str(), format!("{}", chv));
+            response_builder = response_builder.header(chn.as_str(), format!("{chv}"));
         }
     }
     if let Some(chp) = chosen_protocol {

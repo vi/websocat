@@ -76,7 +76,7 @@ impl<R: RngCore + Unpin> AsyncRead for RandomReader<R> {
         let n = b.len();
         buf.advance(n);
 
-        return Poll::Ready(Ok(()));
+        Poll::Ready(Ok(()))
     }
 }
 
@@ -129,7 +129,7 @@ impl AsyncRead for ZeroReader {
         let n = b.len();
         buf.advance(n);
 
-        return Poll::Ready(Ok(()));
+        Poll::Ready(Ok(()))
     }
 }
 
@@ -147,8 +147,7 @@ fn zero_socket() -> Handle<StreamSocket> {
         fd: None,
     };
 
-    let h = s.wrap();
-    h
+    s.wrap()
 }
 
 pub fn register(engine: &mut Engine) {

@@ -1,3 +1,6 @@
+#![allow(clippy::new_without_default)]
+#![allow(clippy::unneeded_struct_pattern)]
+
 pub mod scenario_executor {
     pub mod copydata;
 

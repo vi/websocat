@@ -266,7 +266,7 @@ impl Endpoint {
                 let varnam = env.vars.getnewvarname("tee");
                 let teeresults = env.vars.getnewvarname("teeresults");
 
-                env.printer.print_line(&format!("init_in_parallel(["));
+                env.printer.print_line("init_in_parallel([");
                 env.printer.increase_indent();
 
                 for n in nodes {
@@ -282,7 +282,7 @@ impl Endpoint {
 
                     env.position = backup_position;
                     env.printer.decrease_indent();
-                    env.printer.print_line(&format!("}},"));
+                    env.printer.print_line("},");
                 }
 
                 env.printer.decrease_indent();

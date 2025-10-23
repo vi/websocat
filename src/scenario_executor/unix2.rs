@@ -403,11 +403,12 @@ impl Drop for MyAsyncFd {
             unsafe {
                 let mut flags = fcntl(x, F_GETFL, 0);
                 if flags == -1 {
+                    // ignore error
                     return;
                 }
                 flags &= !O_NONBLOCK;
                 if -1 == fcntl(x, F_SETFL, flags) {
-                    return;
+                    // ignore error
                 }
             }
         }
@@ -552,7 +553,7 @@ impl AsyncWrite for MyAsyncFd {
         self: std::pin::Pin<&mut Self>,
         _cx: &mut std::task::Context<'_>,
     ) -> Poll<Result<(), std::io::Error>> {
-        return Poll::Ready(Ok(()));
+        Poll::Ready(Ok(()))
     }
 
     fn poll_shutdown(
@@ -560,7 +561,7 @@ impl AsyncWrite for MyAsyncFd {
         _cx: &mut std::task::Context<'_>,
     ) -> Poll<Result<(), std::io::Error>> {
         debug!("reached write shutdown of custom async fd");
-        return Poll::Ready(Ok(()));
+        Poll::Ready(Ok(()))
     }
 
     fn poll_write_vectored(
@@ -575,8 +576,7 @@ impl AsyncWrite for MyAsyncFd {
             MyAsyncFdWay::Proper(ref mut f) => loop {
                 let mut ready_guard = ready!(f.poll_write_ready(cx)?);
 
-                match ready_guard
-                    .try_io(|inner| writev(inner, bufs).map_err(|x| std::io::Error::from(x)))
+                match ready_guard.try_io(|inner| writev(inner, bufs).map_err(std::io::Error::from))
                 {
                     Ok(result) => return Poll::Ready(result),
                     Err(_would_block) => continue,
@@ -591,7 +591,7 @@ impl AsyncWrite for MyAsyncFd {
                     ready!(sl.as_mut().poll(cx));
                     *write_sleeper = None;
                 }
-                match writev(&fd, bufs).map_err(|x| std::io::Error::from(x)) {
+                match writev(&fd, bufs).map_err(std::io::Error::from) {
                     Ok(n) => return Poll::Ready(Ok(n)),
                     Err(e) if e.kind() == ErrorKind::WouldBlock => {
                         *write_sleeper =

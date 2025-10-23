@@ -516,13 +516,10 @@ impl SpecifierStack {
                 resulting_type = t;
             }
         }
-        match &mut self.innermost {
-            Endpoint::Mirror { datagram_mode } => {
-                if resulting_type.is_dgrms() {
-                    *datagram_mode = true;
-                }
+        if let Endpoint::Mirror { datagram_mode } = &mut self.innermost {
+            if resulting_type.is_dgrms() {
+                *datagram_mode = true;
             }
-            _ => (),
         }
         Ok(())
     }
@@ -651,12 +648,9 @@ impl SpecifierStack {
     ) -> anyhow::Result<()> {
         let mut the_index = None;
         for (i, ovl) in self.overlays.iter().enumerate() {
-            match ovl {
-                Overlay::SimpleReuser => {
-                    the_index = Some(i);
-                    break;
-                }
-                _ => (),
+            if let Overlay::SimpleReuser = ovl {
+                the_index = Some(i);
+                break;
             }
         }
 
@@ -682,12 +676,9 @@ impl SpecifierStack {
     ) -> anyhow::Result<()> {
         let mut the_index = None;
         for (i, ovl) in self.overlays.iter().enumerate() {
-            match ovl {
-                Overlay::WriteSplitoff => {
-                    the_index = Some(i);
-                    break;
-                }
-                _ => (),
+            if let Overlay::WriteSplitoff = ovl {
+                the_index = Some(i);
+                break;
             }
         }
 
@@ -740,12 +731,9 @@ impl SpecifierStack {
     ) -> anyhow::Result<()> {
         let mut the_index = None;
         for (i, ovl) in self.overlays.iter().enumerate() {
-            match ovl {
-                Overlay::Tee => {
-                    the_index = Some(i);
-                    break;
-                }
-                _ => (),
+            if let Overlay::Tee = ovl {
+                the_index = Some(i);
+                break;
             }
         }
 
@@ -761,7 +749,7 @@ impl SpecifierStack {
         let mut nodes = Vec::with_capacity(tee.len() + 1);
 
         nodes.push(*stack_after_the_splitoff);
-        nodes.extend(tee.drain(..));
+        nodes.append(tee);
 
         let chunker_overlay_to_insert = || {
             if opts.binary {

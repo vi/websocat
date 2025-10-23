@@ -521,12 +521,10 @@ fn listen_tcp(
     copy_common_tcp_stream_options!(tcpstreamopts, opts);
     if let Some(bklg) = opts.backlog {
         tcpbindopts.listen_backlog = bklg;
+    } else if opts.oneshot {
+        tcpbindopts.listen_backlog = 1;
     } else {
-        if opts.oneshot {
-            tcpbindopts.listen_backlog = 1;
-        } else {
-            tcpbindopts.listen_backlog = 1024;
-        }
+        tcpbindopts.listen_backlog = 1024;
     }
 
     Ok(async move {

@@ -184,11 +184,9 @@ impl TcpBindOptions {
         if let Some(v) = self.reuseaddr {
             debug!("Setting SO_REUSEADDR");
             s.set_reuseaddr(v)?;
-        } else {
-            if pending_listen {
-                #[cfg(not(windows))]
-                s.set_reuseaddr(true)?;
-            }
+        } else if pending_listen {
+            #[cfg(not(windows))]
+            s.set_reuseaddr(true)?;
         }
         if self.reuseport {
             debug!("Setting SO_REUSEPORT");
@@ -245,7 +243,7 @@ impl TcpBindOptions {
                 "bind_device",
                 #[cfg(any(target_os = "android", target_os = "fuchsia", target_os = "linux"))],
                 {
-                    s.bind_device(Some(v[..].as_bytes()))?;
+                    s.bind_device(Some(v.as_bytes()))?;
                 },
             );
         }
@@ -365,23 +363,21 @@ impl TcpStreamOptions {
                     },
                 );
             }
-        } else {
-            if let Some(v) = self.tos_v4 {
-                debug!("Setting IP_TOS");
-                cfg_gated_block_or_err!(
-                    "tos_v4",
-                    #[cfg(not(any(
-                        target_os = "fuchsia",
-                        target_os = "redox",
-                        target_os = "solaris",
-                        target_os = "illumos",
-                        target_os = "haiku",
-                    )))],
-                    {
-                        ss.set_tos_v4(v)?;
-                    },
-                );
-            }
+        } else if let Some(v) = self.tos_v4 {
+            debug!("Setting IP_TOS");
+            cfg_gated_block_or_err!(
+                "tos_v4",
+                #[cfg(not(any(
+                    target_os = "fuchsia",
+                    target_os = "redox",
+                    target_os = "solaris",
+                    target_os = "illumos",
+                    target_os = "haiku",
+                )))],
+                {
+                    ss.set_tos_v4(v)?;
+                },
+            );
         }
 
         if self.out_of_band_inline {

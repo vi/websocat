@@ -61,7 +61,7 @@ where
     if !compose_mode {
         let args = WebsocatArgs::parse_from(argv);
         if args.dump_spec_phase0 {
-            writeln!(diagnostic_output, "{:?}", args)?;
+            writeln!(diagnostic_output, "{args:?}")?;
             return Ok(());
         }
         global_args.hoover(&args)?;
@@ -92,7 +92,7 @@ where
         let composed = super::composed_cli::parse(argv)?;
 
         if global_args.dump_spec_phase0 {
-            writeln!(diagnostic_output, "{:?}", composed)?;
+            writeln!(diagnostic_output, "{composed:?}")?;
             return Ok(());
         }
 
@@ -112,9 +112,9 @@ where
 
     if global_args.dump_spec {
         if allow_stdout {
-            println!("{}", global_scenario);
+            println!("{global_scenario}");
         } else {
-            writeln!(diagnostic_output, "{}", global_scenario)?;
+            writeln!(diagnostic_output, "{global_scenario}")?;
         }
         return Ok(());
     }
@@ -165,9 +165,9 @@ impl WebsocatInvocation {
             let s: &str = args.spec1.as_os_str().try_into()?;
             let mut s = s.to_owned();
             if !s.contains(':') {
-                s = format!("127.0.0.1:{}", s);
+                s = format!("127.0.0.1:{s}");
             }
-            s = format!("ws-l:{}", s);
+            s = format!("ws-l:{s}");
             args.spec1 = s.into();
         }
 

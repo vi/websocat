@@ -38,6 +38,7 @@ impl WebsocatInvocation {
             position: SpecifierPosition::Left,
         };
 
+        #[allow(clippy::needless_late_init)]
         let left: String;
         let right: String;
 
@@ -159,9 +160,9 @@ impl WebsocatInvocation {
                 }
 
                 if env.opts.exit_on_eof {
-                    env.printer.print_line(&format!("race(["));
+                    env.printer.print_line("race([");
                 } else {
-                    env.printer.print_line(&format!("parallel(["));
+                    env.printer.print_line("parallel([");
                 }
                 env.printer.increase_indent();
 
@@ -264,7 +265,7 @@ impl WebsocatInvocation {
 
             if with_filters {
                 env.printer.decrease_indent();
-                env.printer.print_line(&format!("])"));
+                env.printer.print_line("])");
 
                 env.printer.decrease_indent();
                 env.printer.print_line("})");

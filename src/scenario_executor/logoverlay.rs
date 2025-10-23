@@ -46,7 +46,7 @@ impl LoggerOptsShared {
             return;
         };
         if !self.include_timestamps {
-            let _ = writeln!(diago, "{}", args);
+            let _ = writeln!(diago, "{args}");
         } else {
             let ts = Instant::now().saturating_duration_since(the_scenario.time_base);
             let _ = writeln!(

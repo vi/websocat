@@ -5,19 +5,19 @@ use super::{
 
 fn tcp_common_bind_options(o: &mut String, env: &ScenarioPrintingEnvironment<'_>) {
     if let Some(v) = env.opts.reuseaddr {
-        o.push_str(&format!("reuseaddr: {},", v));
+        o.push_str(&format!("reuseaddr: {v},"));
     }
     if env.opts.reuseport {
-        o.push_str(&format!("reuseport: true,"));
+        o.push_str("reuseport: true,");
     }
     if let Some(ref v) = env.opts.socket_bind_to_device {
         o.push_str(&format!("bind_device: {},", StrLit(v)));
     }
     if env.opts.socket_freebind {
-        o.push_str(&format!("freebind: true,"));
+        o.push_str("freebind: true,");
     }
     if env.opts.socket_transparent {
-        o.push_str(&format!("transparent: true,"));
+        o.push_str("transparent: true,");
     }
     if let Some(v) = env.opts.socket_only_v6 {
         o.push_str(&format!("only_v6: {v},"));
@@ -38,7 +38,7 @@ fn tcp_common_stream_options(o: &mut String, env: &ScenarioPrintingEnvironment<'
         o.push_str(&format!("linger_s: {v},"));
     }
     if env.opts.socket_out_of_band_inline {
-        o.push_str(&format!("out_of_band_inline: true,"));
+        o.push_str("out_of_band_inline: true,");
     }
     if let Some(v) = env.opts.socket_nodelay {
         o.push_str(&format!("nodelay: {v},"));
@@ -173,7 +173,7 @@ impl Endpoint {
                 if matches!(self, Endpoint::TcpListen(..)) {
                     tcp_common_bind_options(&mut o, env);
                     if let Some(v) = env.opts.socket_listen_backlog {
-                        o.push_str(&format!("backlog: {},", v));
+                        o.push_str(&format!("backlog: {v},"));
                     }
                 }
 

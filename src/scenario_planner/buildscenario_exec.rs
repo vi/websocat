@@ -20,7 +20,7 @@ pub fn format_osstr(arg: &OsStr) -> String {
         use std::os::wasi::ffi::OsStrExt;
 
         let x = base64::prelude::BASE64_STANDARD.encode(arg.as_bytes());
-        return format!("osstr_base64_unix_bytes(\"{}\")", x);
+        return format!("osstr_base64_unix_bytes(\"{x}\")");
     }
     #[cfg(windows)]
     {
@@ -36,7 +36,7 @@ pub fn format_osstr(arg: &OsStr) -> String {
     #[allow(unreachable_code)]
     {
         let x = base64::prelude::BASE64_STANDARD.encode(arg.as_encoded_bytes());
-        format!("osstr_base64_unchecked_encoded_bytes(\"{}\")", x)
+        format!("osstr_base64_unchecked_encoded_bytes(\"{x}\")")
     }
 }
 

@@ -47,7 +47,7 @@ pub async fn test_websocat(s: &str) {
 
     if let Err(ref e) = ret {
         std::io::stderr().write_all(&stderr.content()).unwrap();
-        eprintln!("{}", e);
+        eprintln!("{e}");
     }
 
     assert!(ret.is_ok());
@@ -94,11 +94,11 @@ pub async fn test_two_websocats(s1: &str, s2: &str, wait_ms: u64) {
 
     if let Err(ref e) = ret1 {
         std::io::stderr().write_all(&stderr1.content()).unwrap();
-        eprintln!("{}", e);
+        eprintln!("{e}");
     }
     if let Err(ref e) = ret2 {
         std::io::stderr().write_all(&stderr2.content()).unwrap();
-        eprintln!("{}", e);
+        eprintln!("{e}");
     }
 
     assert!(ret1.is_ok());
@@ -163,15 +163,15 @@ pub async fn test_three_websocats(s1: &str, s2: &str, s3: &str, wait1_ms: u64, w
 
     if let Err(ref e) = ret1 {
         std::io::stderr().write_all(&stderr1.content()).unwrap();
-        eprintln!("{}", e);
+        eprintln!("{e}");
     }
     if let Err(ref e) = ret2 {
         std::io::stderr().write_all(&stderr2.content()).unwrap();
-        eprintln!("{}", e);
+        eprintln!("{e}");
     }
     if let Err(ref e) = ret3 {
         std::io::stderr().write_all(&stderr3.content()).unwrap();
-        eprintln!("{}", e);
+        eprintln!("{e}");
     }
 
     assert!(ret1.is_ok());

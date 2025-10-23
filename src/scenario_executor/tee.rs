@@ -116,15 +116,16 @@ impl PacketRead for TeeReader {
                     if !prr.flags.contains(BufferFlag::NonFinalChunk) {
                         this.chosen_node = None;
                     }
-                    if prr.flags.contains(BufferFlag::Eof) {
-                        if !this.err_on_orphaned_fragment && !this.propagate_any_eof {
-                            warn!("Trimmed datagram coming from `tee:` overlay due to one of the nodes abruptly disconnecting");
-                            this.chosen_node = None;
-                            return Poll::Ready(Ok(PacketReadResult {
-                                flags: Default::default(),
-                                buffer_subset: 0..0,
-                            }));
-                        }
+                    if prr.flags.contains(BufferFlag::Eof)
+                        && !this.err_on_orphaned_fragment
+                        && !this.propagate_any_eof
+                    {
+                        warn!("Trimmed datagram coming from `tee:` overlay due to one of the nodes abruptly disconnecting");
+                        this.chosen_node = None;
+                        return Poll::Ready(Ok(PacketReadResult {
+                            flags: Default::default(),
+                            buffer_subset: 0..0,
+                        }));
                     }
                     return Poll::Ready(Ok(prr));
                 }
@@ -173,15 +174,13 @@ impl PacketRead for TeeReader {
                             frag_count += 1;
                             this.chosen_node = Some(i);
                             break;
+                        } else if prr.flags.contains(BufferFlag::Eof) {
+                            eof_count += 1;
+                            eof_occured = true;
+                            annul = true;
                         } else {
-                            if prr.flags.contains(BufferFlag::Eof) {
-                                eof_count += 1;
-                                eof_occured = true;
-                                annul = true;
-                            } else {
-                                ok_count += 1;
-                                break;
-                            }
+                            ok_count += 1;
+                            break;
                         }
                     }
                     Poll::Ready(Err(e)) => {
@@ -201,6 +200,7 @@ impl PacketRead for TeeReader {
         }
         trace!("ok={ok_count} frag={frag_count} eof={eof_count} pend={pend_count} err={err_count}");
 
+        #[allow(clippy::if_same_then_else)]
         if this.err_on_any_error && err_count > 0 {
             Poll::Ready(Err(err_to_propagate.unwrap()))
         } else if this.propagate_any_eof && eof_count > 0 {

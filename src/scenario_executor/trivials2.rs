@@ -249,7 +249,7 @@ fn format_str(x: Dynamic) -> String {
         let b = x.into_blob().unwrap();
         format!("b{}", render_content(&b, false))
     } else {
-        format!("{:?}", x)
+        format!("{x:?}")
     }
 }
 
@@ -446,8 +446,6 @@ fn bytemirror_socket(opts: Dynamic) -> RhResult<Handle<StreamSocket>> {
     debug!(parent: &span, "options parsed");
 
     let max_buf_size = opts.max_buf_size;
-
-    drop(opts);
 
     let (r, w) = tokio::io::simplex(max_buf_size);
 

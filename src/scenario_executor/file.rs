@@ -140,6 +140,7 @@ fn file_socket(
             );
         }
 
+        #[allow(clippy::type_complexity)]
         let (r, w): (
             Pin<Box<dyn AsyncRead + Send + 'static>>,
             Pin<Box<dyn AsyncWrite + Send + 'static>>,

@@ -40,8 +40,7 @@ struct UdpSend {
     inhibit_send_errors: bool,
 }
 
-fn new_udp_endpoint(
-    s: UdpSocket,
+struct NewUdpEndpointParams {
     toaddr: SocketAddr,
     sendto_mode: bool,
     allow_other_addresses: bool,
@@ -50,7 +49,19 @@ fn new_udp_endpoint(
     tag_as_text: bool,
     inhibit_send_errors: bool,
     max_send_datagram_size: usize,
-) -> (UdpSend, UdpRecv) {
+}
+
+fn new_udp_endpoint(s: UdpSocket, params: NewUdpEndpointParams) -> (UdpSend, UdpRecv) {
+    let NewUdpEndpointParams {
+        toaddr,
+        sendto_mode,
+        allow_other_addresses,
+        redirect_to_last_seen_address,
+        connect_to_first_seen_address,
+        tag_as_text,
+        inhibit_send_errors,
+        max_send_datagram_size,
+    } = params;
     let inner = Arc::new(UdpInner {
         s,
         peer: RwLock::new(UdpAddrInner {
@@ -337,17 +348,18 @@ fn udp_socket(ctx: NativeCallContext, opts: Dynamic) -> RhResult<Handle<Datagram
         }
     }
 
-    let (us, ur) = new_udp_endpoint(
-        s,
-        to_addr,
-        opts.sendto_mode,
-        opts.allow_other_addresses,
-        opts.redirect_to_last_seen_address,
-        opts.connect_to_first_seen_address,
-        opts.tag_as_text,
-        opts.inhibit_send_errors,
-        opts.max_send_datagram_size,
-    );
+    let nupp = NewUdpEndpointParams {
+        toaddr: to_addr,
+        sendto_mode: opts.sendto_mode,
+        allow_other_addresses: opts.allow_other_addresses,
+        redirect_to_last_seen_address: opts.redirect_to_last_seen_address,
+        connect_to_first_seen_address: opts.connect_to_first_seen_address,
+        tag_as_text: opts.tag_as_text,
+        inhibit_send_errors: opts.inhibit_send_errors,
+        max_send_datagram_size: opts.max_send_datagram_size,
+    };
+
+    let (us, ur) = new_udp_endpoint(s, nupp);
 
     let s = DatagramSocket {
         read: Some(DatagramRead { src: Box::pin(ur) }),
