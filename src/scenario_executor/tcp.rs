@@ -1,12 +1,13 @@
 use std::{net::SocketAddr, pin::Pin, time::Duration};
 
 use crate::{
-    copy_common_tcp_bind_options, copy_common_tcp_stream_options, scenario_executor::{
+    copy_common_tcp_bind_options, copy_common_tcp_stream_options,
+    scenario_executor::{
         exit_code::EXIT_CODE_TCP_CONNECT_FAIL,
         socketopts::{TcpBindOptions, TcpStreamOptions},
-        utils1::{NEUTRAL_SOCKADDR4, TaskHandleExt2, wrap_as_stream_socket},
+        utils1::{wrap_as_stream_socket, TaskHandleExt2, NEUTRAL_SOCKADDR4},
         utils2::AddressOrFd,
-    }
+    },
 };
 use futures::{stream::FuturesUnordered, FutureExt, StreamExt};
 use rhai::{Dynamic, Engine, FnPtr, NativeCallContext};
@@ -167,7 +168,6 @@ fn connect_tcp(
 
         //@ Set TCP_KEEPALIVE for the socket
         keepalive_idletime_s: Option<u32>,
-
     }
     let opts: TcpOpts = rhai::serde::from_dynamic(&opts)?;
     //span.record("addr", field::display(opts.addr));
@@ -250,7 +250,7 @@ fn connect_tcp_race(
         //@ Set IP_FREEBIND for the listening socket
         #[serde(default)]
         freebind: bool,
-        
+
         //@ Set IPV6_V6ONLY for the socket in case when it is IPv6
         only_v6: Option<bool>,
 
@@ -331,7 +331,11 @@ fn connect_tcp_race(
         let mut fu = FuturesUnordered::new();
 
         for addr in addrs {
-            fu.push(tcpbindopts.connect(addr, &tcpstreamopts).map(move |x| (x, addr)));
+            fu.push(
+                tcpbindopts
+                    .connect(addr, &tcpstreamopts)
+                    .map(move |x| (x, addr)),
+            );
         }
 
         let t: TcpStream = loop {
@@ -443,7 +447,6 @@ fn listen_tcp(
 
         //@ Set IPV6_V6ONLY for the listening socket
         only_v6: Option<bool>,
-
 
         //@ Set IPV6_TCLASS for accepted IPv6 sockets
         tclass_v6: Option<u32>,

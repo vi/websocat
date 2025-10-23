@@ -67,7 +67,6 @@ macro_rules! copy_common_tcp_bind_options {
     };
 }
 
-
 #[macro_export]
 macro_rules! copy_common_tcp_stream_options {
     ($target:ident, $source:ident) => {
@@ -108,15 +107,16 @@ impl Drop for SocketWrapper {
 }
 
 #[cfg(unix)]
-impl<T> From<&T> for SocketWrapper where T : std::os::fd::AsRawFd {
+impl<T> From<&T> for SocketWrapper
+where
+    T: std::os::fd::AsRawFd,
+{
     fn from(s: &T) -> Self {
         use std::os::fd::FromRawFd;
         SocketWrapper(Some(
             // Safety: resulting `socket2::Socket` is expected to only be used from this module to set some options and
             // is quickly forgotten (by `Drop` implementation above), so it feels it should be more or less OK.
-            unsafe {
-                socket2::Socket::from_raw_fd(s.as_raw_fd())
-            }
+            unsafe { socket2::Socket::from_raw_fd(s.as_raw_fd()) },
         ))
     }
 }
@@ -132,15 +132,16 @@ impl Drop for SocketWrapper {
 }
 
 #[cfg(windows)]
-impl<T> From<&T> for SocketWrapper where T : std::os::windows::io::AsRawSocket {
+impl<T> From<&T> for SocketWrapper
+where
+    T: std::os::windows::io::AsRawSocket,
+{
     fn from(s: &T) -> Self {
         use std::os::windows::io::FromRawSocket;
         SocketWrapper(Some(
             // Safety: resulting `socket2::Socket` is expected to only be used from this module to set some options and
             // is quickly forgotten (by `Drop` implementation above), so it feels it should be more or less OK.
-            unsafe {
-                socket2::Socket::from_raw_socket(s.as_raw_socket())
-            }
+            unsafe { socket2::Socket::from_raw_socket(s.as_raw_socket()) },
         ))
     }
 }
@@ -250,16 +251,20 @@ impl TcpBindOptions {
         }
 
         if v6 {
-            #[cfg(any(windows,unix))]
+            #[cfg(any(windows, unix))]
             if let Some(v) = self.only_v6 {
-                let ss : SocketWrapper = s.into();
+                let ss: SocketWrapper = s.into();
                 ss.set_only_v6(v)?;
             }
         }
         Ok(())
     }
 
-    pub async fn connect(&self, addr: SocketAddr, stream_opts: &TcpStreamOptions) -> std::io::Result<TcpStream> {
+    pub async fn connect(
+        &self,
+        addr: SocketAddr,
+        stream_opts: &TcpStreamOptions,
+    ) -> std::io::Result<TcpStream> {
         let s = Self::gs4a(addr)?;
         self.setopts(&s, addr.is_ipv6(), false)?;
         if let Some(bbc) = self.bind_before_connecting {
@@ -323,12 +328,14 @@ impl TcpStreamOptions {
             }
         }
 
-        let ss : SocketWrapper;
-        #[cfg(any(unix,windows))] {
+        let ss: SocketWrapper;
+        #[cfg(any(unix, windows))]
+        {
             ss = s.into();
         }
-        #[cfg(not(any(unix,windows)))] {
-            return Ok(())
+        #[cfg(not(any(unix, windows)))]
+        {
+            return Ok(());
         }
 
         if v6 {
