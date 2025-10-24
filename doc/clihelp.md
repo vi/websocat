@@ -497,6 +497,11 @@ Options:
       --exclude-ws-from-sockopts
           Do not apply `socket_*`, `reuseaddr`, `reuseport` and `bind_before_connect` to specifier stacks that include WebSocket framer
 
+      --tcp-race-interval-ms <TCP_RACE_INTERVAL_MS>
+          Delay between initiating subsequent connections when connecting to a TCP using multiple address variants
+          
+          [default: 20]
+
   -h, --help
           Print help (see a summary with '-h')
 

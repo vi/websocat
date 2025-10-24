@@ -655,6 +655,10 @@ pub struct WebsocatArgs {
     /// Do not apply `socket_*`, `reuseaddr`, `reuseport` and `bind_before_connect` to specifier stacks that include WebSocket framer
     #[arg(long)]
     pub exclude_ws_from_sockopts: bool,
+
+    /// Delay between initiating subsequent connections when connecting to a TCP using multiple address variants.
+    #[arg(long, default_value = "20")]
+    pub tcp_race_interval_ms: u32,
 }
 
 /// Subset of command line arguments that describes the whole Websocat operation even when `--compose` sub-scenarios are used.

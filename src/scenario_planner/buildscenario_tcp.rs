@@ -122,6 +122,11 @@ impl Endpoint {
 
                 tcp_options_for_connect(&mut o, env);
 
+                o.push_str(&format!(
+                    "race_interval_ms: {},",
+                    env.opts.tcp_race_interval_ms
+                ));
+
                 let varnam = env.vars.getnewvarname("tcp");
                 env.printer.print_line(&format!(
                     "connect_tcp_race(#{{{o}}}, {varname_for_addrs}, |{varnam}| {{"
@@ -139,6 +144,10 @@ impl Endpoint {
 
                 let varnam = env.vars.getnewvarname("tcp");
                 let mut o = String::with_capacity(0);
+                o.push_str(&format!(
+                    "race_interval_ms: {},",
+                    env.opts.tcp_race_interval_ms
+                ));
 
                 tcp_options_for_connect(&mut o, env);
 

@@ -5,7 +5,7 @@ use crate::{
     scenario_executor::{
         exit_code::EXIT_CODE_TCP_CONNECT_FAIL,
         socketopts::{TcpBindOptions, TcpStreamOptions},
-        utils1::{NEUTRAL_SOCKADDR4, TaskHandleExt2, wrap_as_stream_socket},
+        utils1::{wrap_as_stream_socket, TaskHandleExt2, NEUTRAL_SOCKADDR4},
         utils2::AddressOrFd,
     },
 };
@@ -230,6 +230,9 @@ fn connect_tcp_race(
     debug!(parent: &span, "node created");
     #[derive(serde::Deserialize)]
     struct TcpOpts {
+        //@ Interval between connection attempts
+        race_interval_ms: u32,
+
         //@ Bind TCP socket to this address and/or port before issuing `connect`
         bind: Option<SocketAddr>,
 
@@ -334,12 +337,15 @@ fn connect_tcp_race(
 
         let mut fu = FuturesUnordered::new();
 
-        for addr in addrs {
-            fu.push(
-                tcpbindopts
-                    .connect(addr, &tcpstreamopts)
-                    .map(move |x| (x, addr)),
-            );
+        let race_interval_ms = opts.race_interval_ms;
+        for (i, &addr) in addrs.iter().enumerate() {
+            let tco = &tcpstreamopts;
+            let tbo = &tcpbindopts;
+            fu.push(async move {
+                let w = Duration::from_millis((race_interval_ms as u64) * (i as u64));
+                let _ = tokio::time::sleep(w).await;
+                tbo.connect(addr, tco).map(move |x| (x, addr)).await
+            });
         }
 
         let mut first_error = None;
@@ -358,7 +364,9 @@ fn connect_tcp_race(
                 }
                 None => {
                     the_scenario.exit_code.set(EXIT_CODE_TCP_CONNECT_FAIL);
-                    return Err(first_error.expect("Empty set should be handled above").into());
+                    return Err(first_error
+                        .expect("Empty set should be handled above")
+                        .into());
                 }
             }
         };

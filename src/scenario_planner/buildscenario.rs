@@ -1,8 +1,8 @@
 use super::{
     scenarioprinter::{ScenarioPrinter, StrLit},
     types::{
-        Endpoint, ScenarioPrintingEnvironment, SocketType, SpecifierPosition, SpecifierStack,
-        WebsocatInvocation, OverlayDiscriminants,
+        Endpoint, OverlayDiscriminants, ScenarioPrintingEnvironment, SocketType, SpecifierPosition,
+        SpecifierStack, WebsocatInvocation,
     },
     utils::IdentifierGenerator,
 };
@@ -58,8 +58,14 @@ impl WebsocatInvocation {
             prepare_action.begin_print(&mut env)?;
         }
 
-        let left_used_for_websocket = self.stacks.left.contains_overlay(OverlayDiscriminants::WsFramer);
-        let right_used_for_websocket = self.stacks.right.contains_overlay(OverlayDiscriminants::WsFramer);
+        let left_used_for_websocket = self
+            .stacks
+            .left
+            .contains_overlay(OverlayDiscriminants::WsFramer);
+        let right_used_for_websocket = self
+            .stacks
+            .right
+            .contains_overlay(OverlayDiscriminants::WsFramer);
         env.used_for_a_websocket = left_used_for_websocket;
 
         left = self.stacks.left.begin_print(&mut env)?;

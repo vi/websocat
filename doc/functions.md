@@ -482,6 +482,7 @@ Returns `Task`
 
 Options:
 
+* race_interval_ms (`u32`) - Interval between connection attempts
 * bind (`Option<SocketAddr>`) - Bind TCP socket to this address and/or port before issuing `connect`
 * reuseaddr (`Option<bool>`) - Set SO_REUSEADDR for the listening socket
 * reuseport (`bool`) - Set SO_REUSEPORT for the listening socket
