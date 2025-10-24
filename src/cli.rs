@@ -651,6 +651,10 @@ pub struct WebsocatArgs {
     /// Set TCP_KEEPALIVE for the socket
     #[arg(long)]
     pub socket_keepalive_idletime_s: Option<u32>,
+
+    /// Do not apply `socket_*`, `reuseaddr`, `reuseport` and `bind_before_connect` to specifier stacks that include WebSocket framer
+    #[arg(long)]
+    pub exclude_ws_from_sockopts: bool,
 }
 
 /// Subset of command line arguments that describes the whole Websocat operation even when `--compose` sub-scenarios are used.

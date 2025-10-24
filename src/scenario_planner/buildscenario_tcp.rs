@@ -87,6 +87,16 @@ fn tcp_common_stream_options(o: &mut String, env: &ScenarioPrintingEnvironment<'
     }
 }
 
+fn tcp_options_for_connect(o: &mut String, env: &ScenarioPrintingEnvironment<'_>) {
+    if !(env.used_for_a_websocket && env.opts.exclude_ws_from_sockopts) {
+        if let Some(bbc) = env.opts.bind_before_connect {
+            o.push_str(&format!("bind: {},", StrLit(bbc)));
+        }
+        tcp_common_bind_options(o, env);
+        tcp_common_stream_options(o, env);
+    }
+}
+
 impl Endpoint {
     pub(super) fn begin_print_tcp(
         &self,
@@ -100,11 +110,7 @@ impl Endpoint {
                 o.push_str("addr: ");
                 o.push_str(&format!("{},", StrLit(addr)));
 
-                if let Some(bbc) = env.opts.bind_before_connect {
-                    o.push_str(&format!("bind: {},", StrLit(bbc)));
-                }
-                tcp_common_bind_options(&mut o, env);
-                tcp_common_stream_options(&mut o, env);
+                tcp_options_for_connect(&mut o, env);
 
                 env.printer
                     .print_line(&format!("connect_tcp(#{{{o}}}, |{varnam}| {{"));
@@ -114,11 +120,7 @@ impl Endpoint {
             Endpoint::TcpConnectByEarlyHostname { varname_for_addrs } => {
                 let mut o = String::with_capacity(0);
 
-                if let Some(bbc) = env.opts.bind_before_connect {
-                    o.push_str(&format!("bind: {},", StrLit(bbc)));
-                }
-                tcp_common_bind_options(&mut o, env);
-                tcp_common_stream_options(&mut o, env);
+                tcp_options_for_connect(&mut o, env);
 
                 let varnam = env.vars.getnewvarname("tcp");
                 env.printer.print_line(&format!(
@@ -137,11 +139,8 @@ impl Endpoint {
 
                 let varnam = env.vars.getnewvarname("tcp");
                 let mut o = String::with_capacity(0);
-                if let Some(bbc) = env.opts.bind_before_connect {
-                    o.push_str(&format!("bind: {},", StrLit(bbc)));
-                }
-                tcp_common_bind_options(&mut o, env);
-                tcp_common_stream_options(&mut o, env);
+
+                tcp_options_for_connect(&mut o, env);
 
                 env.printer.print_line(&format!(
                     "connect_tcp_race(#{{{o}}}, {addrs}, |{varnam}| {{"
@@ -170,11 +169,17 @@ impl Endpoint {
                 };
 
                 let mut o = String::with_capacity(0);
-                if matches!(self, Endpoint::TcpListen(..)) {
+                if matches!(self, Endpoint::TcpListen(..))
+                    && !(env.used_for_a_websocket && env.opts.exclude_ws_from_sockopts)
+                {
                     tcp_common_bind_options(&mut o, env);
+
                     if let Some(v) = env.opts.socket_listen_backlog {
                         o.push_str(&format!("backlog: {v},"));
                     }
+                }
+                if !(env.used_for_a_websocket && env.opts.exclude_ws_from_sockopts) {
+                    tcp_common_stream_options(&mut o, env);
                 }
 
                 env.printer.print_line(&format!(

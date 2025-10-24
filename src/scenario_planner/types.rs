@@ -318,4 +318,7 @@ pub struct ScenarioPrintingEnvironment<'a> {
     pub opts: &'a WebsocatArgs,
     pub vars: &'a mut IdentifierGenerator,
     pub position: SpecifierPosition,
+    /// We are currently printing a specifier stack that is used for a WebSocket connection,
+    /// so we may need to be more careful with propagating some CLI options
+    pub used_for_a_websocket: bool,
 }

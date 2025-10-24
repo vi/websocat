@@ -2,7 +2,7 @@ use super::{
     scenarioprinter::{ScenarioPrinter, StrLit},
     types::{
         Endpoint, ScenarioPrintingEnvironment, SocketType, SpecifierPosition, SpecifierStack,
-        WebsocatInvocation,
+        WebsocatInvocation, OverlayDiscriminants,
     },
     utils::IdentifierGenerator,
 };
@@ -36,6 +36,7 @@ impl WebsocatInvocation {
             opts: &self.opts,
             vars,
             position: SpecifierPosition::Left,
+            used_for_a_websocket: false,
         };
 
         #[allow(clippy::needless_late_init)]
@@ -56,6 +57,10 @@ impl WebsocatInvocation {
         for prepare_action in &self.beginning {
             prepare_action.begin_print(&mut env)?;
         }
+
+        let left_used_for_websocket = self.stacks.left.contains_overlay(OverlayDiscriminants::WsFramer);
+        let right_used_for_websocket = self.stacks.right.contains_overlay(OverlayDiscriminants::WsFramer);
+        env.used_for_a_websocket = left_used_for_websocket;
 
         left = self.stacks.left.begin_print(&mut env)?;
 
@@ -79,6 +84,7 @@ impl WebsocatInvocation {
             }
         } else {
             env.position = SpecifierPosition::Right;
+            env.used_for_a_websocket = right_used_for_websocket;
             if with_filters {
                 let rightslotvar = env.vars.getnewvarname("rightslot");
                 let multisock = env.vars.getnewvarname("multisock");
@@ -274,6 +280,7 @@ impl WebsocatInvocation {
             }
             env.position = SpecifierPosition::Left;
         }
+        env.used_for_a_websocket = left_used_for_websocket;
         self.stacks.left.end_print(&mut env)?;
 
         for prepare_action in self.beginning.iter().rev() {

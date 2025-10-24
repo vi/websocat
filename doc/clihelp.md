@@ -494,6 +494,9 @@ Options:
       --socket-keepalive-idletime-s <SOCKET_KEEPALIVE_IDLETIME_S>
           Set TCP_KEEPALIVE for the socket
 
+      --exclude-ws-from-sockopts
+          Do not apply `socket_*`, `reuseaddr`, `reuseport` and `bind_before_connect` to specifier stacks that include WebSocket framer
+
   -h, --help
           Print help (see a summary with '-h')
 
