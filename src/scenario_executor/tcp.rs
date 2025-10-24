@@ -5,7 +5,7 @@ use crate::{
     scenario_executor::{
         exit_code::EXIT_CODE_TCP_CONNECT_FAIL,
         socketopts::{TcpBindOptions, TcpStreamOptions},
-        utils1::{wrap_as_stream_socket, TaskHandleExt2, NEUTRAL_SOCKADDR4},
+        utils1::{NEUTRAL_SOCKADDR4, TaskHandleExt2, wrap_as_stream_socket},
         utils2::AddressOrFd,
     },
 };
@@ -328,6 +328,10 @@ fn connect_tcp_race(
     Ok(async move {
         debug!("node started");
 
+        if addrs.is_empty() {
+            anyhow::bail!("No addresses to connect TCP to");
+        }
+
         let mut fu = FuturesUnordered::new();
 
         for addr in addrs {
@@ -338,6 +342,8 @@ fn connect_tcp_race(
             );
         }
 
+        let mut first_error = None;
+
         let t: TcpStream = loop {
             match fu.next().await {
                 Some((Ok(x), addr)) => {
@@ -346,10 +352,13 @@ fn connect_tcp_race(
                 }
                 Some((Err(e), addr)) => {
                     debug!(%addr, %e, "failed to connect");
+                    if first_error.is_none() {
+                        first_error = Some(e);
+                    }
                 }
                 None => {
                     the_scenario.exit_code.set(EXIT_CODE_TCP_CONNECT_FAIL);
-                    anyhow::bail!("failed to connect to any of the candidates")
+                    return Err(first_error.expect("Empty set should be handled above").into());
                 }
             }
         };
