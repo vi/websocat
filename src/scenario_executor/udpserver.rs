@@ -5,8 +5,8 @@ use std::{
     time::Duration,
 };
 
-use crate::{copy_common_bind_options, scenario_executor::{
-    scenario::{ScenarioAccess, callback_and_continue}, socketopts::BindOptions, types::{DatagramRead, DatagramSocket, DatagramWrite}, utils1::{HandleExt, NEUTRAL_SOCKADDR4, SimpleErr}, utils2::{AddressOrFd, DefragmenterAddChunkResult}
+use crate::{copy_common_bind_options, copy_common_udp_options, scenario_executor::{
+    scenario::{ScenarioAccess, callback_and_continue}, socketopts::{BindOptions, UdpOptions}, types::{DatagramRead, DatagramSocket, DatagramWrite}, utils1::{HandleExt, NEUTRAL_SOCKADDR4, SimpleErr}, utils2::{AddressOrFd, DefragmenterAddChunkResult}
 }};
 use bytes::BytesMut;
 use futures::future::OptionFuture;
@@ -307,10 +307,36 @@ fn udp_server(
         
         //@ Set IPV6_V6ONLY for the socket in case when it is IPv6
         only_v6: Option<bool>,
+
+        //@ Set IPV6_TCLASS for the IPv6 socket
+        tclass_v6: Option<u32>,
+
+        //@ Set IP_TOS for the IPv4 socket
+        tos_v4: Option<u32>,
+
+        //@ Set IP_TTL the IPv4 socket or IPV6_UNICAST_HOPS for an IPv6
+        ttl: Option<u32>,
+
+        //@ Set SO_INCOMING_CPU for the socket
+        cpu_affinity: Option<usize>,
+
+        //@ Set SO_PRIORITY for the socket
+        priority: Option<u32>,
+
+        //@ Set SO_RCVBUF for the socket
+        recv_buffer_size: Option<usize>,
+
+        //@ Set SO_SNDBUF for the socket
+        send_buffer_size: Option<usize>,
+
+        //@ Set SO_MARK for the socket
+        mark: Option<u32>,
     }
     let opts: Opts = rhai::serde::from_dynamic(&opts)?;
     let mut bindopts = BindOptions::new();
+    let mut udpopts = UdpOptions::new();
     copy_common_bind_options!(bindopts, opts);
+    copy_common_udp_options!(udpopts, opts);
     //span.record("addr", field::display(opts.addr));
 
     let mut lru: LruCache<SocketAddr, Arc<ClientInfo>> = match opts.max_clients {
@@ -367,6 +393,14 @@ fn udp_server(
                 ret?.unwrap_udp()
             }
         };
+
+        udpopts.apply_socket_opts(
+            &s,
+            s.local_addr().map(|x| x.is_ipv6()).unwrap_or_else(|_| {
+                warn!("Failed to determine local address of an UDP socket");
+                false
+            }),
+        )?;
 
         if address_to_report.port() == 0 {
             if let Ok(a) = s.local_addr() {

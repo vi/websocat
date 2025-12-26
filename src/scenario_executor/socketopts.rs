@@ -50,7 +50,6 @@ pub struct UdpOptions {
     
 
     pub(crate) cpu_affinity: Option<usize>,
-    pub(crate) user_timeout_s: Option<u32>,
     pub(crate) priority: Option<u32>,
     pub(crate) recv_buffer_size: Option<usize>,
     pub(crate) send_buffer_size: Option<usize>,
@@ -118,11 +117,9 @@ macro_rules! copy_common_udp_options {
         $target.tos_v4 = $source.tos_v4;
         $target.ttl = $source.ttl;
         $target.cpu_affinity = $source.cpu_affinity;
-        $target.user_timeout_s = $source.user_timeout_s;
         $target.priority = $source.priority;
         $target.recv_buffer_size = $source.recv_buffer_size;
         $target.send_buffer_size = $source.send_buffer_size;
-        $target.mss = $source.mss;
         $target.mark = $source.mark;
     };
 }
@@ -688,7 +685,6 @@ impl UdpOptions {
             tos_v4: None,
             ttl: None,
             cpu_affinity: None,
-            user_timeout_s: None,
             priority: None,
             recv_buffer_size: None,
             send_buffer_size: None,
@@ -765,21 +761,6 @@ impl UdpOptions {
                 #[cfg(target_os = "linux")],
                 {
                     ss.set_cpu_affinity(v)?;
-                },
-            );
-        }
-        if let Some(v) = self.user_timeout_s {
-            debug!("Setting TCP_USER_TIMEOUT");
-            cfg_gated_block_or_err!(
-                "user_timeout_s",
-                #[cfg(any(
-                    target_os = "android",
-                    target_os = "fuchsia",
-                    target_os = "linux",
-                    target_os = "cygwin",
-                ))],
-                {
-                    ss.set_tcp_user_timeout(Some(Duration::from_secs(v.into())))?;
                 },
             );
         }

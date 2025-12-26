@@ -10,6 +10,34 @@ fn udp_common_bind_options(o: &mut String, env: &ScenarioPrintingEnvironment<'_>
     super::buildscenario_tcp::tcp_common_bind_options(o, env);
 }
 
+fn udp_common_options(o: &mut String, env: &ScenarioPrintingEnvironment<'_>) {
+    if let Some(v) = env.opts.socket_tclass_v6 {
+        o.push_str(&format!("tclass_v6: {v},"));
+    }
+    if let Some(v) = env.opts.socket_tos_v4 {
+        o.push_str(&format!("tos_v4: {v},"));
+    }
+    if let Some(v) = env.opts.socket_ttl {
+        o.push_str(&format!("ttl: {v},"));
+    }
+    if let Some(v) = env.opts.socket_cpu_affinity {
+        o.push_str(&format!("cpu_affinity: {v},"));
+    }
+    if let Some(v) = env.opts.socket_priority {
+        o.push_str(&format!("priority: {v},"));
+    }
+    if let Some(v) = env.opts.socket_recv_buffer_size {
+        o.push_str(&format!("recv_buffer_size: {v},"));
+    }
+    if let Some(v) = env.opts.socket_send_buffer_size {
+        o.push_str(&format!("send_buffer_size: {v},"));
+    }
+    if let Some(v) = env.opts.socket_mark {
+        o.push_str(&format!("mark: {v},"));
+    }
+}
+
+
 impl Endpoint {
     pub(super) fn begin_print_udp(
         &self,
@@ -23,6 +51,7 @@ impl Endpoint {
                     o.push_str("tag_as_text: true,");
                 }
                 udp_common_bind_options(&mut o, env);
+                udp_common_options(&mut o, env);
                 env.printer.print_line(&format!(
                     "let {varnam} = udp_socket(#{{{o} addr: \"{a}\", max_send_datagram_size: {}}});",
                     env.opts.udp_max_send_datagram_size
@@ -99,6 +128,7 @@ impl Endpoint {
                     o.push_str("tag_as_text: true,");
                 }
                 udp_common_bind_options(&mut o, env);
+                udp_common_options(&mut o, env);
 
                 env.printer
                     .print_line(&format!("let {varnam} = udp_socket(#{{{o}}});"));
@@ -150,6 +180,7 @@ impl Endpoint {
                     env.opts.udp_max_send_datagram_size
                 ));
                 udp_common_bind_options(&mut o, env);
+                udp_common_options(&mut o, env);
 
                 env.printer
                     .print_line(&format!("udp_server(#{{{o}}}, |listen_addr|{{sequential([",));

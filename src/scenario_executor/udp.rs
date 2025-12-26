@@ -3,9 +3,15 @@ use std::{
     task::{ready, Poll},
 };
 
-use crate::{copy_common_bind_options, scenario_executor::{
-    socketopts::BindOptions, types::{DatagramRead, DatagramSocket, DatagramWrite}, utils1::{SimpleErr, ToNeutralAddress}, utils2::AddressOrFd
-}};
+use crate::{
+    copy_common_bind_options, copy_common_udp_options,
+    scenario_executor::{
+        socketopts::{BindOptions, UdpOptions},
+        types::{DatagramRead, DatagramSocket, DatagramWrite},
+        utils1::{SimpleErr, ToNeutralAddress},
+        utils2::AddressOrFd,
+    },
+};
 use futures::FutureExt;
 use rhai::{Dynamic, Engine, NativeCallContext};
 use tokio::{io::ReadBuf, net::UdpSocket};
@@ -297,13 +303,39 @@ fn udp_socket(ctx: NativeCallContext, opts: Dynamic) -> RhResult<Handle<Datagram
         //@ Set IP_FREEBIND for the socket
         #[serde(default)]
         freebind: bool,
-        
+
         //@ Set IPV6_V6ONLY for the socket in case when it is IPv6
         only_v6: Option<bool>,
+
+        //@ Set IPV6_TCLASS for the IPv6 socket
+        tclass_v6: Option<u32>,
+
+        //@ Set IP_TOS for the IPv4 socket
+        tos_v4: Option<u32>,
+
+        //@ Set IP_TTL the IPv4 socket or IPV6_UNICAST_HOPS for an IPv6
+        ttl: Option<u32>,
+
+        //@ Set SO_INCOMING_CPU for the socket
+        cpu_affinity: Option<usize>,
+
+        //@ Set SO_PRIORITY for the socket
+        priority: Option<u32>,
+
+        //@ Set SO_RCVBUF for the socket
+        recv_buffer_size: Option<usize>,
+
+        //@ Set SO_SNDBUF for acceptheted socket
+        send_buffer_size: Option<usize>,
+
+        //@ Set SO_MARK for the socket
+        mark: Option<u32>,
     }
     let opts: Opts = rhai::serde::from_dynamic(&opts)?;
     let mut bindopts = BindOptions::new();
+    let mut udpopts = UdpOptions::new();
     copy_common_bind_options!(bindopts, opts);
+    copy_common_udp_options!(udpopts, opts);
     //span.record("addr", field::display(opts.addr));
 
     let to_addr = opts.addr;
@@ -351,6 +383,16 @@ fn udp_socket(ctx: NativeCallContext, opts: Dynamic) -> RhResult<Handle<Datagram
             s.unwrap_udp()
         }
     };
+
+    if let Err(e) = udpopts.apply_socket_opts(
+        &s,
+        s.local_addr().map(|x| x.is_ipv6()).unwrap_or_else(|_| {
+            warn!("Failed to determine local address of an UDP socket");
+            false
+        }),
+    ) {
+        return Err(ctx.err(format!("Failed to set UDP socket options: {e}")));
+    }
 
     #[allow(unused_assignments)]
     let mut fd = None;
