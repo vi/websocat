@@ -5,7 +5,9 @@ if [ ! -f misc/scan_source.py ]; then
    exti 1
 fi
 
+set -e
 python3 misc/scan_source.py > outline.json
+set +e
 python3 misc/list_planner_content.py  > src/help_addendum.txt  < outline.json 
 
 cat >> src/help_addendum.txt <<EOF

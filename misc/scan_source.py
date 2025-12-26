@@ -153,31 +153,74 @@ LOOKUP_FROMSTR_RESULT_QUERY=qq('''[
     )
     
     (#match? @variant "^ParseStrChunkResult::Endpoint$|^ParseStrChunkResult::Overlay$")
+    (#not-match? @content "Endpoint::TcpConnectByLateHostname")
 ]''')
 
 FROMSTR_GETNAME_QUERY=qq('''[
     (call_expression 
         function:(scoped_identifier
-        path: (identifier)
-        name: _@name
-    ))
+            path: (identifier)@_path
+            name: _@name
+        )
+    )
     (scoped_identifier
-        path: (identifier)
+        path: (identifier)@_path
         name: _@name
     )
     (struct_expression
         name:(scoped_type_identifier
-        path: (identifier)
-        name: _@name
-    ))
+            path: (identifier)@_path
+            name: _@name
+        )
+    )
+    (#match? @_path "^Overlay$|^Endpoint$")
 ]''')
 
+def debugprint_query_result(x: List[Tuple[int, Dict[str, Node | list[Node]]]]):
+    skipped = 0
+    for (i, xx) in x:
+        if not xx:
+            skipped+=1
+            continue
+        print("======", i)
+        for (k,v) in xx.items():
+            print("---")
+            print(k)
+            if(isinstance(v,Node)):
+                print(v)
+                print(v.text)
+            elif(isinstance(v,List[Node])):
+                for vv in v:
+                    print("...")
+                    print(vv)
+                    print(vv.text)
+    print("skipped", skipped)
+
+
 T = TypeVar('T')
-def get1match(x: List[Tuple[int, Dict[str, Node]]]) -> None | Dict[str, Node]:
+def get1match(x: List[Tuple[int, Dict[str, Node | list[Node]]]]) -> None | Dict[str, Node]:
+    candidate : Dict[str, Node | list[Node]] | None = None
     for xx in x:
         if xx[1]:
-            return xx[1]
-    return None
+            if candidate is None:
+                candidate = xx[1]
+            else:
+                new_candidate = xx[1]
+                remove_underscored_fields_from_dict = lambda d: dict(filter(lambda item: not item[0].startswith("_"),d.items()))
+                cand_f = remove_underscored_fields_from_dict(candidate)
+                newcand_f = remove_underscored_fields_from_dict(new_candidate)
+                if cand_f != newcand_f:
+                    debugprint_query_result(x)
+                    raise Exception("Multiple matches where one expected")
+
+    if candidate is None:
+        return None
+   
+    for (k,v) in candidate.items():
+        if(not(isinstance(v,Node))):
+            debugprint_query_result(x)
+            raise Exception("List of nodes returned where just one node expected")
+    return candidate  # ty:ignore[invalid-return-type]
 
 def outline(n: Tree) -> Outline:
     a : Node = n.root_node
@@ -195,10 +238,12 @@ def outline(n: Tree) -> Outline:
         nonlocal endpoint_prefixes
         nonlocal overlay_prefixes
         if m:=get1match(FROMSTR_IMPL_QUERY.matches(a)):
-            def handle_prefixes(prefixes: List[str], content: Node) -> None:
+            def handle_prefixes(prefixes: List[str], content: Node|List[Node]) -> None:
+                if not isinstance(content, Node):
+                    raise Exception("Unexpected list of nodes")
                 if m:=get1match(LOOKUP_FROMSTR_RESULT_QUERY.matches(content)):
                     variant=m['variant'].text.decode()
-                    content=m['content']
+                    content : Node = m['content']
 
                     name : str = ""
                     if mm:=get1match(FROMSTR_GETNAME_QUERY.matches(content)):
@@ -394,7 +439,7 @@ def process_outline(o: Outline) -> ThingsToDocument:
                 approved_functitons[rc.fnname] = rc.rhname
     for f in o.functions:
         if f.name in approved_functitons:
-            cbmap : Dict[ExecutorFuncCallback] = {}
+            cbmap : Dict[str,ExecutorFuncCallback] = {}
             for (k, v) in f.callbacks.items():
                 cbmap[k] = ExecutorFuncCallback(v[0].argtyps, v[0].rettyp)
             params = [ NameTypeAndDoc(x.name, x.typ, " ".join(x.doc)) for x in f.args  ]
@@ -440,7 +485,7 @@ def main() -> None:
     outline : Outline = get_merged_outline()
     things : ThingsToDocument = process_outline(outline)
     
-    print(things.to_json())
+    print(things.to_json())  # ty:ignore[unresolved-attribute]
 
 if __name__ == '__main__':
     main()
