@@ -1,10 +1,16 @@
 #![cfg(feature = "ioful_tests")]
 use assert_cmd::Command;
+use assert_cmd::cargo::cargo_bin_cmd;
+#[expect(
+    deprecated,
+    reason = "cargo_bin is deprecated, cargo_bin! is not, `use` does not differenciate them"
+)]
+use assert_cmd::cargo::cargo_bin;
 
 #[test]
 
 fn trivial() {
-    let mut cmd = Command::cargo_bin("websocat").unwrap();
+    let mut cmd = cargo_bin_cmd!("websocat");
     let assert = cmd.arg("literal:12345").assert();
     assert.code(0).stdout("12345");
 }
@@ -12,7 +18,7 @@ fn trivial() {
 #[cfg(feature = "online_tests")]
 #[test]
 fn simple_roundtrip() {
-    let mut cmd = Command::cargo_bin("websocat").unwrap();
+    let mut cmd = cargo_bin_cmd!("websocat");
     let assert = cmd
         .arg("-t")
         .arg("ws://ws.vi-server.org/mirror")
@@ -24,7 +30,8 @@ fn simple_roundtrip() {
 #[cfg(feature = "online_tests")]
 #[test]
 fn binary_roundtrip() {
-    let mut cmd = Command::cargo_bin("websocat").unwrap();
+
+    let mut cmd = cargo_bin_cmd!("websocat");
     let assert = cmd
         .arg("-b")
         .arg("ws://ws.vi-server.org/mirror")
@@ -36,7 +43,7 @@ fn binary_roundtrip() {
 #[cfg(unix)]
 #[test]
 fn cmd_endpoint() {
-    let mut cmd = Command::cargo_bin("websocat").unwrap();
+    let mut cmd = cargo_bin_cmd!("websocat");
     let assert = cmd.arg("-b").arg("cmd:/bin/printf 'ABC\\x00DEF'").assert();
     assert.code(0).stdout(b"ABC\x00DEF" as &[u8]);
 }
@@ -44,7 +51,7 @@ fn cmd_endpoint() {
 #[cfg(unix)]
 #[test]
 fn exec_endpoint() {
-    let mut cmd = Command::cargo_bin("websocat").unwrap();
+    let mut cmd = cargo_bin_cmd!("websocat");
     let assert = cmd
         .arg("-b")
         .arg("exec:/bin/printf")
@@ -59,10 +66,7 @@ fn exec_endpoint() {
 #[cfg(unix)]
 #[test]
 fn tricky() {
-    let wsc = assert_cmd::cargo::cargo_bin("websocat")
-        .to_str()
-        .unwrap()
-        .to_owned();
+    let wsc = cargo_bin!("websocat").to_str().unwrap();
     let cmdline = format!(
         r#"
         {wsc} -b --global-timeout-ms=500 --oneshot tcp-l:127.0.0.1:13000 mock_stream_socket:'W qqq\n|R www\n|W eee\n|R tt\n' & 
@@ -78,10 +82,7 @@ fn tricky() {
 #[cfg(unix)]
 #[test]
 fn async_fd() {
-    let wsc = assert_cmd::cargo::cargo_bin("websocat")
-        .to_str()
-        .unwrap()
-        .to_owned();
+    let wsc = cargo_bin!("websocat").to_str().unwrap();
     let cmdline = format!(
         r#"
         {wsc} -b --global-timeout-ms=500 --oneshot tcp-l:127.0.0.1:13001 mock_stream_socket:'W qqq\n|R www\n|W eee\n|R tt\n' & 
@@ -97,10 +98,7 @@ fn async_fd() {
 #[cfg(unix)]
 #[test]
 fn async_fd_exec() {
-    let wsc = assert_cmd::cargo::cargo_bin("websocat")
-        .to_str()
-        .unwrap()
-        .to_owned();
+    let wsc = cargo_bin!("websocat").to_str().unwrap();
     let cmdline = format!(
         r#"
         {wsc} -b --global-timeout-ms=500 --oneshot tcp-l:127.0.0.1:13002 mock_stream_socket:'W qqq\n|R www\n|W eee\n|R tt\n' & 

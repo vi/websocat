@@ -72,7 +72,7 @@ CB2_QUERY = qq('''(
   call_expression 
   function: (generic_function
   	function: _@fnc
-    (#matches? @fnc "\.callback$")
+    (#matches? @fnc "\\.callback$")
     type_arguments: (type_arguments . (_)@ret (tuple_type)@params)
   )
     arguments: (arguments

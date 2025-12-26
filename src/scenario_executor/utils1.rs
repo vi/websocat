@@ -168,7 +168,7 @@ pub trait SimpleErr {
 }
 impl SimpleErr for NativeCallContext<'_> {
     fn err(&self, v: impl Into<rhai::Dynamic>) -> Box<EvalAltResult> {
-        Box::new(EvalAltResult::ErrorRuntime(v.into(), self.position()))
+        Box::new(EvalAltResult::ErrorRuntime(v.into(), self.call_position()))
     }
 }
 
