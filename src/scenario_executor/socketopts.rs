@@ -41,6 +41,23 @@ pub struct TcpStreamOptions {
     pub(crate) keepalive_idletime_s: Option<u32>,
 }
 
+/// UDP options, besides the one used for binding the socket to address
+pub struct UdpOptions {
+    pub(crate) tclass_v6: Option<u32>,
+    pub(crate) tos_v4: Option<u32>,
+    /// Or hops limit for IPv6
+    pub(crate) ttl: Option<u32>,
+    
+
+    pub(crate) cpu_affinity: Option<usize>,
+    pub(crate) user_timeout_s: Option<u32>,
+    pub(crate) priority: Option<u32>,
+    pub(crate) recv_buffer_size: Option<usize>,
+    pub(crate) send_buffer_size: Option<usize>,
+
+    pub(crate) mark: Option<u32>,
+}
+
 macro_rules! cfg_gated_block_or_err {
     ($feature:literal, #[cfg($($c:tt)*)], $b:block$ (,)?) => {
         #[allow(unused_labels)]
@@ -90,6 +107,23 @@ macro_rules! copy_common_tcp_stream_options {
         $target.keepalive_retries = $source.keepalive_retries;
         $target.keepalive_interval_s = $source.keepalive_interval_s;
         $target.keepalive_idletime_s = $source.keepalive_idletime_s;
+    };
+}
+
+
+#[macro_export]
+macro_rules! copy_common_udp_options {
+    ($target:ident, $source:ident) => {
+        $target.tclass_v6 = $source.tclass_v6;
+        $target.tos_v4 = $source.tos_v4;
+        $target.ttl = $source.ttl;
+        $target.cpu_affinity = $source.cpu_affinity;
+        $target.user_timeout_s = $source.user_timeout_s;
+        $target.priority = $source.priority;
+        $target.recv_buffer_size = $source.recv_buffer_size;
+        $target.send_buffer_size = $source.send_buffer_size;
+        $target.mss = $source.mss;
+        $target.mark = $source.mark;
     };
 }
 
@@ -642,6 +676,141 @@ impl TcpStreamOptions {
             }
         }
 
+        Ok(())
+    }
+}
+
+
+impl UdpOptions {
+    pub fn new() -> UdpOptions {
+        Self {
+            tclass_v6: None,
+            tos_v4: None,
+            ttl: None,
+            cpu_affinity: None,
+            user_timeout_s: None,
+            priority: None,
+            recv_buffer_size: None,
+            send_buffer_size: None,
+            mark: None,
+        }
+    }
+
+    pub fn apply_socket_opts(&self, s: &UdpSocket, v6: bool) -> std::io::Result<()> {
+        if !v6 {
+            if let Some(v) = self.ttl {
+                debug!("Setting IP_TTL");
+                s.set_ttl(v)?;
+            }
+        }
+
+        let ss: SocketWrapper;
+        #[cfg(any(unix, windows))]
+        {
+            ss = s.into();
+        }
+        #[cfg(not(any(unix, windows)))]
+        {
+            return Ok(());
+        }
+
+        if v6 {
+            if let Some(v) = self.ttl {
+                debug!("Setting IPV6_UNICAST_HOPS");
+                ss.set_unicast_hops_v6(v)?;
+            }
+        }
+
+        if v6 {
+            if let Some(v) = self.tclass_v6 {
+                debug!("Setting IPV6_TCLASS");
+                cfg_gated_block_or_err!(
+                    "tclass_v6",
+                    #[cfg(any(
+                        target_os = "android",
+                        target_os = "dragonfly",
+                        target_os = "freebsd",
+                        target_os = "fuchsia",
+                        target_os = "linux",
+                        target_os = "macos",
+                        target_os = "netbsd",
+                        target_os = "openbsd"
+                    ))],
+                    {
+                        ss.set_tclass_v6(v)?;
+                    },
+                );
+            }
+        } else if let Some(v) = self.tos_v4 {
+            debug!("Setting IP_TOS");
+            cfg_gated_block_or_err!(
+                "tos_v4",
+                #[cfg(not(any(
+                    target_os = "fuchsia",
+                    target_os = "redox",
+                    target_os = "solaris",
+                    target_os = "illumos",
+                    target_os = "haiku",
+                )))],
+                {
+                    ss.set_tos_v4(v)?;
+                },
+            );
+        }
+
+        if let Some(v) = self.cpu_affinity {
+            debug!("Setting SO_INCOMING_CPU");
+            cfg_gated_block_or_err!(
+                "cpu_affinity",
+                #[cfg(target_os = "linux")],
+                {
+                    ss.set_cpu_affinity(v)?;
+                },
+            );
+        }
+        if let Some(v) = self.user_timeout_s {
+            debug!("Setting TCP_USER_TIMEOUT");
+            cfg_gated_block_or_err!(
+                "user_timeout_s",
+                #[cfg(any(
+                    target_os = "android",
+                    target_os = "fuchsia",
+                    target_os = "linux",
+                    target_os = "cygwin",
+                ))],
+                {
+                    ss.set_tcp_user_timeout(Some(Duration::from_secs(v.into())))?;
+                },
+            );
+        }
+        if let Some(v) = self.priority {
+            debug!("Setting SO_PRIORITY");
+            cfg_gated_block_or_err!(
+                "priority",
+                #[cfg(any(target_os = "linux", target_os = "android", target_os = "fuchsia"))],
+                {
+                    ss.set_priority(v)?;
+                },
+            );
+        }
+        if let Some(v) = self.recv_buffer_size {
+            debug!("Setting SO_RCVBUF");
+            ss.set_recv_buffer_size(v)?;
+        }
+        if let Some(v) = self.send_buffer_size {
+            debug!("Setting SO_SNDBUF");
+            ss.set_send_buffer_size(v)?;
+        }
+        if let Some(v) = self.mark {
+            debug!("Setting SO_MARK");
+            cfg_gated_block_or_err!(
+                "mark",
+                #[cfg(any(target_os = "android", target_os = "fuchsia", target_os = "linux"))],
+                {
+                    ss.set_mark(v)?;
+                },
+            );
+        }
         Ok(())
     }
 }

@@ -21,7 +21,14 @@ pub mod scenario_executor {
     #[cfg(feature = "rustls")]
     pub mod rustls;
     pub mod scenario;
+    
+    #[cfg(feature = "socketoptions")]
     pub mod socketopts;
+    #[cfg(not(feature = "socketoptions"))]
+    pub mod socketopts_stub;
+    #[cfg(not(feature = "socketoptions"))]
+    pub use socketopts_stub as socketopts;
+
     pub mod subprocess;
     pub mod tcp;
     pub mod tee;

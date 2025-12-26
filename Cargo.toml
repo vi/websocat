@@ -61,7 +61,8 @@ filedesc = "0.6.3"
 nix = { version = "0.30", features = ["uio"] }
 
 [features]
-default=["ssl"]
+default=["ssl","socketoptions"]
+socketoptions=[]
 native-tls-alpn = ["native-tls/alpn"]
 ssl=["dep:tokio-native-tls", "dep:native-tls"]
 vendored_openssl = ["native-tls/vendored"]
