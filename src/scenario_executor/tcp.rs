@@ -1,10 +1,10 @@
 use std::{net::SocketAddr, pin::Pin, time::Duration};
 
 use crate::{
-    copy_common_tcp_bind_options, copy_common_tcp_stream_options,
+    copy_common_bind_options, copy_common_tcp_stream_options,
     scenario_executor::{
         exit_code::EXIT_CODE_TCP_CONNECT_FAIL,
-        socketopts::{TcpBindOptions, TcpStreamOptions},
+        socketopts::{BindOptions, TcpStreamOptions},
         utils1::{wrap_as_stream_socket, TaskHandleExt2, NEUTRAL_SOCKADDR4},
         utils2::AddressOrFd,
     },
@@ -105,6 +105,9 @@ fn connect_tcp(
         #[serde(default)]
         freebind: bool,
 
+        //@ Set IPV6_V6ONLY for the socket in case when it is IPv6
+        only_v6: Option<bool>,
+
         //@ Set IPV6_TCLASS for the socket, in case when it is IPv6.
         tclass_v6: Option<u32>,
 
@@ -120,9 +123,6 @@ fn connect_tcp(
         //@ Set SO_OOBINLINE for the socket
         #[serde(default)]
         out_of_band_inline: bool,
-
-        //@ Set IPV6_V6ONLY for the socket in case when it is IPv6
-        only_v6: Option<bool>,
 
         //@ Set TCP_NODELAY (no Nagle) for the socket
         nodelay: Option<bool>,
@@ -173,10 +173,10 @@ fn connect_tcp(
     //span.record("addr", field::display(opts.addr));
     debug!(parent: &span, addr=%opts.addr, "options parsed");
 
-    let mut tcpbindopts = TcpBindOptions::new();
+    let mut tcpbindopts = BindOptions::new();
     let mut tcpstreamopts = TcpStreamOptions::new();
     tcpbindopts.bind_before_connecting = opts.bind;
-    copy_common_tcp_bind_options!(tcpbindopts, opts);
+    copy_common_bind_options!(tcpbindopts, opts);
     copy_common_tcp_stream_options!(tcpstreamopts, opts);
 
     Ok(async move {
@@ -322,10 +322,10 @@ fn connect_tcp_race(
     //span.record("addr", field::display(opts.addr));
     debug!(parent: &span, addrs=?addrs, "options parsed");
 
-    let mut tcpbindopts = TcpBindOptions::new();
+    let mut tcpbindopts = BindOptions::new();
     let mut tcpstreamopts = TcpStreamOptions::new();
     tcpbindopts.bind_before_connecting = opts.bind;
-    copy_common_tcp_bind_options!(tcpbindopts, opts);
+    copy_common_bind_options!(tcpbindopts, opts);
     copy_common_tcp_stream_options!(tcpstreamopts, opts);
 
     Ok(async move {
@@ -532,16 +532,16 @@ fn listen_tcp(
 
     let autospawn = opts.autospawn;
 
-    let mut tcpbindopts = TcpBindOptions::new();
+    let mut bindopts = BindOptions::new();
     let mut tcpstreamopts = TcpStreamOptions::new();
-    copy_common_tcp_bind_options!(tcpbindopts, opts);
+    copy_common_bind_options!(bindopts, opts);
     copy_common_tcp_stream_options!(tcpstreamopts, opts);
     if let Some(bklg) = opts.backlog {
-        tcpbindopts.listen_backlog = bklg;
+        bindopts.listen_backlog = bklg;
     } else if opts.oneshot {
-        tcpbindopts.listen_backlog = 1;
+        bindopts.listen_backlog = 1;
     } else {
-        tcpbindopts.listen_backlog = 1024;
+        bindopts.listen_backlog = 1024;
     }
 
     Ok(async move {
@@ -550,7 +550,7 @@ fn listen_tcp(
         let mut address_to_report = *a.addr().unwrap_or(&NEUTRAL_SOCKADDR4);
 
         let l = match a {
-            AddressOrFd::Addr(a) => tcpbindopts.bind(a).await?,
+            AddressOrFd::Addr(a) => bindopts.bind_tcp(a).await?,
             #[cfg(not(unix))]
             AddressOrFd::Fd(..) | AddressOrFd::NamedFd(..) => {
                 error!("Inheriting listeners from parent processes is not supported outside UNIX platforms");
@@ -558,11 +558,13 @@ fn listen_tcp(
             }
             #[cfg(unix)]
             AddressOrFd::Fd(f) => {
+                bindopts.warn_if_options_set();
                 use super::unix1::{listen_from_fd,ListenFromFdType};
                 unsafe{listen_from_fd(f, opts.fd_force.then_some(ListenFromFdType::Tcp), Some(ListenFromFdType::Tcp))}?.unwrap_tcp()
             }
             #[cfg(unix)]
             AddressOrFd::NamedFd(f) => {
+                bindopts.warn_if_options_set();
                 use super::unix1::{listen_from_fd_named,ListenFromFdType};
                 unsafe{listen_from_fd_named(&f, opts.fd_force.then_some(ListenFromFdType::Tcp), Some(ListenFromFdType::Tcp))}?.unwrap_tcp()
             }

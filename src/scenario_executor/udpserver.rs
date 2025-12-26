@@ -5,12 +5,9 @@ use std::{
     time::Duration,
 };
 
-use crate::scenario_executor::{
-    scenario::{callback_and_continue, ScenarioAccess},
-    types::{DatagramRead, DatagramSocket, DatagramWrite},
-    utils1::{HandleExt, SimpleErr, NEUTRAL_SOCKADDR4},
-    utils2::{AddressOrFd, DefragmenterAddChunkResult},
-};
+use crate::{copy_common_bind_options, scenario_executor::{
+    scenario::{ScenarioAccess, callback_and_continue}, socketopts::BindOptions, types::{DatagramRead, DatagramSocket, DatagramWrite}, utils1::{HandleExt, NEUTRAL_SOCKADDR4, SimpleErr}, utils2::{AddressOrFd, DefragmenterAddChunkResult}
+}};
 use bytes::BytesMut;
 use futures::future::OptionFuture;
 use lru::LruCache;
@@ -288,8 +285,32 @@ fn udp_server(
         //@ Defragmenter buffer limit
         #[serde(default = "default_max_send_datagram_size")]
         max_send_datagram_size: usize,
+
+
+        //@ Set SO_REUSEADDR for the socket
+        reuseaddr: Option<bool>,
+
+        //@ Set SO_REUSEPORT for the socket
+        #[serde(default)]
+        reuseport: bool,
+
+        //@ Set SO_BINDTODEVICE for the socket
+        bind_device: Option<String>,
+
+        //@ Set IP_TRANSPARENT for the socket
+        #[serde(default)]
+        transparent: bool,
+
+        //@ Set IP_FREEBIND for the socket
+        #[serde(default)]
+        freebind: bool,
+        
+        //@ Set IPV6_V6ONLY for the socket in case when it is IPv6
+        only_v6: Option<bool>,
     }
     let opts: Opts = rhai::serde::from_dynamic(&opts)?;
+    let mut bindopts = BindOptions::new();
+    copy_common_bind_options!(bindopts, opts);
     //span.record("addr", field::display(opts.addr));
 
     let mut lru: LruCache<SocketAddr, Arc<ClientInfo>> = match opts.max_clients {
@@ -322,7 +343,7 @@ fn udp_server(
         let s = match a {
             AddressOrFd::Addr(a) => {
                 address_to_report = a;
-                UdpSocket::bind(a).await?
+                bindopts.bind_udp(a).await?
             }
             #[cfg(not(unix))]
             AddressOrFd::Fd(..) | AddressOrFd::NamedFd(..) => {
@@ -331,6 +352,7 @@ fn udp_server(
             }
             #[cfg(unix)]
             AddressOrFd::Fd(_) | AddressOrFd::NamedFd(_) => {
+                bindopts.warn_if_options_set();
                 use super::unix1::{listen_from_fd, listen_from_fd_named, ListenFromFdType};
     
                 let force_addr = opts.fd_force.then_some(ListenFromFdType::Udp);

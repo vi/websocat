@@ -3,11 +3,9 @@ use std::{
     task::{ready, Poll},
 };
 
-use crate::scenario_executor::{
-    types::{DatagramRead, DatagramSocket, DatagramWrite},
-    utils1::{SimpleErr, ToNeutralAddress},
-    utils2::AddressOrFd,
-};
+use crate::{copy_common_bind_options, scenario_executor::{
+    socketopts::BindOptions, types::{DatagramRead, DatagramSocket, DatagramWrite}, utils1::{SimpleErr, ToNeutralAddress}, utils2::AddressOrFd
+}};
 use futures::FutureExt;
 use rhai::{Dynamic, Engine, NativeCallContext};
 use tokio::{io::ReadBuf, net::UdpSocket};
@@ -281,8 +279,31 @@ fn udp_socket(ctx: NativeCallContext, opts: Dynamic) -> RhResult<Handle<Datagram
         //@ Defragmenter buffer limit
         #[serde(default = "default_max_send_datagram_size")]
         max_send_datagram_size: usize,
+
+        //@ Set SO_REUSEADDR for the socket
+        reuseaddr: Option<bool>,
+
+        //@ Set SO_REUSEPORT for the socket
+        #[serde(default)]
+        reuseport: bool,
+
+        //@ Set SO_BINDTODEVICE for the socket
+        bind_device: Option<String>,
+
+        //@ Set IP_TRANSPARENT for the socket
+        #[serde(default)]
+        transparent: bool,
+
+        //@ Set IP_FREEBIND for the socket
+        #[serde(default)]
+        freebind: bool,
+        
+        //@ Set IPV6_V6ONLY for the socket in case when it is IPv6
+        only_v6: Option<bool>,
     }
     let opts: Opts = rhai::serde::from_dynamic(&opts)?;
+    let mut bindopts = BindOptions::new();
+    copy_common_bind_options!(bindopts, opts);
     //span.record("addr", field::display(opts.addr));
 
     let to_addr = opts.addr;
@@ -299,7 +320,7 @@ fn udp_socket(ctx: NativeCallContext, opts: Dynamic) -> RhResult<Handle<Datagram
 
     let s = match a {
         AddressOrFd::Addr(a) => {
-            let Some(Ok(s)) = UdpSocket::bind(a).now_or_never() else {
+            let Some(Ok(s)) = bindopts.bind_udp(a).now_or_never() else {
                 return Err(ctx.err("Failed to bind UDP socket"));
             };
             s
@@ -311,6 +332,7 @@ fn udp_socket(ctx: NativeCallContext, opts: Dynamic) -> RhResult<Handle<Datagram
         }
         #[cfg(unix)]
         AddressOrFd::Fd(_) | AddressOrFd::NamedFd(_) => {
+            bindopts.warn_if_options_set();
             use super::unix1::{listen_from_fd, listen_from_fd_named, ListenFromFdType};
 
             let force_addr = opts.fd_force.then_some(ListenFromFdType::Udp);

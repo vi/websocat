@@ -5,6 +5,11 @@ use super::{
     types::{Endpoint, ScenarioPrintingEnvironment},
 };
 
+
+fn udp_common_bind_options(o: &mut String, env: &ScenarioPrintingEnvironment<'_>) {
+    super::buildscenario_tcp::tcp_common_bind_options(o, env);
+}
+
 impl Endpoint {
     pub(super) fn begin_print_udp(
         &self,
@@ -13,13 +18,13 @@ impl Endpoint {
         match self {
             Endpoint::UdpConnect(a) => {
                 let varnam = env.vars.getnewvarname("udp");
-                let maybetextmode = if env.opts.text {
-                    ", tag_as_text: true"
-                } else {
-                    ""
-                };
+                let mut o = String::with_capacity(64);
+                if env.opts.text {
+                    o.push_str("tag_as_text: true,");
+                }
+                udp_common_bind_options(&mut o, env);
                 env.printer.print_line(&format!(
-                    "let {varnam} = udp_socket(#{{addr: \"{a}\", max_send_datagram_size: {} {maybetextmode}}});",
+                    "let {varnam} = udp_socket(#{{{o} addr: \"{a}\", max_send_datagram_size: {}}});",
                     env.opts.udp_max_send_datagram_size
                 ));
                 Ok(varnam)
@@ -93,6 +98,7 @@ impl Endpoint {
                 if env.opts.text {
                     o.push_str("tag_as_text: true,");
                 }
+                udp_common_bind_options(&mut o, env);
 
                 env.printer
                     .print_line(&format!("let {varnam} = udp_socket(#{{{o}}});"));
@@ -143,6 +149,7 @@ impl Endpoint {
                     "max_send_datagram_size: {},",
                     env.opts.udp_max_send_datagram_size
                 ));
+                udp_common_bind_options(&mut o, env);
 
                 env.printer
                     .print_line(&format!("udp_server(#{{{o}}}, |listen_addr|{{sequential([",));

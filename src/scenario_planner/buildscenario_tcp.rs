@@ -3,7 +3,8 @@ use super::{
     types::{Endpoint, ScenarioPrintingEnvironment},
 };
 
-fn tcp_common_bind_options(o: &mut String, env: &ScenarioPrintingEnvironment<'_>) {
+/// Actually `udp_common_bind_options` also calls this one
+pub fn tcp_common_bind_options(o: &mut String, env: &ScenarioPrintingEnvironment<'_>) {
     if let Some(v) = env.opts.reuseaddr {
         o.push_str(&format!("reuseaddr: {v},"));
     }

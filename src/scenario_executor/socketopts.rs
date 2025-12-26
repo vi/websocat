@@ -1,10 +1,10 @@
 use std::net::SocketAddr;
 use std::time::Duration;
 
-use tokio::net::{TcpListener, TcpSocket, TcpStream};
-use tracing::debug;
+use tokio::net::{TcpListener, TcpSocket, TcpStream, UdpSocket};
+use tracing::{debug, warn};
 
-pub struct TcpBindOptions {
+pub struct BindOptions {
     pub(crate) bind_before_connecting: Option<SocketAddr>,
     pub(crate) reuseaddr: Option<bool>,
     pub(crate) reuseport: bool,
@@ -56,7 +56,7 @@ macro_rules! cfg_gated_block_or_err {
 }
 
 #[macro_export]
-macro_rules! copy_common_tcp_bind_options {
+macro_rules! copy_common_bind_options {
     ($target:ident, $source:ident) => {
         $target.reuseaddr = $source.reuseaddr;
         $target.reuseport = $source.reuseport;
@@ -154,8 +154,8 @@ impl std::ops::Deref for SocketWrapper {
     }
 }
 
-impl TcpBindOptions {
-    pub fn new() -> TcpBindOptions {
+impl BindOptions {
+    pub fn new() -> BindOptions {
         Self {
             bind_before_connecting: None,
             reuseaddr: None,
@@ -258,6 +258,77 @@ impl TcpBindOptions {
         Ok(())
     }
 
+    pub fn setopts_udp(&self, ss: &socket2::Socket, v6: bool) -> std::io::Result<()> {
+        if let Some(v) = self.reuseaddr {
+            debug!("Setting SO_REUSEADDR");
+            ss.set_reuse_address(v)?;
+        } 
+        if self.reuseport {
+            debug!("Setting SO_REUSEPORT");
+            cfg_gated_block_or_err!(
+                "reuseport",
+                #[cfg(all(
+                    unix,
+                    not(target_os = "solaris"),
+                    not(target_os = "illumos"),
+                    not(target_os = "cygwin"),
+                ))],
+                {
+                    ss.set_reuse_port(true)?;
+                },
+            );
+        }
+        if self.transparent {
+            debug!("Setting IP_TRANSPARENT");
+            cfg_gated_block_or_err!(
+                "transparent",
+                #[cfg(target_os = "linux")],
+                {
+                    ss.set_ip_transparent_v4(true)?;
+                },
+            );
+        }
+        if self.freebind {
+            if v6 {
+                debug!("Setting IPV6_FREEBIND");
+                cfg_gated_block_or_err!(
+                    "freebind",
+                    #[cfg(any(target_os = "android", target_os = "linux"))],
+                    {
+                        ss.set_freebind_v6(true)?;
+                    },
+                );
+            } else {
+                debug!("Setting IP_FREEBIND");
+                cfg_gated_block_or_err!(
+                    "freebind",
+                    #[cfg(any(target_os = "android", target_os = "fuchsia", target_os = "linux"))],
+                    {
+                        ss.set_freebind_v4(true)?;
+                    },
+                );
+            }
+        }
+        if let Some(ref v) = self.bind_device {
+            debug!("Setting SO_BINDTODEVICE");
+            cfg_gated_block_or_err!(
+                "bind_device",
+                #[cfg(any(target_os = "android", target_os = "fuchsia", target_os = "linux"))],
+                {
+                    ss.bind_device(Some(v.as_bytes()))?;
+                },
+            );
+        }
+
+        if v6 {
+            #[cfg(any(windows, unix))]
+            if let Some(v) = self.only_v6 {
+                ss.set_only_v6(v)?;
+            }
+        }
+        Ok(())
+    }
+
     pub async fn connect(
         &self,
         addr: SocketAddr,
@@ -275,12 +346,37 @@ impl TcpBindOptions {
         //TcpStream::connect(addr).await
     }
 
-    pub async fn bind(&self, addr: SocketAddr) -> std::io::Result<TcpListener> {
+    pub async fn bind_tcp(&self, addr: SocketAddr) -> std::io::Result<TcpListener> {
         let s = Self::gs4a(addr)?;
         self.setopts(&s, addr.is_ipv6(), true)?;
         s.bind(addr)?;
         s.listen(self.listen_backlog)
         //TcpListener::bind(addr).await
+    }
+
+    pub async fn bind_udp(&self, addr: SocketAddr) -> std::io::Result<UdpSocket> {
+        // let s = Self::gs4a(addr)?;
+        let s = socket2::Socket::new(socket2::Domain::for_address(addr), socket2::Type::DGRAM, None)?;
+        self.setopts_udp(&s, addr.is_ipv6())?;
+        s.set_nonblocking(true)?;
+        s.bind(&addr.into())?;
+        UdpSocket::from_std(s.into())
+        
+        //UdpSocket::bind(addr).await
+    }
+
+    pub fn warn_if_options_set(&self) {
+        let mut warn_ = false;
+        if self.bind_before_connecting.is_some() { warn_ = true; }
+        if self.reuseaddr.is_some() { warn_ = true; }
+        if self.reuseport { warn_ = true; }
+        if self.bind_device.is_some() { warn_ = true; }
+        if self.freebind { warn_ = true; }
+        if self.transparent { warn_ = true; }
+        if self.only_v6.is_some() { warn_ = true; }
+        if warn_ {
+            warn!("Not applying socket bind options, as the socket was pre-opened");
+        }
     }
 }
 
