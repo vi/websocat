@@ -1970,7 +1970,7 @@ dependencies = [
 
 [[package]]
 name = "websocat"
-version = "4.0.0-alpha2"
+version = "4.0.0-alpha3"
 dependencies = [
  "anyhow",
  "assert_cmd",
