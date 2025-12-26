@@ -448,12 +448,12 @@ Options:
 * bind_device (`Option<String>`) - Set SO_BINDTODEVICE for the socket
 * transparent (`bool`) - Set IP_TRANSPARENT for the socket
 * freebind (`bool`) - Set IP_FREEBIND for the socket
+* only_v6 (`Option<bool>`) - Set IPV6_V6ONLY for the socket in case when it is IPv6
 * tclass_v6 (`Option<u32>`) - Set IPV6_TCLASS for the socket, in case when it is IPv6.
 * tos_v4 (`Option<u32>`) - Set IP_TOS for the socket, in case when it is IPv4.
 * ttl (`Option<u32>`) - Set IP_TTL for a IPv4 socket or IPV6_UNICAST_HOPS for an IPv6 socket
 * linger_s (`Option<u32>`) - Set SO_LINGER for the socket
 * out_of_band_inline (`bool`) - Set SO_OOBINLINE for the socket
-* only_v6 (`Option<bool>`) - Set IPV6_V6ONLY for the socket in case when it is IPv6
 * nodelay (`Option<bool>`) - Set TCP_NODELAY (no Nagle) for the socket
 * tcp_congestion (`Option<String>`) - Set TCP_CONGESTION for the socket
 * cpu_affinity (`Option<usize>`) - Set SO_INCOMING_CPU for the socket
@@ -1627,6 +1627,12 @@ Options:
 * backpressure (`bool`) - In case of one slow client handler, delay incoming UDP datagrams instead of dropping them
 * inhibit_send_errors (`bool`) - Do not exit if `sendto` returned an error.
 * max_send_datagram_size (`usize`) - Defragmenter buffer limit
+* reuseaddr (`Option<bool>`) - Set SO_REUSEADDR for the socket
+* reuseport (`bool`) - Set SO_REUSEPORT for the socket
+* bind_device (`Option<String>`) - Set SO_BINDTODEVICE for the socket
+* transparent (`bool`) - Set IP_TRANSPARENT for the socket
+* freebind (`bool`) - Set IP_FREEBIND for the socket
+* only_v6 (`Option<bool>`) - Set IPV6_V6ONLY for the socket in case when it is IPv6
 
 ## udp_socket
 
@@ -1655,6 +1661,12 @@ Options:
 * tag_as_text (`bool`) - Tag incoming UDP datagrams to be sent as text WebSocket messages instead of binary. Note that Websocat does not check for UTF-8 correctness and may send non-compliant text WebSocket messages.
 * inhibit_send_errors (`bool`) - Do not exit if `sendto` returned an error.
 * max_send_datagram_size (`usize`) - Defragmenter buffer limit
+* reuseaddr (`Option<bool>`) - Set SO_REUSEADDR for the socket
+* reuseport (`bool`) - Set SO_REUSEPORT for the socket
+* bind_device (`Option<String>`) - Set SO_BINDTODEVICE for the socket
+* transparent (`bool`) - Set IP_TRANSPARENT for the socket
+* freebind (`bool`) - Set IP_FREEBIND for the socket
+* only_v6 (`Option<bool>`) - Set IPV6_V6ONLY for the socket in case when it is IPv6
 
 ## unlink_file
 
