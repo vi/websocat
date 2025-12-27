@@ -10,13 +10,10 @@ Then it will mostly depend on my own needs, inspiration and ongoing Github and o
 * TLS client auth
 * outgoing pings
 * preamble/preamble-reverse
-* Advanced UDP options
-* Advanced TCP options
 * More datagram tools (autoreconnect, foreachmsg, literalreply)
 * base64 mode, text and binary prefixes
 * one message mode
 * broadcast reuser
-* mirror
 * inhibit `Host:` header when explicit one specified / http proxy option
 
 # Later
@@ -24,7 +21,6 @@ Then it will mostly depend on my own needs, inspiration and ongoing Github and o
 * Lints for unused options
 * one message mode
 * More datagram tools (combine/fanout, limit)
-* Multi-socket listener
 * (non-Websocket) HTTP games
 * HTTP/2 games
 * Proxies

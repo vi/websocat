@@ -1633,6 +1633,22 @@ Options:
 * transparent (`bool`) - Set IP_TRANSPARENT for the socket
 * freebind (`bool`) - Set IP_FREEBIND for the socket
 * only_v6 (`Option<bool>`) - Set IPV6_V6ONLY for the socket in case when it is IPv6
+* tclass_v6 (`Option<u32>`) - Set IPV6_TCLASS for the IPv6 socket
+* tos_v4 (`Option<u32>`) - Set IP_TOS for the IPv4 socket
+* ttl (`Option<u32>`) - Set IP_TTL the IPv4 socket or IPV6_UNICAST_HOPS for an IPv6
+* cpu_affinity (`Option<usize>`) - Set SO_INCOMING_CPU for the socket
+* priority (`Option<u32>`) - Set SO_PRIORITY for the socket
+* recv_buffer_size (`Option<usize>`) - Set SO_RCVBUF for the socket
+* send_buffer_size (`Option<usize>`) - Set SO_SNDBUF for the socket
+* mark (`Option<u32>`) - Set SO_MARK for the socket
+* broadcast (`bool`) - Set SO_BROADCAST to true for the socket
+* multicast (`Option<IpAddr>`) - Use IP_ADD_MEMBERSHIP or IPV6_ADD_MEMBERSHIP for the socket
+* multicast_interface_addr (`Option<Ipv4Addr>`) - Use this interface address instead of 0.0.0.0 when joining multicast
+* multicast_interface_index (`Option<u32>`) - Use this interface index instead of 0 when joining multicast.
+* multicast_specific_source (`Option<Ipv4Addr>`) - Use IP_ADD_SOURCE_MEMBERSHIP instead of IP_ADD_MEMBERSHIP.
+* multicast_all (`Option<bool>`) - Set IP_MULTICAST_ALL or IPV6_MULTICAST_ALL for the socket
+* multicast_loop (`Option<bool>`) - Set IP_MULTICAST_LOOP or IPV6_MULTICAST_LOOP for the socket
+* multicast_ttl (`Option<u32>`) - Set IP_MULTICAST_TTL or IPV6_MULTICAST_HOPS for the socket
 
 ## udp_socket
 
@@ -1667,6 +1683,22 @@ Options:
 * transparent (`bool`) - Set IP_TRANSPARENT for the socket
 * freebind (`bool`) - Set IP_FREEBIND for the socket
 * only_v6 (`Option<bool>`) - Set IPV6_V6ONLY for the socket in case when it is IPv6
+* tclass_v6 (`Option<u32>`) - Set IPV6_TCLASS for the IPv6 socket
+* tos_v4 (`Option<u32>`) - Set IP_TOS for the IPv4 socket
+* ttl (`Option<u32>`) - Set IP_TTL the IPv4 socket or IPV6_UNICAST_HOPS for an IPv6
+* cpu_affinity (`Option<usize>`) - Set SO_INCOMING_CPU for the socket
+* priority (`Option<u32>`) - Set SO_PRIORITY for the socket
+* recv_buffer_size (`Option<usize>`) - Set SO_RCVBUF for the socket
+* send_buffer_size (`Option<usize>`) - Set SO_SNDBUF for the socket
+* mark (`Option<u32>`) - Set SO_MARK for the socket
+* broadcast (`bool`) - Set SO_BROADCAST to true for the socket
+* multicast (`Option<IpAddr>`) - Use IP_ADD_MEMBERSHIP or IPV6_ADD_MEMBERSHIP for the socket
+* multicast_interface_addr (`Option<Ipv4Addr>`) - Use this interface address instead of 0.0.0.0 when joining multicast
+* multicast_interface_index (`Option<u32>`) - Use this interface index instead of 0 when joining multicast.
+* multicast_specific_source (`Option<Ipv4Addr>`) - Use IP_ADD_SOURCE_MEMBERSHIP instead of IP_ADD_MEMBERSHIP.
+* multicast_all (`Option<bool>`) - Set IP_MULTICAST_ALL or IPV6_MULTICAST_ALL for the socket
+* multicast_loop (`Option<bool>`) - Set IP_MULTICAST_LOOP or IPV6_MULTICAST_LOOP for the socket
+* multicast_ttl (`Option<u32>`) - Set IP_MULTICAST_TTL or IPV6_MULTICAST_HOPS for the socket
 
 ## unlink_file
 

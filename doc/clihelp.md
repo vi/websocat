@@ -494,8 +494,38 @@ Options:
       --socket-keepalive-idletime-s <SOCKET_KEEPALIVE_IDLETIME_S>
           Set TCP_KEEPALIVE for the socket
 
+      --socket-broadcast
+          Set SO_BROADCAST for the UDP socket
+
+      --socket-multicast <SOCKET_MULTICAST>
+          Use IP_ADD_MEMBERSHIP or IPV6_ADD_MEMBERSHIP for the UDP socket
+
+      --socket-multicast-interface-addr <SOCKET_MULTICAST_INTERFACE_ADDR>
+          Use this interface address instead of 0.0.0.0 when joining multicast
+
+      --socket-multicast-interface-index <SOCKET_MULTICAST_INTERFACE_INDEX>
+          Use this interface index instead of 0 when joining multicast
+
+      --socket-multicast-specific-source <SOCKET_MULTICAST_SPECIFIC_SOURCE>
+          Use IP_ADD_SOURCE_MEMBERSHIP instead of IP_ADD_MEMBERSHIP
+
+      --socket-multicast-all <SOCKET_MULTICAST_ALL>
+          Set IP_MULTICAST_ALL or IPV6_MULTICAST_ALL for the UDP socket
+          
+          [possible values: true, false]
+
+      --socket-multicast-loop <SOCKET_MULTICAST_LOOP>
+          Set IP_MULTICAST_LOOP or IPV6_MULTICAST_LOOP for the UDP socket
+          
+          [possible values: true, false]
+
+      --socket-multicast-ttl <SOCKET_MULTICAST_TTL>
+          Set IP_MULTICAST_TTL or IPV6_MULTICAST_HOPS for the UDP socket
+
       --exclude-ws-from-sockopts
           Do not apply `socket_*`, `reuseaddr`, `reuseport` and `bind_before_connect` to specifier stacks that include WebSocket framer
+          
+          You can attain the reverse effect by playing with --compose mode, registry-send: and registry-stream-listen: , as socket options (like most other options) only affect single sub-session of the compose mode.
 
       --tcp-race-interval-ms <TCP_RACE_INTERVAL_MS>
           Delay between initiating subsequent connections when connecting to a TCP using multiple address variants

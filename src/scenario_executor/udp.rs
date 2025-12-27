@@ -325,7 +325,7 @@ fn udp_socket(ctx: NativeCallContext, opts: Dynamic) -> RhResult<Handle<Datagram
         //@ Set SO_RCVBUF for the socket
         recv_buffer_size: Option<usize>,
 
-        //@ Set SO_SNDBUF for acceptheted socket
+        //@ Set SO_SNDBUF for the socket
         send_buffer_size: Option<usize>,
 
         //@ Set SO_MARK for the socket
