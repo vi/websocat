@@ -24,6 +24,7 @@ t!(wsll_pingreply6, r#"-b --no-close --inhibit-pongs=2 --random-seed 3 dummy:  w
 
 t!(wsll_pingreply_payload1, r#"-b --no-close --random-seed 3 dummy:  ws-lowlevel-client:mss:'R \x89\x04ABCD| W \x8a\x84\x85\x87T\xbd| W \xC4\xC5\x17\xF9'"#);
 t!(wsll_pingreply_payload2, r#"-b --no-close --random-seed 3 dummy:  ws-lowlevel-client:read_chunk_limiter:mss:'R \x89\x04ABCD| W \x8a\x84\x85\x87T\xbd| W \xC4\xC5\x17\xF9'"#);
+t!(wsll_pingreply_payload3, r#"-b --inhibit-pongs=1 --no-close --random-seed 3 dummy:  ws-lowlevel-client:read_chunk_limiter:mss:'R \x89\x04ABCD| X | W \x8a\x84\x85\x87T\xbd| W \xC4\xC5\x17\xF9'"#);
 
 t2!(regstr1,
     "-b --oneshot registry-stream-listen: devnull:",

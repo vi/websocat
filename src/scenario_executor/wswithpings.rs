@@ -116,7 +116,10 @@ impl PacketRead for WsDecoderThatCoexistsWithPingReplies {
 
             let ret = ready!(PacketRead::poll_read(Pin::new(&mut this.inner), cx, buf))?;
             if ret.flags.contains(BufferFlag::Ping) {
-                let reply_to_this_ping = if let Some(ref mut pl) = this.pong_replies_limit {
+                let reply_to_this_ping = if this.sem_permit.is_some() {
+                    trace!("Continuing replying to a ping");
+                    true
+                } else if let Some(ref mut pl) = this.pong_replies_limit {
                     if *pl == 0 {
                         debug!("Inhibiting this WebSocket ping reply due to --inhibit-pongs limit");
                         false
