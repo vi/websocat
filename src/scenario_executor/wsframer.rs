@@ -157,7 +157,11 @@ impl PacketWrite for WsEncoder {
                         reserved: 0,
                     };
                     let header = this.fe.start_frame(&fi);
-                    this.fe.transform_frame_payload(buf);
+                    if this.buffer_for_split_control_frames.is_empty() {
+                        this.fe.transform_frame_payload(buf);
+                    } else {
+                        this.fe.transform_frame_payload(&mut this.buffer_for_split_control_frames);
+                    }
                     this.state = WsEncoderState::WritingHeader(header);
                 }
                 WsEncoderState::WritingHeader(mut header) => {

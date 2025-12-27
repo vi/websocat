@@ -22,6 +22,9 @@ t!(wsll_pingreply4, r#"-b --no-close --inhibit-pongs=0 --random-seed 3 dummy:  w
 t!(wsll_pingreply5, r#"-b --no-close --inhibit-pongs=1 --random-seed 3 dummy:  ws-lowlevel-client:mock_stream_socket:'R \x89\x00| W \x8a\x80\x85\x87T\xbd|R \x89\x00|R \x89\x00'"#);
 t!(wsll_pingreply6, r#"-b --no-close --inhibit-pongs=2 --random-seed 3 dummy:  ws-lowlevel-client:mock_stream_socket:'R \x89\x00| W \x8a\x80\x85\x87T\xbd|R \x89\x00|R \x89\x00| W \x8a\x80\x6c\xe4\x13\x63'"#);
 
+t!(wsll_pingreply_payload1, r#"-b --no-close --random-seed 3 dummy:  ws-lowlevel-client:mss:'R \x89\x04ABCD| W \x8a\x84\x85\x87T\xbd| W \xC4\xC5\x17\xF9'"#);
+t!(wsll_pingreply_payload2, r#"-b --no-close --random-seed 3 dummy:  ws-lowlevel-client:read_chunk_limiter:mss:'R \x89\x04ABCD| W \x8a\x84\x85\x87T\xbd| W \xC4\xC5\x17\xF9'"#);
+
 t2!(regstr1,
     "-b --oneshot registry-stream-listen: devnull:",
     "-b devnull: registry-stream-connect:",
