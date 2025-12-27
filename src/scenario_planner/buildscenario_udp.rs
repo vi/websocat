@@ -35,6 +35,31 @@ fn udp_common_options(o: &mut String, env: &ScenarioPrintingEnvironment<'_>) {
     if let Some(v) = env.opts.socket_mark {
         o.push_str(&format!("mark: {v},"));
     }
+
+    if env.opts.socket_broadcast {
+        o.push_str("broadcast: true,");    
+    }
+    if let Some(v) = env.opts.socket_multicast {
+        o.push_str(&format!("multicast: {},", StrLit(v)));    
+    }
+    if let Some(v) = env.opts.socket_multicast_interface_addr {
+        o.push_str(&format!("multicast_interface_addr: {},", StrLit(v)));    
+    }
+    if let Some(v) = env.opts.socket_multicast_interface_index {
+        o.push_str(&format!("multicast_interface_index: {v},"));    
+    }
+    if let Some(v) = env.opts.socket_multicast_specific_source {
+        o.push_str(&format!("multicast_specific_source: {},", StrLit(v)));    
+    }
+    if let Some(v) = env.opts.socket_multicast_all {
+        o.push_str(&format!("multicast_all: {v},"));    
+    }
+    if let Some(v) = env.opts.socket_multicast_loop {
+        o.push_str(&format!("multicast_loop: {v},"));    
+    }
+    if let Some(v) = env.opts.socket_multicast_ttl {
+        o.push_str(&format!("multicast_ttl: {v},"));    
+    }
 }
 
 

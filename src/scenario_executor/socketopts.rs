@@ -1,4 +1,4 @@
-use std::net::SocketAddr;
+use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 use std::time::Duration;
 
 use tokio::net::{TcpListener, TcpSocket, TcpStream, UdpSocket};
@@ -47,7 +47,6 @@ pub struct UdpOptions {
     pub(crate) tos_v4: Option<u32>,
     /// Or hops limit for IPv6
     pub(crate) ttl: Option<u32>,
-    
 
     pub(crate) cpu_affinity: Option<usize>,
     pub(crate) priority: Option<u32>,
@@ -55,6 +54,16 @@ pub struct UdpOptions {
     pub(crate) send_buffer_size: Option<usize>,
 
     pub(crate) mark: Option<u32>,
+
+    pub(crate) broadcast: bool,
+
+    pub(crate) multicast: Option<IpAddr>,
+    pub(crate) multicast_interface_addr: Option<Ipv4Addr>,
+    pub(crate) multicast_interface_index: Option<u32>,
+    pub(crate) multicast_specific_source: Option<Ipv4Addr>,
+    pub(crate) multicast_all: Option<bool>,
+    pub(crate) multicast_loop: Option<bool>,
+    pub(crate) multicast_ttl: Option<u32>,
 }
 
 macro_rules! cfg_gated_block_or_err {
@@ -109,7 +118,6 @@ macro_rules! copy_common_tcp_stream_options {
     };
 }
 
-
 #[macro_export]
 macro_rules! copy_common_udp_options {
     ($target:ident, $source:ident) => {
@@ -121,6 +129,14 @@ macro_rules! copy_common_udp_options {
         $target.recv_buffer_size = $source.recv_buffer_size;
         $target.send_buffer_size = $source.send_buffer_size;
         $target.mark = $source.mark;
+        $target.broadcast = $source.broadcast;
+        $target.multicast = $source.multicast;
+        $target.multicast_interface_addr = $source.multicast_interface_addr;
+        $target.multicast_interface_index = $source.multicast_interface_index;
+        $target.multicast_specific_source = $source.multicast_specific_source;
+        $target.multicast_all = $source.multicast_all;
+        $target.multicast_loop = $source.multicast_loop;
+        $target.multicast_ttl = $source.multicast_ttl;
     };
 }
 
@@ -293,7 +309,7 @@ impl BindOptions {
         if let Some(v) = self.reuseaddr {
             debug!("Setting SO_REUSEADDR");
             ss.set_reuse_address(v)?;
-        } 
+        }
         if self.reuseport {
             debug!("Setting SO_REUSEPORT");
             cfg_gated_block_or_err!(
@@ -387,24 +403,42 @@ impl BindOptions {
 
     pub async fn bind_udp(&self, addr: SocketAddr) -> std::io::Result<UdpSocket> {
         // let s = Self::gs4a(addr)?;
-        let s = socket2::Socket::new(socket2::Domain::for_address(addr), socket2::Type::DGRAM, None)?;
+        let s = socket2::Socket::new(
+            socket2::Domain::for_address(addr),
+            socket2::Type::DGRAM,
+            None,
+        )?;
         self.setopts_udp(&s, addr.is_ipv6())?;
         s.set_nonblocking(true)?;
         s.bind(&addr.into())?;
         UdpSocket::from_std(s.into())
-        
+
         //UdpSocket::bind(addr).await
     }
 
     pub fn warn_if_options_set(&self) {
         let mut warn_ = false;
-        if self.bind_before_connecting.is_some() { warn_ = true; }
-        if self.reuseaddr.is_some() { warn_ = true; }
-        if self.reuseport { warn_ = true; }
-        if self.bind_device.is_some() { warn_ = true; }
-        if self.freebind { warn_ = true; }
-        if self.transparent { warn_ = true; }
-        if self.only_v6.is_some() { warn_ = true; }
+        if self.bind_before_connecting.is_some() {
+            warn_ = true;
+        }
+        if self.reuseaddr.is_some() {
+            warn_ = true;
+        }
+        if self.reuseport {
+            warn_ = true;
+        }
+        if self.bind_device.is_some() {
+            warn_ = true;
+        }
+        if self.freebind {
+            warn_ = true;
+        }
+        if self.transparent {
+            warn_ = true;
+        }
+        if self.only_v6.is_some() {
+            warn_ = true;
+        }
         if warn_ {
             warn!("Not applying socket bind options, as the socket was pre-opened");
         }
@@ -677,7 +711,6 @@ impl TcpStreamOptions {
     }
 }
 
-
 impl UdpOptions {
     pub fn new() -> UdpOptions {
         Self {
@@ -689,6 +722,14 @@ impl UdpOptions {
             recv_buffer_size: None,
             send_buffer_size: None,
             mark: None,
+            broadcast: false,
+            multicast: None,
+            multicast_interface_addr: None,
+            multicast_interface_index: None,
+            multicast_specific_source: None,
+            multicast_all: None,
+            multicast_loop: None,
+            multicast_ttl: None,
         }
     }
 
@@ -792,6 +833,152 @@ impl UdpOptions {
                 },
             );
         }
+
+        if self.broadcast {
+            debug!("Setting SO_BROADCAST");
+            ss.set_broadcast(true)?;
+        }
+
+        if self.multicast_interface_addr.is_some() && self.multicast_interface_index.is_some() {
+            return Err(std::io::Error::other(
+                "Trying to specify multicast interface both by index and IP address simultaneously",
+            ));
+        }
+
+        if let Some(ma) = self.multicast {
+            match ma {
+                IpAddr::V4(ma) => {
+                    if let Some(spsrc) = self.multicast_specific_source {
+                        if self.multicast_interface_index.is_some() {
+                            return Err(std::io::Error::other(
+                                "When multicast specific source is specified, interface cannot be specified by index, only by IP",
+                            ));
+                        }
+                        let ifa = self
+                            .multicast_interface_addr
+                            .unwrap_or(Ipv4Addr::UNSPECIFIED);
+                        cfg_gated_block_or_err!("",
+                            #[cfg(not(any(
+                                target_os = "dragonfly",
+                                target_os = "haiku",
+                                target_os = "hurd",
+                                target_os = "netbsd",
+                                target_os = "openbsd",
+                                target_os = "redox",
+                                target_os = "fuchsia",
+                                target_os = "nto",
+                                target_os = "espidf",
+                                target_os = "vita",
+                            )))],
+                            {
+                                debug!("Issuing IP_ADD_SOURCE_MEMBERSHIP");
+                                ss.join_ssm_v4(&spsrc, &ma, &ifa)?;
+                            }
+                        );
+                    } else if let Some(ifi) = self.multicast_interface_index {
+                        cfg_gated_block_or_err!(
+                            "join_multicast_v4_n",
+                            #[cfg(not(any(
+                                target_os = "aix",
+                                target_os = "haiku",
+                                target_os = "illumos",
+                                target_os = "netbsd",
+                                target_os = "openbsd",
+                                target_os = "redox",
+                                target_os = "solaris",
+                                target_os = "nto",
+                                target_os = "espidf",
+                                target_os = "vita",
+                                target_os = "cygwin",
+                            )))],
+                            {
+                                debug!("Issuing IP_ADD_MEMBERSHIP");
+                                ss.join_multicast_v4_n(&ma, &socket2::InterfaceIndexOrAddress::Index(ifi))?;
+                            },
+                        );
+                    } else {
+                        let ifa = self
+                            .multicast_interface_addr
+                            .unwrap_or(Ipv4Addr::UNSPECIFIED);
+
+                        debug!("Issuing IP_ADD_MEMBERSHIP");
+                        ss.join_multicast_v4(&ma, &ifa)?;
+                    }
+
+                    if let Some(v) = self.multicast_all {
+                        cfg_gated_block_or_err!(
+                            "multicast_all",
+                            #[cfg(target_os = "linux")],
+                            {
+                                debug!("Setting IP_MULTICAST_ALL");
+                                ss.set_multicast_all_v4(v)?;
+                            }
+                        );
+                    }
+                    if let Some(v) = self.multicast_ttl {
+                        debug!("Setting IP_MULTICAST_TTL");
+                        ss.set_multicast_ttl_v4(v)?;
+                    }
+                    if let Some(v) = self.multicast_loop {
+                        debug!("Setting IP_MULTICAST_LOOP");
+                        ss.set_multicast_loop_v4(v)?;
+                    }
+                }
+                IpAddr::V6(ma) => {
+                    if self.multicast_interface_addr.is_some() {
+                        return Err(std::io::Error::other(
+                            "Interface address should be specified by index for IPv6 multicast",
+                        ));
+                    }
+                    if self.multicast_specific_source.is_some() {
+                        return Err(std::io::Error::other(
+                            "multicast_specific_source is not supported for IPv6",
+                        ));
+                    }
+                    let ifindex = self.multicast_interface_index.unwrap_or(0);
+
+                    cfg_gated_block_or_err!(
+                        "join_multicast_v6",
+                        #[cfg(not(target_os = "nto"))],
+                        {
+                            debug!("Setting IPV6_ADD_MEMBERSHIP");
+                            ss.join_multicast_v6(&ma, ifindex)?;
+                        }
+                    );
+
+
+                    if let Some(v) = self.multicast_all {
+                        cfg_gated_block_or_err!(
+                            "multicast_all",
+                            #[cfg(target_os = "linux")],
+                            {
+                                debug!("Setting IPV6_MULTICAST_ALL");
+                                ss.set_multicast_all_v6(v)?;
+                            }
+                        );
+                    }
+                    if let Some(v) = self.multicast_ttl {
+                        debug!("Setting IPV6_MULTICAST_HOPS");
+                        ss.set_multicast_hops_v6(v)?;
+                    }
+                    if let Some(v) = self.multicast_loop {
+                        debug!("Setting IPV6_MULTICAST_LOOP");
+                        ss.set_multicast_loop_v6(v)?;
+                    }
+                }
+            }
+        } else if self.multicast_all.is_some()
+            || self.multicast_interface_addr.is_some()
+            || self.multicast_interface_index.is_some()
+            || self.multicast_loop.is_some()
+            || self.multicast_specific_source.is_some()
+            || self.multicast_ttl.is_some()
+        {
+            return Err(std::io::Error::other(
+                "Trying to set socket multicast options without enabling multicast itself",
+            ));
+        }
+
         Ok(())
     }
 }

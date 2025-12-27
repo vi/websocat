@@ -1,4 +1,4 @@
-use std::{ffi::OsString, net::SocketAddr, path::PathBuf};
+use std::{ffi::OsString, net::{IpAddr, Ipv4Addr, SocketAddr}, path::PathBuf};
 
 use clap::Parser;
 
@@ -652,7 +652,42 @@ pub struct WebsocatArgs {
     #[arg(long)]
     pub socket_keepalive_idletime_s: Option<u32>,
 
+    /// Set SO_BROADCAST for the UDP socket
+    #[arg(long)]
+    pub socket_broadcast: bool,
+    
+    /// Use IP_ADD_MEMBERSHIP or IPV6_ADD_MEMBERSHIP for the UDP socket
+    #[arg(long)]
+    pub socket_multicast: Option<IpAddr>,
+    
+    /// Use this interface address instead of 0.0.0.0 when joining multicast
+    #[arg(long)]
+    pub socket_multicast_interface_addr: Option<Ipv4Addr>,
+
+    /// Use this interface index instead of 0 when joining multicast.
+    #[arg(long)]
+    pub socket_multicast_interface_index: Option<u32>,
+    
+    /// Use IP_ADD_SOURCE_MEMBERSHIP instead of IP_ADD_MEMBERSHIP.
+    #[arg(long)]
+    pub socket_multicast_specific_source: Option<Ipv4Addr>,
+
+    /// Set IP_MULTICAST_ALL or IPV6_MULTICAST_ALL for the UDP socket
+    #[arg(long)]
+    pub socket_multicast_all: Option<bool>,
+
+    /// Set IP_MULTICAST_LOOP or IPV6_MULTICAST_LOOP for the UDP socket
+    #[arg(long)]
+    pub socket_multicast_loop: Option<bool>,
+
+    /// Set IP_MULTICAST_TTL or IPV6_MULTICAST_HOPS for the UDP socket
+    #[arg(long)]
+    pub socket_multicast_ttl: Option<u32>,
+
     /// Do not apply `socket_*`, `reuseaddr`, `reuseport` and `bind_before_connect` to specifier stacks that include WebSocket framer
+    /// 
+    /// You can attain the reverse effect by playing with --compose mode, registry-send: and registry-stream-listen:
+    /// , as socket options (like most other options) only affect single sub-session of the compose mode.
     #[arg(long)]
     pub exclude_ws_from_sockopts: bool,
 

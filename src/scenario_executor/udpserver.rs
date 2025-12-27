@@ -1,7 +1,7 @@
 use std::{
-    net::SocketAddr,
+    net::{IpAddr, Ipv4Addr, SocketAddr},
     sync::Mutex,
-    task::{ready, Poll},
+    task::{Poll, ready},
     time::Duration,
 };
 
@@ -331,6 +331,31 @@ fn udp_server(
 
         //@ Set SO_MARK for the socket
         mark: Option<u32>,
+
+        //@ Set SO_BROADCAST to true for the socket
+        #[serde(default)]
+        broadcast: bool,
+
+        //@ Use IP_ADD_MEMBERSHIP or IPV6_ADD_MEMBERSHIP for the socket
+        multicast: Option<IpAddr>,
+        
+        //@ Use this interface address instead of 0.0.0.0 when joining multicast
+        multicast_interface_addr: Option<Ipv4Addr>,
+
+        //@ Use this interface index instead of 0 when joining multicast.
+        multicast_interface_index: Option<u32>,
+
+        //@ Use IP_ADD_SOURCE_MEMBERSHIP instead of IP_ADD_MEMBERSHIP.
+        multicast_specific_source: Option<Ipv4Addr>,
+
+        //@ Set IP_MULTICAST_ALL or IPV6_MULTICAST_ALL for the socket
+        multicast_all: Option<bool>,
+
+        //@ Set IP_MULTICAST_LOOP or IPV6_MULTICAST_LOOP for the socket
+        multicast_loop: Option<bool>,
+
+        //@ Set IP_MULTICAST_TTL or IPV6_MULTICAST_HOPS for the socket
+        multicast_ttl: Option<u32>,
     }
     let opts: Opts = rhai::serde::from_dynamic(&opts)?;
     let mut bindopts = BindOptions::new();
