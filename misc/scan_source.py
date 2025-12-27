@@ -222,6 +222,20 @@ def get1match(x: List[Tuple[int, Dict[str, Node | list[Node]]]]) -> None | Dict[
             raise Exception("List of nodes returned where just one node expected")
     return candidate  # ty:ignore[invalid-return-type]
 
+def txt(n: Node | None | List[Node]) -> str:
+    if isinstance(n, List):
+        raise Exception("Multiple things instead of one")
+    if not isinstance(n, Node):
+        raise Exception("Something not found")
+    if n.text is None:
+        raise Exception("No text for a node?")
+    return n.text.decode()
+
+def assert1(n: Node | List[Node]) -> Node:
+    if isinstance(n, List):
+        raise Exception("Multiple things instead of one")
+    return n
+
 def outline(n: Tree) -> Outline:
     a : Node = n.root_node
 
@@ -259,21 +273,21 @@ def outline(n: Tree) -> Outline:
                 else:
                     print("Error: cannot find match A for prefixes " + str(prefixes))
             for pr in STRIP_PREFIX_MANY_QUERY.matches(m['content']):
-                variants=pr[1]['variants']
+                variants=assert1(pr[1]['variants'])
                 content=pr[1]['content']
-                prefixes=[t.named_children[0].text.decode() for t in variants.named_children]
+                prefixes=[txt(t.named_children[0]) for t in variants.named_children]
                 handle_prefixes(prefixes, content)
             for pr in STRIP_PREFIX_QUERY.matches(m['content']):
                 variant=pr[1]['variant']
                 content=pr[1]['content']
-                prefixes=[variant.text.decode()]
+                prefixes=[txt(variant)]
                 handle_prefixes(prefixes, content)
 
     process_possible_from_str(a)
 
     def maybe_doccomment(c : Node) -> bool:
         if c.type == 'line_comment':
-            if x:=DOCCOMMENT_LINE.search(c.text.decode()):
+            if x:=DOCCOMMENT_LINE.search(txt(c)):
                 doc.append(x.group(1))
             return True
         return False
@@ -281,14 +295,14 @@ def outline(n: Tree) -> Outline:
     for c in a.children:
         if maybe_doccomment(c): pass
         elif c.type == 'line_comment':
-            if x:=DOCCOMMENT_LINE.search(c.text.decode()):
+            if x:=DOCCOMMENT_LINE.search(txt(c)):
                 doc.append(x.group(1))
         elif c.type == 'function_item':
             funcdoc = doc
             doc=[]
             namenode = c.child_by_field_name("name")
             assert namenode
-            name = namenode.text.decode()
+            name = txt(namenode)
             rettyp = "()"
             retdoc : List[str] = []
 
@@ -298,33 +312,33 @@ def outline(n: Tree) -> Outline:
 
             if regfncalls:=REGFN_QUERY.matches(c):
                 for regfncall in regfncalls:    
-                    rustfnname = regfncall[1]['rustfn'].text.decode()
-                    rhaifnname = regfncall[1]['rhaifn'].text.decode()
+                    rustfnname = txt(regfncall[1]['rustfn'])
+                    rhaifnname = txt(regfncall[1]['rhaifn'])
 
                     reg_calls.append(RegisterCall(rhaifnname, rustfnname))
             if cb1calls := CB1_QUERY.matches(c):
                 for cb1call in cb1calls:
-                    params = cb1call[1]['params']
+                    params = assert1(cb1call[1]['params'])
 
                     argtyps : List[str] = []
-                    callback_name = cb1call[1]['continuation_name'].text.decode()
+                    callback_name = txt(cb1call[1]['continuation_name'])
                     rettyp='Handle<Task>'
 
                     for tuple_node in params.named_children:
-                        argtyps.append(tuple_node.text.decode())
+                        argtyps.append(txt(tuple_node))
                             
                     callbacks[callback_name].append(Callback(rettyp,argtyps))
             if cb2calls := CB2_QUERY.matches(c):
                 for cb2call in cb2calls:
                     ret = cb2call[1]['ret']
-                    params = cb2call[1]['params']
-                    callback_name = cb1call[1]['continuation_name'].text.decode()
+                    params = assert1(cb2call[1]['params'])
+                    callback_name = txt(cb1call[1]['continuation_name'])
 
                     argtyps = []
-                    rettyp= ret.text.decode()
+                    rettyp= txt(ret)
 
                     for tuple_node in params.named_children:
-                        argtyps.append(tuple_node.text.decode())
+                        argtyps.append(txt(tuple_node))
                             
                     callbacks[callback_name].append(Callback(rettyp,argtyps))
             
@@ -332,7 +346,7 @@ def outline(n: Tree) -> Outline:
                 for opts_struct in opts_structs:
                     if 'content' not in opts_struct[1]:
                         continue
-                    content = opts_struct[1]['content']
+                    content = assert1(opts_struct[1]['content'])
                     doc = []
                     for nn in content.children:
                         if maybe_doccomment(nn): pass
@@ -341,7 +355,7 @@ def outline(n: Tree) -> Outline:
                             type_node = nn.child_by_field_name('type')
                             assert name_node
                             assert type_node
-                            struct_opts.append(StructArg(name_node.text.decode(), doc, type_node.text.decode()))
+                            struct_opts.append(StructArg(txt(name_node), doc, txt(type_node)))
                             doc=[]
 
 
@@ -353,7 +367,7 @@ def outline(n: Tree) -> Outline:
                     retdoc.extend(doc)
 
             if xx:=c.child_by_field_name("return_type"):
-                rettyp = xx.text.decode()
+                rettyp = txt(xx)
             args : List[FunctionArg] = []
 
             params = c.child_by_field_name("parameters")
@@ -367,8 +381,8 @@ def outline(n: Tree) -> Outline:
                     t = cc.child_by_field_name("type")
                     assert t
                     if pat.type=="identifier":
-                        pn = pat.text.decode()
-                        args.append(FunctionArg(pn,doc,t.text.decode()))
+                        pn = txt(pat)
+                        args.append(FunctionArg(pn,doc,txt(t)))
                         doc=[]
             retdoc.extend(doc)
 
@@ -379,7 +393,7 @@ def outline(n: Tree) -> Outline:
             assert name_node
             body_node = c.child_by_field_name('body')
             assert body_node
-            enumnam = name_node.text.decode()
+            enumnam = txt(name_node)
 
             if enumnam != 'Endpoint' and enumnam != 'Overlay': continue
 
@@ -389,7 +403,7 @@ def outline(n: Tree) -> Outline:
                 elif cc.type=='enum_variant':
                     variant_name_node=cc.child_by_field_name('name')
                     assert variant_name_node
-                    variant_name = variant_name_node.text.decode()
+                    variant_name = txt(variant_name_node)
                     if enumnam == 'Endpoint':
                         endpoints.append(DocumentedIdent(variant_name, doc))
                     elif enumnam == 'Overlay':
@@ -485,7 +499,7 @@ def main() -> None:
     outline : Outline = get_merged_outline()
     things : ThingsToDocument = process_outline(outline)
     
-    print(things.to_json())  # ty:ignore[unresolved-attribute]
+    print(things.to_json())
 
 if __name__ == '__main__':
     main()

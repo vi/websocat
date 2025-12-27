@@ -1,4 +1,4 @@
-from typing import Generator, Tuple, List, Dict, Set, TypeVar
+from typing import Generator, Tuple, List, Dict, Set, TypeVar, Self, Any
 from dataclasses import dataclass
 from dataclasses_json import dataclass_json
 
@@ -104,3 +104,6 @@ class PlannerContent:
 class ThingsToDocument:
     planner_content: PlannerContent
     executor_functions : List[ExecutorFunc]
+
+    def to_json(self) -> str: raise Exception("This method should be overridden by @dataclass_json")
+    def from_json(s: str|Any) -> Self: raise Exception("This method should be overridden by @dataclass_json")
