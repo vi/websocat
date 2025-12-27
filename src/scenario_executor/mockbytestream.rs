@@ -21,6 +21,8 @@ use super::{
 //@ * `ER` / `EW` - inject read or write error
 //@ * `T0` ... `T9` - sleep for some time interval, from small to large.
 //@ * `N` - set name of the mock object
+//@ 
+//@ See full description of operators on https://docs.rs/tokio-io-mock-fork/latest/tokio_io_mock_fork/struct.Builder.html#method.text_scenario
 //@
 //@ Example: `R hello|R world|W ping |R pong|T5|R zero byte \0 other escapes \| \xff \r\n\t|EW`
 fn mock_stream_socket(ctx: NativeCallContext, content: String) -> RhResult<Handle<StreamSocket>> {

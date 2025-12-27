@@ -120,6 +120,8 @@ pub enum Endpoint {
     SeqpacketListenFdNamed(String),
     //@ Byte stream socket for tests that can produce and consume (assert)
     //@ data according to special scenario supplied as an argument
+    //@
+    //@ See syntax for the argument at https://docs.rs/tokio-io-mock-fork/latest/tokio_io_mock_fork/struct.Builder.html#method.text_scenario
     MockStreamSocket(String),
     //@ Listen for virtual intra-Websocat stream connections at specified address.
     //@
