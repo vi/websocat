@@ -1,6 +1,6 @@
 # History or Websocat redesigns
 
-Websocat started in 2016. In 2028 I decided that it's time to call it 1.0.0.
+Websocat started in 2016. In 2018 I decided that it's time to call it 1.0.0.
 
 Eventually it has became my most popular project, so I keep extending and maintaining it.
 
