@@ -1605,6 +1605,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "tokio-openssl"
+version = "0.2.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4646ae1fd623393de3d796ea53af75acd02938dd5579544fbd6d236d041978a6"
+dependencies = [
+ "futures",
+ "openssl",
+ "tokio-io",
+]
+
+[[package]]
 name = "tokio-process"
 version = "0.2.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1903,6 +1914,7 @@ dependencies = [
  "log 0.4.21",
  "native-tls",
  "net2",
+ "openssl",
  "openssl-probe",
  "openssl-sys",
  "prometheus",
@@ -1921,6 +1933,7 @@ dependencies = [
  "tokio-file-unix",
  "tokio-io",
  "tokio-named-pipes",
+ "tokio-openssl",
  "tokio-process",
  "tokio-reactor",
  "tokio-signal",

@@ -180,8 +180,95 @@ where
     ) as BoxedNewPeerFuture
 }
 
+#[cfg(feature = "ssl")]
+fn get_ws_client_peer_openssl(uri: &Url, opts: Rc<Options>) -> BoxedNewPeerFuture {
+    use super::ssl_peer::openssl;
+    use openssl::ssl::{SslConnector as OpensslConnector, SslMethod, SslVerifyMode};
+    use std::net::ToSocketAddrs;
+    use tokio_io::AsyncRead;
+    use tokio_openssl::SslConnectorExt as OpensslConnectorExt;
+
+    let tls_insecure = opts.tls_insecure;
+    let client_ident = opts.client_pkcs12_der.clone();
+    let client_ident_passwd = opts.client_pkcs12_passwd.clone();
+
+    let host = match uri.host_str() {
+        Some(h) => h.to_string(),
+        None => return peer_strerr("wss:// URL has no host"),
+    };
+    let port = uri.port_or_known_default().unwrap_or(443);
+
+    let addrs: Vec<SocketAddr> = match (&*host, port).to_socket_addrs() {
+        Ok(a) => a.collect(),
+        Err(e) => return peer_err(e),
+    };
+    if addrs.is_empty() {
+        return peer_strerr("DNS resolution returned no addresses");
+    }
+
+    let mut builder = match OpensslConnector::builder(SslMethod::tls()) {
+        Ok(b) => b,
+        Err(e) => return peer_err(e),
+    };
+
+    let keylog_path = super::ssl_peer::get_keylog_path().unwrap();
+    super::ssl_peer::configure_keylog(&mut builder, &keylog_path);
+
+    if tls_insecure {
+        builder.set_verify(SslVerifyMode::NONE);
+    }
+
+    if let Some(pkcs12_der) = client_ident {
+        if let Ok(pkcs12) = openssl::pkcs12::Pkcs12::from_der(&pkcs12_der) {
+            let passwd = client_ident_passwd.unwrap_or_default();
+            if let Ok(parsed) = pkcs12.parse2(&passwd) {
+                if let Some(ref cert) = parsed.cert {
+                    let _ = builder.set_certificate(cert);
+                }
+                if let Some(ref pkey) = parsed.pkey {
+                    let _ = builder.set_private_key(pkey);
+                }
+            }
+        }
+    }
+
+    let connector = builder.build();
+    let uri_clone = uri.clone();
+    let opts_clone = opts.clone();
+
+    Box::new(
+        crate::net_peer::tcp_race(&addrs)
+            .map_err(|e| e as Box<dyn std::error::Error>)
+            .and_then(move |tcp_stream| {
+                connector
+                    .connect_async(&host, tcp_stream)
+                    .map_err(|e| {
+                        Box::new(crate::util::simple_err(format!(
+                            "OpenSSL TLS handshake error (wss): {}",
+                            e
+                        ))) as Box<dyn std::error::Error>
+                    })
+                    .and_then(move |tls_stream| {
+                        info!("Connected to TLS for wss:// (with key logging)");
+                        let (r, w) = tls_stream.split();
+                        let peer = Peer::new(r, w, None);
+                        get_ws_client_peer_wrapped(&uri_clone, peer, opts_clone)
+                    })
+            }),
+    )
+}
+
 pub fn get_ws_client_peer(uri: &Url, opts: Rc<Options>) -> BoxedNewPeerFuture {
     info!("get_ws_client_peer");
+
+    #[cfg(feature = "ssl")]
+    {
+        if uri.scheme() == "wss" {
+            if let Some(_) = super::ssl_peer::get_keylog_path() {
+                return get_ws_client_peer_openssl(uri, opts);
+            }
+        }
+    }
 
     #[allow(unused)]
     let tls_insecure = opts.tls_insecure;
