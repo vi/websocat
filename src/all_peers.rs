@@ -48,6 +48,9 @@ macro_rules! list_of_all_specifier_classes {
         $your_macro!($crate::file_peer::ReadFileClass);
         $your_macro!($crate::file_peer::WriteFileClass);
         $your_macro!($crate::file_peer::AppendFileClass);
+        $your_macro!($crate::file_peer::WriteFileTsClass);
+        $your_macro!($crate::file_peer::ReadFileTsClass);
+        $your_macro!($crate::file_peer::ReadFileTsLoopClass);
 
         $your_macro!($crate::primitive_reuse_peer::ReuserClass);
         $your_macro!($crate::broadcast_reuse_peer::BroadcastReuserClass);
