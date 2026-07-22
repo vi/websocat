@@ -555,6 +555,10 @@ impl<T: WsStream + 'static> ::futures::Future for WsPinger<T> {
         use futures::AsyncSink;
         loop {
             match self.aborter.poll() {
+                Err(futures::sync::oneshot::Canceled) => {
+                    debug!("Pinger canceled");
+                    return Ok(Async::Ready(()));
+                },                    
                 Err(e) => warn!("unsync/oneshot: {}", e),
                 Ok(Async::NotReady) => (),
                 Ok(Async::Ready(())) => {
