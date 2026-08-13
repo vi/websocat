@@ -74,7 +74,7 @@ Organizational Unit Name (eg, section) []:
 Common Name (e.g. server FQDN or YOUR name) []:
 Email Address []:
 
-$ openssl pkcs12 -export -out q.pkcs12 -inkey key.pem -in cert.pem
+$ openssl pkcs12 -export -descert -out output.pkcs12 -inkey key.pem -in cert.pem
 Enter pass phrase for key.pem:1234
 Enter Export Password:<empty>
 Verifying - Enter Export Password:<empty>
