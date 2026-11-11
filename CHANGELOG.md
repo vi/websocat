@@ -1,3 +1,9 @@
+<a name="v1.14.2"></a>
+# [v1.14.2](https://github.com/vi/websocat/releases/tag/v1.14.2) - 12 Nov 2026
+
+* Print details of WebSocket close message and headers more eagerly
+
+
 <a name="v1.14.0"></a>
 # [Sunset (v1.14.0)](https://github.com/vi/websocat/releases/tag/v1.14.0) - 12 Nov 2024
 
