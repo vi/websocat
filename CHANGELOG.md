@@ -2,6 +2,8 @@
 # [v1.14.2](https://github.com/vi/websocat/releases/tag/v1.14.2) - 12 Nov 2026
 
 * Print details of WebSocket close message and headers more eagerly
+* Don't enable async stdio on Mac in some cases
+* Fix some doc examples and specifier aliases
 
 
 <a name="v1.14.0"></a>
