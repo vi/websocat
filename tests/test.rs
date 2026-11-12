@@ -242,3 +242,12 @@ fn abstract_() {
     let prog = prog1.join(prog2);
     run!(core, prog);
 }
+
+#[test]
+#[cfg(unix)]
+fn ws_unix_server_aliases() {
+    let s1 = spec("l-ws-unix:zxc").unwrap();
+    assert_eq!(format!("{:?}", s1), r#"WsServer(UnixListen("zxc"))"#);
+    let s2 = spec("l-ws-abstract:zxc").unwrap();
+    assert_eq!(format!("{:?}", s2), r#"WsServer(AbstractListen("zxc"))"#);
+}

@@ -371,7 +371,7 @@ Example: Dump all incoming websocket data to console
 
 Example: the same, but more verbose:
 
-    websocat ws-l:tcp-l:127.0.0.1:8808 reuse:-
+    websocat ws-u:tcp-l:127.0.0.1:8808 reuse:-
 
 
 ### `inetd-ws:`
@@ -484,7 +484,7 @@ Like `asyncstdio:`, but intended for inetd(8) usage. [A]
 
 Automatically enables `-q` (`--quiet`) mode.
 
-`inetd-ws:` - is of `ws-l:inetd:`
+`inetd-ws:` - is of `ws-u:inetd:`
 
 Example of inetd.conf line that makes it listen for websocket
 connections on port 1234 and redirect the data to local SSH server.
@@ -1356,7 +1356,7 @@ between them.
 
 Final example just for fun: wacky mode
 
-    websocat ws-c:ws-l:ws-c:- tcp:127.0.0.1:5678
+    websocat ws-c:ws-u:ws-c:- tcp:127.0.0.1:5678
     
 Connect to a websocket using stdin/stdout as a transport,
 then accept a websocket connection over the previous websocket used as a transport,
