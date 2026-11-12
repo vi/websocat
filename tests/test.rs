@@ -242,3 +242,41 @@ fn abstract_() {
     let prog = prog1.join(prog2);
     run!(core, prog);
 }
+
+#[cfg(unix)]
+fn run_with_stdout_to_devnull(args: &[&str], input: Option<&[u8]>) -> std::process::ExitStatus {
+    use std::io::Write;
+    use std::process::{Command, Stdio};
+
+    let mut child = Command::new(env!("CARGO_BIN_EXE_websocat"))
+        .args(args)
+        .stdin(if input.is_some() {
+            Stdio::piped()
+        } else {
+            Stdio::null()
+        })
+        .stdout(Stdio::null())
+        .spawn()
+        .unwrap();
+    if let Some(input) = input {
+        child.stdin.take().unwrap().write_all(input).unwrap();
+    }
+    for _ in 0..100 {
+        if let Some(status) = child.try_wait().unwrap() {
+            return status;
+        }
+        std::thread::sleep(std::time::Duration::from_millis(100));
+    }
+    let _ = child.kill();
+    panic!("websocat did not exit in time");
+}
+
+/// Redirecting stdin or stdout to /dev/null used to fail on Mac, see #89
+#[test]
+#[cfg(unix)]
+fn stdio_devnull() {
+    // websocat -b - mirror: < /dev/null > /dev/null
+    assert!(run_with_stdout_to_devnull(&["-b", "-", "mirror:"], None).success());
+    // echo qwerty | websocat -b - mirror: > /dev/null
+    assert!(run_with_stdout_to_devnull(&["-b", "-", "mirror:"], Some(b"qwerty\n")).success());
+}

@@ -764,6 +764,22 @@ mod logging {
 
 }
 
+/// kqueue on Mac cannot poll character devices like `/dev/null` (EINVAL),
+/// so async stdio fails if stdin or stdout is one of them. See #89.
+#[cfg(target_os = "macos")]
+fn async_stdio_unsupported() -> bool {
+    let is_char_device = |fd| unsafe {
+        let mut st: libc::stat = std::mem::zeroed();
+        libc::fstat(fd, &mut st) == 0 && (st.st_mode & libc::S_IFMT) == libc::S_IFCHR
+    };
+    is_char_device(libc::STDIN_FILENO) || is_char_device(libc::STDOUT_FILENO)
+}
+
+#[cfg(not(target_os = "macos"))]
+fn async_stdio_unsupported() -> bool {
+    false
+}
+
 fn run() -> Result<()> {
     if std::env::args().nth(1).unwrap_or_default() == "--long-help" {
         help::longhelp();
@@ -823,7 +839,11 @@ fn run() -> Result<()> {
     }
 
     if !cmd.noasyncstdio && atty::isnt(atty::Stream::Stdin) && atty::isnt(atty::Stream::Stdout) {
-        cmd.asyncstdio = true;
+        if async_stdio_unsupported() {
+            debug!("Not enabling async stdio: stdin or stdout is a character device");
+        } else {
+            cmd.asyncstdio = true;
+        }
     }
 
     //if !cmd.serve_static_files.is_empty() && cmd.restrict_uri.is_none() {
