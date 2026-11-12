@@ -280,3 +280,12 @@ fn stdio_devnull() {
     // echo qwerty | websocat -b - mirror: > /dev/null
     assert!(run_with_stdout_to_devnull(&["-b", "-", "mirror:"], Some(b"qwerty\n")).success());
 }
+
+#[test]
+#[cfg(unix)]
+fn ws_unix_server_aliases() {
+    let s1 = spec("l-ws-unix:zxc").unwrap();
+    assert_eq!(format!("{:?}", s1), r#"WsServer(UnixListen("zxc"))"#);
+    let s2 = spec("l-ws-abstract:zxc").unwrap();
+    assert_eq!(format!("{:?}", s2), r#"WsServer(AbstractListen("zxc"))"#);
+}

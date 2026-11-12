@@ -238,7 +238,7 @@ Some address types may be "aliases" to other address types or combinations of ov
 
 Final example just for fun: wacky mode
 
-    websocat ws-c:ws-l:ws-c:- tcp:127.0.0.1:5678
+    websocat ws-c:ws-u:ws-c:- tcp:127.0.0.1:5678
     
 Connect to a websocket using stdin/stdout as a transport,
 then accept a websocket connection over the previous websocket used as a transport,

@@ -72,7 +72,7 @@ Like `asyncstdio:`, but intended for inetd(8) usage. [A]
 
 Automatically enables `-q` (`--quiet`) mode.
 
-`inetd-ws:` - is of `ws-l:inetd:`
+`inetd-ws:` - is of `ws-u:inetd:`
 
 Example of inetd.conf line that makes it listen for websocket
 connections on port 1234 and redirect the data to local SSH server.

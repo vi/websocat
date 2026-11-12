@@ -72,7 +72,7 @@ Example: Dump all incoming websocket data to console
 
 Example: the same, but more verbose:
 
-    websocat ws-l:tcp-l:127.0.0.1:8808 reuse:-
+    websocat ws-u:tcp-l:127.0.0.1:8808 reuse:-
 "#
 );
 
@@ -99,7 +99,7 @@ WebSocket UNIX socket-based server. [A]
 specifier_alias!(
     name = WsAbstractUnixServerClass,
     prefixes = ["l-ws-abstract:"],
-    alias = "ws-l:abstract-l:",
+    alias = "ws-u:abstract-l:",
     help = r#"
 WebSocket abstract-namespaced UNIX socket server. [A]
 "#
