@@ -14,7 +14,7 @@ use tracing::{debug, debug_span, trace, warn};
 use crate::scenario_executor::{
     logoverlay::render_content,
     types::{Handle, StreamRead},
-    utils1::{ExtractHandleOrFail, RhResult},
+    utils1::{ExtractHandleOrFail, IsControlFrame, RhResult},
 };
 
 use super::{
@@ -359,6 +359,17 @@ impl PacketWrite for WriteStreamChunks {
     ) -> Poll<std::io::Result<()>> {
         let p = self.project();
         let sw: &mut StreamWrite = p.w;
+
+        // Payloads of control frames (WebSocket close reason, ping and pong data)
+        // are not part of the byte stream.
+        if flags.is_control() && !flags.contains(BufferFlag::Eof) {
+            return Poll::Ready(Ok(()));
+        }
+        let buf: &mut [u8] = if flags.contains(BufferFlag::Eof) {
+            &mut []
+        } else {
+            buf
+        };
 
         loop {
             assert!(buf.len() >= *p.debt);
