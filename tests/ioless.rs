@@ -53,6 +53,11 @@ t!(wslpr3, r#"-ubn  --lengthprefixed-skip-read-direction --lengthprefixed-tag-te
 t!(wslpr4, r#"-ubn  --lengthprefixed-skip-read-direction --lengthprefixed-tag-text  ws-lowlevel-client:mock_stream_socket:'R \x81\x03ABC' lengthprefixed:mock_stream_socket:'W \x80\0\0\x03ABC' "#);
 t!(wslpr5, r#"-ubn  --lengthprefixed-skip-read-direction --lengthprefixed-tag-text  ws-lowlevel-client:mock_stream_socket:'R \x81\x03ABC| R \x82\x02QQ| R\x88\0' lengthprefixed:mock_stream_socket:'W \x80\0\0\x03ABC| W \0\0\0\x02QQ' "#);
 
+t!(wsclosereason1, r#"-ubn ws-lowlevel-client:mock_stream_socket:'R \x82\x03ABC\x88\x08\x04\xd2qwerty' mock_stream_socket:'W ABC'"#);
+t!(wsclosereason2, r#"-utn ws-lowlevel-client:mock_stream_socket:'R \x81\x03ABC\x88\x08\x04\xd2qwerty' mock_stream_socket:'W ABC\n'"#);
+t!(wsclosereason3, r#"-ubn --inhibit-pongs=0 ws-lowlevel-client:mock_stream_socket:'R \x89\x03PPP\x82\x03ABC\x8a\x03QQQ' mock_stream_socket:'W ABC'"#);
+t!(wsclosereason4, r#"-utn --inhibit-pongs=0 ws-lowlevel-client:mock_stream_socket:'R \x89\x03PPP\x81\x03ABC\x8a\x03QQQ' mock_stream_socket:'W ABC\n'"#);
+
 t!(wslprc1, r#"-ubn --lengthprefixed-include-control --lengthprefixed-skip-read-direction 
              ws-lowlevel-client:mock_stream_socket:'R \x88\x03ABC'
              lengthprefixed:mock_stream_socket:'W \x80\x00\x00\x04\x08ABC'

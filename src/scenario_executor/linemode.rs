@@ -8,7 +8,7 @@ use rhai::{Dynamic, Engine, NativeCallContext};
 use tokio::io::ReadBuf;
 use tracing::debug;
 
-use crate::scenario_executor::utils1::{ExtractHandleOrFail, HandleExt, SimpleErr};
+use crate::scenario_executor::utils1::{ExtractHandleOrFail, HandleExt, IsControlFrame, SimpleErr};
 
 use super::{
     types::{
@@ -162,6 +162,18 @@ impl PacketWrite for WriteLineChunks {
         flags: BufferFlags,
     ) -> Poll<std::io::Result<()>> {
         let this = self.get_mut();
+
+        // Payloads of control frames (WebSocket close reason, ping and pong data)
+        // are not part of the line stream.
+        if flags.is_control() && !flags.contains(BufferFlag::Eof) {
+            return Poll::Ready(Ok(()));
+        }
+        let buf: &mut [u8] = if flags.contains(BufferFlag::Eof) {
+            &mut []
+        } else {
+            buf
+        };
+
         #[allow(clippy::if_same_then_else)]
         let required_separator_len = if flags.contains(BufferFlag::NonFinalChunk) {
             0
