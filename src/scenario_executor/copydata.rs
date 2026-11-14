@@ -337,6 +337,34 @@ impl CopyPackets {
             counter: 0,
         }
     }
+
+    /// Shut down the sink of a copier that is no longer polled.
+    ///
+    /// The copier may have stopped in the middle of writing a packet. Sinks keep
+    /// state about such unfinished write (e.g. how many bytes are already written)
+    /// and expect the same buffer again on the next call, so the packet is written
+    /// to the end first, then EOF is sent.
+    async fn finish_and_send_eof(&mut self) -> std::io::Result<()> {
+        if let Phase::WriteToSink(range) = self.phase.clone() {
+            let flags = self.flags;
+            let snk = &mut self.w.snk;
+            let buf = &mut self.buffer[range];
+            std::future::poll_fn(|cx| {
+                crate::scenario_executor::types::PacketWrite::poll_write(
+                    snk.as_mut(),
+                    cx,
+                    buf,
+                    flags,
+                )
+            })
+            .await?;
+            self.phase = Phase::ReadFromStream;
+            if flags.contains(BufferFlag::Eof) {
+                return Ok(());
+            }
+        }
+        self.w.snk.as_mut().send_eof().await
+    }
 }
 
 impl std::future::Future for CopyPackets {
@@ -564,12 +592,12 @@ fn exchange_packets(
         if need_copier1_shutdown && copier1_present {
             debug!("Shutting down sink 1");
             let mut c = copier1.take().unwrap();
-            let _ = c.w.snk.as_mut().send_eof().await;
+            let _ = c.finish_and_send_eof().await;
         }
         if need_copier2_shutdown && copier2_present {
             debug!("Shutting down sink 2");
             let mut c = copier2.take().unwrap();
-            let _ = c.w.snk.as_mut().send_eof().await;
+            let _ = c.finish_and_send_eof().await;
         }
 
         if let Some(mut x) = late_writers_shutdown.0 {

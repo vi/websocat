@@ -58,6 +58,9 @@ t!(wsclosereason2, r#"-utn ws-lowlevel-client:mock_stream_socket:'R \x81\x03ABC\
 t!(wsclosereason3, r#"-ubn --inhibit-pongs=0 ws-lowlevel-client:mock_stream_socket:'R \x89\x03PPP\x82\x03ABC\x8a\x03QQQ' mock_stream_socket:'W ABC'"#);
 t!(wsclosereason4, r#"-utn --inhibit-pongs=0 ws-lowlevel-client:mock_stream_socket:'R \x89\x03PPP\x81\x03ABC\x8a\x03QQQ' mock_stream_socket:'W ABC\n'"#);
 
+t!(exitoneof_unfinished_write1, r#"-bn -E ws-lowlevel-client:mock_stream_socket:'R \x82\x03ABC|T500' write-splitoff:mock_stream_socket:'T50' --write-splitoff-omit-shutdown --write-splitoff=mock_stream_socket:'W AB|T200|W C'"#);
+t!(exitoneof_unfinished_write2, r#"-tn -E ws-lowlevel-client:mock_stream_socket:'R \x81\x03ABC|T500' write-splitoff:mock_stream_socket:'T50' --write-splitoff-omit-shutdown --write-splitoff=mock_stream_socket:'W AB|T200|W C\n'"#);
+
 t!(wslprc1, r#"-ubn --lengthprefixed-include-control --lengthprefixed-skip-read-direction 
              ws-lowlevel-client:mock_stream_socket:'R \x88\x03ABC'
              lengthprefixed:mock_stream_socket:'W \x80\x00\x00\x04\x08ABC'
