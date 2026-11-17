@@ -77,7 +77,13 @@ pub struct PacketReadResult {
 /// outside of the range returned in `buffer_subset` to remain the same,
 /// though buffer address in memory may be different.
 /// Bytes referenced by `buffer_subset` data may be mangled, e.g. by `poll_write`
-/// using mutable chunk buffer of the same buffer
+/// using mutable chunk buffer of the same buffer.
+/// This should be honoured both when driving a read of a packet to complection (`Poll::Pending`)
+/// and also between packets. Buffer shrinkage or data mangling
+/// may result in a panic or malformed data.
+/// 
+/// It is OK to abandon a packet source by `Drop::drop`-ing it
+/// while ` poll_read` was in progress (i.e. returned `Pending`).
 pub trait PacketRead {
     fn poll_read(
         self: Pin<&mut Self>,
@@ -95,10 +101,18 @@ pub trait PacketRead {
 /// Writing (possibly empty) buffer with Eof flag means something like `poll_shutdown()`.
 ///
 /// When `Poll::Pending` is returned, next call to `poll_write` should use the same arguments.
+/// Sinks may panic or mangle the data if buffer suddenly shrinks or content unexpectadle changes.
+/// Deliberate abrupt sink close should be done with `Drop::drop` without trying to push a EOF event.
 ///
 /// Memory address of the buffer may be different, but content should be the same.
 ///
 /// Buffer content may be modified by writer (for in-place transformation instead of allocations).
+/// 
+/// In future, [`PacketWrite::poll_write`]'s `buf` may become a scratch space buffer, with a new `buffer_subset`
+/// argument similar to [`PacketReadResult::buffer_subset`] aid that idea and allow
+/// overlays to prepend and append content to packets without allocations, fragmentation or using vectored writes.
+/// (This may require some care in `CopyPackets`, as both packet sources and sinks may want scratch space 
+/// and packet sources may expect their data to stay unmodified between packets - more design decisions may be needed)
 pub trait PacketWrite {
     fn poll_write(
         self: Pin<&mut Self>,
