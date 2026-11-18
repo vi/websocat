@@ -694,6 +694,11 @@ pub struct WebsocatArgs {
     /// Delay between initiating subsequent connections when connecting to a TCP using multiple address variants.
     #[arg(long, default_value = "20")]
     pub tcp_race_interval_ms: u32,
+
+    /// Omit attemts to finish transmission of the last packet and/or close frame when finishing
+    /// a data copying session, just exit early from the copier instead
+    #[arg(long)]
+    pub skip_sink_shutdown: bool,
 }
 
 /// Subset of command line arguments that describes the whole Websocat operation even when `--compose` sub-scenarios are used.

@@ -195,10 +195,12 @@ fn exchange_bytes(
                 drop(x)
             }
             if let Some(mut x) = dir1.unneeded_w {
+                debug!(parent: &span, "Shutting down writer 2 as unneeded");
                 let _ = x.writer.shutdown().await;
                 drop(x)
             }
             if let Some(mut x) = dir2.unneeded_w {
+                debug!(parent: &span, "Shutting down writer 1 as unneeded");
                 let _ = x.writer.shutdown().await;
                 drop(x)
             }
@@ -288,16 +290,16 @@ fn exchange_bytes(
         }
 
         if let Some(mut x) = late_writers_shutdown.0 {
-            debug!(parent: &span, "shutting down writer1");
-            let _ = x.writer.shutdown().await;
-            drop(x);
-            debug!(parent: &span, "shutdown complete 1");
-        }
-        if let Some(mut x) = late_writers_shutdown.1 {
-            debug!(parent: &span, "shutting down writer2");
+            debug!(parent: &span, "shutting down writer 2");
             let _ = x.writer.shutdown().await;
             drop(x);
             debug!(parent: &span, "shutdown complete 2");
+        }
+        if let Some(mut x) = late_writers_shutdown.1 {
+            debug!(parent: &span, "shutting down writer 1");
+            let _ = x.writer.shutdown().await;
+            drop(x);
+            debug!(parent: &span, "shutdown complete 1");
         }
     }
     .wrap_noerr())
@@ -478,6 +480,14 @@ fn exchange_packets(
 
         //@ allocate this amount of buffers for transfer from s2 to s1
         pub buffer_size_reverse: Option<usize>,
+
+        //@ don't attempt to do a clean shutdown (EOF) of the first writer
+        #[serde(default)]
+        pub no_clean_shutdown_1: bool,
+
+        //@ don't attempt to do a clean shutdown (EOF) of the second writer
+        #[serde(default)]
+        pub no_clean_shutdown_2: bool,
     }
     let s1 = ctx.lutbar(s1)?;
     let s2 = ctx.lutbar(s2)?;
@@ -515,11 +525,21 @@ fn exchange_packets(
                 drop(x)
             }
             if let Some(mut x) = dir1.unneeded_w {
-                let _ = x.snk.as_mut().send_eof().await;
+                if !opts.no_clean_shutdown_2 {
+                    debug!("Shutting down sink 2 as unneeded");
+                    let _ = x.snk.as_mut().send_eof().await;
+                } else {
+                    debug!("Skipping shutdown of sink 2");
+                }
                 drop(x)
             }
             if let Some(mut x) = dir2.unneeded_w {
-                let _ = x.snk.as_mut().send_eof().await;
+                if !opts.no_clean_shutdown_1 {
+                    debug!("Shutting down sink 1 as unneeded");
+                    let _ = x.snk.as_mut().send_eof().await;
+                } else {
+                    debug!("Skipping shutdown of sink 1");
+                }
                 drop(x)
             }
             (None, None)
@@ -590,23 +610,41 @@ fn exchange_packets(
         }
 
         if need_copier1_shutdown && copier1_present {
-            debug!("Shutting down sink 1");
-            let mut c = copier1.take().unwrap();
-            let _ = c.finish_and_send_eof().await;
+            if !opts.no_clean_shutdown_2 {
+                debug!("Finishing and shutting down sink 2");
+                let mut c = copier1.take().unwrap();
+                let _ = c.finish_and_send_eof().await;
+            } else {
+                debug!("Skipping shutdown of sink 2");
+            }
         }
         if need_copier2_shutdown && copier2_present {
-            debug!("Shutting down sink 2");
-            let mut c = copier2.take().unwrap();
-            let _ = c.finish_and_send_eof().await;
+            if !opts.no_clean_shutdown_1 {
+                debug!("Finishing and shutting down sink 1");
+                let mut c = copier2.take().unwrap();
+                let _ = c.finish_and_send_eof().await;
+            } else {
+                debug!("Skipping shutdown of sink 1");
+            }
         }
 
         if let Some(mut x) = late_writers_shutdown.0 {
-            let _ = x.snk.as_mut().send_eof().await;
+            if !opts.no_clean_shutdown_2 {
+                debug!("Late shutdown of sink 2");
+                let _ = x.snk.as_mut().send_eof().await;
+            } else {
+                debug!("Skipping shutdown of sink 2");
+            }
             drop(x)
         }
         if let Some(mut x) = late_writers_shutdown.1 {
-            let _ = x.snk.as_mut().send_eof().await;
-            drop(x)
+            if !opts.no_clean_shutdown_1 {
+                debug!("Late shutdown of sink 1");
+                let _ = x.snk.as_mut().send_eof().await;
+                drop(x)
+            } else {
+                debug!("Skipping shutdown of sink 1");
+            }
         }
     }
     .wrap_noerr())

@@ -335,6 +335,14 @@ impl WebsocatInvocation {
             opts.push_str(&format!("buffer_size_forward: {bs},"));
             opts.push_str(&format!("buffer_size_reverse: {bs},"));
         }
+        if self.opts.skip_sink_shutdown {
+            if self.session_socket_type() == SocketType::Datarams {
+                opts.push_str("no_clean_shutdown_1: true,");
+                opts.push_str("no_clean_shutdown_2: true,");
+            } else {
+                anyhow::bail!("--skip-sink-shutdown currently only works for datagram exchange, not for byte streams");
+            }
+        }
 
         match self.session_socket_type() {
             SocketType::ByteStream => {
