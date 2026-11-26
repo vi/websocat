@@ -168,7 +168,8 @@ struct Line2PacketWrapper {
 impl Line2PacketWrapper {
     #[allow(clippy::collapsible_if)]
     fn deliver_the_line(&mut self, buf: &mut [u8], mut n: usize) -> Option<usize> {
-        if n > buf.len() {
+        let too_long = n > buf.len();
+        if too_long {
             if self.drop_too_long_lines {
                 error!("Dropping too long line of {} bytes because of buffer (-B option) is only {} bytes", n, buf.len());
                 drop(self.queue.drain(0..n));
@@ -177,7 +178,14 @@ impl Line2PacketWrapper {
                 warn!("Splitting too long line of {} bytes because of buffer (-B option) is only {} bytes", n, buf.len());
                 n = buf.len();
             }
-        } else {
+        }
+
+        // Take the whole line (including its terminator) out of the queue,
+        // then trim the terminator from the copy in `buf`.
+        buf[0..n].copy_from_slice(&self.queue[0..n]);
+        drop(self.queue.drain(0..n));
+
+        if !too_long {
             if !self.retain_newlines && !self.null_terminated {
                 if n > 0 && (buf[n - 1] == b'\n') {
                     n -= 1
@@ -192,9 +200,6 @@ impl Line2PacketWrapper {
                 }
             }
         }
-
-        buf[0..n].copy_from_slice(&self.queue[0..n]);
-        drop(self.queue.drain(0..n));
         Some(n)
     }
 }
@@ -282,3 +287,74 @@ impl Read for Line2PacketWrapper {
     }
 }
 impl AsyncRead for Line2PacketWrapper {}
+
+#[cfg(test)]
+mod tests {
+    use super::Line2PacketWrapper;
+    use std::collections::VecDeque;
+    use std::io::Read;
+
+    /// Returns one prepared chunk per `read` call, then EOF.
+    struct Chunks(VecDeque<&'static [u8]>);
+    impl Read for Chunks {
+        fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
+            match self.0.pop_front() {
+                Some(c) => {
+                    buf[..c.len()].copy_from_slice(c);
+                    Ok(c.len())
+                }
+                None => Ok(0),
+            }
+        }
+    }
+    impl tokio_io::AsyncRead for Chunks {}
+
+    fn messages(
+        chunks: &[&'static [u8]],
+        retain_newlines: bool,
+        null_terminated: bool,
+    ) -> Vec<Vec<u8>> {
+        let mut w = Line2PacketWrapper {
+            inner: Box::new(Chunks(chunks.iter().cloned().collect())),
+            queue: vec![],
+            retain_newlines,
+            allow_incomplete_lines: true,
+            drop_too_long_lines: false,
+            eof: false,
+            null_terminated,
+        };
+        let mut buf = [0u8; 64];
+        let mut ret = vec![];
+        loop {
+            let n = w.read(&mut buf).unwrap();
+            if n == 0 {
+                break;
+            }
+            ret.push(buf[..n].to_vec());
+        }
+        ret
+    }
+
+    #[test]
+    fn line2msg_strip_newlines() {
+        let expected = vec![b"ab".to_vec(), b"cd".to_vec()];
+        assert_eq!(messages(&[b"ab\ncd\n"], false, false), expected);
+        assert_eq!(messages(&[b"ab\r\ncd\r\n"], false, false), expected);
+        assert_eq!(messages(&[b"ab", b"\ncd\n"], false, false), expected);
+        assert_eq!(messages(&[b"ab\r", b"\ncd\n"], false, false), expected);
+    }
+
+    #[test]
+    fn line2msg_null_terminated() {
+        let expected = vec![b"ab".to_vec(), b"cd".to_vec()];
+        assert_eq!(messages(&[b"ab\0cd\0"], true, true), expected);
+        assert_eq!(messages(&[b"ab", b"\0cd\0"], true, true), expected);
+    }
+
+    #[test]
+    fn line2msg_retain_newlines() {
+        let expected = vec![b"ab\n".to_vec(), b"cd\n".to_vec()];
+        assert_eq!(messages(&[b"ab\ncd\n"], true, false), expected);
+        assert_eq!(messages(&[b"ab", b"\ncd\n"], true, false), expected);
+    }
+}
