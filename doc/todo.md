@@ -8,7 +8,7 @@ Then it will mostly depend on my own needs, inspiration and ongoing Github and o
 
 * TLS server
 * TLS client auth
-* outgoing pings
+* ping timeout
 * preamble/preamble-reverse
 * More datagram tools (autoreconnect, foreachmsg, literalreply)
 * base64 mode, text and binary prefixes
@@ -31,14 +31,12 @@ Then it will mostly depend on my own needs, inspiration and ongoing Github and o
 * async stdio
 * JSON RPC tool
 * exit of specific byte mode
-* print ping RTTs
 * timestamp overlay
 * expose more TLS options to high-level UI
 * just-generate-accept and just-generate-key
 * max messages
 * speed limit
 * conncap (parallel connections limiter)
-* outgoing ping limiter
 * static files / strict URI mode
 * inetd mode
 * clogged

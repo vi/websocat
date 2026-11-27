@@ -58,6 +58,11 @@ t!(wsclosereason2, r#"-utn ws-lowlevel-client:mock_stream_socket:'R \x81\x03ABC\
 t!(wsclosereason3, r#"-ubn --inhibit-pongs=0 ws-lowlevel-client:mock_stream_socket:'R \x89\x03PPP\x82\x03ABC\x8a\x03QQQ' mock_stream_socket:'W ABC'"#);
 t!(wsclosereason4, r#"-utn --inhibit-pongs=0 ws-lowlevel-client:mock_stream_socket:'R \x89\x03PPP\x81\x03ABC\x8a\x03QQQ' mock_stream_socket:'W ABC\n'"#);
 
+t_p!(wsping1, r#"-b --no-close --ping-interval 1 mock_stream_socket:'T1500' ws-lowlevel-server:mock_stream_socket:'W \x89\x0c\0\0\0\0\0\0\0\x01\0\0\0\0'"#);
+t_p!(wsping_max, r#"-b --no-close --ping-interval 1 --max-sent-pings 2 mock_stream_socket:'T3500' ws-lowlevel-server:mock_stream_socket:'W \x89\x0c\0\0\0\0\0\0\0\x01\0\0\0\0|W \x89\x0c\0\0\0\0\0\0\0\x02\0\0\0\0'"#);
+t_p!(wsping_between_data, r#"-b --no-close --ping-interval 1 --max-sent-pings 1 chunks:mock_stream_socket:'R ABC|T1500|R DEF' ws-lowlevel-server:mock_stream_socket:'W \x82\x03ABC|W \x89\x0c\0\0\0\0\0\0\0\x01\0\0\0\0|W \x82\x03DEF'"#);
+t_p!(wsping_rtt, r#"-b --no-close --ping-interval 1 --max-sent-pings 1 --print-ping-rtts mock_stream_socket:'T1500' ws-lowlevel-server:mock_stream_socket:'W \x89\x0c\0\0\0\0\0\0\0\x01\0\0\0\0|T250|R \x8a\x8c\0\0\0\0\0\0\0\0\0\0\0\x01\0\0\0\0'"#);
+
 t!(exitoneof_unfinished_write1, r#"-bn -E ws-lowlevel-client:mock_stream_socket:'R \x82\x03ABC|T500' write-splitoff:mock_stream_socket:'T50' --write-splitoff-omit-shutdown --write-splitoff=mock_stream_socket:'W AB|T200|W C'"#);
 t!(exitoneof_unfinished_write2, r#"-tn -E ws-lowlevel-client:mock_stream_socket:'R \x81\x03ABC|T500' write-splitoff:mock_stream_socket:'T50' --write-splitoff-omit-shutdown --write-splitoff=mock_stream_socket:'W AB|T200|W C\n'"#);
 
