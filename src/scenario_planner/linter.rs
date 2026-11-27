@@ -18,6 +18,10 @@ pub enum Lint {
         to_string = "You have specified separator-related option (--separator or --separator-n or --null-terminated), but Websocat is operating in bytestream-oriented mode where separators are not used. Consider `-t` option or `lines:` overlay."
     )]
     UnusedSeparatorOption,
+    #[strum(
+        to_string = "--print-ping-rtts and --max-sent-pings have no effect without --ping-interval"
+    )]
+    PingOptionsWithoutInterval,
 }
 
 impl WebsocatInvocation {
@@ -40,6 +44,12 @@ impl WebsocatInvocation {
         if !self.stacks.left.is_multiconn(&self.opts) && self.stacks.right.is_multiconn(&self.opts)
         {
             ret.push(Lint::ListenerAtTheWrongSide);
+        }
+
+        if self.opts.ping_interval.is_none()
+            && (self.opts.print_ping_rtts || self.opts.max_sent_pings.is_some())
+        {
+            ret.push(Lint::PingOptionsWithoutInterval);
         }
 
         ret

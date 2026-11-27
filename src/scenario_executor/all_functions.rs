@@ -33,6 +33,7 @@ pub fn register_functions(engine: &mut Engine) {
     super::http1::register(engine);
     super::wsframer::register(engine);
     super::wswithpings::register(engine);
+    super::pinger::register(engine);
     #[cfg(feature = "ssl")]
     super::nativetls::register(engine);
     #[cfg(feature = "rustls")]

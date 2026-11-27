@@ -113,7 +113,21 @@ impl Overlay {
                     "let {ws} = ws_wrap(#{{{oo}client: {client_mode}}}, {inner_var});"
                 ));
 
-                Ok(ws)
+                let Some(interval) = env.opts.ping_interval else {
+                    return Ok(ws);
+                };
+                let pinged = env.vars.getnewvarname("ws");
+                let mut po = format!("interval_ms: {},", interval.saturating_mul(1000));
+                if let Some(n) = env.opts.max_sent_pings {
+                    po.push_str(&format!("max_pings: {n},"));
+                }
+                if env.opts.print_ping_rtts {
+                    po.push_str("print_rtts: true,");
+                }
+                env.printer
+                    .print_line(&format!("let {pinged} = ping_sender(#{{{po}}}, {ws});"));
+
+                Ok(pinged)
             }
 
             Overlay::WsAccept {} => {

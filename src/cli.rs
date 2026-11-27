@@ -413,6 +413,18 @@ pub struct WebsocatArgs {
     #[arg(long)]
     pub inhibit_pongs: Option<usize>,
 
+    /// Send WebSocket pings each this number of seconds
+    #[arg(long)]
+    pub ping_interval: Option<u64>,
+
+    /// Print measured round-trip-time to stderr after each received WebSocket pong. Requires --ping-interval.
+    #[arg(long)]
+    pub print_ping_rtts: bool,
+
+    /// Stop sending pings after this number of sent pings. Requires --ping-interval.
+    #[arg(long)]
+    pub max_sent_pings: Option<usize>,
+
     /// Abort whatever Websocat is doing after specified number of milliseconds, regardless of whether something is connected or not.
     #[arg(long)]
     pub global_timeout_ms: Option<u64>,
