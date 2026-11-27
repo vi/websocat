@@ -16,6 +16,7 @@ pub mod scenario_executor {
     #[cfg(feature = "ssl")]
     pub mod nativetls;
     pub mod osstr;
+    pub mod pinger;
     pub mod registryconnectors;
     pub mod reuser;
     #[cfg(feature = "rustls")]
